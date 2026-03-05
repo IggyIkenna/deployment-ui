@@ -1,0 +1,48 @@
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { RequireAuth } from './auth/RequireAuth'
+import { DeploymentsList } from './pages/DeploymentsList'
+import { DeployTrigger } from './pages/DeployTrigger'
+import { DeploymentHistory } from './pages/DeploymentHistory'
+
+function Nav() {
+  const location = useLocation()
+  const link = (path: string, label: string) => (
+    <Link to={path} style={{
+      textDecoration: 'none',
+      color: location.pathname === path ? '#E5E7EB' : '#9CA3AF',
+      fontWeight: location.pathname === path ? 600 : 400,
+      fontSize: '14px',
+    }}>
+      {label}
+    </Link>
+  )
+  return (
+    <div style={{ padding: '12px 16px', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '24px' }}>
+      <Link to="/" style={{ textDecoration: 'none', color: '#E5E7EB', fontWeight: 700, fontFamily: 'monospace' }}>
+        Deployments
+      </Link>
+      {link('/', 'Services')}
+      {link('/deploy', 'Trigger Deploy')}
+      {link('/history', 'History')}
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <RequireAuth>
+      <Router>
+        <div style={{ minHeight: '100vh', background: '#111', color: '#E5E7EB' }}>
+          <Nav />
+          <Routes>
+            <Route path="/" element={<DeploymentsList />} />
+            <Route path="/deploy" element={<DeployTrigger />} />
+            <Route path="/history" element={<DeploymentHistory />} />
+          </Routes>
+        </div>
+      </Router>
+    </RequireAuth>
+  )
+}
+
+export default App
