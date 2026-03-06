@@ -12,7 +12,7 @@ repos:
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-- repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
@@ -32,4 +32,4 @@ repos:
     rev: v8.56.0
     hooks:
       - id: eslint
-        types: [javascript, jsx, typescript, tsx]
+        types_or: [javascript, jsx, ts, tsx]
