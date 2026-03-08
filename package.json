@@ -2,10 +2,11 @@
   "name": "deployment-ui",
   "version": "0.1.0",
   "description": "Deployment management UI — orchestrator status, shard progress, Cloud Build logs, service health",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "eslint src --ext ts,tsx",
+    "lint": "eslint src",
     "test": "vitest",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

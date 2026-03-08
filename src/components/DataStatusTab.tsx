@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Database,
   RefreshCw,
@@ -19,368 +19,498 @@ import {
   Building2,
   Trash2,
   FileText,
-} from 'lucide-react'
-import * as api from '../api/client'
-import type { VenueCheckResponse, DataTypeCheckResponse, TurboDataStatusResponse } from '../api/client'
-import type { CategoryVenuesResponse } from '../types'
-import { UPSTREAM_CHECK_SERVICES } from '../api/client'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { Input } from './ui/input'
-import { Checkbox } from './ui/checkbox'
-import { Dialog, DialogHeader, DialogTitle, DialogContent } from './ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Label } from './ui/label'
-import { cn } from '../lib/utils'
-import { HeatmapCalendar } from './HeatmapCalendar'
-import { ExecutionDataStatus } from './ExecutionDataStatus'
-import type { DataStatusResponse, CategoryStatus, CreateDeploymentResponse } from '../types'
+} from "lucide-react";
+import * as api from "../api/client";
+import type {
+  VenueCheckResponse,
+  DataTypeCheckResponse,
+  TurboDataStatusResponse,
+} from "../api/client";
+import type { CategoryVenuesResponse } from "../types";
+import { UPSTREAM_CHECK_SERVICES } from "../api/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Input } from "./ui/input";
+import { Checkbox } from "./ui/checkbox";
+import { Dialog, DialogHeader, DialogTitle, DialogContent } from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Label } from "./ui/label";
+import { cn } from "../lib/utils";
+import { HeatmapCalendar } from "./HeatmapCalendar";
+import { ExecutionDataStatus } from "./ExecutionDataStatus";
+import type {
+  DataStatusResponse,
+  CategoryStatus,
+  CreateDeploymentResponse,
+} from "../types";
 
 interface DataStatusTabProps {
-  serviceName: string
-  deploymentResult?: CreateDeploymentResponse | null
-  isDeploying?: boolean
+  serviceName: string;
+  deploymentResult?: CreateDeploymentResponse | null;
+  isDeploying?: boolean;
   onDeployMissing?: (params: {
-    service: string
-    start_date: string
-    end_date: string
-    region?: string  // GCP region (default: backend GCS_REGION)
-    categories?: string[]
-    venues?: string[]  // Filter deployment to specific venues
-    folders?: string[]  // Filter by folder/instrument type (spot, perpetuals, etc.)
-    data_types?: string[]  // Filter by data type (trades, book_snapshot_5, etc.)
-    force?: boolean
-    dry_run?: boolean
-    skip_existing?: boolean
-    exclude_dates?: Record<string, string[] | Record<string, string[]>>  // Dates with existing data: category-level or venue-level
-    date_granularity?: 'daily' | 'weekly' | 'monthly' | 'none'  // Date batching granularity
-    deploy_missing_only?: boolean  // Use backend to calculate missing shards (more accurate)
-    first_day_of_month_only?: boolean  // Only deploy first day of each month (TARDIS free tier)
-    previewRefreshOnly?: boolean  // When true: refresh preview in-place without closing modal or switching tabs
-    mode?: 'batch' | 'live'  // batch vs live GCS paths
-  }) => void
+    service: string;
+    start_date: string;
+    end_date: string;
+    region?: string; // GCP region (default: backend GCS_REGION)
+    categories?: string[];
+    venues?: string[]; // Filter deployment to specific venues
+    folders?: string[]; // Filter by folder/instrument type (spot, perpetuals, etc.)
+    data_types?: string[]; // Filter by data type (trades, book_snapshot_5, etc.)
+    force?: boolean;
+    dry_run?: boolean;
+    skip_existing?: boolean;
+    exclude_dates?: Record<string, string[] | Record<string, string[]>>; // Dates with existing data: category-level or venue-level
+    date_granularity?: "daily" | "weekly" | "monthly" | "none"; // Date batching granularity
+    deploy_missing_only?: boolean; // Use backend to calculate missing shards (more accurate)
+    first_day_of_month_only?: boolean; // Only deploy first day of each month (TARDIS free tier)
+    previewRefreshOnly?: boolean; // When true: refresh preview in-place without closing modal or switching tabs
+    mode?: "batch" | "live"; // batch vs live GCS paths
+  }) => void;
 }
 
 /** Today at 08:00 local, formatted for datetime-local input. */
 function getTodayAt8am(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}T08:00:00`
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}T08:00:00`;
 }
 
 // Internal component for non-execution-services
-function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
+function DataStatusTabInternal({
+  serviceName,
+  deploymentResult,
+  isDeploying,
+  onDeployMissing,
+}: DataStatusTabProps) {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return d.toISOString().split('T')[0]
-  })
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
   const [endDate, setEndDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().split('T')[0]
-  })
-  const [dataStatusMode, setDataStatusMode] = useState<'batch' | 'live'>('batch')
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  });
+  const [dataStatusMode, setDataStatusMode] = useState<"batch" | "live">(
+    "batch",
+  );
 
   // NOTE: Removed debounced dates - no longer auto-fetching on date change
   // Users must click "Check Status" button to fetch data
 
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedVenues, setSelectedVenues] = useState<string[]>([])
-  const [selectedFolders, setSelectedFolders] = useState<string[]>([])
-  const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([])
-  const [availableVenues, setAvailableVenues] = useState<string[]>([])
-  const [venuesLoading, setVenuesLoading] = useState(false)
-  const [availableCategories, setAvailableCategories] = useState<string[]>(['CEFI', 'DEFI', 'TRADFI']) // Default to all
-  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([]);
+  const [availableVenues, setAvailableVenues] = useState<string[]>([]);
+  const [venuesLoading, setVenuesLoading] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([
+    "CEFI",
+    "DEFI",
+    "TRADFI",
+  ]); // Default to all
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   // Venue-specific available filters (from venue_data_types.yaml)
-  const [venueAvailableFolders, setVenueAvailableFolders] = useState<string[]>([])
-  const [venueAvailableDataTypes, setVenueAvailableDataTypes] = useState<string[]>([])
-  const [venueFiltersLoading, setVenueFiltersLoading] = useState(false)
+  const [venueAvailableFolders, setVenueAvailableFolders] = useState<string[]>(
+    [],
+  );
+  const [venueAvailableDataTypes, setVenueAvailableDataTypes] = useState<
+    string[]
+  >([]);
+  const [venueFiltersLoading, setVenueFiltersLoading] = useState(false);
 
   // File listing state
-  const [fileListingData, setFileListingData] = useState<api.ListFilesResponse | null>(null)
-  const [fileListingLoading, setFileListingLoading] = useState(false)
-  const [fileListingError, setFileListingError] = useState<string | null>(null)
-  const [showFileListing, setShowFileListing] = useState(false)
+  const [fileListingData, setFileListingData] =
+    useState<api.ListFilesResponse | null>(null);
+  const [fileListingLoading, setFileListingLoading] = useState(false);
+  const [fileListingError, setFileListingError] = useState<string | null>(null);
+  const [showFileListing, setShowFileListing] = useState(false);
 
   // Timeframe selection for market-data-processing-service file listing
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1m')
-  const availableTimeframes = ['15s', '1m', '5m', '15m', '1h', '4h', '24h']
-  const [data, setData] = useState<DataStatusResponse | null>(null)
-  const [turboData, setTurboData] = useState<TurboDataStatusResponse | null>(null)
-  const [venueCheckData, setVenueCheckData] = useState<VenueCheckResponse | null>(null)
-  const [dataTypeCheckData, setDataTypeCheckData] = useState<DataTypeCheckResponse | null>(null)
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("1m");
+  const availableTimeframes = ["15s", "1m", "5m", "15m", "1h", "4h", "24h"];
+  const [data, setData] = useState<DataStatusResponse | null>(null);
+  const [turboData, setTurboData] = useState<TurboDataStatusResponse | null>(
+    null,
+  );
+  const [venueCheckData, setVenueCheckData] =
+    useState<VenueCheckResponse | null>(null);
+  const [dataTypeCheckData, setDataTypeCheckData] =
+    useState<DataTypeCheckResponse | null>(null);
 
   // Check venues disabled - turbo mode handles venue breakdown automatically
-  const checkVenues = false // Removed toggle, turbo mode always gives venue breakdown
+  const checkVenues = false; // Removed toggle, turbo mode always gives venue breakdown
   // Check data types disabled - turbo mode shows data_types by default in breakdown
-  const checkDataTypes = false
+  const checkDataTypes = false;
 
   // Use turbo mode for all supported services (much faster)
   // Turbo mode now supports venue/data_type breakdown via directory structure
-  const useTurboMode = api.TURBO_MODE_SERVICES.includes(serviceName) && !checkVenues && !checkDataTypes
-  const turboSubDimension = api.TURBO_SUB_DIMENSION_SERVICES[serviceName]
-  const [loading, setLoading] = useState(false)
-  const [clearingCache, setClearingCache] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
-  const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null)
+  const useTurboMode =
+    api.TURBO_MODE_SERVICES.includes(serviceName) &&
+    !checkVenues &&
+    !checkDataTypes;
+  const turboSubDimension = api.TURBO_SUB_DIMENSION_SERVICES[serviceName];
+  const [loading, setLoading] = useState(false);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<
+    string | null
+  >(null);
 
   // Deploy Missing modal state
-  const [deployMissingModalOpen, setDeployMissingModalOpen] = useState(false)
-  const [deployMissingForce, setDeployMissingForce] = useState(true)
-  const [deployMissingDryRun, setDeployMissingDryRun] = useState(true) // Default to preview mode
-  const [deployMissingDateGranularity, setDeployMissingDateGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'none'>('daily')
-  const [deployMissingRegion, setDeployMissingRegion] = useState<string>('asia-northeast1')
+  const [deployMissingModalOpen, setDeployMissingModalOpen] = useState(false);
+  const [deployMissingForce, setDeployMissingForce] = useState(true);
+  const [deployMissingDryRun, setDeployMissingDryRun] = useState(true); // Default to preview mode
+  const [deployMissingDateGranularity, setDeployMissingDateGranularity] =
+    useState<"daily" | "weekly" | "monthly" | "none">("daily");
+  const [deployMissingRegion, setDeployMissingRegion] =
+    useState<string>("asia-northeast1");
 
   // Region validation (backend GCS_REGION for cross-region egress warning)
-  const [backendRegion, setBackendRegion] = useState<string>('asia-northeast1')
-  const [showDeployMissingRegionWarning, setShowDeployMissingRegionWarning] = useState<boolean>(false)
+  const [backendRegion, setBackendRegion] = useState<string>("asia-northeast1");
+  const [showDeployMissingRegionWarning, setShowDeployMissingRegionWarning] =
+    useState<boolean>(false);
 
   useEffect(() => {
-    fetch('/api/config/region')
-      .then(r => r.json())
-      .then(data => {
-        const region = data.storage_region ?? data.gcs_region ?? 'asia-northeast1'
-        setBackendRegion(region)
-        setDeployMissingRegion(region)
+    fetch("/api/config/region")
+      .then((r) => r.json())
+      .then((data) => {
+        const region =
+          data.storage_region ?? data.gcs_region ?? "asia-northeast1";
+        setBackendRegion(region);
+        setDeployMissingRegion(region);
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    setShowDeployMissingRegionWarning(deployMissingRegion !== backendRegion)
-  }, [deployMissingRegion, backendRegion])
+    setShowDeployMissingRegionWarning(deployMissingRegion !== backendRegion);
+  }, [deployMissingRegion, backendRegion]);
 
   // First day of month filter - useful for TARDIS free tier (no API key needed)
-  const [firstDayOfMonthOnly, setFirstDayOfMonthOnly] = useState(false)
+  const [firstDayOfMonthOnly, setFirstDayOfMonthOnly] = useState(false);
 
   // Freshness mode - only count data as "found" if updated on/after this date
-  const [requireFreshness, setRequireFreshness] = useState(false)
-  const [freshnessDate, setFreshnessDate] = useState('')
+  const [requireFreshness, setRequireFreshness] = useState(false);
+  const [freshnessDate, setFreshnessDate] = useState("");
 
   // Instrument search state
-  const [instrumentSearchMode, setInstrumentSearchMode] = useState(false)
-  const [instrumentSearchQuery, setInstrumentSearchQuery] = useState('')
-  const [instrumentSearchResults, setInstrumentSearchResults] = useState<api.InstrumentSearchResult[]>([])
-  const [instrumentSearchLoading, setInstrumentSearchLoading] = useState(false)
-  const [selectedInstrument, setSelectedInstrument] = useState<api.InstrumentSearchResult | null>(null)
-  const [instrumentAvailability, setInstrumentAvailability] = useState<api.InstrumentAvailabilityResponse | null>(null)
-  const [instrumentAvailabilityLoading, setInstrumentAvailabilityLoading] = useState(false)
-  const [instrumentAvailabilityError, setInstrumentAvailabilityError] = useState<string | null>(null)
-  const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false)
+  const [instrumentSearchMode, setInstrumentSearchMode] = useState(false);
+  const [instrumentSearchQuery, setInstrumentSearchQuery] = useState("");
+  const [instrumentSearchResults, setInstrumentSearchResults] = useState<
+    api.InstrumentSearchResult[]
+  >([]);
+  const [instrumentSearchLoading, setInstrumentSearchLoading] = useState(false);
+  const [selectedInstrument, setSelectedInstrument] =
+    useState<api.InstrumentSearchResult | null>(null);
+  const [instrumentAvailability, setInstrumentAvailability] =
+    useState<api.InstrumentAvailabilityResponse | null>(null);
+  const [instrumentAvailabilityLoading, setInstrumentAvailabilityLoading] =
+    useState(false);
+  const [instrumentAvailabilityError, setInstrumentAvailabilityError] =
+    useState<string | null>(null);
+  const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
 
   // Venue toggle removed - turbo mode handles venue breakdown automatically
   // instruments-service uses sub_dimension: "venue" which gives venue breakdown in turbo mode
-  const supportsVenueCheck = false
+  const supportsVenueCheck = false;
   // Removed: data type toggle no longer needed - turbo mode shows data_types by default
-  const supportsDataTypeCheck = false
+  const supportsDataTypeCheck = false;
 
   // Track request ID to prevent race conditions (stale responses overwriting fresh data)
-  const requestIdRef = useRef(0)
+  const requestIdRef = useRef(0);
   // AbortController for cancelling in-flight requests
-  const abortControllerRef = useRef<AbortController | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cancel any pending query
   const cancelQuery = useCallback(() => {
     if (abortControllerRef.current) {
-      console.warn('[DATA STATUS] Cancelling pending query...')
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
+      console.warn("[DATA STATUS] Cancelling pending query...");
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
-    setLoading(false)
-    setError(null)
-  }, [])
+    setLoading(false);
+    setError(null);
+  }, []);
 
   // Fetch data - accepts dates as parameters to avoid stale closure issues
-  const fetchData = useCallback(async (fetchStart: string, fetchEnd: string) => {
-    // Cancel any existing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    // Create new abort controller for this request
-    const abortController = new AbortController()
-    abortControllerRef.current = abortController
-
-    // Increment request ID - only the latest request should update state
-    const thisRequestId = ++requestIdRef.current
-    console.warn(`[DATA STATUS] Request #${thisRequestId}: ${serviceName} ${fetchStart} to ${fetchEnd}, categories:`, selectedCategories)
-
-    setLoading(true)
-    setError(null)
-    // Clear old data immediately when starting new fetch
-    setData(null)
-    setTurboData(null)
-    setVenueCheckData(null)
-    setDataTypeCheckData(null)
-
-    try {
-      if (checkVenues && supportsVenueCheck) {
-        // Venue check mode - returns different response shape
-        const result = await api.getDataStatus({
-          service: serviceName,
-          start_date: fetchStart,
-          end_date: fetchEnd,
-          category: selectedCategories.length > 0 ? selectedCategories : undefined,
-          check_venues: true,
-          force_refresh: false, // Use cache for speed
-        }) as VenueCheckResponse
-
-        // Skip if a newer request has started
-        if (thisRequestId !== requestIdRef.current) {
-          console.warn(`[DATA STATUS] Request #${thisRequestId} superseded by #${requestIdRef.current}, ignoring response`)
-          return
-        }
-
-        // CRITICAL: Validate response matches request
-        if (result.start_date !== fetchStart || result.end_date !== fetchEnd) {
-          console.error(`[DATA STATUS] DATE MISMATCH! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`)
-          setError(`Backend returned wrong dates! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`)
-          return
-        }
-
-        setVenueCheckData(result)
-      } else if (checkDataTypes && supportsDataTypeCheck) {
-        // Data type check mode - returns per-data-type breakdown
-        const result = await api.getDataStatus({
-          service: serviceName,
-          start_date: fetchStart,
-          end_date: fetchEnd,
-          category: selectedCategories.length > 0 ? selectedCategories : ['TRADFI'], // Default to TRADFI for data type check
-          check_data_types: true,
-          force_refresh: false, // Use cache for speed
-        }) as DataTypeCheckResponse
-
-        // Skip if a newer request has started
-        if (thisRequestId !== requestIdRef.current) {
-          console.warn(`[DATA STATUS] Request #${thisRequestId} superseded, ignoring response`)
-          return
-        }
-        setDataTypeCheckData(result)
-      } else if (useTurboMode) {
-        // TURBO MODE: Uses month-prefix queries (5s instead of 60s+)
-        const includeSubDims = !!turboSubDimension
-        // Enable upstream availability check for dependent services
-        // This ensures "missing" only counts dates where upstream data exists
-        const checkUpstream = UPSTREAM_CHECK_SERVICES.includes(serviceName)
-        const venueFilter = selectedVenues.length > 0 ? selectedVenues : undefined
-        const folderFilter = selectedFolders.length > 0 ? selectedFolders : undefined
-        const dataTypeFilter = selectedDataTypes.length > 0 ? selectedDataTypes : undefined
-        console.warn(`[DATA STATUS] Using TURBO mode for ${serviceName}, dates: ${fetchStart} to ${fetchEnd}${venueFilter ? ` venues: ${venueFilter.join(',')}` : ''}${folderFilter ? ` folders: ${folderFilter.join(',')}` : ''}${dataTypeFilter ? ` data_types: ${dataTypeFilter.join(',')}` : ''}${checkUpstream ? ' (with upstream check)' : ''}${firstDayOfMonthOnly ? ' (first day of month only)' : ''}`)
-        const result = await api.getDataStatusTurbo({
-          service: serviceName,
-          start_date: fetchStart,
-          end_date: fetchEnd,
-          mode: dataStatusMode,
-          category: selectedCategories.length > 0 ? selectedCategories : undefined,
-          venue: venueFilter,  // Filter by venue to reduce GCS scan scope
-          folder: folderFilter,  // Filter by folder/instrument type
-          data_type: dataTypeFilter,  // Filter by data type
-          include_sub_dimensions: includeSubDims,
-          include_dates_list: true,  // Include dates for deploy missing filtering
-          full_dates_list: true,  // Get complete lists (cached anyway, no extra cost)
-          check_upstream_availability: checkUpstream,  // Check upstream data for dependent services
-          first_day_of_month_only: firstDayOfMonthOnly,  // Only check first day of each month (TARDIS free tier)
-          freshness_date: requireFreshness && freshnessDate
-            ? `${freshnessDate.replace(' ', 'T')}Z`.slice(0, 20)  // Force UTC interpretation (append Z, no local timezone conversion)
-            : undefined,
-          signal: abortController.signal,  // Allow cancellation
-        })
-
-        // Skip if a newer request has started
-        if (thisRequestId !== requestIdRef.current) {
-          console.warn(`[DATA STATUS] Request #${thisRequestId} superseded, ignoring turbo response`)
-          return
-        }
-
-        // Validate response matches requested dates (detect stale data/bugs)
-        if (result.date_range.start !== fetchStart || result.date_range.end !== fetchEnd) {
-          console.error(`[DATA STATUS] DATE MISMATCH in turbo mode! Requested ${fetchStart}-${fetchEnd}, got ${result.date_range.start}-${result.date_range.end}`)
-          setError(`Date mismatch: requested ${fetchStart} to ${fetchEnd}, but received ${result.date_range.start} to ${result.date_range.end}. This may indicate a bug - please report this.`)
-          return
-        }
-
-        setTurboData(result)
-      } else {
-        // Standard mode
-        const result = await api.getDataStatus({
-          service: serviceName,
-          start_date: fetchStart,
-          end_date: fetchEnd,
-          category: selectedCategories.length > 0 ? selectedCategories : undefined,
-          force_refresh: false, // Use cache (5-min TTL) for speed
-        }) as DataStatusResponse
-
-        // Skip if a newer request has started
-        if (thisRequestId !== requestIdRef.current) {
-          console.warn(`[DATA STATUS] Request #${thisRequestId} superseded, ignoring standard response`)
-          return
-        }
-
-        // Validate response matches requested dates (detect cache issues)
-        if (result.start_date !== fetchStart || result.end_date !== fetchEnd) {
-          console.warn(`Date mismatch! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`)
-        }
-
-        setData(result)
+  const fetchData = useCallback(
+    async (fetchStart: string, fetchEnd: string) => {
+      // Cancel any existing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-    } catch (err) {
-      // Only set error if this is still the latest request
-      if (thisRequestId === requestIdRef.current) {
-        // Don't show error for cancelled requests
-        if (err instanceof Error && (err.name === 'AbortError' || err.message === 'Request was cancelled')) {
-          console.warn('[DATA STATUS] Request cancelled by user')
-          return
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      // Increment request ID - only the latest request should update state
+      const thisRequestId = ++requestIdRef.current;
+      console.warn(
+        `[DATA STATUS] Request #${thisRequestId}: ${serviceName} ${fetchStart} to ${fetchEnd}, categories:`,
+        selectedCategories,
+      );
+
+      setLoading(true);
+      setError(null);
+      // Clear old data immediately when starting new fetch
+      setData(null);
+      setTurboData(null);
+      setVenueCheckData(null);
+      setDataTypeCheckData(null);
+
+      try {
+        if (checkVenues && supportsVenueCheck) {
+          // Venue check mode - returns different response shape
+          const result = (await api.getDataStatus({
+            service: serviceName,
+            start_date: fetchStart,
+            end_date: fetchEnd,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : undefined,
+            check_venues: true,
+            force_refresh: false, // Use cache for speed
+          })) as VenueCheckResponse;
+
+          // Skip if a newer request has started
+          if (thisRequestId !== requestIdRef.current) {
+            console.warn(
+              `[DATA STATUS] Request #${thisRequestId} superseded by #${requestIdRef.current}, ignoring response`,
+            );
+            return;
+          }
+
+          // CRITICAL: Validate response matches request
+          if (
+            result.start_date !== fetchStart ||
+            result.end_date !== fetchEnd
+          ) {
+            console.error(
+              `[DATA STATUS] DATE MISMATCH! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
+            );
+            setError(
+              `Backend returned wrong dates! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
+            );
+            return;
+          }
+
+          setVenueCheckData(result);
+        } else if (checkDataTypes && supportsDataTypeCheck) {
+          // Data type check mode - returns per-data-type breakdown
+          const result = (await api.getDataStatus({
+            service: serviceName,
+            start_date: fetchStart,
+            end_date: fetchEnd,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : ["TRADFI"], // Default to TRADFI for data type check
+            check_data_types: true,
+            force_refresh: false, // Use cache for speed
+          })) as DataTypeCheckResponse;
+
+          // Skip if a newer request has started
+          if (thisRequestId !== requestIdRef.current) {
+            console.warn(
+              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring response`,
+            );
+            return;
+          }
+          setDataTypeCheckData(result);
+        } else if (useTurboMode) {
+          // TURBO MODE: Uses month-prefix queries (5s instead of 60s+)
+          const includeSubDims = !!turboSubDimension;
+          // Enable upstream availability check for dependent services
+          // This ensures "missing" only counts dates where upstream data exists
+          const checkUpstream = UPSTREAM_CHECK_SERVICES.includes(serviceName);
+          const venueFilter =
+            selectedVenues.length > 0 ? selectedVenues : undefined;
+          const folderFilter =
+            selectedFolders.length > 0 ? selectedFolders : undefined;
+          const dataTypeFilter =
+            selectedDataTypes.length > 0 ? selectedDataTypes : undefined;
+          console.warn(
+            `[DATA STATUS] Using TURBO mode for ${serviceName}, dates: ${fetchStart} to ${fetchEnd}${venueFilter ? ` venues: ${venueFilter.join(",")}` : ""}${folderFilter ? ` folders: ${folderFilter.join(",")}` : ""}${dataTypeFilter ? ` data_types: ${dataTypeFilter.join(",")}` : ""}${checkUpstream ? " (with upstream check)" : ""}${firstDayOfMonthOnly ? " (first day of month only)" : ""}`,
+          );
+          const result = await api.getDataStatusTurbo({
+            service: serviceName,
+            start_date: fetchStart,
+            end_date: fetchEnd,
+            mode: dataStatusMode,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : undefined,
+            venue: venueFilter, // Filter by venue to reduce GCS scan scope
+            folder: folderFilter, // Filter by folder/instrument type
+            data_type: dataTypeFilter, // Filter by data type
+            include_sub_dimensions: includeSubDims,
+            include_dates_list: true, // Include dates for deploy missing filtering
+            full_dates_list: true, // Get complete lists (cached anyway, no extra cost)
+            check_upstream_availability: checkUpstream, // Check upstream data for dependent services
+            first_day_of_month_only: firstDayOfMonthOnly, // Only check first day of each month (TARDIS free tier)
+            freshness_date:
+              requireFreshness && freshnessDate
+                ? `${freshnessDate.replace(" ", "T")}Z`.slice(0, 20) // Force UTC interpretation (append Z, no local timezone conversion)
+                : undefined,
+            signal: abortController.signal, // Allow cancellation
+          });
+
+          // Skip if a newer request has started
+          if (thisRequestId !== requestIdRef.current) {
+            console.warn(
+              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring turbo response`,
+            );
+            return;
+          }
+
+          // Validate response matches requested dates (detect stale data/bugs)
+          if (
+            result.date_range.start !== fetchStart ||
+            result.date_range.end !== fetchEnd
+          ) {
+            console.error(
+              `[DATA STATUS] DATE MISMATCH in turbo mode! Requested ${fetchStart}-${fetchEnd}, got ${result.date_range.start}-${result.date_range.end}`,
+            );
+            setError(
+              `Date mismatch: requested ${fetchStart} to ${fetchEnd}, but received ${result.date_range.start} to ${result.date_range.end}. This may indicate a bug - please report this.`,
+            );
+            return;
+          }
+
+          setTurboData(result);
+        } else {
+          // Standard mode
+          const result = (await api.getDataStatus({
+            service: serviceName,
+            start_date: fetchStart,
+            end_date: fetchEnd,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : undefined,
+            force_refresh: false, // Use cache (5-min TTL) for speed
+          })) as DataStatusResponse;
+
+          // Skip if a newer request has started
+          if (thisRequestId !== requestIdRef.current) {
+            console.warn(
+              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring standard response`,
+            );
+            return;
+          }
+
+          // Validate response matches requested dates (detect cache issues)
+          if (
+            result.start_date !== fetchStart ||
+            result.end_date !== fetchEnd
+          ) {
+            console.warn(
+              `Date mismatch! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
+            );
+          }
+
+          setData(result);
         }
-        setError(err instanceof Error ? err.message : 'Failed to fetch data status')
+      } catch (err) {
+        // Only set error if this is still the latest request
+        if (thisRequestId === requestIdRef.current) {
+          // Don't show error for cancelled requests
+          if (
+            err instanceof Error &&
+            (err.name === "AbortError" ||
+              err.message === "Request was cancelled")
+          ) {
+            console.warn("[DATA STATUS] Request cancelled by user");
+            return;
+          }
+          setError(
+            err instanceof Error ? err.message : "Failed to fetch data status",
+          );
+        }
+      } finally {
+        // Only clear loading if this is still the latest request
+        if (thisRequestId === requestIdRef.current) {
+          setLoading(false);
+        }
+        // Clear abort controller reference when done
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
       }
-    } finally {
-      // Only clear loading if this is still the latest request
-      if (thisRequestId === requestIdRef.current) {
-        setLoading(false)
-      }
-      // Clear abort controller reference when done
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null
-      }
-    }
-  }, [serviceName, selectedCategories, selectedVenues, selectedFolders, selectedDataTypes, checkVenues, supportsVenueCheck, checkDataTypes, supportsDataTypeCheck, useTurboMode, turboSubDimension, firstDayOfMonthOnly, requireFreshness, freshnessDate, dataStatusMode])
+    },
+    [
+      serviceName,
+      selectedCategories,
+      selectedVenues,
+      selectedFolders,
+      selectedDataTypes,
+      checkVenues,
+      supportsVenueCheck,
+      checkDataTypes,
+      supportsDataTypeCheck,
+      useTurboMode,
+      turboSubDimension,
+      firstDayOfMonthOnly,
+      requireFreshness,
+      freshnessDate,
+      dataStatusMode,
+    ],
+  );
 
   // Clear data status cache only (doesn't affect deployment state cache)
   const handleClearDataStatusCache = useCallback(async () => {
-    setClearingCache(true)
+    setClearingCache(true);
     try {
-      const result = await api.clearDataStatusCache()
-      console.warn(`[DATA STATUS] Cache cleared: ${result.entries_cleared} entries`)
+      const result = await api.clearDataStatusCache();
+      console.warn(
+        `[DATA STATUS] Cache cleared: ${result.entries_cleared} entries`,
+      );
       // Re-fetch with fresh data
-      await fetchData(startDate, endDate)
+      await fetchData(startDate, endDate);
     } catch (err) {
-      console.error('[DATA STATUS] Failed to clear cache:', err)
-      setError(err instanceof Error ? err.message : 'Failed to clear cache')
+      console.error("[DATA STATUS] Failed to clear cache:", err);
+      setError(err instanceof Error ? err.message : "Failed to clear cache");
     } finally {
-      setClearingCache(false)
+      setClearingCache(false);
     }
-  }, [startDate, endDate, fetchData])
+  }, [startDate, endDate, fetchData]);
 
   // Fetch file listing for fully specified path
   const fetchFileListing = useCallback(async () => {
-    if (selectedCategories.length !== 1 || selectedVenues.length !== 1 ||
-        selectedFolders.length !== 1 || selectedDataTypes.length !== 1) {
-      setFileListingError('Please select exactly one category, venue, folder, and data type')
-      return
+    if (
+      selectedCategories.length !== 1 ||
+      selectedVenues.length !== 1 ||
+      selectedFolders.length !== 1 ||
+      selectedDataTypes.length !== 1
+    ) {
+      setFileListingError(
+        "Please select exactly one category, venue, folder, and data type",
+      );
+      return;
     }
 
-    setFileListingLoading(true)
-    setFileListingError(null)
-    setShowFileListing(true)
+    setFileListingLoading(true);
+    setFileListingError(null);
+    setShowFileListing(true);
 
     try {
       const result = await api.listFiles({
@@ -392,112 +522,145 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
         start_date: startDate,
         end_date: endDate,
         // Include timeframe for market-data-processing-service
-        timeframe: serviceName === 'market-data-processing-service' ? selectedTimeframe : undefined,
-      })
+        timeframe:
+          serviceName === "market-data-processing-service"
+            ? selectedTimeframe
+            : undefined,
+      });
 
       if (result.error) {
-        setFileListingError(result.error)
-        setFileListingData(null)
+        setFileListingError(result.error);
+        setFileListingData(null);
       } else {
-        setFileListingData(result)
+        setFileListingData(result);
       }
     } catch (err) {
-      console.error('[FILE LISTING] Failed to fetch:', err)
-      setFileListingError(err instanceof Error ? err.message : 'Failed to fetch file listing')
-      setFileListingData(null)
+      console.error("[FILE LISTING] Failed to fetch:", err);
+      setFileListingError(
+        err instanceof Error ? err.message : "Failed to fetch file listing",
+      );
+      setFileListingData(null);
     } finally {
-      setFileListingLoading(false)
+      setFileListingLoading(false);
     }
-  }, [serviceName, selectedCategories, selectedVenues, selectedFolders, selectedDataTypes, startDate, endDate, selectedTimeframe])
+  }, [
+    serviceName,
+    selectedCategories,
+    selectedVenues,
+    selectedFolders,
+    selectedDataTypes,
+    startDate,
+    endDate,
+    selectedTimeframe,
+  ]);
 
   // Instrument search - debounced search as user types
-  const searchInstrumentsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const fetchInstruments = useCallback(async (searchQuery: string) => {
-    if (selectedCategories.length !== 1) {
-      setInstrumentSearchResults([])
-      return
-    }
-
-    // Clear previous timer
-    if (searchInstrumentsDebounceRef.current) {
-      clearTimeout(searchInstrumentsDebounceRef.current)
-    }
-
-    // Debounce the search
-    searchInstrumentsDebounceRef.current = setTimeout(async () => {
-      setInstrumentSearchLoading(true)
-      try {
-        const result = await api.getInstrumentsList({
-          category: selectedCategories[0],
-          search: searchQuery || undefined,
-          limit: 50, // Show top 50 matches
-        })
-        if (result.error) {
-          console.error('[INSTRUMENT SEARCH] Error:', result.error)
-          setInstrumentSearchResults([])
-        } else {
-          setInstrumentSearchResults(result.instruments)
-          // Only show dropdown if no instrument is currently selected
-          // (prevents dropdown from reopening after selection)
-          if (!selectedInstrument) {
-            setShowInstrumentDropdown(result.instruments.length > 0)
-          }
-        }
-      } catch (err) {
-        console.error('[INSTRUMENT SEARCH] Failed:', err)
-        setInstrumentSearchResults([])
-      } finally {
-        setInstrumentSearchLoading(false)
+  const searchInstrumentsDebounceRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const fetchInstruments = useCallback(
+    async (searchQuery: string) => {
+      if (selectedCategories.length !== 1) {
+        setInstrumentSearchResults([]);
+        return;
       }
-    }, 300) // 300ms debounce
-  }, [selectedCategories, selectedInstrument])
+
+      // Clear previous timer
+      if (searchInstrumentsDebounceRef.current) {
+        clearTimeout(searchInstrumentsDebounceRef.current);
+      }
+
+      // Debounce the search
+      searchInstrumentsDebounceRef.current = setTimeout(async () => {
+        setInstrumentSearchLoading(true);
+        try {
+          const result = await api.getInstrumentsList({
+            category: selectedCategories[0],
+            search: searchQuery || undefined,
+            limit: 50, // Show top 50 matches
+          });
+          if (result.error) {
+            console.error("[INSTRUMENT SEARCH] Error:", result.error);
+            setInstrumentSearchResults([]);
+          } else {
+            setInstrumentSearchResults(result.instruments);
+            // Only show dropdown if no instrument is currently selected
+            // (prevents dropdown from reopening after selection)
+            if (!selectedInstrument) {
+              setShowInstrumentDropdown(result.instruments.length > 0);
+            }
+          }
+        } catch (err) {
+          console.error("[INSTRUMENT SEARCH] Failed:", err);
+          setInstrumentSearchResults([]);
+        } finally {
+          setInstrumentSearchLoading(false);
+        }
+      }, 300); // 300ms debounce
+    },
+    [selectedCategories, selectedInstrument],
+  );
 
   // Fetch instrument availability when an instrument is selected
   const fetchInstrumentAvailability = useCallback(async () => {
-    if (!selectedInstrument) return
+    if (!selectedInstrument) return;
 
-    setInstrumentAvailabilityLoading(true)
-    setInstrumentAvailabilityError(null)
+    setInstrumentAvailabilityLoading(true);
+    setInstrumentAvailabilityError(null);
 
     try {
       const result = await api.getInstrumentAvailability({
         instrument_key: selectedInstrument.instrument_key,
         start_date: startDate,
         end_date: endDate,
-        data_type: selectedDataTypes.length === 1 ? selectedDataTypes[0] : undefined,
+        data_type:
+          selectedDataTypes.length === 1 ? selectedDataTypes[0] : undefined,
         first_day_of_month_only: firstDayOfMonthOnly,
         service: serviceName,
-        timeframe: serviceName === 'market-data-processing-service' ? selectedTimeframe : undefined,
+        timeframe:
+          serviceName === "market-data-processing-service"
+            ? selectedTimeframe
+            : undefined,
         // Pass instrument availability window from definition
         available_from: selectedInstrument.available_from_datetime || undefined,
         available_to: selectedInstrument.available_to_datetime || undefined,
-      })
+      });
 
       if (result.error) {
-        setInstrumentAvailabilityError(result.error)
-        setInstrumentAvailability(null)
+        setInstrumentAvailabilityError(result.error);
+        setInstrumentAvailability(null);
       } else {
-        setInstrumentAvailability(result)
+        setInstrumentAvailability(result);
       }
     } catch (err) {
-      console.error('[INSTRUMENT AVAILABILITY] Failed:', err)
-      setInstrumentAvailabilityError(err instanceof Error ? err.message : 'Failed to check availability')
-      setInstrumentAvailability(null)
+      console.error("[INSTRUMENT AVAILABILITY] Failed:", err);
+      setInstrumentAvailabilityError(
+        err instanceof Error ? err.message : "Failed to check availability",
+      );
+      setInstrumentAvailability(null);
     } finally {
-      setInstrumentAvailabilityLoading(false)
+      setInstrumentAvailabilityLoading(false);
     }
-  }, [selectedInstrument, startDate, endDate, selectedDataTypes, firstDayOfMonthOnly, serviceName, selectedTimeframe])
+  }, [
+    selectedInstrument,
+    startDate,
+    endDate,
+    selectedDataTypes,
+    firstDayOfMonthOnly,
+    serviceName,
+    selectedTimeframe,
+  ]);
 
   // Clear instrument search state when mode changes or category changes
   useEffect(() => {
     if (!instrumentSearchMode) {
-      setInstrumentSearchQuery('')
-      setInstrumentSearchResults([])
-      setSelectedInstrument(null)
-      setInstrumentAvailability(null)
-      setInstrumentAvailabilityError(null)
+      setInstrumentSearchQuery("");
+      setInstrumentSearchResults([]);
+      setSelectedInstrument(null);
+      setInstrumentAvailability(null);
+      setInstrumentAvailabilityError(null);
     }
-  }, [instrumentSearchMode, selectedCategories])
+  }, [instrumentSearchMode, selectedCategories]);
 
   // NOTE: Removed auto-fetch on mount for faster startup
   // The turbo endpoint can take 30+ seconds depending on GCS load
@@ -506,178 +669,186 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
 
   // Fetch available categories for this service from sharding config
   useEffect(() => {
-    setCategoriesLoading(true)
-    api.getServiceCategories(serviceName)
+    setCategoriesLoading(true);
+    api
+      .getServiceCategories(serviceName)
       .then((response) => {
         if (response.categories && response.categories.length > 0) {
-          setAvailableCategories(response.categories)
+          setAvailableCategories(response.categories);
           // Clear selected categories that are no longer available
-          setSelectedCategories(prev => prev.filter(cat => response.categories.includes(cat)))
+          setSelectedCategories((prev) =>
+            prev.filter((cat) => response.categories.includes(cat)),
+          );
         } else {
           // Service has no category dimension (e.g., features-calendar-service)
           // Default to all categories for backward compatibility
-          setAvailableCategories(['CEFI', 'DEFI', 'TRADFI'])
+          setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
         }
       })
       .catch((err) => {
-        console.error('[FETCH CATEGORIES] Error:', err)
+        console.error("[FETCH CATEGORIES] Error:", err);
         // On error, default to all categories
-        setAvailableCategories(['CEFI', 'DEFI', 'TRADFI'])
+        setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
       })
       .finally(() => {
-        setCategoriesLoading(false)
-      })
-  }, [serviceName])
+        setCategoriesLoading(false);
+      });
+  }, [serviceName]);
 
   // Clear data when switching services
   useEffect(() => {
-    setData(null)
-    setTurboData(null)
-    setVenueCheckData(null)
-    setDataTypeCheckData(null)
-    setError(null)
-    setSelectedCategories([])
-    setSelectedVenues([])
-    setAvailableVenues([])
+    setData(null);
+    setTurboData(null);
+    setVenueCheckData(null);
+    setDataTypeCheckData(null);
+    setError(null);
+    setSelectedCategories([]);
+    setSelectedVenues([]);
+    setAvailableVenues([]);
     // Clear venue-specific filters
-    setSelectedFolders([])
-    setSelectedDataTypes([])
-    setVenueAvailableFolders([])
-    setVenueAvailableDataTypes([])
-  }, [serviceName])
+    setSelectedFolders([]);
+    setSelectedDataTypes([]);
+    setVenueAvailableFolders([]);
+    setVenueAvailableDataTypes([]);
+  }, [serviceName]);
 
   // Fetch available venues when category changes
   useEffect(() => {
     // Clear venues when category changes
-    setSelectedVenues([])
-    setAvailableVenues([])
+    setSelectedVenues([]);
+    setAvailableVenues([]);
     // Also clear venue-specific filters
-    setSelectedFolders([])
-    setSelectedDataTypes([])
-    setVenueAvailableFolders([])
-    setVenueAvailableDataTypes([])
+    setSelectedFolders([]);
+    setSelectedDataTypes([]);
+    setVenueAvailableFolders([]);
+    setVenueAvailableDataTypes([]);
 
     // Only fetch if exactly one category is selected (venues are hierarchical)
     if (selectedCategories.length !== 1) {
-      return
+      return;
     }
 
-    const category = selectedCategories[0]
-    setVenuesLoading(true)
+    const category = selectedCategories[0];
+    setVenuesLoading(true);
 
-    api.getVenuesByCategory(category)
+    api
+      .getVenuesByCategory(category)
       .then((response: CategoryVenuesResponse) => {
-        setAvailableVenues(response.venues || [])
+        setAvailableVenues(response.venues || []);
       })
       .catch((err) => {
-        console.error('Failed to fetch venues for category:', err)
-        setAvailableVenues([])
+        console.error("Failed to fetch venues for category:", err);
+        setAvailableVenues([]);
       })
       .finally(() => {
-        setVenuesLoading(false)
-      })
-  }, [selectedCategories])
+        setVenuesLoading(false);
+      });
+  }, [selectedCategories]);
 
   // Fetch venue-specific filters when exactly one venue is selected
   useEffect(() => {
     // Clear venue-specific filters when venue selection changes
-    setSelectedFolders([])
-    setSelectedDataTypes([])
-    setVenueAvailableFolders([])
-    setVenueAvailableDataTypes([])
+    setSelectedFolders([]);
+    setSelectedDataTypes([]);
+    setVenueAvailableFolders([]);
+    setVenueAvailableDataTypes([]);
 
     // Only fetch if exactly one venue and one category is selected
     if (selectedVenues.length !== 1 || selectedCategories.length !== 1) {
-      return
+      return;
     }
 
-    const category = selectedCategories[0]
-    const venue = selectedVenues[0]
-    setVenueFiltersLoading(true)
+    const category = selectedCategories[0];
+    const venue = selectedVenues[0];
+    setVenueFiltersLoading(true);
 
-    api.getVenueFilters(category, venue)
+    api
+      .getVenueFilters(category, venue)
       .then((response) => {
-        setVenueAvailableFolders(response.folders || [])
-        setVenueAvailableDataTypes(response.data_types || [])
+        setVenueAvailableFolders(response.folders || []);
+        setVenueAvailableDataTypes(response.data_types || []);
       })
       .catch((err) => {
-        console.error('Failed to fetch venue filters:', err)
-        setVenueAvailableFolders([])
-        setVenueAvailableDataTypes([])
+        console.error("Failed to fetch venue filters:", err);
+        setVenueAvailableFolders([]);
+        setVenueAvailableDataTypes([]);
       })
       .finally(() => {
-        setVenueFiltersLoading(false)
-      })
-  }, [selectedVenues, selectedCategories])
+        setVenueFiltersLoading(false);
+      });
+  }, [selectedVenues, selectedCategories]);
 
   // Toggle venue expansion for data type view
   const toggleVenue = (venueKey: string) => {
-    setExpandedVenues(prev => {
-      const next = new Set(prev)
+    setExpandedVenues((prev) => {
+      const next = new Set(prev);
       if (next.has(venueKey)) {
-        next.delete(venueKey)
+        next.delete(venueKey);
       } else {
-        next.add(venueKey)
+        next.add(venueKey);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleDate = (dateKey: string) => {
-    setExpandedDates(prev => {
-      const next = new Set(prev)
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
       if (next.has(dateKey)) {
-        next.delete(dateKey)
+        next.delete(dateKey);
       } else {
-        next.add(dateKey)
+        next.add(dateKey);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleCategory = (cat: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev)
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
       if (next.has(cat)) {
-        next.delete(cat)
+        next.delete(cat);
       } else {
-        next.add(cat)
+        next.add(cat);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const getCompletionColor = (percent: number) => {
-    if (percent >= 100) return 'var(--color-accent-green)'
-    if (percent >= 80) return 'var(--color-accent-cyan)'
-    if (percent >= 50) return 'var(--color-accent-amber)'
-    return 'var(--color-accent-red)'
-  }
+    if (percent >= 100) return "var(--color-accent-green)";
+    if (percent >= 80) return "var(--color-accent-cyan)";
+    if (percent >= 50) return "var(--color-accent-amber)";
+    return "var(--color-accent-red)";
+  };
 
   const getCompletionBadgeClass = (percent: number) => {
-    if (percent >= 100) return 'bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]'
-    if (percent >= 80) return 'bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]'
-    if (percent >= 50) return 'bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]'
-    return 'bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]'
-  }
+    if (percent >= 100)
+      return "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]";
+    if (percent >= 80)
+      return "bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]";
+    if (percent >= 50)
+      return "bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]";
+    return "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]";
+  };
 
   const getCategoryCompletion = (catData: CategoryStatus) => {
-    let complete = 0
-    let total = 0
-    Object.values(catData.venues).forEach(v => {
-      complete += v.complete
-      total += v.total
-    })
-    return total > 0 ? (complete / total) * 100 : 0
-  }
+    let complete = 0;
+    let total = 0;
+    Object.values(catData.venues).forEach((v) => {
+      complete += v.complete;
+      total += v.total;
+    });
+    return total > 0 ? (complete / total) * 100 : 0;
+  };
 
   const getMissingCount = (catData: CategoryStatus) => {
-    let missing = 0
-    Object.values(catData.venues).forEach(v => {
-      missing += v.total - v.complete
-    })
-    return missing
-  }
+    let missing = 0;
+    Object.values(catData.venues).forEach((v) => {
+      missing += v.total - v.complete;
+    });
+    return missing;
+  };
 
   // Calculate total missing from either turbo data or standard data
   // For turbo mode, use total_missing which is venue-weighted (consistent with overall_completion_pct)
@@ -685,15 +856,16 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     if (turboData) {
       // Use venue-weighted total_missing for consistency with overall_completion_pct
       // This ensures "All expected data present" only shows when completion is truly 100%
-      return turboData.total_missing || 0
+      return turboData.total_missing || 0;
     }
     if (data) {
       return Object.values(data.categories).reduce(
-        (sum, cat) => sum + getMissingCount(cat), 0
-      )
+        (sum, cat) => sum + getMissingCount(cat),
+        0,
+      );
     }
-    return 0
-  }, [data, turboData])
+    return 0;
+  }, [data, turboData]);
 
   // Get categories with missing data for deploy missing
   // IMPORTANT: Check both category-level AND venue-level missing data
@@ -702,42 +874,46 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       return Object.entries(turboData.categories)
         .filter(([_, catData]) => {
           // Check category-level missing
-          if ((catData.dates_missing || 0) > 0) return true
+          if ((catData.dates_missing || 0) > 0) return true;
 
           // Check if there are entirely missing venues (expected but no data at all)
           // These are in venue_summary.expected_but_missing, NOT in catData.venues
-          const expectedButMissing = catData.venue_summary?.expected_but_missing || []
-          if (expectedButMissing.length > 0) return true
+          const expectedButMissing =
+            catData.venue_summary?.expected_but_missing || [];
+          if (expectedButMissing.length > 0) return true;
 
           // Also check if any venues within this category have missing data
           // Use dimension-weighted values when available for accurate detection
           if (catData.venues) {
             for (const [_, venueData] of Object.entries(catData.venues)) {
-              const venueExpected = venueData._dim_weighted_expected
-                ?? venueData.dates_expected_venue ?? venueData.dates_expected ?? 0
-              const venueFound = venueData._dim_weighted_found
-                ?? venueData.dates_found ?? 0
-              if (venueFound < venueExpected) return true
+              const venueExpected =
+                venueData._dim_weighted_expected ??
+                venueData.dates_expected_venue ??
+                venueData.dates_expected ??
+                0;
+              const venueFound =
+                venueData._dim_weighted_found ?? venueData.dates_found ?? 0;
+              if (venueFound < venueExpected) return true;
             }
           }
 
-          return false
+          return false;
         })
-        .map(([cat]) => cat)
+        .map(([cat]) => cat);
     }
     if (data) {
       return Object.entries(data.categories)
         .filter(([_, catData]) => getMissingCount(catData) > 0)
-        .map(([cat]) => cat)
+        .map(([cat]) => cat);
     }
-    return []
-  }, [data, turboData])
+    return [];
+  }, [data, turboData]);
 
   // Open the deploy missing modal
   const handleOpenDeployMissingModal = () => {
-    if (!onDeployMissing || totalMissing === 0) return
-    setDeployMissingModalOpen(true)
-  }
+    if (!onDeployMissing || totalMissing === 0) return;
+    setDeployMissingModalOpen(true);
+  };
 
   // NOTE: existingDatesPerCategory removed - we now use deploy_missing_only=true
   // which lets the backend calculate missing shards with full (non-truncated) date lists
@@ -748,63 +924,72 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   const effectiveDeployCategories = useMemo(() => {
     // If user selected specific categories, use those (intersected with categories that have missing data)
     if (selectedCategories.length > 0) {
-      return selectedCategories.filter(cat => categoriesWithMissing.includes(cat))
+      return selectedCategories.filter((cat) =>
+        categoriesWithMissing.includes(cat),
+      );
     }
     // Otherwise use all categories with missing data
-    return categoriesWithMissing
-  }, [selectedCategories, categoriesWithMissing])
+    return categoriesWithMissing;
+  }, [selectedCategories, categoriesWithMissing]);
 
   // Execute deploy missing with selected options
   // When previewRefreshOnly is true: refresh preview in-place without closing modal or switching tabs
-  const handleConfirmDeployMissing = useCallback((previewRefreshOnly = false) => {
-    if (!onDeployMissing) return
+  const handleConfirmDeployMissing = useCallback(
+    (previewRefreshOnly = false) => {
+      if (!onDeployMissing) return;
 
-    // IMPORTANT: If no categories have missing data, don't deploy
-    // This prevents accidentally deploying all categories when user's filter has no missing data
-    if (effectiveDeployCategories.length === 0) {
-      console.warn('[DEPLOY MISSING] No categories with missing data to deploy')
-      if (!previewRefreshOnly) setDeployMissingModalOpen(false)
-      return
-    }
+      // IMPORTANT: If no categories have missing data, don't deploy
+      // This prevents accidentally deploying all categories when user's filter has no missing data
+      if (effectiveDeployCategories.length === 0) {
+        console.warn(
+          "[DEPLOY MISSING] No categories with missing data to deploy",
+        );
+        if (!previewRefreshOnly) setDeployMissingModalOpen(false);
+        return;
+      }
 
-    // Use deploy_missing_only=true for accurate missing data calculation
-    // The backend will fetch full date lists (not truncated) and filter properly
-    // This fixes the bug where exclude_dates was built from truncated UI data
-    onDeployMissing({
-      service: serviceName,
-      start_date: startDate,
-      end_date: endDate,
-      mode: dataStatusMode,
-      region: deployMissingRegion,
-      categories: effectiveDeployCategories, // ALWAYS pass explicit categories, never undefined
-      venues: selectedVenues.length > 0 ? selectedVenues : undefined, // Pass venue filter if selected
-      folders: selectedFolders.length > 0 ? selectedFolders : undefined, // Pass folder/instrument type filter
-      data_types: selectedDataTypes.length > 0 ? selectedDataTypes : undefined, // Pass data type filter
-      force: deployMissingForce,
-      dry_run: deployMissingDryRun,
-      skip_existing: true, // Always skip existing for deploy missing
-      deploy_missing_only: true, // Use backend for accurate missing shard calculation
-      date_granularity: deployMissingDateGranularity,
-      first_day_of_month_only: firstDayOfMonthOnly, // Pass first day of month filter
-      previewRefreshOnly, // When true: stay in modal, don't switch tabs
-    })
+      // Use deploy_missing_only=true for accurate missing data calculation
+      // The backend will fetch full date lists (not truncated) and filter properly
+      // This fixes the bug where exclude_dates was built from truncated UI data
+      onDeployMissing({
+        service: serviceName,
+        start_date: startDate,
+        end_date: endDate,
+        mode: dataStatusMode,
+        region: deployMissingRegion,
+        categories: effectiveDeployCategories, // ALWAYS pass explicit categories, never undefined
+        venues: selectedVenues.length > 0 ? selectedVenues : undefined, // Pass venue filter if selected
+        folders: selectedFolders.length > 0 ? selectedFolders : undefined, // Pass folder/instrument type filter
+        data_types:
+          selectedDataTypes.length > 0 ? selectedDataTypes : undefined, // Pass data type filter
+        force: deployMissingForce,
+        dry_run: deployMissingDryRun,
+        skip_existing: true, // Always skip existing for deploy missing
+        deploy_missing_only: true, // Use backend for accurate missing shard calculation
+        date_granularity: deployMissingDateGranularity,
+        first_day_of_month_only: firstDayOfMonthOnly, // Pass first day of month filter
+        previewRefreshOnly, // When true: stay in modal, don't switch tabs
+      });
 
-    if (!previewRefreshOnly) setDeployMissingModalOpen(false)
-  }, [
-    onDeployMissing,
-    effectiveDeployCategories,
-    serviceName,
-    startDate,
-    endDate,
-    selectedVenues,
-    selectedFolders,
-    selectedDataTypes,
-    deployMissingForce,
-    deployMissingDryRun,
-    deployMissingDateGranularity,
-    firstDayOfMonthOnly,
-    deployMissingRegion,
-  ])
+      if (!previewRefreshOnly) setDeployMissingModalOpen(false);
+    },
+    [
+      onDeployMissing,
+      effectiveDeployCategories,
+      serviceName,
+      startDate,
+      endDate,
+      selectedVenues,
+      selectedFolders,
+      selectedDataTypes,
+      deployMissingForce,
+      deployMissingDryRun,
+      deployMissingDateGranularity,
+      firstDayOfMonthOnly,
+      deployMissingRegion,
+      dataStatusMode,
+    ],
+  );
 
   // Auto-refresh preview when date granularity changes
   // Keeps modal open and user on data-status tab - only updates the preview overlay
@@ -814,53 +999,70 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     // 1. Modal is open (user is viewing the deploy missing dialog)
     // 2. In preview mode (dry run = true)
     // 3. Has categories to deploy (prevent empty deploys)
-    if (deployMissingModalOpen && deployMissingDryRun && effectiveDeployCategories.length > 0) {
-      console.warn(`[DEPLOY MISSING] Auto-refreshing preview after granularity change to: ${deployMissingDateGranularity}`)
+    if (
+      deployMissingModalOpen &&
+      deployMissingDryRun &&
+      effectiveDeployCategories.length > 0
+    ) {
+      console.warn(
+        `[DEPLOY MISSING] Auto-refreshing preview after granularity change to: ${deployMissingDateGranularity}`,
+      );
       const timeoutId = setTimeout(() => {
-        handleConfirmDeployMissing(true) // previewRefreshOnly: stay in modal, don't switch tabs
-      }, 300)
-      return () => clearTimeout(timeoutId)
+        handleConfirmDeployMissing(true); // previewRefreshOnly: stay in modal, don't switch tabs
+      }, 300);
+      return () => clearTimeout(timeoutId);
     }
-  }, [deployMissingDateGranularity, deployMissingModalOpen, deployMissingDryRun, effectiveDeployCategories.length, handleConfirmDeployMissing])
+  }, [
+    deployMissingDateGranularity,
+    deployMissingModalOpen,
+    deployMissingDryRun,
+    effectiveDeployCategories.length,
+    handleConfirmDeployMissing,
+  ]);
 
   // Handle instrument-level deploy missing
   const handleInstrumentDeployMissing = useCallback(() => {
-    if (!onDeployMissing || !selectedInstrument || !instrumentAvailability) return
+    if (!onDeployMissing || !selectedInstrument || !instrumentAvailability)
+      return;
 
     // Get data types that have missing data
-    const dataTypesWithMissing = Object.entries(instrumentAvailability.by_data_type)
+    const dataTypesWithMissing = Object.entries(
+      instrumentAvailability.by_data_type,
+    )
       .filter(([, stats]) => stats.dates_missing > 0)
-      .map(([dataType]) => dataType)
+      .map(([dataType]) => dataType);
 
     if (dataTypesWithMissing.length === 0) {
-      console.warn('[INSTRUMENT DEPLOY] No missing data to deploy')
-      return
+      console.warn("[INSTRUMENT DEPLOY] No missing data to deploy");
+      return;
     }
 
     // Parse instrument key to get venue and folder/instrument_type
-    const venue = selectedInstrument.venue
-    const folder = selectedInstrument.instrument_type
+    const venue = selectedInstrument.venue;
+    const folder = selectedInstrument.instrument_type;
 
     // Use the effective date range from availability window if available
-    const effectiveStart = instrumentAvailability.availability_window?.effective_start || startDate
-    const effectiveEnd = instrumentAvailability.availability_window?.effective_end || endDate
+    const effectiveStart =
+      instrumentAvailability.availability_window?.effective_start || startDate;
+    const effectiveEnd =
+      instrumentAvailability.availability_window?.effective_end || endDate;
 
-    console.warn('[INSTRUMENT DEPLOY]', {
+    console.warn("[INSTRUMENT DEPLOY]", {
       instrument: selectedInstrument.instrument_key,
       venue,
       folder,
       dataTypes: dataTypesWithMissing,
       dateRange: `${effectiveStart} to ${effectiveEnd}`,
       firstDayOfMonthOnly,
-    })
+    });
 
-      // Deploy with instrument-specific filters
-      onDeployMissing({
-        service: serviceName,
-        start_date: effectiveStart,
-        end_date: effectiveEnd,
-        mode: dataStatusMode,
-        region: deployMissingRegion,
+    // Deploy with instrument-specific filters
+    onDeployMissing({
+      service: serviceName,
+      start_date: effectiveStart,
+      end_date: effectiveEnd,
+      mode: dataStatusMode,
+      region: deployMissingRegion,
       categories: selectedCategories, // Use current category filter
       venues: [venue], // Single venue from instrument
       folders: [folder], // Single folder/instrument_type from instrument
@@ -871,144 +1073,165 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       deploy_missing_only: true,
       date_granularity: deployMissingDateGranularity,
       first_day_of_month_only: firstDayOfMonthOnly,
-    })
-  }, [onDeployMissing, selectedInstrument, instrumentAvailability, startDate, endDate,
-      selectedCategories, deployMissingDateGranularity, firstDayOfMonthOnly, serviceName, deployMissingRegion, dataStatusMode])
+    });
+  }, [
+    onDeployMissing,
+    selectedInstrument,
+    instrumentAvailability,
+    startDate,
+    endDate,
+    selectedCategories,
+    deployMissingDateGranularity,
+    firstDayOfMonthOnly,
+    serviceName,
+    deployMissingRegion,
+    dataStatusMode,
+  ]);
 
   // Convert data to heatmap format for calendar view
   // Uses actual missing_dates from API for accurate per-day status
   // Works with both standard data and venueCheckData
   const heatmapData = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const result: { date: string; status: 'complete' | 'partial' | 'missing' | 'future'; coverage?: number; tooltip?: string }[] = []
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const result: {
+      date: string;
+      status: "complete" | "partial" | "missing" | "future";
+      coverage?: number;
+      tooltip?: string;
+    }[] = [];
 
     try {
       // DIFFERENT LOGIC FOR VENUE CHECK MODE vs STANDARD MODE
       if (venueCheckData) {
         // VENUE CHECK MODE: Use dates_with_missing_venues structure
         // Build set of dates that have missing venues
-        const datesWithIssues = new Set<string>()
-        const dateDetails = new Map<string, string[]>()  // date -> [category: X venues missing]
+        const datesWithIssues = new Set<string>();
+        const dateDetails = new Map<string, string[]>(); // date -> [category: X venues missing]
 
-        Object.entries(venueCheckData.categories).forEach(([catName, catData]) => {
-          if (!catData.dates_with_missing_venues) return
+        Object.entries(venueCheckData.categories).forEach(
+          ([catName, catData]) => {
+            if (!catData.dates_with_missing_venues) return;
 
-          catData.dates_with_missing_venues.forEach(dateInfo => {
-            datesWithIssues.add(dateInfo.date)
-            if (!dateDetails.has(dateInfo.date)) {
-              dateDetails.set(dateInfo.date, [])
-            }
-            dateDetails.get(dateInfo.date)!.push(`${catName}: ${dateInfo.missing.length} venues`)
-          })
-        })
+            catData.dates_with_missing_venues.forEach((dateInfo) => {
+              datesWithIssues.add(dateInfo.date);
+              if (!dateDetails.has(dateInfo.date)) {
+                dateDetails.set(dateInfo.date, []);
+              }
+              dateDetails
+                .get(dateInfo.date)!
+                .push(`${catName}: ${dateInfo.missing.length} venues`);
+            });
+          },
+        );
 
         // Generate day entries
-        const currentDate = new Date(start)
+        const currentDate = new Date(start);
         while (currentDate <= end) {
-          const dateStr = currentDate.toISOString().split('T')[0]
-          const isFuture = currentDate > today
+          const dateStr = currentDate.toISOString().split("T")[0];
+          const isFuture = currentDate > today;
 
           if (isFuture) {
-            result.push({ date: dateStr, status: 'future' })
+            result.push({ date: dateStr, status: "future" });
           } else if (datesWithIssues.has(dateStr)) {
-            const details = dateDetails.get(dateStr) || []
+            const details = dateDetails.get(dateStr) || [];
             result.push({
               date: dateStr,
-              status: 'partial',
-              coverage: 50,  // Approximate
-              tooltip: `${dateStr}: Missing venues (${details.join(', ')})`
-            })
+              status: "partial",
+              coverage: 50, // Approximate
+              tooltip: `${dateStr}: Missing venues (${details.join(", ")})`,
+            });
           } else {
             result.push({
               date: dateStr,
-              status: 'complete',
+              status: "complete",
               coverage: 100,
-              tooltip: `${dateStr}: All venues present`
-            })
+              tooltip: `${dateStr}: All venues present`,
+            });
           }
 
-          currentDate.setDate(currentDate.getDate() + 1)
+          currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        return result
+        return result;
       }
 
       // STANDARD MODE: Calculate per-day coverage properly
-      if (!data || !data.categories) return []
+      if (!data || !data.categories) return [];
 
       // For each date, calculate how many venue-days have data
-      const currentDate = new Date(start)
+      const currentDate = new Date(start);
       while (currentDate <= end) {
-        const dateStr = currentDate.toISOString().split('T')[0]
-        const isFuture = currentDate > today
+        const dateStr = currentDate.toISOString().split("T")[0];
+        const isFuture = currentDate > today;
 
         if (isFuture) {
-          result.push({ date: dateStr, status: 'future' })
+          result.push({ date: dateStr, status: "future" });
         } else {
           // Count venues with data for this specific date
-          let venuesWithData = 0
-          let totalVenues = 0
-          const missingVenues: string[] = []
+          let venuesWithData = 0;
+          let totalVenues = 0;
+          const missingVenues: string[] = [];
 
           Object.entries(data.categories).forEach(([catName, catData]) => {
-            if (!catData || !catData.venues) return
+            if (!catData || !catData.venues) return;
 
             Object.entries(catData.venues).forEach(([venueName, venueData]) => {
-              totalVenues++
+              totalVenues++;
 
               // Check if this date is in missing_dates
-              const missing = venueData.missing_dates || []
+              const missing = venueData.missing_dates || [];
               if (missing.includes(dateStr)) {
                 // Date is missing for this venue
-                missingVenues.push(`${catName}/${venueName}`)
+                missingVenues.push(`${catName}/${venueName}`);
               } else {
                 // Date has data for this venue
-                venuesWithData++
+                venuesWithData++;
               }
-            })
-          })
+            });
+          });
 
-          const coverage = totalVenues > 0
-            ? Math.round((venuesWithData / totalVenues) * 100)
-            : 0
+          const coverage =
+            totalVenues > 0
+              ? Math.round((venuesWithData / totalVenues) * 100)
+              : 0;
 
           if (coverage === 100) {
             result.push({
               date: dateStr,
-              status: 'complete',
+              status: "complete",
               coverage: 100,
-              tooltip: `${dateStr}: All ${totalVenues} venues complete`
-            })
+              tooltip: `${dateStr}: All ${totalVenues} venues complete`,
+            });
           } else if (coverage === 0) {
             result.push({
               date: dateStr,
-              status: 'missing',
+              status: "missing",
               coverage: 0,
-              tooltip: `${dateStr}: No data (${missingVenues.length} venues missing)`
-            })
+              tooltip: `${dateStr}: No data (${missingVenues.length} venues missing)`,
+            });
           } else {
             result.push({
               date: dateStr,
-              status: 'partial',
+              status: "partial",
               coverage,
-              tooltip: `${dateStr}: ${coverage}% coverage (${venuesWithData}/${totalVenues} venues, ${missingVenues.length} missing)`
-            })
+              tooltip: `${dateStr}: ${coverage}% coverage (${venuesWithData}/${totalVenues} venues, ${missingVenues.length} missing)`,
+            });
           }
         }
 
-        currentDate.setDate(currentDate.getDate() + 1)
+        currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      return result
+      return result;
     } catch (error) {
-      console.error('Error generating heatmap data:', error)
-      return []
+      console.error("Error generating heatmap data:", error);
+      return [];
     }
-  }, [data, venueCheckData, startDate, endDate])
+  }, [data, venueCheckData, startDate, endDate]);
 
   return (
     <div className="space-y-4">
@@ -1060,28 +1283,30 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setDataStatusMode('batch')}
+                  onClick={() => setDataStatusMode("batch")}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    dataStatusMode === 'batch'
-                      ? 'bg-[var(--color-accent-cyan)] text-white'
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
+                    dataStatusMode === "batch"
+                      ? "bg-[var(--color-accent-cyan)] text-white"
+                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
                   }`}
                 >
                   Batch
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDataStatusMode('live')}
+                  onClick={() => setDataStatusMode("live")}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    dataStatusMode === 'live'
-                      ? 'bg-[var(--color-accent-cyan)] text-white'
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
+                    dataStatusMode === "live"
+                      ? "bg-[var(--color-accent-cyan)] text-white"
+                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
                   }`}
                 >
                   Live
                 </button>
               </div>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">Batch: historical GCS paths. Live: real-time GCS paths.</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Batch: historical GCS paths. Live: real-time GCS paths.
+              </p>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1093,7 +1318,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 type="date"
                 value={startDate}
                 onChange={(e) => {
-                  setStartDate(e.target.value)
+                  setStartDate(e.target.value);
                 }}
                 className="h-9"
               />
@@ -1106,7 +1331,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 type="date"
                 value={endDate}
                 onChange={(e) => {
-                  setEndDate(e.target.value)
+                  setEndDate(e.target.value);
                 }}
                 className="h-9"
               />
@@ -1118,17 +1343,17 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    const turningOn = !requireFreshness
-                    setRequireFreshness(turningOn)
-                    if (turningOn) setFreshnessDate(getTodayAt8am())
+                    const turningOn = !requireFreshness;
+                    setRequireFreshness(turningOn);
+                    if (turningOn) setFreshnessDate(getTodayAt8am());
                   }}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                     requireFreshness
-                      ? 'bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.4)]'
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
+                      ? "bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.4)]"
+                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
                   }`}
                 >
-                  {requireFreshness ? 'On' : 'Off'}
+                  {requireFreshness ? "On" : "Off"}
                 </button>
                 {requireFreshness && (
                   <>
@@ -1142,8 +1367,16 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       title="Enter your local time — it will be converted to UTC for comparison against GCS blob timestamps"
                     />
                     {freshnessDate && (
-                      <span className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap" title="GCS blob timestamps are always UTC regardless of bucket region">
-                        = {new Date(freshnessDate).toISOString().replace('T', ' ').slice(0, 19)} UTC
+                      <span
+                        className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap"
+                        title="GCS blob timestamps are always UTC regardless of bucket region"
+                      >
+                        ={" "}
+                        {new Date(freshnessDate)
+                          .toISOString()
+                          .replace("T", " ")
+                          .slice(0, 19)}{" "}
+                        UTC
                       </span>
                     )}
                   </>
@@ -1163,21 +1396,21 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                     Loading categories...
                   </div>
                 ) : (
-                  availableCategories.map(cat => (
+                  availableCategories.map((cat) => (
                     <button
                       key={cat}
                       onClick={() => {
-                        setSelectedCategories(prev =>
+                        setSelectedCategories((prev) =>
                           prev.includes(cat)
-                            ? prev.filter(c => c !== cat)
-                            : [...prev, cat]
-                        )
+                            ? prev.filter((c) => c !== cat)
+                            : [...prev, cat],
+                        );
                       }}
                       className={cn(
                         "px-3 py-1.5 rounded text-xs font-medium transition-colors",
                         selectedCategories.includes(cat)
                           ? "bg-[var(--color-accent-cyan)] text-white"
-                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]"
+                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
                       )}
                     >
                       {cat}
@@ -1217,21 +1450,21 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 </div>
               ) : availableVenues.length > 0 ? (
                 <div className="flex gap-2 flex-wrap">
-                  {availableVenues.map(venue => (
+                  {availableVenues.map((venue) => (
                     <button
                       key={venue}
                       onClick={() => {
-                        setSelectedVenues(prev =>
+                        setSelectedVenues((prev) =>
                           prev.includes(venue)
-                            ? prev.filter(v => v !== venue)
-                            : [...prev, venue]
-                        )
+                            ? prev.filter((v) => v !== venue)
+                            : [...prev, venue],
+                        );
                       }}
                       className={cn(
                         "px-3 py-1.5 rounded text-xs font-medium transition-colors",
                         selectedVenues.includes(venue)
                           ? "bg-[var(--color-accent-purple)] text-white"
-                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]"
+                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
                       )}
                     >
                       {venue}
@@ -1282,21 +1515,21 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
-                        {venueAvailableFolders.map(f => (
+                        {venueAvailableFolders.map((f) => (
                           <button
                             key={f}
                             onClick={() => {
-                              setSelectedFolders(prev =>
+                              setSelectedFolders((prev) =>
                                 prev.includes(f)
-                                  ? prev.filter(x => x !== f)
-                                  : [...prev, f]
-                              )
+                                  ? prev.filter((x) => x !== f)
+                                  : [...prev, f],
+                              );
                             }}
                             className={cn(
                               "px-3 py-1.5 rounded text-xs font-medium transition-colors",
                               selectedFolders.includes(f)
                                 ? "bg-[var(--color-accent-green)] text-white"
-                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]"
+                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
                             )}
                           >
                             {f}
@@ -1329,21 +1562,21 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
-                        {venueAvailableDataTypes.map(dt => (
+                        {venueAvailableDataTypes.map((dt) => (
                           <button
                             key={dt}
                             onClick={() => {
-                              setSelectedDataTypes(prev =>
+                              setSelectedDataTypes((prev) =>
                                 prev.includes(dt)
-                                  ? prev.filter(x => x !== dt)
-                                  : [...prev, dt]
-                              )
+                                  ? prev.filter((x) => x !== dt)
+                                  : [...prev, dt],
+                              );
                             }}
                             className={cn(
                               "px-3 py-1.5 rounded text-xs font-medium transition-colors",
                               selectedDataTypes.includes(dt)
                                 ? "bg-[var(--color-accent-orange)] text-white"
-                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]"
+                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
                             )}
                           >
                             {dt}
@@ -1358,75 +1591,78 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   </p>
 
                   {/* List Files Button - appears when all filters are specified */}
-                  {selectedFolders.length === 1 && selectedDataTypes.length === 1 && (
-                    <div className="mt-4 pt-3 border-t border-[var(--color-border-default)]">
-                      {/* Timeframe selector for market-data-processing-service */}
-                      {serviceName === 'market-data-processing-service' && (
-                        <div className="mb-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <label className="text-xs font-medium text-[var(--color-text-muted)]">
-                              Select Timeframe
-                            </label>
+                  {selectedFolders.length === 1 &&
+                    selectedDataTypes.length === 1 && (
+                      <div className="mt-4 pt-3 border-t border-[var(--color-border-default)]">
+                        {/* Timeframe selector for market-data-processing-service */}
+                        {serviceName === "market-data-processing-service" && (
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                                Select Timeframe
+                              </label>
+                            </div>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {availableTimeframes.map((tf) => (
+                                <button
+                                  key={tf}
+                                  onClick={() => setSelectedTimeframe(tf)}
+                                  className={cn(
+                                    "px-2 py-1 rounded text-xs font-medium transition-colors",
+                                    selectedTimeframe === tf
+                                      ? "bg-[var(--color-accent-purple)] text-white"
+                                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
+                                  )}
+                                >
+                                  {tf}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {availableTimeframes.map(tf => (
-                              <button
-                                key={tf}
-                                onClick={() => setSelectedTimeframe(tf)}
-                                className={cn(
-                                  "px-2 py-1 rounded text-xs font-medium transition-colors",
-                                  selectedTimeframe === tf
-                                    ? "bg-[var(--color-accent-purple)] text-white"
-                                    : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]"
-                                )}
-                              >
-                                {tf}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        )}
 
-                      <button
-                        onClick={fetchFileListing}
-                        disabled={fileListingLoading}
-                        className={cn(
-                          "flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors w-full justify-center",
-                          fileListingLoading
-                            ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-wait"
-                            : "bg-[var(--color-accent-cyan)] text-white hover:bg-[var(--color-accent-cyan)]/90"
-                        )}
-                      >
-                        {fileListingLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Listing files...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4" />
-                            List Files in GCS
-                          </>
-                        )}
-                      </button>
-                      <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
-                        Query GCS to see actual parquet files for this path
-                      </p>
-                    </div>
-                  )}
+                        <button
+                          onClick={fetchFileListing}
+                          disabled={fileListingLoading}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors w-full justify-center",
+                            fileListingLoading
+                              ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-wait"
+                              : "bg-[var(--color-accent-cyan)] text-white hover:bg-[var(--color-accent-cyan)]/90",
+                          )}
+                        >
+                          {fileListingLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Listing files...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4" />
+                              List Files in GCS
+                            </>
+                          )}
+                        </button>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
+                          Query GCS to see actual parquet files for this path
+                        </p>
+                      </div>
+                    )}
                 </>
               )}
             </div>
           )}
 
           {/* First Day of Month Filter - for TARDIS free tier (no API key needed) */}
-          {serviceName === 'market-tick-data-handler' && (
+          {serviceName === "market-tick-data-handler" && (
             <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
               <div className="flex items-center gap-3">
                 <Checkbox
                   id="first-day-of-month"
                   checked={firstDayOfMonthOnly}
-                  onCheckedChange={(checked) => setFirstDayOfMonthOnly(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setFirstDayOfMonthOnly(checked === true)
+                  }
                 />
                 <label
                   htmlFor="first-day-of-month"
@@ -1437,333 +1673,456 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 </label>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-7">
-                TARDIS free tier: no API key required for first-day-of-month data.
-                Check and deploy only 1st of each month dates.
+                TARDIS free tier: no API key required for first-day-of-month
+                data. Check and deploy only 1st of each month dates.
               </p>
             </div>
           )}
 
           {/* Instrument-Level Search - check availability for specific instruments */}
-          {selectedCategories.length === 1 && ['market-tick-data-handler', 'market-data-processing-service'].includes(serviceName) && (
-            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-              <div className="flex items-center gap-3 mb-3">
-                <Checkbox
-                  id="instrument-search-mode"
-                  checked={instrumentSearchMode}
-                  onCheckedChange={(checked) => setInstrumentSearchMode(checked === true)}
-                />
-                <label
-                  htmlFor="instrument-search-mode"
-                  className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
-                >
-                  <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
-                  Instrument-Level Search
-                </label>
-              </div>
+          {selectedCategories.length === 1 &&
+            [
+              "market-tick-data-handler",
+              "market-data-processing-service",
+            ].includes(serviceName) && (
+              <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
+                <div className="flex items-center gap-3 mb-3">
+                  <Checkbox
+                    id="instrument-search-mode"
+                    checked={instrumentSearchMode}
+                    onCheckedChange={(checked) =>
+                      setInstrumentSearchMode(checked === true)
+                    }
+                  />
+                  <label
+                    htmlFor="instrument-search-mode"
+                    className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
+                  >
+                    <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
+                    Instrument-Level Search
+                  </label>
+                </div>
 
-              {instrumentSearchMode && (
-                <div className="ml-7 space-y-3">
-                  {/* Instrument Search Input */}
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Search instrument by ID (e.g., BTC-USDT, AAPL)"
-                      value={instrumentSearchQuery}
-                      onChange={(e) => {
-                        const newValue = e.target.value
-                        setInstrumentSearchQuery(newValue)
-                        // Clear selection if user is typing (searching for new instrument)
-                        if (selectedInstrument && newValue !== selectedInstrument.instrument_key) {
-                          setSelectedInstrument(null)
-                          setInstrumentAvailability(null)
-                          setInstrumentSearchResults([])
-                          fetchInstruments(newValue)
-                        } else if (!selectedInstrument) {
-                          // Only fetch if no instrument is selected
-                          fetchInstruments(newValue)
-                        }
-                      }}
-                      onFocus={() => {
-                        // Only show dropdown if no instrument selected and we have results
-                        if (!selectedInstrument && instrumentSearchResults.length > 0) {
-                          setShowInstrumentDropdown(true)
-                        }
-                      }}
-                      className="w-full"
-                    />
-                    {instrumentSearchLoading && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
-                    )}
+                {instrumentSearchMode && (
+                  <div className="ml-7 space-y-3">
+                    {/* Instrument Search Input */}
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        placeholder="Search instrument by ID (e.g., BTC-USDT, AAPL)"
+                        value={instrumentSearchQuery}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setInstrumentSearchQuery(newValue);
+                          // Clear selection if user is typing (searching for new instrument)
+                          if (
+                            selectedInstrument &&
+                            newValue !== selectedInstrument.instrument_key
+                          ) {
+                            setSelectedInstrument(null);
+                            setInstrumentAvailability(null);
+                            setInstrumentSearchResults([]);
+                            fetchInstruments(newValue);
+                          } else if (!selectedInstrument) {
+                            // Only fetch if no instrument is selected
+                            fetchInstruments(newValue);
+                          }
+                        }}
+                        onFocus={() => {
+                          // Only show dropdown if no instrument selected and we have results
+                          if (
+                            !selectedInstrument &&
+                            instrumentSearchResults.length > 0
+                          ) {
+                            setShowInstrumentDropdown(true);
+                          }
+                        }}
+                        className="w-full"
+                      />
+                      {instrumentSearchLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
+                      )}
 
-                    {/* Dropdown Results */}
-                    {showInstrumentDropdown && instrumentSearchResults.length > 0 && !selectedInstrument && (
-                      <div className="absolute z-50 w-full mt-1 max-h-64 overflow-auto bg-[var(--color-bg-primary)] border border-[var(--color-border-default)] rounded-lg shadow-lg">
-                        {instrumentSearchResults.map((instrument) => (
-                          <button
-                            key={instrument.instrument_key}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              // Cancel any pending searches
-                              if (searchInstrumentsDebounceRef.current) {
-                                clearTimeout(searchInstrumentsDebounceRef.current)
-                                searchInstrumentsDebounceRef.current = null
-                              }
-                              setSelectedInstrument(instrument)
-                              setInstrumentSearchQuery(instrument.instrument_key)
-                              setShowInstrumentDropdown(false)
-                              setInstrumentSearchResults([]) // Clear results to prevent dropdown flash
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors"
-                          >
-                            <div className="font-medium">{instrument.instrument_key}</div>
-                            <div className="text-xs text-[var(--color-text-muted)]">
-                              {instrument.venue} • {instrument.instrument_type}
-                              {instrument.symbol && ` • ${instrument.symbol}`}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Selected Instrument Info */}
-                  {selectedInstrument && (
-                    <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-sm">{selectedInstrument.instrument_key}</div>
-                          <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                            <span className="text-[var(--color-accent-purple)]">{selectedInstrument.venue}</span>
-                            {' • '}
-                            <span className="text-[var(--color-accent-cyan)]">{selectedInstrument.instrument_type}</span>
-                            {selectedInstrument.data_types && (
-                              <>
-                                {' • '}
-                                <span>
-                                  {Array.isArray(selectedInstrument.data_types)
-                                    ? selectedInstrument.data_types.join(', ')
-                                    : String(selectedInstrument.data_types)}
-                                </span>
-                              </>
-                            )}
+                      {/* Dropdown Results */}
+                      {showInstrumentDropdown &&
+                        instrumentSearchResults.length > 0 &&
+                        !selectedInstrument && (
+                          <div className="absolute z-50 w-full mt-1 max-h-64 overflow-auto bg-[var(--color-bg-primary)] border border-[var(--color-border-default)] rounded-lg shadow-lg">
+                            {instrumentSearchResults.map((instrument) => (
+                              <button
+                                key={instrument.instrument_key}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  // Cancel any pending searches
+                                  if (searchInstrumentsDebounceRef.current) {
+                                    clearTimeout(
+                                      searchInstrumentsDebounceRef.current,
+                                    );
+                                    searchInstrumentsDebounceRef.current = null;
+                                  }
+                                  setSelectedInstrument(instrument);
+                                  setInstrumentSearchQuery(
+                                    instrument.instrument_key,
+                                  );
+                                  setShowInstrumentDropdown(false);
+                                  setInstrumentSearchResults([]); // Clear results to prevent dropdown flash
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors"
+                              >
+                                <div className="font-medium">
+                                  {instrument.instrument_key}
+                                </div>
+                                <div className="text-xs text-[var(--color-text-muted)]">
+                                  {instrument.venue} •{" "}
+                                  {instrument.instrument_type}
+                                  {instrument.symbol &&
+                                    ` • ${instrument.symbol}`}
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          {/* Instrument Availability Window */}
-                          {(selectedInstrument.available_from_datetime || selectedInstrument.available_to_datetime) && (
-                            <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                              <span className="text-[var(--color-accent-amber)]">Available: </span>
-                              {selectedInstrument.available_from_datetime
-                                ? selectedInstrument.available_from_datetime.split('T')[0]
-                                : '...'}
-                              {' → '}
-                              {selectedInstrument.available_to_datetime
-                                ? selectedInstrument.available_to_datetime.split('T')[0]
-                                : 'ongoing'}
+                        )}
+                    </div>
+
+                    {/* Selected Instrument Info */}
+                    {selectedInstrument && (
+                      <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-sm">
+                              {selectedInstrument.instrument_key}
                             </div>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={fetchInstrumentAvailability}
-                          disabled={instrumentAvailabilityLoading}
-                          className="bg-[var(--color-accent-purple)] hover:bg-[var(--color-accent-purple)]/80"
-                        >
-                          {instrumentAvailabilityLoading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Checking...
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Check Availability
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Availability Results */}
-                  {instrumentAvailabilityError && (
-                    <div className="flex items-center gap-2 text-sm text-[var(--color-accent-red)]">
-                      <AlertCircle className="h-4 w-4" />
-                      {instrumentAvailabilityError}
-                    </div>
-                  )}
-
-                  {instrumentAvailability && (
-                    <div className="space-y-3">
-                      {/* Overall Summary */}
-                      <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-default)]">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Overall Availability</span>
-                          <Badge className={getCompletionBadgeClass(instrumentAvailability.overall.completion_pct)}>
-                            {instrumentAvailability.overall.completion_pct.toFixed(1)}%
-                          </Badge>
-                        </div>
-                        <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-2 mb-2">
-                          <div
-                            className="h-2 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.min(instrumentAvailability.overall.completion_pct, 100)}%`,
-                              backgroundColor: getCompletionColor(instrumentAvailability.overall.completion_pct),
-                            }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-                          <span>
-                            Found: <span className="text-[var(--color-accent-green)]">{instrumentAvailability.overall.found}</span>
-                          </span>
-                          <span>
-                            Missing: <span className="text-[var(--color-accent-red)]">{instrumentAvailability.overall.missing}</span>
-                          </span>
-                          <span>
-                            Expected: {instrumentAvailability.overall.expected}
-                          </span>
-                        </div>
-                        <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                          {/* Show effective date range (intersection of user range and instrument availability) */}
-                          {instrumentAvailability.availability_window ? (
-                            <>
-                              <span className="text-[var(--color-accent-amber)]">Effective: </span>
-                              {instrumentAvailability.availability_window.effective_start} to {instrumentAvailability.availability_window.effective_end}
-                              {' • '}{instrumentAvailability.availability_window.dates_in_window} dates
-                              {instrumentAvailability.availability_window.instrument_from && (
-                                <span className="block mt-1">
-                                  <span className="text-[var(--color-text-muted)]">Instrument available: </span>
-                                  {instrumentAvailability.availability_window.instrument_from.split('T')[0]}
-                                  {' → '}
-                                  {instrumentAvailability.availability_window.instrument_to
-                                    ? instrumentAvailability.availability_window.instrument_to.split('T')[0]
-                                    : 'ongoing'}
-                                </span>
+                            <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                              <span className="text-[var(--color-accent-purple)]">
+                                {selectedInstrument.venue}
+                              </span>
+                              {" • "}
+                              <span className="text-[var(--color-accent-cyan)]">
+                                {selectedInstrument.instrument_type}
+                              </span>
+                              {selectedInstrument.data_types && (
+                                <>
+                                  {" • "}
+                                  <span>
+                                    {Array.isArray(
+                                      selectedInstrument.data_types,
+                                    )
+                                      ? selectedInstrument.data_types.join(", ")
+                                      : String(selectedInstrument.data_types)}
+                                  </span>
+                                </>
                               )}
-                            </>
-                          ) : (
-                            <>
-                              {instrumentAvailability.date_range.start} to {instrumentAvailability.date_range.end}
-                              {' • '}{instrumentAvailability.date_range.total_dates} dates
-                            </>
-                          )}
-                          {instrumentAvailability.date_range.first_day_of_month_only && (
-                            <span className="text-[var(--color-accent-cyan)]">{' '}(first day of month only)</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Deploy Missing for Instrument */}
-                      {instrumentAvailability.overall.missing > 0 && onDeployMissing && (
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                            <span className="text-sm">
-                              {instrumentAvailability.overall.missing} missing across{' '}
-                              {Object.entries(instrumentAvailability.by_data_type).filter(([, s]) => s.dates_missing > 0).length} data type(s)
-                            </span>
+                            </div>
+                            {/* Instrument Availability Window */}
+                            {(selectedInstrument.available_from_datetime ||
+                              selectedInstrument.available_to_datetime) && (
+                              <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                <span className="text-[var(--color-accent-amber)]">
+                                  Available:{" "}
+                                </span>
+                                {selectedInstrument.available_from_datetime
+                                  ? selectedInstrument.available_from_datetime.split(
+                                      "T",
+                                    )[0]
+                                  : "..."}
+                                {" → "}
+                                {selectedInstrument.available_to_datetime
+                                  ? selectedInstrument.available_to_datetime.split(
+                                      "T",
+                                    )[0]
+                                  : "ongoing"}
+                              </div>
+                            )}
                           </div>
                           <Button
                             size="sm"
-                            onClick={handleInstrumentDeployMissing}
-                            className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                            onClick={fetchInstrumentAvailability}
+                            disabled={instrumentAvailabilityLoading}
+                            className="bg-[var(--color-accent-purple)] hover:bg-[var(--color-accent-purple)]/80"
                           >
-                            <Rocket className="h-4 w-4 mr-2" />
-                            Deploy Missing
+                            {instrumentAvailabilityLoading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Checking...
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Check Availability
+                              </>
+                            )}
                           </Button>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      {/* Per Data Type Breakdown */}
-                      <div className="space-y-2">
-                        <div className="text-xs font-medium text-[var(--color-text-muted)]">By Data Type</div>
-                        {Object.entries(instrumentAvailability.by_data_type).map(([dataType, stats]) => (
-                          <div
-                            key={dataType}
-                            className="p-2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm">{dataType}</span>
-                              <span className={cn(
-                                "text-xs font-medium",
-                                stats.completion_pct >= 100 ? "text-[var(--color-accent-green)]" :
-                                stats.completion_pct >= 50 ? "text-[var(--color-accent-amber)]" :
-                                "text-[var(--color-accent-red)]"
-                              )}>
-                                {stats.completion_pct.toFixed(1)}% ({stats.dates_found}/{stats.dates_found + stats.dates_missing})
-                              </span>
-                            </div>
-                            <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-1.5">
-                              <div
-                                className="h-1.5 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(stats.completion_pct, 100)}%`,
-                                  backgroundColor: getCompletionColor(stats.completion_pct),
-                                }}
-                              />
-                            </div>
-                            {/* Expandable date lists */}
-                            <div className="mt-2 space-y-2">
-                              {/* Found dates dropdown (green) */}
-                              {stats.dates_found > 0 && stats.dates_found_list && stats.dates_found_list.length > 0 && (
-                                <details className="w-full">
-                                  <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
-                                    ▸ {stats.dates_found} available days (click to expand)
-                                  </summary>
-                                  <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
-                                    <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
-                                      {stats.dates_found_list.map((date: string) => (
-                                        <span
-                                          key={date}
-                                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                                        >
-                                          {date}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </details>
+                    {/* Availability Results */}
+                    {instrumentAvailabilityError && (
+                      <div className="flex items-center gap-2 text-sm text-[var(--color-accent-red)]">
+                        <AlertCircle className="h-4 w-4" />
+                        {instrumentAvailabilityError}
+                      </div>
+                    )}
+
+                    {instrumentAvailability && (
+                      <div className="space-y-3">
+                        {/* Overall Summary */}
+                        <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-default)]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Overall Availability
+                            </span>
+                            <Badge
+                              className={getCompletionBadgeClass(
+                                instrumentAvailability.overall.completion_pct,
                               )}
-                              {/* Missing dates dropdown (red) */}
-                              {stats.dates_missing > 0 && stats.dates_missing_list && stats.dates_missing_list.length > 0 && (
-                                <details className="w-full">
-                                  <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
-                                    ▸ {stats.dates_missing} missing days (click to expand)
-                                  </summary>
-                                  <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
-                                    <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
-                                      {stats.dates_missing_list.map((date: string) => (
-                                        <span
-                                          key={date}
-                                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
-                                        >
-                                          {date}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </details>
+                            >
+                              {instrumentAvailability.overall.completion_pct.toFixed(
+                                1,
                               )}
-                            </div>
+                              %
+                            </Badge>
                           </div>
-                        ))}
-                      </div>
+                          <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-2 mb-2">
+                            <div
+                              className="h-2 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.min(instrumentAvailability.overall.completion_pct, 100)}%`,
+                                backgroundColor: getCompletionColor(
+                                  instrumentAvailability.overall.completion_pct,
+                                ),
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
+                            <span>
+                              Found:{" "}
+                              <span className="text-[var(--color-accent-green)]">
+                                {instrumentAvailability.overall.found}
+                              </span>
+                            </span>
+                            <span>
+                              Missing:{" "}
+                              <span className="text-[var(--color-accent-red)]">
+                                {instrumentAvailability.overall.missing}
+                              </span>
+                            </span>
+                            <span>
+                              Expected:{" "}
+                              {instrumentAvailability.overall.expected}
+                            </span>
+                          </div>
+                          <div className="text-xs text-[var(--color-text-muted)] mt-2">
+                            {/* Show effective date range (intersection of user range and instrument availability) */}
+                            {instrumentAvailability.availability_window ? (
+                              <>
+                                <span className="text-[var(--color-accent-amber)]">
+                                  Effective:{" "}
+                                </span>
+                                {
+                                  instrumentAvailability.availability_window
+                                    .effective_start
+                                }{" "}
+                                to{" "}
+                                {
+                                  instrumentAvailability.availability_window
+                                    .effective_end
+                                }
+                                {" • "}
+                                {
+                                  instrumentAvailability.availability_window
+                                    .dates_in_window
+                                }{" "}
+                                dates
+                                {instrumentAvailability.availability_window
+                                  .instrument_from && (
+                                  <span className="block mt-1">
+                                    <span className="text-[var(--color-text-muted)]">
+                                      Instrument available:{" "}
+                                    </span>
+                                    {
+                                      instrumentAvailability.availability_window.instrument_from.split(
+                                        "T",
+                                      )[0]
+                                    }
+                                    {" → "}
+                                    {instrumentAvailability.availability_window
+                                      .instrument_to
+                                      ? instrumentAvailability.availability_window.instrument_to.split(
+                                          "T",
+                                        )[0]
+                                      : "ongoing"}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {instrumentAvailability.date_range.start} to{" "}
+                                {instrumentAvailability.date_range.end}
+                                {" • "}
+                                {
+                                  instrumentAvailability.date_range.total_dates
+                                }{" "}
+                                dates
+                              </>
+                            )}
+                            {instrumentAvailability.date_range
+                              .first_day_of_month_only && (
+                              <span className="text-[var(--color-accent-cyan)]">
+                                {" "}
+                                (first day of month only)
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                      {/* Parsed Instrument Info */}
-                      <div className="text-xs text-[var(--color-text-muted)]">
-                        Parsed: {instrumentAvailability.parsed.category} / {instrumentAvailability.parsed.venue} /
-                        {instrumentAvailability.parsed.folder} / {instrumentAvailability.parsed.instrument_type}
-                      </div>
-                    </div>
-                  )}
+                        {/* Deploy Missing for Instrument */}
+                        {instrumentAvailability.overall.missing > 0 &&
+                          onDeployMissing && (
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                <span className="text-sm">
+                                  {instrumentAvailability.overall.missing}{" "}
+                                  missing across{" "}
+                                  {
+                                    Object.entries(
+                                      instrumentAvailability.by_data_type,
+                                    ).filter(([, s]) => s.dates_missing > 0)
+                                      .length
+                                  }{" "}
+                                  data type(s)
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={handleInstrumentDeployMissing}
+                                className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                              >
+                                <Rocket className="h-4 w-4 mr-2" />
+                                Deploy Missing
+                              </Button>
+                            </div>
+                          )}
 
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Search for a specific instrument to check its data availability across all data types and dates.
-                    This uses the aggregated instruments file for {selectedCategories[0]}.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                        {/* Per Data Type Breakdown */}
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium text-[var(--color-text-muted)]">
+                            By Data Type
+                          </div>
+                          {Object.entries(
+                            instrumentAvailability.by_data_type,
+                          ).map(([dataType, stats]) => (
+                            <div
+                              key={dataType}
+                              className="p-2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm">{dataType}</span>
+                                <span
+                                  className={cn(
+                                    "text-xs font-medium",
+                                    stats.completion_pct >= 100
+                                      ? "text-[var(--color-accent-green)]"
+                                      : stats.completion_pct >= 50
+                                        ? "text-[var(--color-accent-amber)]"
+                                        : "text-[var(--color-accent-red)]",
+                                  )}
+                                >
+                                  {stats.completion_pct.toFixed(1)}% (
+                                  {stats.dates_found}/
+                                  {stats.dates_found + stats.dates_missing})
+                                </span>
+                              </div>
+                              <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-1.5">
+                                <div
+                                  className="h-1.5 rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(stats.completion_pct, 100)}%`,
+                                    backgroundColor: getCompletionColor(
+                                      stats.completion_pct,
+                                    ),
+                                  }}
+                                />
+                              </div>
+                              {/* Expandable date lists */}
+                              <div className="mt-2 space-y-2">
+                                {/* Found dates dropdown (green) */}
+                                {stats.dates_found > 0 &&
+                                  stats.dates_found_list &&
+                                  stats.dates_found_list.length > 0 && (
+                                    <details className="w-full">
+                                      <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
+                                        ▸ {stats.dates_found} available days
+                                        (click to expand)
+                                      </summary>
+                                      <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
+                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                          {stats.dates_found_list.map(
+                                            (date: string) => (
+                                              <span
+                                                key={date}
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                              >
+                                                {date}
+                                              </span>
+                                            ),
+                                          )}
+                                        </div>
+                                      </div>
+                                    </details>
+                                  )}
+                                {/* Missing dates dropdown (red) */}
+                                {stats.dates_missing > 0 &&
+                                  stats.dates_missing_list &&
+                                  stats.dates_missing_list.length > 0 && (
+                                    <details className="w-full">
+                                      <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
+                                        ▸ {stats.dates_missing} missing days
+                                        (click to expand)
+                                      </summary>
+                                      <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
+                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                          {stats.dates_missing_list.map(
+                                            (date: string) => (
+                                              <span
+                                                key={date}
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                              >
+                                                {date}
+                                              </span>
+                                            ),
+                                          )}
+                                        </div>
+                                      </div>
+                                    </details>
+                                  )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Parsed Instrument Info */}
+                        <div className="text-xs text-[var(--color-text-muted)]">
+                          Parsed: {instrumentAvailability.parsed.category} /{" "}
+                          {instrumentAvailability.parsed.venue} /
+                          {instrumentAvailability.parsed.folder} /{" "}
+                          {instrumentAvailability.parsed.instrument_type}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Search for a specific instrument to check its data
+                      availability across all data types and dates. This uses
+                      the aggregated instruments file for{" "}
+                      {selectedCategories[0]}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Check Data Types Toggle - DISABLED: turbo mode shows data_types by default in breakdown */}
           {/* Feature removed - checkDataTypes is hardcoded to false, turbo mode handles this automatically */}
@@ -1776,24 +2135,24 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           <span className="text-xs text-[var(--color-text-muted)]">View:</span>
           <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-1">
             <button
-              onClick={() => setViewMode('table')}
+              onClick={() => setViewMode("table")}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                viewMode === 'table'
+                viewMode === "table"
                   ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
               )}
             >
               <Table2 className="h-3.5 w-3.5" />
               Table
             </button>
             <button
-              onClick={() => setViewMode('calendar')}
+              onClick={() => setViewMode("calendar")}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                viewMode === 'calendar'
+                viewMode === "calendar"
                   ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
               )}
             >
               <CalendarDays className="h-3.5 w-3.5" />
@@ -1819,23 +2178,34 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       : `Checking ${serviceName} data status...`}
               </p>
               {checkVenues && (
-                <p className="text-xs text-[var(--color-text-muted)]">This may take 20-30 seconds</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  This may take 20-30 seconds
+                </p>
               )}
               {checkDataTypes && (
-                <p className="text-xs text-[var(--color-text-muted)]">This may take 60-90 seconds for detailed validation</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  This may take 60-90 seconds for detailed validation
+                </p>
               )}
               {!checkVenues && !checkDataTypes && (
                 <p className="text-xs text-[var(--color-text-muted)]">
                   {startDate} to {endDate}
-                  {useTurboMode && (() => {
-                    // Calculate months for ETA estimate
-                    // Local: ~1.2s per month, Cloud Run: ~0.5s per month
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    const months = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
-                    const etaSeconds = months > 6 ? Math.ceil(months * 1.2) : Math.ceil(months * 3);
-                    return ` • Optimized scan (~${etaSeconds}s for ${months} months)`;
-                  })()}
+                  {useTurboMode &&
+                    (() => {
+                      // Calculate months for ETA estimate
+                      // Local: ~1.2s per month, Cloud Run: ~0.5s per month
+                      const start = new Date(startDate);
+                      const end = new Date(endDate);
+                      const months = Math.ceil(
+                        (end.getTime() - start.getTime()) /
+                          (1000 * 60 * 60 * 24 * 30),
+                      );
+                      const etaSeconds =
+                        months > 6
+                          ? Math.ceil(months * 1.2)
+                          : Math.ceil(months * 3);
+                      return ` • Optimized scan (~${etaSeconds}s for ${months} months)`;
+                    })()}
                 </p>
               )}
               <Button
@@ -1864,335 +2234,419 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       )}
 
       {/* Venue Check Results */}
-      {venueCheckData && checkVenues &&
-       venueCheckData.start_date === startDate &&
-       venueCheckData.end_date === endDate && (
-        <>
-          {/* Venue Check Summary */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-xl font-mono flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-[var(--color-accent-purple)]" />
-                    Venue Coverage Check
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {venueCheckData.start_date} to {venueCheckData.end_date} • Deep scan of parquet files
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(venueCheckData.categories).map(([catName, catData]) => {
-                  const datesWithIssues = catData.dates_with_missing_venues.length
-                  const totalDates = catData.total_dates
-                  const isClean = datesWithIssues === 0
-                  const isExpanded = expandedCategories.has(catName)
-
-                  return (
-                    <div key={catName} className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden">
-                      {/* Category Header */}
-                      <button
-                        onClick={() => toggleCategory(catName)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                          )}
-                          <span className="font-medium">{catName}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {isClean ? (
-                            <Badge variant="outline" className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              All venues present
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              {datesWithIssues} / {totalDates} dates have missing venues
-                            </Badge>
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Expanded: Dates with missing venues */}
-                      {isExpanded && datesWithIssues > 0 && (
-                        <div className="bg-[var(--color-bg-secondary)] px-4 py-3 space-y-2">
-                          {catData.dates_with_missing_venues.map((dateInfo) => {
-                            const dateKey = `${catName}-${dateInfo.date}`
-                            const isDateExpanded = expandedDates.has(dateKey)
-
-                            return (
-                              <div key={dateInfo.date} className="border border-[var(--color-border-subtle)] rounded bg-[var(--color-bg-primary)]">
-                                <button
-                                  onClick={() => toggleDate(dateKey)}
-                                  className="w-full px-3 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {isDateExpanded ? (
-                                      <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
-                                    ) : (
-                                      <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
-                                    )}
-                                    <Calendar className="h-3 w-3 text-[var(--color-text-muted)]" />
-                                    <span className="font-mono text-sm">{dateInfo.date}</span>
-                                  </div>
-                                  <Badge variant="outline" className="text-xs bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
-                                    {dateInfo.missing.length} missing
-                                  </Badge>
-                                </button>
-
-                                {isDateExpanded && (
-                                  <div className="px-3 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
-                                    <div className="text-xs text-[var(--color-text-muted)] mb-2">Missing venues:</div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {dateInfo.missing.map(venue => (
-                                        <Badge
-                                          key={venue}
-                                          variant="outline"
-                                          className="text-xs font-mono bg-[rgba(248,113,113,0.05)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.2)]"
-                                        >
-                                          {venue}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {isExpanded && datesWithIssues === 0 && (
-                        <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
-                          <CheckCircle2 className="h-8 w-8 text-[var(--color-accent-green)] mx-auto mb-2" />
-                          <p className="text-sm text-[var(--color-text-muted)]">
-                            All {totalDates} dates have complete venue coverage
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Deploy Missing from Venue Check */}
-              {Object.values(venueCheckData.categories).some(c => c.dates_with_missing_venues.length > 0) && onDeployMissing && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                    <span className="text-sm">
-                      Re-run dates with missing venues to regenerate parquet files
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={handleOpenDeployMissingModal}
-                    className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
-                  >
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Re-deploy Affected Dates
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Calendar View for Venue Check Mode */}
-          {viewMode === 'calendar' && heatmapData.length > 0 && (
+      {venueCheckData &&
+        checkVenues &&
+        venueCheckData.start_date === startDate &&
+        venueCheckData.end_date === endDate && (
+          <>
+            {/* Venue Check Summary */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Coverage Calendar</CardTitle>
-                <CardDescription>
-                  Visual overview of venue coverage by day
-                </CardDescription>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-mono flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-[var(--color-accent-purple)]" />
+                      Venue Coverage Check
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {venueCheckData.start_date} to {venueCheckData.end_date} •
+                      Deep scan of parquet files
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <HeatmapCalendar
-                  data={heatmapData}
-                  startDate={startDate}
-                  endDate={endDate}
-                  onDateClick={(date) => setSelectedCalendarDate(date)}
-                  selectedDate={selectedCalendarDate || undefined}
-                />
+                <div className="space-y-4">
+                  {Object.entries(venueCheckData.categories).map(
+                    ([catName, catData]) => {
+                      const datesWithIssues =
+                        catData.dates_with_missing_venues.length;
+                      const totalDates = catData.total_dates;
+                      const isClean = datesWithIssues === 0;
+                      const isExpanded = expandedCategories.has(catName);
 
-                {/* Selected Date Details */}
-                {selectedCalendarDate && (
-                  <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">
-                        {new Date(selectedCalendarDate).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </h4>
-                      <button
-                        onClick={() => setSelectedCalendarDate(null)}
-                        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      return (
+                        <div
+                          key={catName}
+                          className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
+                        >
+                          {/* Category Header */}
+                          <button
+                            onClick={() => toggleCategory(catName)}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                              )}
+                              <span className="font-medium">{catName}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {isClean ? (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  All venues present
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  {datesWithIssues} / {totalDates} dates have
+                                  missing venues
+                                </Badge>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* Expanded: Dates with missing venues */}
+                          {isExpanded && datesWithIssues > 0 && (
+                            <div className="bg-[var(--color-bg-secondary)] px-4 py-3 space-y-2">
+                              {catData.dates_with_missing_venues.map(
+                                (dateInfo) => {
+                                  const dateKey = `${catName}-${dateInfo.date}`;
+                                  const isDateExpanded =
+                                    expandedDates.has(dateKey);
+
+                                  return (
+                                    <div
+                                      key={dateInfo.date}
+                                      className="border border-[var(--color-border-subtle)] rounded bg-[var(--color-bg-primary)]"
+                                    >
+                                      <button
+                                        onClick={() => toggleDate(dateKey)}
+                                        className="w-full px-3 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {isDateExpanded ? (
+                                            <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
+                                          ) : (
+                                            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
+                                          )}
+                                          <Calendar className="h-3 w-3 text-[var(--color-text-muted)]" />
+                                          <span className="font-mono text-sm">
+                                            {dateInfo.date}
+                                          </span>
+                                        </div>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                        >
+                                          {dateInfo.missing.length} missing
+                                        </Badge>
+                                      </button>
+
+                                      {isDateExpanded && (
+                                        <div className="px-3 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
+                                          <div className="text-xs text-[var(--color-text-muted)] mb-2">
+                                            Missing venues:
+                                          </div>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {dateInfo.missing.map((venue) => (
+                                              <Badge
+                                                key={venue}
+                                                variant="outline"
+                                                className="text-xs font-mono bg-[rgba(248,113,113,0.05)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.2)]"
+                                              >
+                                                {venue}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                },
+                              )}
+                            </div>
+                          )}
+
+                          {isExpanded && datesWithIssues === 0 && (
+                            <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
+                              <CheckCircle2 className="h-8 w-8 text-[var(--color-accent-green)] mx-auto mb-2" />
+                              <p className="text-sm text-[var(--color-text-muted)]">
+                                All {totalDates} dates have complete venue
+                                coverage
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+
+                {/* Deploy Missing from Venue Check */}
+                {Object.values(venueCheckData.categories).some(
+                  (c) => c.dates_with_missing_venues.length > 0,
+                ) &&
+                  onDeployMissing && (
+                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                        <span className="text-sm">
+                          Re-run dates with missing venues to regenerate parquet
+                          files
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleOpenDeployMissingModal}
+                        className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
                       >
-                        ✕ Close
-                      </button>
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Re-deploy Affected Dates
+                      </Button>
                     </div>
-                    {heatmapData.find(d => d.date === selectedCalendarDate)?.tooltip && (
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        {heatmapData.find(d => d.date === selectedCalendarDate)?.tooltip}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  )}
               </CardContent>
             </Card>
-          )}
-        </>
-      )}
 
-      {/* Data Type Check Results */}
-      {dataTypeCheckData && checkDataTypes &&
-       dataTypeCheckData.start_date === startDate &&
-       dataTypeCheckData.end_date === endDate && (
-        <>
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-xl font-mono flex items-center gap-2">
-                    <Database className="h-5 w-5 text-[var(--color-accent-green)]" />
-                    Data Type Validation
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {dataTypeCheckData.start_date} to {dataTypeCheckData.end_date} • Per data_type validation (TRADFI)
+            {/* Calendar View for Venue Check Mode */}
+            {viewMode === "calendar" && heatmapData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Coverage Calendar</CardTitle>
+                  <CardDescription>
+                    Visual overview of venue coverage by day
                   </CardDescription>
-                </div>
-                <div className="text-right">
-                  <div
-                    className="text-3xl font-mono font-bold"
-                    style={{ color: getCompletionColor(dataTypeCheckData.overall_completion) }}
-                  >
-                    {dataTypeCheckData.overall_completion.toFixed(1)}%
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    {dataTypeCheckData.overall_complete} / {dataTypeCheckData.overall_total} data_type × date combinations
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Progress bar */}
-              <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden mb-6">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${dataTypeCheckData.overall_completion}%`,
-                    backgroundColor: getCompletionColor(dataTypeCheckData.overall_completion)
-                  }}
-                />
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <HeatmapCalendar
+                    data={heatmapData}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onDateClick={(date) => setSelectedCalendarDate(date)}
+                    selectedDate={selectedCalendarDate || undefined}
+                  />
 
-              {/* Venue Breakdown with Data Types */}
-              <div className="space-y-3">
-                {dataTypeCheckData.venues && Object.entries(dataTypeCheckData.venues).map(([venueName, venueData]) => {
-                  const isExpanded = expandedVenues.has(venueName)
-                  const isComplete = venueData.completion_percent === 100
-
-                  return (
-                    <div key={venueName} className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleVenue(venueName)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                  {/* Selected Date Details */}
+                  {selectedCalendarDate && (
+                    <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">
+                          {new Date(selectedCalendarDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            },
                           )}
-                          <span className="font-medium">{venueName}</span>
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            ({Object.keys(venueData.data_types || {}).length} data types)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              isComplete
-                                ? "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
-                                : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
-                            )}
-                          >
-                            {isComplete ? (
-                              <><CheckCircle2 className="h-3 w-3 mr-1" /> {venueData.completion_percent.toFixed(0)}%</>
-                            ) : (
-                              <><AlertCircle className="h-3 w-3 mr-1" /> {venueData.completion_percent.toFixed(0)}%</>
-                            )}
-                          </Badge>
-                          <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                            {venueData.complete}/{venueData.total}
-                          </span>
-                        </div>
-                      </button>
-
-                      {/* Expanded: Data type breakdown */}
-                      {isExpanded && venueData.data_types && (
-                        <div className="bg-[var(--color-bg-secondary)] px-4 py-3">
-                          <div className="grid gap-2">
-                            {Object.entries(venueData.data_types).map(([dataType, typeData]) => {
-                              const typeComplete = typeData.completion_percent === 100
-                              return (
-                                <div
-                                  key={dataType}
-                                  className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {typeComplete ? (
-                                      <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                                    ) : (
-                                      <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                    )}
-                                    <span className="font-mono text-sm">{dataType}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span
-                                      className="text-sm font-medium"
-                                      style={{ color: getCompletionColor(typeData.completion_percent) }}
-                                    >
-                                      {typeData.completion_percent.toFixed(0)}%
-                                    </span>
-                                    <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                      {typeData.found}/{typeData.expected}
-                                    </span>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
+                        </h4>
+                        <button
+                          onClick={() => setSelectedCalendarDate(null)}
+                          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                        >
+                          ✕ Close
+                        </button>
+                      </div>
+                      {heatmapData.find((d) => d.date === selectedCalendarDate)
+                        ?.tooltip && (
+                        <p className="text-sm text-[var(--color-text-secondary)]">
+                          {
+                            heatmapData.find(
+                              (d) => d.date === selectedCalendarDate,
+                            )?.tooltip
+                          }
+                        </p>
                       )}
                     </div>
-                  )
-                })}
-              </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
 
-              {/* Info about tick windows - TRADFI specific */}
-              <div className="mt-4 p-3 bg-[var(--color-bg-tertiary)] rounded-lg">
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  <strong>Tick Windows (TRADFI only):</strong> May 2023 and July 2024 expect 3 data types (trades, ohlcv_1m, tbbo) for backtesting.
-                  Other dates expect only ohlcv_1m for cost optimization. DEFI/CEFI always expect all data types.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {/* Data Type Check Results */}
+      {dataTypeCheckData &&
+        checkDataTypes &&
+        dataTypeCheckData.start_date === startDate &&
+        dataTypeCheckData.end_date === endDate && (
+          <>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-mono flex items-center gap-2">
+                      <Database className="h-5 w-5 text-[var(--color-accent-green)]" />
+                      Data Type Validation
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {dataTypeCheckData.start_date} to{" "}
+                      {dataTypeCheckData.end_date} • Per data_type validation
+                      (TRADFI)
+                    </CardDescription>
+                  </div>
+                  <div className="text-right">
+                    <div
+                      className="text-3xl font-mono font-bold"
+                      style={{
+                        color: getCompletionColor(
+                          dataTypeCheckData.overall_completion,
+                        ),
+                      }}
+                    >
+                      {dataTypeCheckData.overall_completion.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">
+                      {dataTypeCheckData.overall_complete} /{" "}
+                      {dataTypeCheckData.overall_total} data_type × date
+                      combinations
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Progress bar */}
+                <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden mb-6">
+                  <div
+                    className="h-full transition-all duration-500"
+                    style={{
+                      width: `${dataTypeCheckData.overall_completion}%`,
+                      backgroundColor: getCompletionColor(
+                        dataTypeCheckData.overall_completion,
+                      ),
+                    }}
+                  />
+                </div>
+
+                {/* Venue Breakdown with Data Types */}
+                <div className="space-y-3">
+                  {dataTypeCheckData.venues &&
+                    Object.entries(dataTypeCheckData.venues).map(
+                      ([venueName, venueData]) => {
+                        const isExpanded = expandedVenues.has(venueName);
+                        const isComplete = venueData.completion_percent === 100;
+
+                        return (
+                          <div
+                            key={venueName}
+                            className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
+                          >
+                            <button
+                              onClick={() => toggleVenue(venueName)}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                )}
+                                <span className="font-medium">{venueName}</span>
+                                <span className="text-xs text-[var(--color-text-muted)]">
+                                  (
+                                  {
+                                    Object.keys(venueData.data_types || {})
+                                      .length
+                                  }{" "}
+                                  data types)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    isComplete
+                                      ? "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                                      : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]",
+                                  )}
+                                >
+                                  {isComplete ? (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
+                                      {venueData.completion_percent.toFixed(0)}%
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertCircle className="h-3 w-3 mr-1" />{" "}
+                                      {venueData.completion_percent.toFixed(0)}%
+                                    </>
+                                  )}
+                                </Badge>
+                                <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                  {venueData.complete}/{venueData.total}
+                                </span>
+                              </div>
+                            </button>
+
+                            {/* Expanded: Data type breakdown */}
+                            {isExpanded && venueData.data_types && (
+                              <div className="bg-[var(--color-bg-secondary)] px-4 py-3">
+                                <div className="grid gap-2">
+                                  {Object.entries(venueData.data_types).map(
+                                    ([dataType, typeData]) => {
+                                      const typeComplete =
+                                        typeData.completion_percent === 100;
+                                      return (
+                                        <div
+                                          key={dataType}
+                                          className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            {typeComplete ? (
+                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                            ) : (
+                                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                            )}
+                                            <span className="font-mono text-sm">
+                                              {dataType}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-3">
+                                            <span
+                                              className="text-sm font-medium"
+                                              style={{
+                                                color: getCompletionColor(
+                                                  typeData.completion_percent,
+                                                ),
+                                              }}
+                                            >
+                                              {typeData.completion_percent.toFixed(
+                                                0,
+                                              )}
+                                              %
+                                            </span>
+                                            <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                              {typeData.found}/
+                                              {typeData.expected}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      },
+                    )}
+                </div>
+
+                {/* Info about tick windows - TRADFI specific */}
+                <div className="mt-4 p-3 bg-[var(--color-bg-tertiary)] rounded-lg">
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    <strong>Tick Windows (TRADFI only):</strong> May 2023 and
+                    July 2024 expect 3 data types (trades, ohlcv_1m, tbbo) for
+                    backtesting. Other dates expect only ohlcv_1m for cost
+                    optimization. DEFI/CEFI always expect all data types.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
       {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
       {turboData && !checkVenues && !checkDataTypes && (
@@ -2205,27 +2659,37 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   <CardTitle className="text-xl font-mono flex items-center gap-2">
                     <Database className="h-5 w-5" />
                     Data Coverage
-                    <Badge variant="outline" className="ml-2 bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]">
+                    <Badge
+                      variant="outline"
+                      className="ml-2 bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                    >
                       TURBO
                     </Badge>
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    {turboData.date_range.start} to {turboData.date_range.end} ({turboData.date_range.days} days)
+                    {turboData.date_range.start} to {turboData.date_range.end} (
+                    {turboData.date_range.days} days)
                   </CardDescription>
                 </div>
                 <div className="text-right">
                   <div
                     className="text-3xl font-mono font-bold"
-                    style={{ color: getCompletionColor(turboData.overall_completion_pct) }}
+                    style={{
+                      color: getCompletionColor(
+                        turboData.overall_completion_pct,
+                      ),
+                    }}
                   >
                     {turboData.overall_completion_pct.toFixed(1)}%
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    {turboData.overall_dates_found} / {turboData.overall_dates_expected} venue-days
+                    {turboData.overall_dates_found} /{" "}
+                    {turboData.overall_dates_expected} venue-days
                   </div>
                   {turboData.overall_dates_found_category !== undefined && (
                     <div className="text-xs text-[var(--color-text-muted)] opacity-70">
-                      ({turboData.overall_dates_found_category} / {turboData.overall_dates_expected_category} dates)
+                      ({turboData.overall_dates_found_category} /{" "}
+                      {turboData.overall_dates_expected_category} dates)
                     </div>
                   )}
                 </div>
@@ -2238,7 +2702,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   className="h-full transition-all duration-500"
                   style={{
                     width: `${turboData.overall_completion_pct}%`,
-                    backgroundColor: getCompletionColor(turboData.overall_completion_pct)
+                    backgroundColor: getCompletionColor(
+                      turboData.overall_completion_pct,
+                    ),
                   }}
                 />
               </div>
@@ -2282,394 +2748,566 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Object.entries(turboData.categories).map(([catName, catData]) => {
-                  const isComplete = catData.completion_pct >= 100
+                {Object.entries(turboData.categories).map(
+                  ([catName, catData]) => {
+                    const isComplete = catData.completion_pct >= 100;
 
-                  return (
-                    <div key={catName} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {isComplete ? (
-                            <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                          ) : catData.error ? (
-                            <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                          ) : (
-                            <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                          )}
-                          <span className="font-medium">{catName}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {catData.error ? (
-                            <span className="text-sm text-[var(--color-accent-red)]">{catData.error}</span>
-                          ) : (
-                            <>
-                              <span className="text-sm text-[var(--color-text-muted)]">
-                                {catData.venue_dates_found ?? catData.dates_found} / {catData.venue_dates_expected ?? catData.dates_expected} {catData.venue_weighted ? 'venue-days' : 'dates'}
-                              </span>
-                              <span
-                                className="text-sm font-mono font-medium"
-                                style={{ color: getCompletionColor(catData.completion_pct) }}
-                              >
-                                {catData.completion_pct.toFixed(1)}%
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {!catData.error && (
-                        <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                          <div
-                            className="h-full transition-all duration-500"
-                            style={{
-                              width: `${catData.completion_pct}%`,
-                              backgroundColor: getCompletionColor(catData.completion_pct)
-                            }}
-                          />
-                        </div>
-                      )}
-                      {catData.dates_missing > 0 && !catData.error && !catData.bulk_service && (
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          {catData.dates_missing} date{catData.dates_missing !== 1 ? 's' : ''} missing
-                          {Array.isArray(catData.missing_dates) && catData.missing_dates.length > 0 && (
-                            <span className="ml-1">
-                              (e.g., {catData.missing_dates.slice(0, 3).join(', ')}{catData.missing_dates.length > 3 ? '...' : ''})
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {catData.bulk_service && (
-                        <p className="text-xs text-[var(--color-text-muted)] italic">
-                          Bulk download service — {catData.dates_found} of {catData.dates_expected} dates have data.
-                          {catData.dates_missing > 0 && ' Run the service to populate all dates.'}
-                        </p>
-                      )}
-
-                      {/* Category-level date dropdowns (for services without sub-dimensions) */}
-                      {!catData.venues && !catData.data_types && !catData.feature_groups && !catData.error && (
-                        <div className="flex gap-4 mt-2">
-                          {/* Available dates dropdown (green) */}
-                          {catData.dates_found_count && catData.dates_found_count > 0 && (
-                            <details className="flex-1">
-                              <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                {catData.dates_found_count} available days
-                              </summary>
-                              <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
-                                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                  {catData.dates_found_list?.map((date: string) => (
-                                    <span
-                                      key={date}
-                                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                                    >
-                                      {date}
-                                    </span>
-                                  ))}
-                                  {catData.dates_found_truncated && (
-                                    <>
-                                      <span className="text-[9px] text-[var(--color-text-muted)]">...</span>
-                                      {catData.dates_found_list_tail?.map((date: string) => (
-                                        <span
-                                          key={date}
-                                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                                        >
-                                          {date}
-                                        </span>
-                                      ))}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </details>
-                          )}
-                          {/* Missing dates dropdown (red) */}
-                          {catData.dates_missing_count && catData.dates_missing_count > 0 && (
-                            <details className="flex-1">
-                              <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                {catData.dates_missing_count} missing days
-                              </summary>
-                              <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
-                                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                  {catData.dates_missing_list?.map((date: string) => (
-                                    <span
-                                      key={date}
-                                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
-                                    >
-                                      {date}
-                                    </span>
-                                  ))}
-                                  {catData.dates_missing_truncated && (
-                                    <>
-                                      <span className="text-[9px] text-[var(--color-text-muted)]">...</span>
-                                      {catData.dates_missing_list_tail?.map((date: string) => (
-                                        <span
-                                          key={date}
-                                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
-                                        >
-                                          {date}
-                                        </span>
-                                      ))}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </details>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Sub-dimension breakdown (venues, data_types, feature_groups) */}
-                      {(catData.venues || catData.data_types || catData.feature_groups) && (
-                        <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
-                          {/* Folders/Instrument Types section - own bordered container */}
-                          {catData.folders && Object.keys(catData.folders).length > 0 && (
-                            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                              <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                Instrument Types (Folders)
-                              </p>
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                {Object.entries(catData.folders).map(([folderName, folderData]) => (
-                                  <div
-                                    key={folderName}
-                                    className="bg-[var(--color-bg-tertiary)] rounded p-2"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-mono truncate" title={folderName}>{folderName}</span>
-                                      <span
-                                        className="text-xs font-mono font-medium ml-1"
-                                        style={{ color: getCompletionColor(folderData.completion_pct) }}
-                                      >
-                                        {folderData.completion_pct.toFixed(0)}%
-                                      </span>
-                                    </div>
-                                    <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1">
-                                      <div
-                                        className="h-full"
-                                        style={{
-                                          width: `${folderData.completion_pct}%`,
-                                          backgroundColor: getCompletionColor(folderData.completion_pct)
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                                      {folderData.dates_found}/{folderData.dates_expected} days
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Venues / Data Types / Feature Groups section - own bordered container */}
-                          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
-                                {catData.venues ? (catData.folders ? 'Venues' : 'Venues') : catData.data_types ? 'Data Types' : 'Feature Groups'}
-                              </p>
-                              {/* Venue Summary Badges */}
-                              {catData.venue_summary && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  {catData.venue_summary.expected_coverage_pct === 100 ? (
-                                    <Badge variant="outline" className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]">
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      All {catData.venue_summary.expected_count} expected
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)] cursor-help"
-                                      title={`Missing: ${catData.venue_summary.expected_but_missing.join(', ')}`}
-                                    >
-                                      <XCircle className="h-3 w-3 mr-1" />
-                                      {catData.venue_summary.expected_but_missing.length} expected missing
-                                    </Badge>
-                                  )}
-                                  {catData.venue_summary.unexpected_but_found.length > 0 && (
-                                    <Badge variant="outline" className="bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]">
-                                      +{catData.venue_summary.unexpected_but_found.length} bonus
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            {/* Show missing venues inline */}
-                            {catData.venue_summary && catData.venue_summary.expected_but_missing.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">Missing:</span>
-                                {catData.venue_summary.expected_but_missing.map((venue: string) => (
-                                  <span
-                                    key={venue}
-                                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.15)] text-[var(--color-accent-red)] border border-[rgba(248,113,113,0.3)]"
-                                  >
-                                    {venue}
-                                  </span>
-                                ))}
-                              </div>
+                    return (
+                      <div key={catName} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isComplete ? (
+                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                            ) : catData.error ? (
+                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                            ) : (
+                              <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                             )}
-
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                            {Object.entries(catData.venues || catData.data_types || catData.feature_groups || {}).map(([name, subData]) => {
-                              // Use dimension-weighted counts when available (accounts for
-                              // multiple expected data_types/folders per venue). Falls back
-                              // to raw venue dates for services without sub-dimensions.
-                              const hasDimWeighting = subData._dim_weighted_found !== undefined
-                              const effectiveFound = hasDimWeighting ? subData._dim_weighted_found : subData.dates_found
-                              const effectiveExpected = hasDimWeighting
-                                ? subData._dim_weighted_expected
-                                : (subData.dates_expected_venue || subData.dates_expected)
-                              const expectedDates = subData.dates_expected_venue || subData.dates_expected
-                              const venueStartDate = subData.venue_start_date
-
-                              return (
-                                <div
-                                  key={name}
-                                  className={cn(
-                                    "bg-[var(--color-bg-tertiary)] rounded p-2",
-                                    subData.status === 'bonus' && "opacity-60 border border-dashed border-[var(--color-border)]"
-                                  )}
+                            <span className="font-medium">{catName}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {catData.error ? (
+                              <span className="text-sm text-[var(--color-accent-red)]">
+                                {catData.error}
+                              </span>
+                            ) : (
+                              <>
+                                <span className="text-sm text-[var(--color-text-muted)]">
+                                  {catData.venue_dates_found ??
+                                    catData.dates_found}{" "}
+                                  /{" "}
+                                  {catData.venue_dates_expected ??
+                                    catData.dates_expected}{" "}
+                                  {catData.venue_weighted
+                                    ? "venue-days"
+                                    : "dates"}
+                                </span>
+                                <span
+                                  className="text-sm font-mono font-medium"
+                                  style={{
+                                    color: getCompletionColor(
+                                      catData.completion_pct,
+                                    ),
+                                  }}
                                 >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1 min-w-0">
-                                      <span className="text-xs font-mono truncate" title={name}>{name}</span>
-                                      {subData.status === 'bonus' && (
-                                        <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">+</span>
-                                      )}
-                                    </div>
-                                    <span
-                                      className="text-xs font-mono font-medium ml-1"
-                                      style={{ color: getCompletionColor(subData.completion_pct) }}
-                                    >
-                                      {subData.completion_pct.toFixed(0)}%
-                                    </span>
-                                  </div>
-                                  {/* Progress bar with expected vs actual visualization */}
-                                  <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1 relative">
-                                    <div
-                                      className="h-full absolute left-0 top-0"
-                                      style={{
-                                        width: `${subData.completion_pct}%`,
-                                        backgroundColor: getCompletionColor(subData.completion_pct)
-                                      }}
-                                    />
-                                  </div>
-                                  {/* Show found vs expected counts */}
-                                  <div className="flex justify-between items-center mt-0.5">
-                                    <span className="text-[10px] text-[var(--color-text-muted)]">
-                                      {hasDimWeighting
-                                        ? `${effectiveFound}/${effectiveExpected} across ${Math.round((effectiveExpected || 0) / (expectedDates || 1))} types`
-                                        : `${subData.dates_found}/${expectedDates} days`
-                                      }
-                                    </span>
-                                    {venueStartDate && (
-                                      <span className="text-[9px] text-[var(--color-text-muted)] opacity-70" title={`Data starts: ${venueStartDate}`}>
-                                        from {venueStartDate.substring(0, 7)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {/* Data types breakdown if available */}
-                                  {subData.data_types && Object.keys(subData.data_types).length > 0 && (
-                                    <details className="mt-1">
-                                      <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
-                                        {Object.keys(subData.data_types).length} data types
-                                      </summary>
-                                      <div className="mt-1 space-y-0.5 pl-1 border-l border-[var(--color-border-subtle)]">
-                                        {Object.entries(subData.data_types).map(([dtName, dtData]) => (
-                                          <div key={dtName} className="flex items-center justify-between text-[9px]">
-                                            <span className={cn(
-                                              "truncate",
-                                              dtData.status === 'missing' && "text-[var(--color-accent-red)]",
-                                              dtData.status === 'partial' && "text-[var(--color-accent-amber)]",
-                                              dtData.status === 'complete' && "text-[var(--color-accent-green)]"
-                                            )}>
-                                              {dtName}
+                                  {catData.completion_pct.toFixed(1)}%
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {!catData.error && (
+                          <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                            <div
+                              className="h-full transition-all duration-500"
+                              style={{
+                                width: `${catData.completion_pct}%`,
+                                backgroundColor: getCompletionColor(
+                                  catData.completion_pct,
+                                ),
+                              }}
+                            />
+                          </div>
+                        )}
+                        {catData.dates_missing > 0 &&
+                          !catData.error &&
+                          !catData.bulk_service && (
+                            <p className="text-xs text-[var(--color-text-muted)]">
+                              {catData.dates_missing} date
+                              {catData.dates_missing !== 1 ? "s" : ""} missing
+                              {Array.isArray(catData.missing_dates) &&
+                                catData.missing_dates.length > 0 && (
+                                  <span className="ml-1">
+                                    (e.g.,{" "}
+                                    {catData.missing_dates
+                                      .slice(0, 3)
+                                      .join(", ")}
+                                    {catData.missing_dates.length > 3
+                                      ? "..."
+                                      : ""}
+                                    )
+                                  </span>
+                                )}
+                            </p>
+                          )}
+                        {catData.bulk_service && (
+                          <p className="text-xs text-[var(--color-text-muted)] italic">
+                            Bulk download service — {catData.dates_found} of{" "}
+                            {catData.dates_expected} dates have data.
+                            {catData.dates_missing > 0 &&
+                              " Run the service to populate all dates."}
+                          </p>
+                        )}
+
+                        {/* Category-level date dropdowns (for services without sub-dimensions) */}
+                        {!catData.venues &&
+                          !catData.data_types &&
+                          !catData.feature_groups &&
+                          !catData.error && (
+                            <div className="flex gap-4 mt-2">
+                              {/* Available dates dropdown (green) */}
+                              {catData.dates_found_count &&
+                                catData.dates_found_count > 0 && (
+                                  <details className="flex-1">
+                                    <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                      {catData.dates_found_count} available days
+                                    </summary>
+                                    <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
+                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                        {catData.dates_found_list?.map(
+                                          (date: string) => (
+                                            <span
+                                              key={date}
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                            >
+                                              {date}
                                             </span>
-                                            <span className={cn(
-                                              "ml-1 font-mono",
-                                              dtData.status === 'missing' && "text-[var(--color-accent-red)]",
-                                              dtData.status === 'partial' && "text-[var(--color-accent-amber)]",
-                                              dtData.status === 'complete' && "text-[var(--color-accent-green)]"
-                                            )}>
-                                              {dtData.completion_pct}%
+                                          ),
+                                        )}
+                                        {catData.dates_found_truncated && (
+                                          <>
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                              ...
+                                            </span>
+                                            {catData.dates_found_list_tail?.map(
+                                              (date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ),
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </details>
+                                )}
+                              {/* Missing dates dropdown (red) */}
+                              {catData.dates_missing_count &&
+                                catData.dates_missing_count > 0 && (
+                                  <details className="flex-1">
+                                    <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                      {catData.dates_missing_count} missing days
+                                    </summary>
+                                    <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
+                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                        {catData.dates_missing_list?.map(
+                                          (date: string) => (
+                                            <span
+                                              key={date}
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                            >
+                                              {date}
+                                            </span>
+                                          ),
+                                        )}
+                                        {catData.dates_missing_truncated && (
+                                          <>
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                              ...
+                                            </span>
+                                            {catData.dates_missing_list_tail?.map(
+                                              (date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ),
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </details>
+                                )}
+                            </div>
+                          )}
+
+                        {/* Sub-dimension breakdown (venues, data_types, feature_groups) */}
+                        {(catData.venues ||
+                          catData.data_types ||
+                          catData.feature_groups) && (
+                          <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
+                            {/* Folders/Instrument Types section - own bordered container */}
+                            {catData.folders &&
+                              Object.keys(catData.folders).length > 0 && (
+                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                    Instrument Types (Folders)
+                                  </p>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {Object.entries(catData.folders).map(
+                                      ([folderName, folderData]) => (
+                                        <div
+                                          key={folderName}
+                                          className="bg-[var(--color-bg-tertiary)] rounded p-2"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span
+                                              className="text-xs font-mono truncate"
+                                              title={folderName}
+                                            >
+                                              {folderName}
+                                            </span>
+                                            <span
+                                              className="text-xs font-mono font-medium ml-1"
+                                              style={{
+                                                color: getCompletionColor(
+                                                  folderData.completion_pct,
+                                                ),
+                                              }}
+                                            >
+                                              {folderData.completion_pct.toFixed(
+                                                0,
+                                              )}
+                                              %
                                             </span>
                                           </div>
-                                        ))}
-                                      </div>
-                                    </details>
-                                  )}
-                                  {/* Available dates breakdown if available (green) */}
-                                  {subData.dates_found_count && subData.dates_found_count > 0 && (
-                                    <details className="mt-1">
-                                      <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                        {subData.dates_found_count} available days
-                                      </summary>
-                                      <div className="mt-1 pl-1 border-l border-[rgba(34,197,94,0.3)]">
-                                        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                                          {subData.dates_found_list?.map((date: string) => (
-                                            <span
-                                              key={date}
-                                              className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                                            >
-                                              {date}
-                                            </span>
-                                          ))}
-                                          {subData.dates_found_truncated && (
-                                            <>
-                                              <span className="text-[8px] text-[var(--color-text-muted)]">...</span>
-                                              {subData.dates_found_list_tail?.map((date: string) => (
-                                                <span
-                                                  key={date}
-                                                  className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                                                >
-                                                  {date}
-                                                </span>
-                                              ))}
-                                            </>
-                                          )}
+                                          <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1">
+                                            <div
+                                              className="h-full"
+                                              style={{
+                                                width: `${folderData.completion_pct}%`,
+                                                backgroundColor:
+                                                  getCompletionColor(
+                                                    folderData.completion_pct,
+                                                  ),
+                                              }}
+                                            />
+                                          </div>
+                                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                            {folderData.dates_found}/
+                                            {folderData.dates_expected} days
+                                          </div>
                                         </div>
-                                      </div>
-                                    </details>
-                                  )}
-                                  {/* Missing dates breakdown if available (red) */}
-                                  {subData.dates_missing_count && subData.dates_missing_count > 0 && (
-                                    <details className="mt-1">
-                                      <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                        {subData.dates_missing_count} missing days
-                                      </summary>
-                                      <div className="mt-1 pl-1 border-l border-[rgba(248,113,113,0.3)]">
-                                        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                                          {subData.dates_missing_list?.map((date: string) => (
-                                            <span
-                                              key={date}
-                                              className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
-                                            >
-                                              {date}
-                                            </span>
-                                          ))}
-                                          {subData.dates_missing_truncated && (
-                                            <>
-                                              <span className="text-[8px] text-[var(--color-text-muted)]">...</span>
-                                              {subData.dates_missing_list_tail?.map((date: string) => (
-                                                <span
-                                                  key={date}
-                                                  className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
-                                                >
-                                                  {date}
-                                                </span>
-                                              ))}
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </details>
-                                  )}
+                                      ),
+                                    )}
+                                  </div>
                                 </div>
-                              )
-                            })}
+                              )}
+
+                            {/* Venues / Data Types / Feature Groups section - own bordered container */}
+                            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
+                                  {catData.venues
+                                    ? catData.folders
+                                      ? "Venues"
+                                      : "Venues"
+                                    : catData.data_types
+                                      ? "Data Types"
+                                      : "Feature Groups"}
+                                </p>
+                                {/* Venue Summary Badges */}
+                                {catData.venue_summary && (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    {catData.venue_summary
+                                      .expected_coverage_pct === 100 ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        All{" "}
+                                        {catData.venue_summary.expected_count}{" "}
+                                        expected
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)] cursor-help"
+                                        title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
+                                      >
+                                        <XCircle className="h-3 w-3 mr-1" />
+                                        {
+                                          catData.venue_summary
+                                            .expected_but_missing.length
+                                        }{" "}
+                                        expected missing
+                                      </Badge>
+                                    )}
+                                    {catData.venue_summary.unexpected_but_found
+                                      .length > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]"
+                                      >
+                                        +
+                                        {
+                                          catData.venue_summary
+                                            .unexpected_but_found.length
+                                        }{" "}
+                                        bonus
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Show missing venues inline */}
+                              {catData.venue_summary &&
+                                catData.venue_summary.expected_but_missing
+                                  .length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                    <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
+                                      Missing:
+                                    </span>
+                                    {catData.venue_summary.expected_but_missing.map(
+                                      (venue: string) => (
+                                        <span
+                                          key={venue}
+                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.15)] text-[var(--color-accent-red)] border border-[rgba(248,113,113,0.3)]"
+                                        >
+                                          {venue}
+                                        </span>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {Object.entries(
+                                  catData.venues ||
+                                    catData.data_types ||
+                                    catData.feature_groups ||
+                                    {},
+                                ).map(([name, subData]) => {
+                                  // Use dimension-weighted counts when available (accounts for
+                                  // multiple expected data_types/folders per venue). Falls back
+                                  // to raw venue dates for services without sub-dimensions.
+                                  const hasDimWeighting =
+                                    subData._dim_weighted_found !== undefined;
+                                  const effectiveFound = hasDimWeighting
+                                    ? subData._dim_weighted_found
+                                    : subData.dates_found;
+                                  const effectiveExpected = hasDimWeighting
+                                    ? subData._dim_weighted_expected
+                                    : subData.dates_expected_venue ||
+                                      subData.dates_expected;
+                                  const expectedDates =
+                                    subData.dates_expected_venue ||
+                                    subData.dates_expected;
+                                  const venueStartDate =
+                                    subData.venue_start_date;
+
+                                  return (
+                                    <div
+                                      key={name}
+                                      className={cn(
+                                        "bg-[var(--color-bg-tertiary)] rounded p-2",
+                                        subData.status === "bonus" &&
+                                          "opacity-60 border border-dashed border-[var(--color-border)]",
+                                      )}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1 min-w-0">
+                                          <span
+                                            className="text-xs font-mono truncate"
+                                            title={name}
+                                          >
+                                            {name}
+                                          </span>
+                                          {subData.status === "bonus" && (
+                                            <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
+                                              +
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span
+                                          className="text-xs font-mono font-medium ml-1"
+                                          style={{
+                                            color: getCompletionColor(
+                                              subData.completion_pct,
+                                            ),
+                                          }}
+                                        >
+                                          {subData.completion_pct.toFixed(0)}%
+                                        </span>
+                                      </div>
+                                      {/* Progress bar with expected vs actual visualization */}
+                                      <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1 relative">
+                                        <div
+                                          className="h-full absolute left-0 top-0"
+                                          style={{
+                                            width: `${subData.completion_pct}%`,
+                                            backgroundColor: getCompletionColor(
+                                              subData.completion_pct,
+                                            ),
+                                          }}
+                                        />
+                                      </div>
+                                      {/* Show found vs expected counts */}
+                                      <div className="flex justify-between items-center mt-0.5">
+                                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                                          {hasDimWeighting
+                                            ? `${effectiveFound}/${effectiveExpected} across ${Math.round((effectiveExpected || 0) / (expectedDates || 1))} types`
+                                            : `${subData.dates_found}/${expectedDates} days`}
+                                        </span>
+                                        {venueStartDate && (
+                                          <span
+                                            className="text-[9px] text-[var(--color-text-muted)] opacity-70"
+                                            title={`Data starts: ${venueStartDate}`}
+                                          >
+                                            from{" "}
+                                            {venueStartDate.substring(0, 7)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {/* Data types breakdown if available */}
+                                      {subData.data_types &&
+                                        Object.keys(subData.data_types).length >
+                                          0 && (
+                                          <details className="mt-1">
+                                            <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
+                                              {
+                                                Object.keys(subData.data_types)
+                                                  .length
+                                              }{" "}
+                                              data types
+                                            </summary>
+                                            <div className="mt-1 space-y-0.5 pl-1 border-l border-[var(--color-border-subtle)]">
+                                              {Object.entries(
+                                                subData.data_types,
+                                              ).map(([dtName, dtData]) => (
+                                                <div
+                                                  key={dtName}
+                                                  className="flex items-center justify-between text-[9px]"
+                                                >
+                                                  <span
+                                                    className={cn(
+                                                      "truncate",
+                                                      dtData.status ===
+                                                        "missing" &&
+                                                        "text-[var(--color-accent-red)]",
+                                                      dtData.status ===
+                                                        "partial" &&
+                                                        "text-[var(--color-accent-amber)]",
+                                                      dtData.status ===
+                                                        "complete" &&
+                                                        "text-[var(--color-accent-green)]",
+                                                    )}
+                                                  >
+                                                    {dtName}
+                                                  </span>
+                                                  <span
+                                                    className={cn(
+                                                      "ml-1 font-mono",
+                                                      dtData.status ===
+                                                        "missing" &&
+                                                        "text-[var(--color-accent-red)]",
+                                                      dtData.status ===
+                                                        "partial" &&
+                                                        "text-[var(--color-accent-amber)]",
+                                                      dtData.status ===
+                                                        "complete" &&
+                                                        "text-[var(--color-accent-green)]",
+                                                    )}
+                                                  >
+                                                    {dtData.completion_pct}%
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </details>
+                                        )}
+                                      {/* Available dates breakdown if available (green) */}
+                                      {subData.dates_found_count &&
+                                        subData.dates_found_count > 0 && (
+                                          <details className="mt-1">
+                                            <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                              {subData.dates_found_count}{" "}
+                                              available days
+                                            </summary>
+                                            <div className="mt-1 pl-1 border-l border-[rgba(34,197,94,0.3)]">
+                                              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                                                {subData.dates_found_list?.map(
+                                                  (date: string) => (
+                                                    <span
+                                                      key={date}
+                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                    >
+                                                      {date}
+                                                    </span>
+                                                  ),
+                                                )}
+                                                {subData.dates_found_truncated && (
+                                                  <>
+                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                      ...
+                                                    </span>
+                                                    {subData.dates_found_list_tail?.map(
+                                                      (date: string) => (
+                                                        <span
+                                                          key={date}
+                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                        >
+                                                          {date}
+                                                        </span>
+                                                      ),
+                                                    )}
+                                                  </>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </details>
+                                        )}
+                                      {/* Missing dates breakdown if available (red) */}
+                                      {subData.dates_missing_count &&
+                                        subData.dates_missing_count > 0 && (
+                                          <details className="mt-1">
+                                            <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                              {subData.dates_missing_count}{" "}
+                                              missing days
+                                            </summary>
+                                            <div className="mt-1 pl-1 border-l border-[rgba(248,113,113,0.3)]">
+                                              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                                                {subData.dates_missing_list?.map(
+                                                  (date: string) => (
+                                                    <span
+                                                      key={date}
+                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                    >
+                                                      {date}
+                                                    </span>
+                                                  ),
+                                                )}
+                                                {subData.dates_missing_truncated && (
+                                                  <>
+                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                      ...
+                                                    </span>
+                                                    {subData.dates_missing_list_tail?.map(
+                                                      (date: string) => (
+                                                        <span
+                                                          key={date}
+                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                        >
+                                                          {date}
+                                                        </span>
+                                                      ),
+                                                    )}
+                                                  </>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </details>
+                                        )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            {/* Close venues/data_types/feature_groups bordered container */}
                           </div>
-                          </div>{/* Close venues/data_types/feature_groups bordered container */}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                        )}
+                      </div>
+                    );
+                  },
+                )}
               </div>
             </CardContent>
           </Card>
@@ -2695,7 +3333,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 <div className="text-right">
                   <div
                     className="text-3xl font-mono font-bold"
-                    style={{ color: getCompletionColor(data.overall_completion) }}
+                    style={{
+                      color: getCompletionColor(data.overall_completion),
+                    }}
                   >
                     {data.overall_completion.toFixed(1)}%
                   </div>
@@ -2712,7 +3352,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   className="h-full transition-all duration-500"
                   style={{
                     width: `${data.overall_completion}%`,
-                    backgroundColor: getCompletionColor(data.overall_completion)
+                    backgroundColor: getCompletionColor(
+                      data.overall_completion,
+                    ),
                   }}
                 />
               </div>
@@ -2740,7 +3382,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           </Card>
 
           {/* Calendar View */}
-          {viewMode === 'calendar' && heatmapData.length > 0 && (
+          {viewMode === "calendar" && heatmapData.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Coverage Calendar</CardTitle>
@@ -2762,12 +3404,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium">
-                        {new Date(selectedCalendarDate).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+                        {new Date(selectedCalendarDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )}
                       </h4>
                       <button
                         onClick={() => setSelectedCalendarDate(null)}
@@ -2776,9 +3421,14 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         ✕ Close
                       </button>
                     </div>
-                    {heatmapData.find(d => d.date === selectedCalendarDate)?.tooltip && (
+                    {heatmapData.find((d) => d.date === selectedCalendarDate)
+                      ?.tooltip && (
                       <p className="text-sm text-[var(--color-text-secondary)]">
-                        {heatmapData.find(d => d.date === selectedCalendarDate)?.tooltip}
+                        {
+                          heatmapData.find(
+                            (d) => d.date === selectedCalendarDate,
+                          )?.tooltip
+                        }
                       </p>
                     )}
                   </div>
@@ -2788,113 +3438,143 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           )}
 
           {/* Category Breakdown Table */}
-          {viewMode === 'table' && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Category Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-[var(--color-border-subtle)]">
-                {Object.entries(data.categories).map(([catName, catData]) => {
-                  const completion = getCategoryCompletion(catData)
-                  const missing = getMissingCount(catData)
-                  const isExpanded = expandedCategories.has(catName)
+          {viewMode === "table" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Category Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-[var(--color-border-subtle)]">
+                  {Object.entries(data.categories).map(([catName, catData]) => {
+                    const completion = getCategoryCompletion(catData);
+                    const missing = getMissingCount(catData);
+                    const isExpanded = expandedCategories.has(catName);
 
-                  return (
-                    <div key={catName}>
-                      {/* Category Row */}
-                      <button
-                        onClick={() => toggleCategory(catName)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                          )}
-                          <span className="font-medium">{catName}</span>
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            ({Object.keys(catData.venues).length} venues)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          {missing > 0 && (
-                            <Badge variant="outline" className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
-                              {missing} missing
-                            </Badge>
-                          )}
-                          <Badge
-                            variant="outline"
-                            className={getCompletionBadgeClass(completion)}
-                          >
-                            {completion.toFixed(1)}%
-                          </Badge>
-                          <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                            <div
-                              className="h-full transition-all"
-                              style={{
-                                width: `${completion}%`,
-                                backgroundColor: getCompletionColor(completion)
-                              }}
-                            />
+                    return (
+                      <div key={catName}>
+                        {/* Category Row */}
+                        <button
+                          onClick={() => toggleCategory(catName)}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                            )}
+                            <span className="font-medium">{catName}</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              ({Object.keys(catData.venues).length} venues)
+                            </span>
                           </div>
-                        </div>
-                      </button>
+                          <div className="flex items-center gap-4">
+                            {missing > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                              >
+                                {missing} missing
+                              </Badge>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={getCompletionBadgeClass(completion)}
+                            >
+                              {completion.toFixed(1)}%
+                            </Badge>
+                            <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full transition-all"
+                                style={{
+                                  width: `${completion}%`,
+                                  backgroundColor:
+                                    getCompletionColor(completion),
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </button>
 
-                      {/* Expanded Venue Table */}
-                      {isExpanded && (
-                        <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-xs text-[var(--color-text-muted)]">
-                                <th className="text-left py-2 font-medium">Venue</th>
-                                <th className="text-right py-2 font-medium">Complete</th>
-                                <th className="text-right py-2 font-medium">Total</th>
-                                <th className="text-right py-2 font-medium">Coverage</th>
-                                <th className="text-right py-2 font-medium">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                              {Object.entries(catData.venues).map(([venueName, venueData]) => {
-                                const venuePct = venueData.completion_percent
-                                const venueMissing = venueData.total - venueData.complete
+                        {/* Expanded Venue Table */}
+                        {isExpanded && (
+                          <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-xs text-[var(--color-text-muted)]">
+                                  <th className="text-left py-2 font-medium">
+                                    Venue
+                                  </th>
+                                  <th className="text-right py-2 font-medium">
+                                    Complete
+                                  </th>
+                                  <th className="text-right py-2 font-medium">
+                                    Total
+                                  </th>
+                                  <th className="text-right py-2 font-medium">
+                                    Coverage
+                                  </th>
+                                  <th className="text-right py-2 font-medium">
+                                    Status
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                                {Object.entries(catData.venues).map(
+                                  ([venueName, venueData]) => {
+                                    const venuePct =
+                                      venueData.completion_percent;
+                                    const venueMissing =
+                                      venueData.total - venueData.complete;
 
-                                return (
-                                  <tr key={venueName} className="hover:bg-[var(--color-bg-tertiary)]">
-                                    <td className="py-2 font-mono text-xs">{venueName}</td>
-                                    <td className="py-2 text-right font-mono">{venueData.complete}</td>
-                                    <td className="py-2 text-right font-mono text-[var(--color-text-muted)]">{venueData.total}</td>
-                                    <td className="py-2 text-right">
-                                      <span
-                                        className="font-mono"
-                                        style={{ color: getCompletionColor(venuePct) }}
+                                    return (
+                                      <tr
+                                        key={venueName}
+                                        className="hover:bg-[var(--color-bg-tertiary)]"
                                       >
-                                        {venuePct.toFixed(1)}%
-                                      </span>
-                                    </td>
-                                    <td className="py-2 text-right">
-                                      {venueMissing === 0 ? (
-                                        <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] inline" />
-                                      ) : (
-                                        <span className="text-xs text-[var(--color-accent-red)]">
-                                          {venueMissing} missing
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                                        <td className="py-2 font-mono text-xs">
+                                          {venueName}
+                                        </td>
+                                        <td className="py-2 text-right font-mono">
+                                          {venueData.complete}
+                                        </td>
+                                        <td className="py-2 text-right font-mono text-[var(--color-text-muted)]">
+                                          {venueData.total}
+                                        </td>
+                                        <td className="py-2 text-right">
+                                          <span
+                                            className="font-mono"
+                                            style={{
+                                              color:
+                                                getCompletionColor(venuePct),
+                                            }}
+                                          >
+                                            {venuePct.toFixed(1)}%
+                                          </span>
+                                        </td>
+                                        <td className="py-2 text-right">
+                                          {venueMissing === 0 ? (
+                                            <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] inline" />
+                                          ) : (
+                                            <span className="text-xs text-[var(--color-accent-red)]">
+                                              {venueMissing} missing
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  },
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
@@ -2921,65 +3601,88 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               <div className="mt-2 text-xs text-[var(--color-text-muted)]">
                 Date range: {startDate} to {endDate}
                 {firstDayOfMonthOnly && (
-                  <span className="ml-2 text-[var(--color-accent-cyan)]">(first day of month only)</span>
+                  <span className="ml-2 text-[var(--color-accent-cyan)]">
+                    (first day of month only)
+                  </span>
                 )}
               </div>
               <div className="mt-1 text-xs">
-                <span className="text-[var(--color-text-muted)]">Categories: </span>
+                <span className="text-[var(--color-text-muted)]">
+                  Categories:{" "}
+                </span>
                 <span className="text-[var(--color-accent-cyan)] font-medium">
                   {effectiveDeployCategories.length > 0
-                    ? effectiveDeployCategories.join(', ')
-                    : 'All categories with missing data'}
+                    ? effectiveDeployCategories.join(", ")
+                    : "All categories with missing data"}
                 </span>
               </div>
               {selectedVenues.length > 0 && (
                 <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">Venues: </span>
+                  <span className="text-[var(--color-text-muted)]">
+                    Venues:{" "}
+                  </span>
                   <span className="text-[var(--color-accent-purple)] font-medium">
-                    {selectedVenues.join(', ')}
+                    {selectedVenues.join(", ")}
                   </span>
                 </div>
               )}
               {selectedFolders.length > 0 && (
                 <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">Instrument Types: </span>
+                  <span className="text-[var(--color-text-muted)]">
+                    Instrument Types:{" "}
+                  </span>
                   <span className="text-[var(--color-accent-green)] font-medium">
-                    {selectedFolders.join(', ')}
+                    {selectedFolders.join(", ")}
                   </span>
                 </div>
               )}
               {selectedDataTypes.length > 0 && (
                 <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">Data Types: </span>
+                  <span className="text-[var(--color-text-muted)]">
+                    Data Types:{" "}
+                  </span>
                   <span className="text-[var(--color-accent-amber)] font-medium">
-                    {selectedDataTypes.join(', ')}
+                    {selectedDataTypes.join(", ")}
                   </span>
                 </div>
               )}
-              {selectedCategories.length > 0 && effectiveDeployCategories.length === 0 && (
-                <div className="mt-1 text-xs text-[var(--color-accent-amber)]">
-                  ⚠️ Selected categories have no missing data
-                </div>
-              )}
+              {selectedCategories.length > 0 &&
+                effectiveDeployCategories.length === 0 && (
+                  <div className="mt-1 text-xs text-[var(--color-accent-amber)]">
+                    ⚠️ Selected categories have no missing data
+                  </div>
+                )}
             </div>
 
             {/* Region (with cross-region egress warning) */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">Region</Label>
-              <Select value={deployMissingRegion} onValueChange={setDeployMissingRegion}>
+              <Select
+                value={deployMissingRegion}
+                onValueChange={setDeployMissingRegion}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select region..." />
                 </SelectTrigger>
                 <SelectContent>
                   {[
-                    { value: 'asia-northeast1', label: 'asia-northeast1 (Tokyo)' },
-                    { value: 'asia-northeast2', label: 'asia-northeast2 (Osaka)' },
-                    { value: 'asia-southeast1', label: 'asia-southeast1 (Singapore)' },
-                    { value: 'us-central1', label: 'us-central1 (Iowa)' },
-                    { value: 'us-east1', label: 'us-east1 (South Carolina)' },
-                    { value: 'us-west1', label: 'us-west1 (Oregon)' },
-                    { value: 'europe-west1', label: 'europe-west1 (Belgium)' },
-                    { value: 'europe-west2', label: 'europe-west2 (London)' },
+                    {
+                      value: "asia-northeast1",
+                      label: "asia-northeast1 (Tokyo)",
+                    },
+                    {
+                      value: "asia-northeast2",
+                      label: "asia-northeast2 (Osaka)",
+                    },
+                    {
+                      value: "asia-southeast1",
+                      label: "asia-southeast1 (Singapore)",
+                    },
+                    { value: "us-central1", label: "us-central1 (Iowa)" },
+                    { value: "us-east1", label: "us-east1 (South Carolina)" },
+                    { value: "us-west1", label: "us-west1 (Oregon)" },
+                    { value: "europe-west1", label: "europe-west1 (Belgium)" },
+                    { value: "europe-west2", label: "europe-west2 (London)" },
                   ].map((r) => (
                     <SelectItem key={r.value} value={r.value}>
                       {r.label}
@@ -2992,13 +3695,17 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-800">
-                      <p className="font-semibold">Cross-Region Egress Warning</p>
+                      <p className="font-semibold">
+                        Cross-Region Egress Warning
+                      </p>
                       <p className="mt-1">
-                        Selected region ({deployMissingRegion}) differs from configured storage region ({backendRegion}).
-                        This will incur significant egress costs.
+                        Selected region ({deployMissingRegion}) differs from
+                        configured storage region ({backendRegion}). This will
+                        incur significant egress costs.
                       </p>
                       <p className="mt-1 font-medium">
-                        Recommendation: Use {backendRegion} to avoid egress charges.
+                        Recommendation: Use {backendRegion} to avoid egress
+                        charges.
                       </p>
                     </div>
                   </div>
@@ -3016,7 +3723,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 <Checkbox
                   id="deploy-missing-dry-run"
                   checked={deployMissingDryRun}
-                  onCheckedChange={(checked) => setDeployMissingDryRun(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setDeployMissingDryRun(checked === true)
+                  }
                 />
                 <label
                   htmlFor="deploy-missing-dry-run"
@@ -3024,7 +3733,8 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 >
                   <span className="font-medium">Preview only (dry run)</span>
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    Show what shards would be deployed without actually deploying
+                    Show what shards would be deployed without actually
+                    deploying
                   </p>
                 </label>
               </div>
@@ -3033,13 +3743,17 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 <Checkbox
                   id="deploy-missing-force"
                   checked={deployMissingForce}
-                  onCheckedChange={(checked) => setDeployMissingForce(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setDeployMissingForce(checked === true)
+                  }
                 />
                 <label
                   htmlFor="deploy-missing-force"
                   className="text-sm cursor-pointer"
                 >
-                  <span className="font-medium">Force re-process (--force)</span>
+                  <span className="font-medium">
+                    Force re-process (--force)
+                  </span>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     Regenerate even if data already exists for the venue/date
                   </p>
@@ -3053,7 +3767,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 Date Granularity
               </div>
               <div className="flex gap-2">
-                {(['daily', 'weekly', 'monthly', 'none'] as const).map((g) => (
+                {(["daily", "weekly", "monthly", "none"] as const).map((g) => (
                   <button
                     key={g}
                     onClick={() => setDeployMissingDateGranularity(g)}
@@ -3061,37 +3775,50 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       "px-3 py-1.5 text-xs rounded-md border transition-colors",
                       deployMissingDateGranularity === g
                         ? "bg-[var(--color-accent-purple)] text-white border-[var(--color-accent-purple)]"
-                        : "border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)]"
+                        : "border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)]",
                     )}
                   >
-                    {g === 'none' ? 'None (Bulk)' : g.charAt(0).toUpperCase() + g.slice(1)}
+                    {g === "none"
+                      ? "None (Bulk)"
+                      : g.charAt(0).toUpperCase() + g.slice(1)}
                   </button>
                 ))}
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
-                {deployMissingDateGranularity === 'daily' && 'One shard per day (most granular, more shards)'}
-                {deployMissingDateGranularity === 'weekly' && 'One shard per week (balanced)'}
-                {deployMissingDateGranularity === 'monthly' && 'One shard per month (fewer shards, larger jobs)'}
-                {deployMissingDateGranularity === 'none' && 'Single shard, no date range — service fetches all data in bulk'}
+                {deployMissingDateGranularity === "daily" &&
+                  "One shard per day (most granular, more shards)"}
+                {deployMissingDateGranularity === "weekly" &&
+                  "One shard per week (balanced)"}
+                {deployMissingDateGranularity === "monthly" &&
+                  "One shard per month (fewer shards, larger jobs)"}
+                {deployMissingDateGranularity === "none" &&
+                  "Single shard, no date range — service fetches all data in bulk"}
               </p>
             </div>
 
             {/* Preview result - shows updated shard count when granularity changes (stays visible in modal) */}
-            {(isDeploying || (deploymentResult?.dry_run)) && (
+            {(isDeploying || deploymentResult?.dry_run) && (
               <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
                 {isDeploying ? (
                   <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    Calculating shards for {deployMissingDateGranularity} granularity…
+                    Calculating shards for {deployMissingDateGranularity}{" "}
+                    granularity…
                   </div>
-                ) : deploymentResult?.dry_run && deploymentResult.total_shards !== undefined ? (
+                ) : deploymentResult?.dry_run &&
+                  deploymentResult.total_shards !== undefined ? (
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] shrink-0" />
                     <span>
-                      <strong className="font-mono text-[var(--color-accent-cyan)]">{deploymentResult.total_shards.toLocaleString()}</strong>
-                      {' '}shards would be deployed
+                      <strong className="font-mono text-[var(--color-accent-cyan)]">
+                        {deploymentResult.total_shards.toLocaleString()}
+                      </strong>{" "}
+                      shards would be deployed
                       {deploymentResult.shards_truncated && (
-                        <span className="text-[var(--color-text-muted)]"> (truncated — full list on Deploy tab)</span>
+                        <span className="text-[var(--color-text-muted)]">
+                          {" "}
+                          (truncated — full list on Deploy tab)
+                        </span>
                       )}
                     </span>
                   </div>
@@ -3110,13 +3837,14 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               <Button
                 onClick={() => handleConfirmDeployMissing(false)}
                 disabled={effectiveDeployCategories.length === 0}
-                className={deployMissingDryRun
-                  ? "bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/80"
-                  : "bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                className={
+                  deployMissingDryRun
+                    ? "bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/80"
+                    : "bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
                 }
               >
                 <Rocket className="h-4 w-4 mr-2" />
-                {deployMissingDryRun ? 'Preview Shards' : 'Deploy Now'}
+                {deployMissingDryRun ? "Preview Shards" : "Deploy Now"}
               </Button>
             </div>
           </div>
@@ -3135,7 +3863,8 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             File Listing
             {fileListingData && (
               <span className="text-sm font-normal text-[var(--color-text-muted)] ml-2">
-                {fileListingData.venue} / {fileListingData.folder} / {fileListingData.data_type}
+                {fileListingData.venue} / {fileListingData.folder} /{" "}
+                {fileListingData.data_type}
               </span>
             )}
           </DialogTitle>
@@ -3152,7 +3881,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             ) : fileListingError ? (
               <div className="text-center py-12">
                 <AlertTriangle className="h-8 w-8 text-[var(--color-accent-red)] mx-auto mb-2" />
-                <p className="text-[var(--color-accent-red)]">{fileListingError}</p>
+                <p className="text-[var(--color-accent-red)]">
+                  {fileListingError}
+                </p>
               </div>
             ) : fileListingData ? (
               <div className="space-y-4">
@@ -3160,27 +3891,41 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                 <div className="bg-[var(--color-bg-tertiary)] rounded-lg p-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="text-[var(--color-text-muted)]">Total Files</div>
-                      <div className="font-semibold text-lg">{fileListingData.summary.total_files.toLocaleString()}</div>
+                      <div className="text-[var(--color-text-muted)]">
+                        Total Files
+                      </div>
+                      <div className="font-semibold text-lg">
+                        {fileListingData.summary.total_files.toLocaleString()}
+                      </div>
                     </div>
                     <div>
-                      <div className="text-[var(--color-text-muted)]">Total Size</div>
-                      <div className="font-semibold text-lg">{fileListingData.summary.total_size_formatted}</div>
+                      <div className="text-[var(--color-text-muted)]">
+                        Total Size
+                      </div>
+                      <div className="font-semibold text-lg">
+                        {fileListingData.summary.total_size_formatted}
+                      </div>
                     </div>
                     <div>
-                      <div className="text-[var(--color-text-muted)]">Days with Data</div>
+                      <div className="text-[var(--color-text-muted)]">
+                        Days with Data
+                      </div>
                       <div className="font-semibold text-lg text-[var(--color-accent-green)]">
                         {fileListingData.summary.dates_with_data}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[var(--color-text-muted)]">Days Empty</div>
-                      <div className={cn(
-                        "font-semibold text-lg",
-                        fileListingData.summary.dates_empty > 0
-                          ? "text-[var(--color-accent-orange)]"
-                          : "text-[var(--color-text-muted)]"
-                      )}>
+                      <div className="text-[var(--color-text-muted)]">
+                        Days Empty
+                      </div>
+                      <div
+                        className={cn(
+                          "font-semibold text-lg",
+                          fileListingData.summary.dates_empty > 0
+                            ? "text-[var(--color-accent-orange)]"
+                            : "text-[var(--color-text-muted)]",
+                        )}
+                      >
                         {fileListingData.summary.dates_empty}
                       </div>
                     </div>
@@ -3189,28 +3934,47 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                     <div className="flex-1 bg-[var(--color-bg-secondary)] rounded-full h-2 overflow-hidden">
                       <div
                         className="bg-[var(--color-accent-green)] h-full transition-all"
-                        style={{ width: `${fileListingData.summary.completion_pct}%` }}
+                        style={{
+                          width: `${fileListingData.summary.completion_pct}%`,
+                        }}
                       />
                     </div>
-                    <span className="text-sm font-medium">{fileListingData.summary.completion_pct}%</span>
+                    <span className="text-sm font-medium">
+                      {fileListingData.summary.completion_pct}%
+                    </span>
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                    Bucket: {fileListingData.bucket} | {fileListingData.date_range.start} to {fileListingData.date_range.end} ({fileListingData.date_range.total_days} days)
+                    Bucket: {fileListingData.bucket} |{" "}
+                    {fileListingData.date_range.start} to{" "}
+                    {fileListingData.date_range.end} (
+                    {fileListingData.date_range.total_days} days)
                   </p>
                 </div>
 
                 {/* Files by Date */}
                 <div className="space-y-1">
-                  <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-2">Files by Date</h3>
+                  <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-2">
+                    Files by Date
+                  </h3>
                   <div className="max-h-[300px] overflow-auto border border-[var(--color-border-subtle)] rounded">
                     <table className="w-full text-sm">
                       <thead className="bg-[var(--color-bg-tertiary)] sticky top-0">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium">Date</th>
-                          <th className="text-right px-3 py-2 font-medium">Files</th>
-                          <th className="text-right px-3 py-2 font-medium">Size</th>
-                          <th className="text-left px-3 py-2 font-medium">Last modified</th>
-                          <th className="text-left px-3 py-2 font-medium">Status</th>
+                          <th className="text-left px-3 py-2 font-medium">
+                            Date
+                          </th>
+                          <th className="text-right px-3 py-2 font-medium">
+                            Files
+                          </th>
+                          <th className="text-right px-3 py-2 font-medium">
+                            Size
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium">
+                            Last modified
+                          </th>
+                          <th className="text-left px-3 py-2 font-medium">
+                            Status
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3219,28 +3983,39 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                             key={dayResult.date}
                             className={cn(
                               "border-t border-[var(--color-border-subtle)]",
-                              dayResult.file_count === 0 && "bg-[var(--color-accent-red)]/5"
+                              dayResult.file_count === 0 &&
+                                "bg-[var(--color-accent-red)]/5",
                             )}
                           >
-                            <td className="px-3 py-2 font-mono">{dayResult.date}</td>
-                            <td className="px-3 py-2 text-right font-mono">{dayResult.file_count}</td>
+                            <td className="px-3 py-2 font-mono">
+                              {dayResult.date}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono">
+                              {dayResult.file_count}
+                            </td>
                             <td className="px-3 py-2 text-right font-mono text-[var(--color-text-muted)]">
                               {dayResult.total_size_bytes > 0
-                                ? (dayResult.total_size_bytes / (1024 * 1024)).toFixed(1) + ' MB'
-                                : '-'
-                              }
+                                ? (
+                                    dayResult.total_size_bytes /
+                                    (1024 * 1024)
+                                  ).toFixed(1) + " MB"
+                                : "-"}
                             </td>
                             <td className="px-3 py-2 font-mono text-[var(--color-text-muted)] text-xs">
                               {dayResult.last_modified
-                                ? new Date(dayResult.last_modified).toLocaleString(undefined, {
-                                    dateStyle: 'short',
-                                    timeStyle: 'short',
+                                ? new Date(
+                                    dayResult.last_modified,
+                                  ).toLocaleString(undefined, {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
                                   })
-                                : '-'}
+                                : "-"}
                             </td>
                             <td className="px-3 py-2">
                               {dayResult.error ? (
-                                <span className="text-[var(--color-accent-red)] text-xs">{dayResult.error}</span>
+                                <span className="text-[var(--color-accent-red)] text-xs">
+                                  {dayResult.error}
+                                </span>
                               ) : dayResult.file_count > 0 ? (
                                 <span className="text-[var(--color-accent-green)] text-xs flex items-center gap-1">
                                   <CheckCircle className="h-3 w-3" /> OK
@@ -3269,14 +4044,19 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
 
 // Exported wrapper component that delegates to specialized components
-export function DataStatusTab({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
+export function DataStatusTab({
+  serviceName,
+  deploymentResult,
+  isDeploying,
+  onDeployMissing,
+}: DataStatusTabProps) {
   // Use specialized component for execution-services (different data model)
-  if (serviceName === 'execution-services') {
-    return <ExecutionDataStatus serviceName={serviceName} />
+  if (serviceName === "execution-services") {
+    return <ExecutionDataStatus serviceName={serviceName} />;
   }
 
   // Use standard data status for all other services
@@ -3287,5 +4067,5 @@ export function DataStatusTab({ serviceName, deploymentResult, isDeploying, onDe
       isDeploying={isDeploying}
       onDeployMissing={onDeployMissing}
     />
-  )
+  );
 }
