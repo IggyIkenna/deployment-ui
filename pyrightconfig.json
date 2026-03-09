@@ -1,4 +1,5 @@
 {
   "typeCheckingMode": "strict",
-  "reportMissingModuleSource": false
+  "reportMissingModuleSource": false,
+  "exclude": ["tests"]
 }
