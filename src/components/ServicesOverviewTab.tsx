@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Activity,
   RefreshCw,
@@ -9,78 +9,100 @@ import {
   Loader2,
   ChevronRight,
   Server,
-} from 'lucide-react'
-import * as api from '../api/client'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import type { ServicesOverview } from '../types'
+} from "lucide-react";
+import * as api from "../api/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import type { ServicesOverview } from "../types";
 
 interface ServicesOverviewTabProps {
-  onSelectService: (service: string) => void
+  onSelectService: (service: string) => void;
 }
 
-export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProps) {
-  const [overview, setOverview] = useState<ServicesOverview | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasLoaded, setHasLoaded] = useState(false)
+export function ServicesOverviewTab({
+  onSelectService,
+}: ServicesOverviewTabProps) {
+  const [overview, setOverview] = useState<ServicesOverview | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const fetchOverview = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const result = await api.getServicesOverview()
-      setOverview(result)
-      setHasLoaded(true)
+      const result = await api.getServicesOverview();
+      setOverview(result);
+      setHasLoaded(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch services overview')
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch services overview",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // NOTE: Removed auto-fetch on mount for faster startup
   // The overview endpoint makes GCS calls for all 12 services and can take 1-2 minutes
   // Users can click "Load Status" when they want to see the full status
 
   const formatTimestamp = (ts: string | null) => {
-    if (!ts) return 'Never'
-    const date = new Date(ts)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffHours / 24)
+    if (!ts) return "Never";
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
 
     if (diffHours < 1) {
-      const diffMins = Math.floor(diffMs / (1000 * 60))
-      return `${diffMins}m ago`
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      return `${diffMins}m ago`;
     } else if (diffDays < 1) {
-      return `${diffHours}h ago`
+      return `${diffHours}h ago`;
     } else {
-      return `${diffDays}d ago`
+      return `${diffDays}d ago`;
     }
-  }
+  };
 
   const getHealthColor = (health: string) => {
     switch (health) {
-      case 'healthy': return 'var(--color-accent-green)'
-      case 'warning': return 'var(--color-accent-amber)'
-      case 'error': return 'var(--color-accent-red)'
-      case 'build_failed': return 'var(--color-accent-red)'
-      default: return 'var(--color-text-muted)'
+      case "healthy":
+        return "var(--color-accent-green)";
+      case "warning":
+        return "var(--color-accent-amber)";
+      case "error":
+        return "var(--color-accent-red)";
+      case "build_failed":
+        return "var(--color-accent-red)";
+      default:
+        return "var(--color-text-muted)";
     }
-  }
+  };
 
   const getHealthIcon = (health: string) => {
     switch (health) {
-      case 'healthy': return <CheckCircle2 className="h-4 w-4" />
-      case 'warning': return <AlertTriangle className="h-4 w-4" />
-      case 'error': return <XCircle className="h-4 w-4" />
-      case 'build_failed': return <XCircle className="h-4 w-4" />
-      default: return <AlertCircle className="h-4 w-4" />
+      case "healthy":
+        return <CheckCircle2 className="h-4 w-4" />;
+      case "warning":
+        return <AlertTriangle className="h-4 w-4" />;
+      case "error":
+        return <XCircle className="h-4 w-4" />;
+      case "build_failed":
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -90,7 +112,9 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-              <CardTitle className="text-xl font-mono">All Services Overview</CardTitle>
+              <CardTitle className="text-xl font-mono">
+                All Services Overview
+              </CardTitle>
             </div>
             <Button
               variant="outline"
@@ -107,7 +131,8 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
             </Button>
           </div>
           <CardDescription>
-            Health status of all services at a glance. Click a service to view details.
+            Health status of all services at a glance. Click a service to view
+            details.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -126,10 +151,7 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
                   Or load the full status overview (may take 1-2 minutes)
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={fetchOverview}
-              >
+              <Button variant="outline" onClick={fetchOverview}>
                 <Activity className="h-4 w-4 mr-2" />
                 Load Status Overview
               </Button>
@@ -236,12 +258,24 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--color-border-subtle)]">
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Service</th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Health</th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Data</th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Deploy</th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Build</th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Issues</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Service
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Health
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Last Data
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Last Deploy
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Last Build
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
+                        Issues
+                      </th>
                       <th className="text-right py-3 px-4 font-medium text-[var(--color-text-muted)]"></th>
                     </tr>
                   </thead>
@@ -259,7 +293,9 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <span style={{ color: getHealthColor(service.health) }}>
+                            <span
+                              style={{ color: getHealthColor(service.health) }}
+                            >
                               {getHealthIcon(service.health)}
                             </span>
                             <Badge
@@ -295,14 +331,17 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
                               variant="outline"
                               className="text-xs"
                               style={{
-                                color: 'var(--color-accent-amber)',
-                                borderColor: 'var(--color-accent-amber)',
+                                color: "var(--color-accent-amber)",
+                                borderColor: "var(--color-accent-amber)",
                               }}
                             >
-                              {service.anomaly_count} issue{service.anomaly_count > 1 ? 's' : ''}
+                              {service.anomaly_count} issue
+                              {service.anomaly_count > 1 ? "s" : ""}
                             </Badge>
                           ) : (
-                            <span className="text-[var(--color-text-muted)] text-xs">None</span>
+                            <span className="text-[var(--color-text-muted)] text-xs">
+                              None
+                            </span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">
@@ -318,5 +357,5 @@ export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProp
         </>
       )}
     </div>
-  )
+  );
 }

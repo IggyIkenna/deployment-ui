@@ -1,31 +1,31 @@
-import * as React from "react"
-import { X } from "lucide-react"
-import { cn } from "../../lib/utils"
+import * as React from "react";
+import { X } from "lucide-react";
+import { cn } from "../../lib/utils";
 
 interface DialogProps {
-  open: boolean
-  onClose: () => void
-  children: React.ReactNode
-  className?: string
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function Dialog({ open, onClose, children, className }: DialogProps) {
   // Close on escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
+      if (e.key === "Escape") onClose();
+    };
     if (open) {
-      document.addEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'hidden'
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
     }
     return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
-    }
-  }, [open, onClose])
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [open, onClose]);
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -35,28 +35,36 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
         onClick={onClose}
       />
       {/* Dialog content */}
-      <div className={cn(
-        "relative z-50 w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-primary)] shadow-xl",
-        className
-      )}>
+      <div
+        className={cn(
+          "relative z-50 w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-primary)] shadow-xl",
+          className,
+        )}
+      >
         {children}
       </div>
     </div>
-  )
+  );
 }
 
 interface DialogHeaderProps {
-  children: React.ReactNode
-  onClose?: () => void
-  className?: string
+  children: React.ReactNode;
+  onClose?: () => void;
+  className?: string;
 }
 
-export function DialogHeader({ children, onClose, className }: DialogHeaderProps) {
+export function DialogHeader({
+  children,
+  onClose,
+  className,
+}: DialogHeaderProps) {
   return (
-    <div className={cn(
-      "flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]",
-      className
-    )}>
+    <div
+      className={cn(
+        "flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]",
+        className,
+      )}
+    >
       <div className="flex-1">{children}</div>
       {onClose && (
         <button
@@ -67,31 +75,38 @@ export function DialogHeader({ children, onClose, className }: DialogHeaderProps
         </button>
       )}
     </div>
-  )
+  );
 }
 
 interface DialogTitleProps {
-  children: React.ReactNode
-  className?: string
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function DialogTitle({ children, className }: DialogTitleProps) {
   return (
-    <h2 className={cn("text-lg font-semibold text-[var(--color-text-primary)]", className)}>
+    <h2
+      className={cn(
+        "text-lg font-semibold text-[var(--color-text-primary)]",
+        className,
+      )}
+    >
       {children}
     </h2>
-  )
+  );
 }
 
 interface DialogContentProps {
-  children: React.ReactNode
-  className?: string
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function DialogContent({ children, className }: DialogContentProps) {
   return (
-    <div className={cn("p-4 overflow-y-auto max-h-[calc(85vh-120px)]", className)}>
+    <div
+      className={cn("p-4 overflow-y-auto max-h-[calc(85vh-120px)]", className)}
+    >
       {children}
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 import {
   Database,
   RefreshCw,
@@ -18,326 +18,360 @@ import {
   Calendar,
   Rocket,
   X,
-} from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { Input } from './ui/input'
-import { Label } from './ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { cn } from '../lib/utils'
-import { CloudConfigBrowser } from './CloudConfigBrowser'
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { cn } from "../lib/utils";
+import { CloudConfigBrowser } from "./CloudConfigBrowser";
 // Infer cloud provider from path prefix (gs:// = GCP, s3:// = AWS)
-function inferCloudProvider(path: string | null): 'gcp' | 'aws' | null {
-  if (!path) return null
-  if (path.startsWith('s3://')) return 'aws'
-  if (path.startsWith('gs://')) return 'gcp'
-  return null
+function inferCloudProvider(path: string | null): "gcp" | "aws" | null {
+  if (!path) return null;
+  if (path.startsWith("s3://")) return "aws";
+  if (path.startsWith("gs://")) return "gcp";
+  return null;
 }
-import { getExecutionMissingShards, type ExecutionMissingShardsResponse } from '../api/client'
+import {
+  getExecutionMissingShards,
+  type ExecutionMissingShardsResponse,
+} from "../api/client";
 
 interface ExecutionDataStatusProps {
-  serviceName: string
+  serviceName: string;
 }
 
 interface ConfigInfo {
-  config_file: string
-  algo_name: string
-  result_strategy_id: string
-  has_results: boolean
-  result_dates: string[]
+  config_file: string;
+  algo_name: string;
+  result_strategy_id: string;
+  has_results: boolean;
+  result_dates: string[];
   // Day breakdown fields (when include_dates_list=true)
-  dates_found_count?: number
-  dates_found_list?: string[]
-  dates_found_list_tail?: string[]
-  dates_found_truncated?: boolean
-  dates_missing_count?: number
-  dates_missing_list?: string[]
-  dates_missing_list_tail?: string[]
-  dates_missing_truncated?: boolean
-  completion_pct?: number
+  dates_found_count?: number;
+  dates_found_list?: string[];
+  dates_found_list_tail?: string[];
+  dates_found_truncated?: boolean;
+  dates_missing_count?: number;
+  dates_missing_list?: string[];
+  dates_missing_list_tail?: string[];
+  dates_missing_truncated?: boolean;
+  completion_pct?: number;
 }
 
 interface TimeframeStatus {
-  timeframe: string
-  total: number
-  with_results: number
-  completion_pct: number
-  missing_configs: Array<{ config_file: string; algo_name: string }>
-  configs: ConfigInfo[]
+  timeframe: string;
+  total: number;
+  with_results: number;
+  completion_pct: number;
+  missing_configs: Array<{ config_file: string; algo_name: string }>;
+  configs: ConfigInfo[];
 }
 
 interface ModeStatus {
-  mode: string
-  total: number
-  with_results: number
-  completion_pct: number
-  timeframes: TimeframeStatus[]
+  mode: string;
+  total: number;
+  with_results: number;
+  completion_pct: number;
+  timeframes: TimeframeStatus[];
 }
 
 interface StrategyStatus {
-  strategy: string
-  total: number
-  with_results: number
-  completion_pct: number
-  result_dates: string[]
-  result_date_count: number
-  modes: ModeStatus[]
+  strategy: string;
+  total: number;
+  with_results: number;
+  completion_pct: number;
+  result_dates: string[];
+  result_date_count: number;
+  modes: ModeStatus[];
 }
 
 interface BreakdownItem {
-  total: number
-  with_results: number
-  missing_count: number
-  completion_pct: number
-  missing_samples: string[]
+  total: number;
+  with_results: number;
+  missing_count: number;
+  completion_pct: number;
+  missing_samples: string[];
 }
 
 interface ExecutionDataStatusResponse {
-  config_path: string
-  version: string
-  total_configs: number
-  configs_with_results: number
-  missing_count: number
-  completion_pct: number
-  strategy_count: number
-  strategies: StrategyStatus[]
-  breakdown_by_mode: Record<string, BreakdownItem>
-  breakdown_by_timeframe: Record<string, BreakdownItem>
-  breakdown_by_algo: Record<string, BreakdownItem>
+  config_path: string;
+  version: string;
+  total_configs: number;
+  configs_with_results: number;
+  missing_count: number;
+  completion_pct: number;
+  strategy_count: number;
+  strategies: StrategyStatus[];
+  breakdown_by_mode: Record<string, BreakdownItem>;
+  breakdown_by_timeframe: Record<string, BreakdownItem>;
+  breakdown_by_algo: Record<string, BreakdownItem>;
   date_filter?: {
-    start: string | null
-    end: string | null
-  }
-  error?: string
+    start: string | null;
+    end: string | null;
+  };
+  error?: string;
 }
 
-type ViewMode = 'hierarchy' | 'by_mode' | 'by_timeframe' | 'by_algo'
+type ViewMode = "hierarchy" | "by_mode" | "by_timeframe" | "by_algo";
 
 export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return d.toISOString().split('T')[0]
-  })
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
   const [endDate, setEndDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().split('T')[0]
-  })
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  });
 
-  const [cloudConfigPath, setCloudConfigPath] = useState<string | null>(null)
-  const [_discoveredConfigCount, setDiscoveredConfigCount] = useState<number | null>(null)
-  const [data, setData] = useState<ExecutionDataStatusResponse | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('hierarchy')
+  const [cloudConfigPath, setCloudConfigPath] = useState<string | null>(null);
+  const [_discoveredConfigCount, setDiscoveredConfigCount] = useState<
+    number | null
+  >(null);
+  const [data, setData] = useState<ExecutionDataStatusResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("hierarchy");
 
   // Expansion state for hierarchy view
-  const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(new Set())
-  const [expandedModes, setExpandedModes] = useState<Set<string>>(new Set())
-  const [expandedTimeframes, setExpandedTimeframes] = useState<Set<string>>(new Set())
-  const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(new Set())
-  const [expandedConfigs, setExpandedConfigs] = useState<Set<string>>(new Set())
+  const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedModes, setExpandedModes] = useState<Set<string>>(new Set());
+  const [expandedTimeframes, setExpandedTimeframes] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedConfigs, setExpandedConfigs] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Deploy Missing state
-  const [showDeployModal, setShowDeployModal] = useState(false)
-  const [missingShardsData, setMissingShardsData] = useState<ExecutionMissingShardsResponse | null>(null)
-  const [loadingMissingShards, setLoadingMissingShards] = useState(false)
-  const [deployingMissing, setDeployingMissing] = useState(false)
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [missingShardsData, setMissingShardsData] =
+    useState<ExecutionMissingShardsResponse | null>(null);
+  const [loadingMissingShards, setLoadingMissingShards] = useState(false);
+  const [deployingMissing, setDeployingMissing] = useState(false);
 
   // Region validation (backend storage region for cross-region egress warning)
-  const [deployRegion, setDeployRegion] = useState<string>('asia-northeast1')
-  const [backendRegion, setBackendRegion] = useState<string>('asia-northeast1')
-  const [showDeployRegionWarning, setShowDeployRegionWarning] = useState(false)
+  const [deployRegion, setDeployRegion] = useState<string>("asia-northeast1");
+  const [backendRegion, setBackendRegion] = useState<string>("asia-northeast1");
+  const [showDeployRegionWarning, setShowDeployRegionWarning] = useState(false);
 
   useEffect(() => {
-    fetch('/api/config/region')
+    fetch("/api/config/region")
       .then((r) => r.json())
       .then((data) => {
-        const region = data.storage_region ?? data.gcs_region ?? 'asia-northeast1'
-        setBackendRegion(region)
-        setDeployRegion(region)
+        const region =
+          data.storage_region ?? data.gcs_region ?? "asia-northeast1";
+        setBackendRegion(region);
+        setDeployRegion(region);
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    setShowDeployRegionWarning(deployRegion !== backendRegion)
-  }, [deployRegion, backendRegion])
+    setShowDeployRegionWarning(deployRegion !== backendRegion);
+  }, [deployRegion, backendRegion]);
 
-  const handleCloudConfigSelected = useCallback((path: string, configCount: number) => {
-    setCloudConfigPath(path)
-    setDiscoveredConfigCount(configCount)
-  }, [])
+  const handleCloudConfigSelected = useCallback(
+    (path: string, configCount: number) => {
+      setCloudConfigPath(path);
+      setDiscoveredConfigCount(configCount);
+    },
+    [],
+  );
 
   const fetchData = useCallback(async () => {
     if (!cloudConfigPath) {
-      setError('Please select a config path first')
-      return
+      setError("Please select a config path first");
+      return;
     }
 
-    setLoading(true)
-    setError(null)
-    setData(null)
+    setLoading(true);
+    setError(null);
+    setData(null);
 
     try {
       const response = await fetch(
         `/api/service-status/execution-services/data-status?` +
-        `config_path=${encodeURIComponent(cloudConfigPath)}` +
-        `&start_date=${startDate}` +
-        `&end_date=${endDate}` +
-        `&include_dates_list=true`
-      )
+          `config_path=${encodeURIComponent(cloudConfigPath)}` +
+          `&start_date=${startDate}` +
+          `&end_date=${endDate}` +
+          `&include_dates_list=true`,
+      );
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result: ExecutionDataStatusResponse = await response.json()
+      const result: ExecutionDataStatusResponse = await response.json();
 
       if (result.error) {
-        setError(result.error)
+        setError(result.error);
       } else {
-        setData(result)
+        setData(result);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data status')
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch data status",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [cloudConfigPath, startDate, endDate])
+  }, [cloudConfigPath, startDate, endDate]);
 
   // Clear data when config path changes
   useEffect(() => {
-    setData(null)
-    setError(null)
-  }, [cloudConfigPath])
+    setData(null);
+    setError(null);
+  }, [cloudConfigPath]);
 
   const fetchMissingShards = useCallback(async () => {
-    if (!cloudConfigPath) return
+    if (!cloudConfigPath) return;
 
-    setLoadingMissingShards(true)
+    setLoadingMissingShards(true);
     try {
       const result = await getExecutionMissingShards({
         config_path: cloudConfigPath,
         start_date: startDate,
         end_date: endDate,
-      })
-      setMissingShardsData(result)
-      setShowDeployModal(true)
+      });
+      setMissingShardsData(result);
+      setShowDeployModal(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch missing shards')
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch missing shards",
+      );
     } finally {
-      setLoadingMissingShards(false)
+      setLoadingMissingShards(false);
     }
-  }, [cloudConfigPath, startDate, endDate])
+  }, [cloudConfigPath, startDate, endDate]);
 
   const handleDeployMissing = useCallback(async () => {
-    if (!missingShardsData || missingShardsData.total_missing === 0) return
+    if (!missingShardsData || missingShardsData.total_missing === 0) return;
 
-    setDeployingMissing(true)
+    setDeployingMissing(true);
     try {
       // Create deployment request for the missing shards
       // This calls the existing deployment API with the missing shards
-      const response = await fetch('/api/deployments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/deployments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          service: 'execution-services',
-          compute: 'cloud_run',
+          service: "execution-services",
+          compute: "cloud_run",
           region: deployRegion,
           start_date: startDate,
           end_date: endDate,
           // Pass config paths and dates for the missing shards
-          custom_shards: missingShardsData.missing_shards.map(s => {
-            const path = s.config_path ?? s.config_gcs
-            const isS3 = path.startsWith('s3://')
+          custom_shards: missingShardsData.missing_shards.map((s) => {
+            const path = s.config_path ?? s.config_gcs;
+            const isS3 = path.startsWith("s3://");
             return {
               ...(isS3 ? { config_path: path } : { config_gcs: path }),
               start_date: s.date,
               end_date: s.date,
-            }
+            };
           }),
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Deployment failed: ${response.statusText}`)
+        throw new Error(`Deployment failed: ${response.statusText}`);
       }
 
-      const result = await response.json()
+      const result = await response.json();
       // Close modal and show success
-      setShowDeployModal(false)
-      setMissingShardsData(null)
+      setShowDeployModal(false);
+      setMissingShardsData(null);
       // Optionally navigate to deployment or show success message
-      alert(`Deployment created: ${result.deployment_id || 'Success'}`)
+      alert(`Deployment created: ${result.deployment_id || "Success"}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Deployment failed')
+      setError(err instanceof Error ? err.message : "Deployment failed");
     } finally {
-      setDeployingMissing(false)
+      setDeployingMissing(false);
     }
-  }, [missingShardsData, startDate, endDate, deployRegion])
+  }, [missingShardsData, startDate, endDate, deployRegion]);
 
   const toggleStrategy = (key: string) => {
-    setExpandedStrategies(prev => {
-      const next = new Set(prev)
+    setExpandedStrategies((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleMode = (key: string) => {
-    setExpandedModes(prev => {
-      const next = new Set(prev)
+    setExpandedModes((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleTimeframe = (key: string) => {
-    setExpandedTimeframes(prev => {
-      const next = new Set(prev)
+    setExpandedTimeframes((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleBreakdown = (key: string) => {
-    setExpandedBreakdowns(prev => {
-      const next = new Set(prev)
+    setExpandedBreakdowns((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleConfig = (key: string) => {
-    setExpandedConfigs(prev => {
-      const next = new Set(prev)
+    setExpandedConfigs((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   // Helper to render truncated dates list
   const renderDatesList = (
@@ -346,13 +380,12 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
     truncated: boolean | undefined,
     totalCount: number | undefined,
     colorClass: string,
-    label: string
+    label: string,
   ) => {
-    if (!dates || dates.length === 0) return null
+    if (!dates || dates.length === 0) return null;
 
-    const allDates = truncated && tailDates
-      ? [...dates, '...', ...tailDates]
-      : dates
+    const allDates =
+      truncated && tailDates ? [...dates, "...", ...tailDates] : dates;
 
     return (
       <div className="mt-2">
@@ -365,11 +398,11 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               key={i}
               className={cn(
                 "text-[10px] font-mono px-1.5 py-0.5 rounded",
-                date === '...'
+                date === "..."
                   ? "text-[var(--color-text-muted)]"
-                  : colorClass.includes('green')
+                  : colorClass.includes("green")
                     ? "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                    : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                    : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]",
               )}
             >
               {date}
@@ -377,37 +410,43 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           ))}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   const getCompletionColor = (percent: number) => {
-    if (percent >= 100) return 'var(--color-accent-green)'
-    if (percent >= 80) return 'var(--color-accent-cyan)'
-    if (percent >= 50) return 'var(--color-accent-amber)'
-    return 'var(--color-accent-red)'
-  }
+    if (percent >= 100) return "var(--color-accent-green)";
+    if (percent >= 80) return "var(--color-accent-cyan)";
+    if (percent >= 50) return "var(--color-accent-amber)";
+    return "var(--color-accent-red)";
+  };
 
   const getCompletionBadgeClass = (percent: number) => {
-    if (percent >= 100) return 'bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]'
-    if (percent >= 80) return 'bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]'
-    if (percent >= 50) return 'bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]'
-    return 'bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]'
-  }
+    if (percent >= 100)
+      return "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]";
+    if (percent >= 80)
+      return "bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]";
+    if (percent >= 50)
+      return "bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]";
+    return "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]";
+  };
 
   // Render breakdown view (by mode, timeframe, or algo)
   const renderBreakdownView = (
     breakdown: Record<string, BreakdownItem>,
     label: string,
-    icon: React.ReactNode
+    icon: React.ReactNode,
   ) => (
     <div className="space-y-2">
       {Object.entries(breakdown).map(([name, item]) => {
-        const key = `${label}-${name}`
-        const isExpanded = expandedBreakdowns.has(key)
-        const isComplete = item.completion_pct >= 100
+        const key = `${label}-${name}`;
+        const isExpanded = expandedBreakdowns.has(key);
+        const isComplete = item.completion_pct >= 100;
 
         return (
-          <div key={name} className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden">
+          <div
+            key={name}
+            className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
+          >
             <button
               onClick={() => toggleBreakdown(key)}
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
@@ -426,11 +465,17 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   {item.with_results} / {item.total}
                 </span>
                 {!isComplete && item.missing_count > 0 && (
-                  <Badge variant="outline" className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
+                  <Badge
+                    variant="outline"
+                    className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                  >
                     {item.missing_count} missing
                   </Badge>
                 )}
-                <Badge variant="outline" className={getCompletionBadgeClass(item.completion_pct)}>
+                <Badge
+                  variant="outline"
+                  className={getCompletionBadgeClass(item.completion_pct)}
+                >
                   {item.completion_pct.toFixed(0)}%
                 </Badge>
                 <div className="w-20 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
@@ -438,7 +483,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     className="h-full transition-all"
                     style={{
                       width: `${item.completion_pct}%`,
-                      backgroundColor: getCompletionColor(item.completion_pct)
+                      backgroundColor: getCompletionColor(item.completion_pct),
                     }}
                   />
                 </div>
@@ -457,7 +502,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                       className="flex items-center gap-2 text-xs font-mono bg-[var(--color-bg-tertiary)] px-2 py-1 rounded"
                     >
                       <XCircle className="h-3 w-3 text-[var(--color-accent-red)] shrink-0" />
-                      <span className="truncate" title={path}>{path}</span>
+                      <span className="truncate" title={path}>
+                        {path}
+                      </span>
                     </div>
                   ))}
                   {item.missing_count > 5 && (
@@ -472,14 +519,16 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             {isExpanded && item.missing_samples.length === 0 && (
               <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
                 <CheckCircle2 className="h-6 w-6 text-[var(--color-accent-green)] mx-auto mb-2" />
-                <p className="text-sm text-[var(--color-text-muted)]">All configs have results</p>
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  All configs have results
+                </p>
               </div>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 
   return (
     <div className="space-y-4">
@@ -491,7 +540,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             <CardTitle className="text-base">Config Path</CardTitle>
             {cloudConfigPath && inferCloudProvider(cloudConfigPath) && (
               <Badge variant="outline" className="text-[10px]">
-                {inferCloudProvider(cloudConfigPath) === 'gcp' ? 'GCP' : 'AWS'}
+                {inferCloudProvider(cloudConfigPath) === "gcp" ? "GCP" : "AWS"}
               </Badge>
             )}
           </div>
@@ -513,7 +562,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-              <CardTitle className="text-base">Date Range Filter (Optional)</CardTitle>
+              <CardTitle className="text-base">
+                Date Range Filter (Optional)
+              </CardTitle>
             </div>
             <Button
               variant="outline"
@@ -556,7 +607,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             </div>
           </div>
           <p className="text-xs text-[var(--color-text-muted)] mt-2">
-            Filter which result dates to check. Leave as-is to check all available dates.
+            Filter which result dates to check. Leave as-is to check all
+            available dates.
           </p>
         </CardContent>
       </Card>
@@ -573,7 +625,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               <div className="flex items-center gap-2">
                 {cloudConfigPath && inferCloudProvider(cloudConfigPath) && (
                   <Badge variant="outline" className="text-[10px]">
-                    {inferCloudProvider(cloudConfigPath) === 'gcp' ? 'GCP' : 'AWS'}
+                    {inferCloudProvider(cloudConfigPath) === "gcp"
+                      ? "GCP"
+                      : "AWS"}
                   </Badge>
                 )}
                 <p className="text-xs text-[var(--color-text-muted)] font-mono">
@@ -610,7 +664,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     Execution Results Status
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    {data.version} • {data.strategy_count} strategies • {data.total_configs} configs
+                    {data.version} • {data.strategy_count} strategies •{" "}
+                    {data.total_configs} configs
                   </CardDescription>
                 </div>
                 <div className="text-right">
@@ -621,7 +676,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     {data.completion_pct.toFixed(1)}%
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    {data.configs_with_results} / {data.total_configs} configs have results
+                    {data.configs_with_results} / {data.total_configs} configs
+                    have results
                   </div>
                 </div>
               </div>
@@ -633,7 +689,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   className="h-full transition-all duration-500"
                   style={{
                     width: `${data.completion_pct}%`,
-                    backgroundColor: getCompletionColor(data.completion_pct)
+                    backgroundColor: getCompletionColor(data.completion_pct),
                   }}
                 />
               </div>
@@ -651,7 +707,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
-                      <strong>{data.missing_count}</strong> configs missing results
+                      <strong>{data.missing_count}</strong> configs missing
+                      results
                     </span>
                   </div>
                   <Button
@@ -680,10 +737,26 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             </p>
             <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-1">
               {[
-                { id: 'hierarchy', label: 'Hierarchy', icon: <Layers className="h-3.5 w-3.5" /> },
-                { id: 'by_mode', label: 'Mode', icon: <FileCode className="h-3.5 w-3.5" /> },
-                { id: 'by_timeframe', label: 'Timeframe', icon: <Clock className="h-3.5 w-3.5" /> },
-                { id: 'by_algo', label: 'Algorithm', icon: <Cpu className="h-3.5 w-3.5" /> },
+                {
+                  id: "hierarchy",
+                  label: "Hierarchy",
+                  icon: <Layers className="h-3.5 w-3.5" />,
+                },
+                {
+                  id: "by_mode",
+                  label: "Mode",
+                  icon: <FileCode className="h-3.5 w-3.5" />,
+                },
+                {
+                  id: "by_timeframe",
+                  label: "Timeframe",
+                  icon: <Clock className="h-3.5 w-3.5" />,
+                },
+                {
+                  id: "by_algo",
+                  label: "Algorithm",
+                  icon: <Cpu className="h-3.5 w-3.5" />,
+                },
               ].map(({ id, label, icon }) => (
                 <button
                   key={id}
@@ -692,7 +765,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
                     viewMode === id
                       ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
                   )}
                 >
                   {icon}
@@ -703,7 +776,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           </div>
 
           {/* Breakdown Views */}
-          {viewMode === 'by_mode' && data.breakdown_by_mode && (
+          {viewMode === "by_mode" && data.breakdown_by_mode && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -717,35 +790,33 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               <CardContent>
                 {renderBreakdownView(
                   data.breakdown_by_mode,
-                  'mode',
-                  <FileCode className="h-4 w-4 text-[var(--color-accent-purple)]" />
+                  "mode",
+                  <FileCode className="h-4 w-4 text-[var(--color-accent-purple)]" />,
                 )}
               </CardContent>
             </Card>
           )}
 
-          {viewMode === 'by_timeframe' && data.breakdown_by_timeframe && (
+          {viewMode === "by_timeframe" && data.breakdown_by_timeframe && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   Breakdown by Timeframe
                 </CardTitle>
-                <CardDescription>
-                  Compare 5M vs 15M vs 1H etc.
-                </CardDescription>
+                <CardDescription>Compare 5M vs 15M vs 1H etc.</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderBreakdownView(
                   data.breakdown_by_timeframe,
-                  'timeframe',
-                  <Clock className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                  "timeframe",
+                  <Clock className="h-4 w-4 text-[var(--color-accent-cyan)]" />,
                 )}
               </CardContent>
             </Card>
           )}
 
-          {viewMode === 'by_algo' && data.breakdown_by_algo && (
+          {viewMode === "by_algo" && data.breakdown_by_algo && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -753,21 +824,22 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   Breakdown by Algorithm
                 </CardTitle>
                 <CardDescription>
-                  Compare TWAP vs VWAP vs Iceberg etc. - identify algo-specific issues
+                  Compare TWAP vs VWAP vs Iceberg etc. - identify algo-specific
+                  issues
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {renderBreakdownView(
                   data.breakdown_by_algo,
-                  'algo',
-                  <Cpu className="h-4 w-4 text-[var(--color-accent-amber)]" />
+                  "algo",
+                  <Cpu className="h-4 w-4 text-[var(--color-accent-amber)]" />,
                 )}
               </CardContent>
             </Card>
           )}
 
           {/* Hierarchy View (Strategy -> Mode -> Timeframe -> Configs) */}
-          {viewMode === 'hierarchy' && (
+          {viewMode === "hierarchy" && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -781,9 +853,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               <CardContent className="p-0">
                 <div className="divide-y divide-[var(--color-border-subtle)]">
                   {data.strategies.map((strategy) => {
-                    const strategyKey = strategy.strategy
-                    const isStrategyExpanded = expandedStrategies.has(strategyKey)
-                    const isComplete = strategy.completion_pct >= 100
+                    const strategyKey = strategy.strategy;
+                    const isStrategyExpanded =
+                      expandedStrategies.has(strategyKey);
+                    const isComplete = strategy.completion_pct >= 100;
 
                     return (
                       <div key={strategyKey}>
@@ -799,18 +872,29 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                               <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                             )}
                             <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
-                            <span className="font-medium font-mono text-sm">{strategy.strategy}</span>
+                            <span className="font-medium font-mono text-sm">
+                              {strategy.strategy}
+                            </span>
                             <span className="text-xs text-[var(--color-text-muted)]">
-                              ({strategy.modes.length} modes, {strategy.total} configs)
+                              ({strategy.modes.length} modes, {strategy.total}{" "}
+                              configs)
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
                             {!isComplete && (
-                              <Badge variant="outline" className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
+                              <Badge
+                                variant="outline"
+                                className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                              >
                                 {strategy.total - strategy.with_results} missing
                               </Badge>
                             )}
-                            <Badge variant="outline" className={getCompletionBadgeClass(strategy.completion_pct)}>
+                            <Badge
+                              variant="outline"
+                              className={getCompletionBadgeClass(
+                                strategy.completion_pct,
+                              )}
+                            >
                               {strategy.completion_pct.toFixed(0)}%
                             </Badge>
                             <div className="w-20 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
@@ -818,7 +902,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                 className="h-full transition-all"
                                 style={{
                                   width: `${strategy.completion_pct}%`,
-                                  backgroundColor: getCompletionColor(strategy.completion_pct)
+                                  backgroundColor: getCompletionColor(
+                                    strategy.completion_pct,
+                                  ),
                                 }}
                               />
                             </div>
@@ -829,10 +915,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                         {isStrategyExpanded && (
                           <div className="bg-[var(--color-bg-secondary)] divide-y divide-[var(--color-border-subtle)]">
                             {strategy.modes.map((mode) => {
-                              const modeKey = `${strategyKey}/${mode.mode}`
-                              const isModeExpanded = expandedModes.has(modeKey)
+                              const modeKey = `${strategyKey}/${mode.mode}`;
+                              const isModeExpanded = expandedModes.has(modeKey);
                               // isModeComplete is retained for future visual distinction
-                              void (mode.completion_pct >= 100)
+                              void (mode.completion_pct >= 100);
 
                               return (
                                 <div key={modeKey}>
@@ -847,7 +933,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                         <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
                                       )}
                                       <FileCode className="h-3 w-3 text-[var(--color-accent-cyan)]" />
-                                      <span className="font-mono text-sm">{mode.mode}</span>
+                                      <span className="font-mono text-sm">
+                                        {mode.mode}
+                                      </span>
                                       <span className="text-xs text-[var(--color-text-muted)]">
                                         ({mode.timeframes.length} timeframes)
                                       </span>
@@ -858,7 +946,11 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                       </span>
                                       <span
                                         className="text-xs font-mono"
-                                        style={{ color: getCompletionColor(mode.completion_pct) }}
+                                        style={{
+                                          color: getCompletionColor(
+                                            mode.completion_pct,
+                                          ),
+                                        }}
                                       >
                                         {mode.completion_pct.toFixed(0)}%
                                       </span>
@@ -869,14 +961,18 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                   {isModeExpanded && (
                                     <div className="bg-[var(--color-bg-tertiary)] divide-y divide-[var(--color-border-subtle)]">
                                       {mode.timeframes.map((tf) => {
-                                        const tfKey = `${modeKey}/${tf.timeframe}`
-                                        const isTfExpanded = expandedTimeframes.has(tfKey)
-                                        const isTfComplete = tf.completion_pct >= 100
+                                        const tfKey = `${modeKey}/${tf.timeframe}`;
+                                        const isTfExpanded =
+                                          expandedTimeframes.has(tfKey);
+                                        const isTfComplete =
+                                          tf.completion_pct >= 100;
 
                                         return (
                                           <div key={tfKey}>
                                             <button
-                                              onClick={() => toggleTimeframe(tfKey)}
+                                              onClick={() =>
+                                                toggleTimeframe(tfKey)
+                                              }
                                               className="w-full px-8 py-2 flex items-center justify-between hover:bg-[var(--color-bg-primary)] transition-colors"
                                             >
                                               <div className="flex items-center gap-3">
@@ -886,14 +982,25 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                   <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
                                                 )}
                                                 <Clock className="h-3 w-3 text-[var(--color-accent-amber)]" />
-                                                <span className="font-mono text-sm">{tf.timeframe}</span>
+                                                <span className="font-mono text-sm">
+                                                  {tf.timeframe}
+                                                </span>
                                               </div>
                                               <div className="flex items-center gap-2">
-                                                {!isTfComplete && tf.missing_configs.length > 0 && (
-                                                  <Badge variant="outline" className="text-[10px] bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]">
-                                                    {tf.missing_configs.length} missing
-                                                  </Badge>
-                                                )}
+                                                {!isTfComplete &&
+                                                  tf.missing_configs.length >
+                                                    0 && (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="text-[10px] bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                                    >
+                                                      {
+                                                        tf.missing_configs
+                                                          .length
+                                                      }{" "}
+                                                      missing
+                                                    </Badge>
+                                                  )}
                                                 <span className="text-xs text-[var(--color-text-muted)]">
                                                   {tf.with_results}/{tf.total}
                                                 </span>
@@ -902,9 +1009,16 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                 ) : (
                                                   <span
                                                     className="text-xs font-mono"
-                                                    style={{ color: getCompletionColor(tf.completion_pct) }}
+                                                    style={{
+                                                      color: getCompletionColor(
+                                                        tf.completion_pct,
+                                                      ),
+                                                    }}
                                                   >
-                                                    {tf.completion_pct.toFixed(0)}%
+                                                    {tf.completion_pct.toFixed(
+                                                      0,
+                                                    )}
+                                                    %
                                                   </span>
                                                 )}
                                               </div>
@@ -913,152 +1027,261 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                             {/* Config Files */}
                                             {isTfExpanded && (
                                               <div className="bg-[var(--color-bg-primary)] px-10 py-3 space-y-2">
-                                                {tf.missing_configs.length > 0 && (
+                                                {tf.missing_configs.length >
+                                                  0 && (
                                                   <>
                                                     <p className="text-xs font-medium text-[var(--color-accent-red)] mb-2">
-                                                      Missing configs ({tf.missing_configs.length}):
+                                                      Missing configs (
+                                                      {
+                                                        tf.missing_configs
+                                                          .length
+                                                      }
+                                                      ):
                                                     </p>
-                                                    {tf.missing_configs.map((cfg, i) => {
-                                                      // Find full config info to get day breakdown
-                                                      const fullConfig = tf.configs.find(c => c.config_file === cfg.config_file)
-                                                      const configKey = `${tfKey}/missing/${cfg.config_file}`
-                                                      const isConfigExpanded = expandedConfigs.has(configKey)
-                                                      const hasDayBreakdown = fullConfig && (fullConfig.dates_found_count !== undefined || fullConfig.dates_missing_count !== undefined)
+                                                    {tf.missing_configs.map(
+                                                      (cfg, i) => {
+                                                        // Find full config info to get day breakdown
+                                                        const fullConfig =
+                                                          tf.configs.find(
+                                                            (c) =>
+                                                              c.config_file ===
+                                                              cfg.config_file,
+                                                          );
+                                                        const configKey = `${tfKey}/missing/${cfg.config_file}`;
+                                                        const isConfigExpanded =
+                                                          expandedConfigs.has(
+                                                            configKey,
+                                                          );
+                                                        const hasDayBreakdown =
+                                                          fullConfig &&
+                                                          (fullConfig.dates_found_count !==
+                                                            undefined ||
+                                                            fullConfig.dates_missing_count !==
+                                                              undefined);
 
-                                                      return (
-                                                        <div key={i} className="border border-[rgba(248,113,113,0.2)] rounded overflow-hidden">
-                                                          <button
-                                                            onClick={() => hasDayBreakdown && toggleConfig(configKey)}
-                                                            className={cn(
-                                                              "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(248,113,113,0.05)] px-2 py-1.5",
-                                                              hasDayBreakdown && "hover:bg-[rgba(248,113,113,0.1)] cursor-pointer"
-                                                            )}
+                                                        return (
+                                                          <div
+                                                            key={i}
+                                                            className="border border-[rgba(248,113,113,0.2)] rounded overflow-hidden"
                                                           >
-                                                            {hasDayBreakdown && (
-                                                              isConfigExpanded
-                                                                ? <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                                : <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                            )}
-                                                            <XCircle className="h-3 w-3 text-[var(--color-accent-red)] shrink-0" />
-                                                            <span className="text-[var(--color-accent-amber)] font-medium shrink-0">{cfg.algo_name}</span>
-                                                            <span className="truncate text-[var(--color-text-muted)]" title={cfg.config_file}>
-                                                              {cfg.config_file}
-                                                            </span>
-                                                            {fullConfig?.dates_missing_count !== undefined && (
-                                                              <span className="text-[10px] text-[var(--color-accent-red)] ml-auto shrink-0 flex items-center gap-1">
-                                                                <Calendar className="h-3 w-3" />
-                                                                {fullConfig.dates_missing_count} days missing
+                                                            <button
+                                                              onClick={() =>
+                                                                hasDayBreakdown &&
+                                                                toggleConfig(
+                                                                  configKey,
+                                                                )
+                                                              }
+                                                              className={cn(
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(248,113,113,0.05)] px-2 py-1.5",
+                                                                hasDayBreakdown &&
+                                                                  "hover:bg-[rgba(248,113,113,0.1)] cursor-pointer",
+                                                              )}
+                                                            >
+                                                              {hasDayBreakdown &&
+                                                                (isConfigExpanded ? (
+                                                                  <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                                ) : (
+                                                                  <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                                ))}
+                                                              <XCircle className="h-3 w-3 text-[var(--color-accent-red)] shrink-0" />
+                                                              <span className="text-[var(--color-accent-amber)] font-medium shrink-0">
+                                                                {cfg.algo_name}
                                                               </span>
-                                                            )}
-                                                          </button>
+                                                              <span
+                                                                className="truncate text-[var(--color-text-muted)]"
+                                                                title={
+                                                                  cfg.config_file
+                                                                }
+                                                              >
+                                                                {
+                                                                  cfg.config_file
+                                                                }
+                                                              </span>
+                                                              {fullConfig?.dates_missing_count !==
+                                                                undefined && (
+                                                                <span className="text-[10px] text-[var(--color-accent-red)] ml-auto shrink-0 flex items-center gap-1">
+                                                                  <Calendar className="h-3 w-3" />
+                                                                  {
+                                                                    fullConfig.dates_missing_count
+                                                                  }{" "}
+                                                                  days missing
+                                                                </span>
+                                                              )}
+                                                            </button>
 
-                                                          {/* Day breakdown dropdown */}
-                                                          {isConfigExpanded && hasDayBreakdown && fullConfig && (
-                                                            <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(248,113,113,0.2)]">
-                                                              {renderDatesList(
-                                                                fullConfig.dates_found_list,
-                                                                fullConfig.dates_found_list_tail,
-                                                                fullConfig.dates_found_truncated,
-                                                                fullConfig.dates_found_count,
-                                                                "text-[var(--color-accent-green)]",
-                                                                "Available Days"
+                                                            {/* Day breakdown dropdown */}
+                                                            {isConfigExpanded &&
+                                                              hasDayBreakdown &&
+                                                              fullConfig && (
+                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(248,113,113,0.2)]">
+                                                                  {renderDatesList(
+                                                                    fullConfig.dates_found_list,
+                                                                    fullConfig.dates_found_list_tail,
+                                                                    fullConfig.dates_found_truncated,
+                                                                    fullConfig.dates_found_count,
+                                                                    "text-[var(--color-accent-green)]",
+                                                                    "Available Days",
+                                                                  )}
+                                                                  {renderDatesList(
+                                                                    fullConfig.dates_missing_list,
+                                                                    fullConfig.dates_missing_list_tail,
+                                                                    fullConfig.dates_missing_truncated,
+                                                                    fullConfig.dates_missing_count,
+                                                                    "text-[var(--color-accent-red)]",
+                                                                    "Missing Days",
+                                                                  )}
+                                                                </div>
                                                               )}
-                                                              {renderDatesList(
-                                                                fullConfig.dates_missing_list,
-                                                                fullConfig.dates_missing_list_tail,
-                                                                fullConfig.dates_missing_truncated,
-                                                                fullConfig.dates_missing_count,
-                                                                "text-[var(--color-accent-red)]",
-                                                                "Missing Days"
-                                                              )}
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      )
-                                                    })}
+                                                          </div>
+                                                        );
+                                                      },
+                                                    )}
                                                   </>
                                                 )}
 
-                                                {tf.configs.filter(c => c.has_results).length > 0 && (
+                                                {tf.configs.filter(
+                                                  (c) => c.has_results,
+                                                ).length > 0 && (
                                                   <>
                                                     <p className="text-xs font-medium text-[var(--color-accent-green)] mt-3 mb-2">
-                                                      Completed ({tf.configs.filter(c => c.has_results).length}):
+                                                      Completed (
+                                                      {
+                                                        tf.configs.filter(
+                                                          (c) => c.has_results,
+                                                        ).length
+                                                      }
+                                                      ):
                                                     </p>
-                                                    {tf.configs.filter(c => c.has_results).map((cfg, i) => {
-                                                      const configKey = `${tfKey}/${cfg.config_file}`
-                                                      const isConfigExpanded = expandedConfigs.has(configKey)
-                                                      const hasDayBreakdown = cfg.dates_found_count !== undefined || cfg.dates_missing_count !== undefined
-
-                                                      return (
-                                                        <div key={i} className="border border-[rgba(34,197,94,0.2)] rounded overflow-hidden">
-                                                          <button
-                                                            onClick={() => hasDayBreakdown && toggleConfig(configKey)}
-                                                            className={cn(
-                                                              "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(34,197,94,0.05)] px-2 py-1.5",
-                                                              hasDayBreakdown && "hover:bg-[rgba(34,197,94,0.1)] cursor-pointer"
-                                                            )}
-                                                          >
-                                                            {hasDayBreakdown && (
-                                                              isConfigExpanded
-                                                                ? <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                                : <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                            )}
-                                                            <CheckCircle2 className="h-3 w-3 text-[var(--color-accent-green)] shrink-0" />
-                                                            <span className="text-[var(--color-accent-cyan)] font-medium shrink-0">{cfg.algo_name}</span>
-                                                            <span className="truncate text-[var(--color-text-muted)]" title={cfg.config_file}>
-                                                              {cfg.config_file}
-                                                            </span>
-                                                            <span className="text-[10px] text-[var(--color-text-muted)] ml-auto shrink-0 flex items-center gap-1">
-                                                              <Calendar className="h-3 w-3" />
-                                                              {cfg.dates_found_count ?? cfg.result_dates.length}/{(cfg.dates_found_count ?? 0) + (cfg.dates_missing_count ?? 0) || cfg.result_dates.length} days
-                                                              {cfg.completion_pct !== undefined && (
-                                                                <span className={cfg.completion_pct >= 100 ? "text-[var(--color-accent-green)]" : "text-[var(--color-accent-amber)]"}>
-                                                                  ({cfg.completion_pct}%)
-                                                                </span>
-                                                              )}
-                                                            </span>
-                                                          </button>
-
-                                                          {/* Day breakdown dropdown */}
-                                                          {isConfigExpanded && hasDayBreakdown && (
-                                                            <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(34,197,94,0.2)]">
-                                                              {renderDatesList(
-                                                                cfg.dates_found_list,
-                                                                cfg.dates_found_list_tail,
-                                                                cfg.dates_found_truncated,
-                                                                cfg.dates_found_count,
-                                                                "text-[var(--color-accent-green)]",
-                                                                "Available Days"
-                                                              )}
-                                                              {renderDatesList(
-                                                                cfg.dates_missing_list,
-                                                                cfg.dates_missing_list_tail,
-                                                                cfg.dates_missing_truncated,
-                                                                cfg.dates_missing_count,
-                                                                "text-[var(--color-accent-red)]",
-                                                                "Missing Days"
-                                                              )}
-                                                            </div>
-                                                          )}
-                                                        </div>
+                                                    {tf.configs
+                                                      .filter(
+                                                        (c) => c.has_results,
                                                       )
-                                                    })}
+                                                      .map((cfg, i) => {
+                                                        const configKey = `${tfKey}/${cfg.config_file}`;
+                                                        const isConfigExpanded =
+                                                          expandedConfigs.has(
+                                                            configKey,
+                                                          );
+                                                        const hasDayBreakdown =
+                                                          cfg.dates_found_count !==
+                                                            undefined ||
+                                                          cfg.dates_missing_count !==
+                                                            undefined;
+
+                                                        return (
+                                                          <div
+                                                            key={i}
+                                                            className="border border-[rgba(34,197,94,0.2)] rounded overflow-hidden"
+                                                          >
+                                                            <button
+                                                              onClick={() =>
+                                                                hasDayBreakdown &&
+                                                                toggleConfig(
+                                                                  configKey,
+                                                                )
+                                                              }
+                                                              className={cn(
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(34,197,94,0.05)] px-2 py-1.5",
+                                                                hasDayBreakdown &&
+                                                                  "hover:bg-[rgba(34,197,94,0.1)] cursor-pointer",
+                                                              )}
+                                                            >
+                                                              {hasDayBreakdown &&
+                                                                (isConfigExpanded ? (
+                                                                  <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                                ) : (
+                                                                  <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                                ))}
+                                                              <CheckCircle2 className="h-3 w-3 text-[var(--color-accent-green)] shrink-0" />
+                                                              <span className="text-[var(--color-accent-cyan)] font-medium shrink-0">
+                                                                {cfg.algo_name}
+                                                              </span>
+                                                              <span
+                                                                className="truncate text-[var(--color-text-muted)]"
+                                                                title={
+                                                                  cfg.config_file
+                                                                }
+                                                              >
+                                                                {
+                                                                  cfg.config_file
+                                                                }
+                                                              </span>
+                                                              <span className="text-[10px] text-[var(--color-text-muted)] ml-auto shrink-0 flex items-center gap-1">
+                                                                <Calendar className="h-3 w-3" />
+                                                                {cfg.dates_found_count ??
+                                                                  cfg
+                                                                    .result_dates
+                                                                    .length}
+                                                                /
+                                                                {(cfg.dates_found_count ??
+                                                                  0) +
+                                                                  (cfg.dates_missing_count ??
+                                                                    0) ||
+                                                                  cfg
+                                                                    .result_dates
+                                                                    .length}{" "}
+                                                                days
+                                                                {cfg.completion_pct !==
+                                                                  undefined && (
+                                                                  <span
+                                                                    className={
+                                                                      cfg.completion_pct >=
+                                                                      100
+                                                                        ? "text-[var(--color-accent-green)]"
+                                                                        : "text-[var(--color-accent-amber)]"
+                                                                    }
+                                                                  >
+                                                                    (
+                                                                    {
+                                                                      cfg.completion_pct
+                                                                    }
+                                                                    %)
+                                                                  </span>
+                                                                )}
+                                                              </span>
+                                                            </button>
+
+                                                            {/* Day breakdown dropdown */}
+                                                            {isConfigExpanded &&
+                                                              hasDayBreakdown && (
+                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(34,197,94,0.2)]">
+                                                                  {renderDatesList(
+                                                                    cfg.dates_found_list,
+                                                                    cfg.dates_found_list_tail,
+                                                                    cfg.dates_found_truncated,
+                                                                    cfg.dates_found_count,
+                                                                    "text-[var(--color-accent-green)]",
+                                                                    "Available Days",
+                                                                  )}
+                                                                  {renderDatesList(
+                                                                    cfg.dates_missing_list,
+                                                                    cfg.dates_missing_list_tail,
+                                                                    cfg.dates_missing_truncated,
+                                                                    cfg.dates_missing_count,
+                                                                    "text-[var(--color-accent-red)]",
+                                                                    "Missing Days",
+                                                                  )}
+                                                                </div>
+                                                              )}
+                                                          </div>
+                                                        );
+                                                      })}
                                                   </>
                                                 )}
                                               </div>
                                             )}
                                           </div>
-                                        )
+                                        );
                                       })}
                                     </div>
                                   )}
                                 </div>
-                              )
+                              );
                             })}
                           </div>
                         )}
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </CardContent>
@@ -1073,7 +1296,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center gap-3 text-[var(--color-text-muted)]">
               <FolderOpen className="h-8 w-8" />
-              <p className="text-sm">Select a config path above to check execution results</p>
+              <p className="text-sm">
+                Select a config path above to check execution results
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -1091,15 +1316,16 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     Deploy Missing Shards
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    {missingShardsData.total_missing} missing config×date combinations
+                    {missingShardsData.total_missing} missing config×date
+                    combinations
                   </CardDescription>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setShowDeployModal(false)
-                    setMissingShardsData(null)
+                    setShowDeployModal(false);
+                    setMissingShardsData(null);
                   }}
                 >
                   <X className="h-4 w-4" />
@@ -1110,15 +1336,25 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-[var(--color-bg-secondary)] p-3 rounded-lg">
-                  <p className="text-xs text-[var(--color-text-muted)]">Total Configs</p>
-                  <p className="text-lg font-mono font-bold">{missingShardsData.total_configs}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Total Configs
+                  </p>
+                  <p className="text-lg font-mono font-bold">
+                    {missingShardsData.total_configs}
+                  </p>
                 </div>
                 <div className="bg-[var(--color-bg-secondary)] p-3 rounded-lg">
-                  <p className="text-xs text-[var(--color-text-muted)]">Total Dates</p>
-                  <p className="text-lg font-mono font-bold">{missingShardsData.total_dates}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Total Dates
+                  </p>
+                  <p className="text-lg font-mono font-bold">
+                    {missingShardsData.total_dates}
+                  </p>
                 </div>
                 <div className="bg-[rgba(248,113,113,0.1)] p-3 rounded-lg border border-[rgba(248,113,113,0.2)]">
-                  <p className="text-xs text-[var(--color-accent-red)]">Missing Shards</p>
+                  <p className="text-xs text-[var(--color-accent-red)]">
+                    Missing Shards
+                  </p>
                   <p className="text-lg font-mono font-bold text-[var(--color-accent-red)]">
                     {missingShardsData.total_missing}
                   </p>
@@ -1130,11 +1366,16 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 <p className="text-sm font-medium">Breakdown</p>
 
                 {/* By Strategy */}
-                {Object.keys(missingShardsData.breakdown.by_strategy).length > 0 && (
+                {Object.keys(missingShardsData.breakdown.by_strategy).length >
+                  0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Strategy:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      By Strategy:
+                    </p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_strategy).map(([name, count]) => (
+                      {Object.entries(
+                        missingShardsData.breakdown.by_strategy,
+                      ).map(([name, count]) => (
                         <Badge key={name} variant="outline" className="text-xs">
                           {name}: {count}
                         </Badge>
@@ -1144,25 +1385,39 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 )}
 
                 {/* By Mode */}
-                {Object.keys(missingShardsData.breakdown.by_mode).length > 0 && (
+                {Object.keys(missingShardsData.breakdown.by_mode).length >
+                  0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Mode:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      By Mode:
+                    </p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_mode).map(([name, count]) => (
-                        <Badge key={name} variant="outline" className="text-xs">
-                          {name}: {count}
-                        </Badge>
-                      ))}
+                      {Object.entries(missingShardsData.breakdown.by_mode).map(
+                        ([name, count]) => (
+                          <Badge
+                            key={name}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {name}: {count}
+                          </Badge>
+                        ),
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* By Timeframe */}
-                {Object.keys(missingShardsData.breakdown.by_timeframe).length > 0 && (
+                {Object.keys(missingShardsData.breakdown.by_timeframe).length >
+                  0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Timeframe:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      By Timeframe:
+                    </p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_timeframe).map(([name, count]) => (
+                      {Object.entries(
+                        missingShardsData.breakdown.by_timeframe,
+                      ).map(([name, count]) => (
                         <Badge key={name} variant="outline" className="text-xs">
                           {name}: {count}
                         </Badge>
@@ -1172,34 +1427,56 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 )}
 
                 {/* By Algorithm */}
-                {Object.keys(missingShardsData.breakdown.by_algo).length > 0 && (
+                {Object.keys(missingShardsData.breakdown.by_algo).length >
+                  0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Algorithm:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      By Algorithm:
+                    </p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_algo).map(([name, count]) => (
-                        <Badge key={name} variant="outline" className="text-xs">
-                          {name}: {count}
-                        </Badge>
-                      ))}
+                      {Object.entries(missingShardsData.breakdown.by_algo).map(
+                        ([name, count]) => (
+                          <Badge
+                            key={name}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {name}: {count}
+                          </Badge>
+                        ),
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* By Date (show first 10) */}
-                {Object.keys(missingShardsData.breakdown.by_date).length > 0 && (
+                {Object.keys(missingShardsData.breakdown.by_date).length >
+                  0 && (
                   <div>
                     <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Date ({Object.keys(missingShardsData.breakdown.by_date).length} dates):
+                      By Date (
+                      {Object.keys(missingShardsData.breakdown.by_date).length}{" "}
+                      dates):
                     </p>
                     <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                      {Object.entries(missingShardsData.breakdown.by_date).slice(0, 10).map(([date, count]) => (
-                        <Badge key={date} variant="outline" className="text-xs font-mono">
-                          {date}: {count}
-                        </Badge>
-                      ))}
-                      {Object.keys(missingShardsData.breakdown.by_date).length > 10 && (
+                      {Object.entries(missingShardsData.breakdown.by_date)
+                        .slice(0, 10)
+                        .map(([date, count]) => (
+                          <Badge
+                            key={date}
+                            variant="outline"
+                            className="text-xs font-mono"
+                          >
+                            {date}: {count}
+                          </Badge>
+                        ))}
+                      {Object.keys(missingShardsData.breakdown.by_date).length >
+                        10 && (
                         <Badge variant="outline" className="text-xs">
-                          +{Object.keys(missingShardsData.breakdown.by_date).length - 10} more dates
+                          +
+                          {Object.keys(missingShardsData.breakdown.by_date)
+                            .length - 10}{" "}
+                          more dates
                         </Badge>
                       )}
                     </div>
@@ -1216,14 +1493,26 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {[
-                      { value: 'asia-northeast1', label: 'asia-northeast1 (Tokyo)' },
-                      { value: 'asia-northeast2', label: 'asia-northeast2 (Osaka)' },
-                      { value: 'asia-southeast1', label: 'asia-southeast1 (Singapore)' },
-                      { value: 'us-central1', label: 'us-central1 (Iowa)' },
-                      { value: 'us-east1', label: 'us-east1 (South Carolina)' },
-                      { value: 'us-west1', label: 'us-west1 (Oregon)' },
-                      { value: 'europe-west1', label: 'europe-west1 (Belgium)' },
-                      { value: 'europe-west2', label: 'europe-west2 (London)' },
+                      {
+                        value: "asia-northeast1",
+                        label: "asia-northeast1 (Tokyo)",
+                      },
+                      {
+                        value: "asia-northeast2",
+                        label: "asia-northeast2 (Osaka)",
+                      },
+                      {
+                        value: "asia-southeast1",
+                        label: "asia-southeast1 (Singapore)",
+                      },
+                      { value: "us-central1", label: "us-central1 (Iowa)" },
+                      { value: "us-east1", label: "us-east1 (South Carolina)" },
+                      { value: "us-west1", label: "us-west1 (Oregon)" },
+                      {
+                        value: "europe-west1",
+                        label: "europe-west1 (Belgium)",
+                      },
+                      { value: "europe-west2", label: "europe-west2 (London)" },
                     ].map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}
@@ -1236,14 +1525,18 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-amber-800 dark:text-amber-200">
-                        <p className="font-semibold">Cross-Region Egress Warning</p>
+                        <p className="font-semibold">
+                          Cross-Region Egress Warning
+                        </p>
                         <p className="mt-1">
-                          Selected region ({deployRegion}) differs from configured storage region ({backendRegion}).
-                          This may incur significant egress costs.
+                          Selected region ({deployRegion}) differs from
+                          configured storage region ({backendRegion}). This may
+                          incur significant egress costs.
                         </p>
                         <p className="mt-1 font-medium">
-                          Recommendation: Use {backendRegion} to avoid egress charges. Zone failover (1a → 1b
-                          → 1c) provides high availability within the region.
+                          Recommendation: Use {backendRegion} to avoid egress
+                          charges. Zone failover (1a → 1b → 1c) provides high
+                          availability within the region.
                         </p>
                       </div>
                     </div>
@@ -1257,15 +1550,17 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowDeployModal(false)
-                  setMissingShardsData(null)
+                  setShowDeployModal(false);
+                  setMissingShardsData(null);
                 }}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleDeployMissing}
-                disabled={deployingMissing || missingShardsData.total_missing === 0}
+                disabled={
+                  deployingMissing || missingShardsData.total_missing === 0
+                }
                 className="bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/90"
               >
                 {deployingMissing ? (
@@ -1280,5 +1575,5 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

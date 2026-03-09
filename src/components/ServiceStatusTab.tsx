@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 import {
   Activity,
   RefreshCw,
@@ -11,101 +11,124 @@ import {
   Wrench,
   Loader2,
   AlertTriangle,
-} from 'lucide-react'
-import * as api from '../api/client'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import type { ServiceStatus } from '../types'
+} from "lucide-react";
+import * as api from "../api/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import type { ServiceStatus } from "../types";
 
 interface ServiceStatusTabProps {
-  serviceName: string
+  serviceName: string;
 }
 
 export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
-  const [status, setStatus] = useState<ServiceStatus | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<ServiceStatus | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    setStatus(null) // Clear old data immediately - prevent stale data display
+    setLoading(true);
+    setError(null);
+    setStatus(null); // Clear old data immediately - prevent stale data display
 
     try {
-      const result = await api.getServiceStatus(serviceName)
-      setStatus(result)
+      const result = await api.getServiceStatus(serviceName);
+      setStatus(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch service status')
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch service status",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [serviceName])
+  }, [serviceName]);
 
   useEffect(() => {
-    fetchStatus()
-  }, [fetchStatus])
+    fetchStatus();
+  }, [fetchStatus]);
 
   const formatTimestamp = (ts: string | null) => {
-    if (!ts) return { relative: 'Never', absolute: 'Never' }
-    const date = new Date(ts)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffHours / 24)
+    if (!ts) return { relative: "Never", absolute: "Never" };
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
 
-    let relative = ''
+    let relative = "";
     if (diffHours < 1) {
-      const diffMins = Math.floor(diffMs / (1000 * 60))
-      relative = `${diffMins}m ago`
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      relative = `${diffMins}m ago`;
     } else if (diffDays < 1) {
-      relative = `${diffHours}h ago`
+      relative = `${diffHours}h ago`;
     } else if (diffDays < 7) {
-      relative = `${diffDays}d ago`
+      relative = `${diffDays}d ago`;
     } else {
-      relative = `${diffDays}d ago`
+      relative = `${diffDays}d ago`;
     }
 
-    const absolute = date.toLocaleString('en-US', {
-      timeZone: 'UTC',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }) + ' UTC'
+    const absolute =
+      date.toLocaleString("en-US", {
+        timeZone: "UTC",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }) + " UTC";
 
-    return { relative, absolute }
-  }
+    return { relative, absolute };
+  };
 
   const getHealthColor = (health: string) => {
     switch (health) {
-      case 'healthy': return 'var(--color-accent-green)'
-      case 'warning': return 'var(--color-accent-amber)'
-      case 'error': return 'var(--color-accent-red)'
-      case 'build_failed': return 'var(--color-accent-red)'
-      default: return 'var(--color-text-muted)'
+      case "healthy":
+        return "var(--color-accent-green)";
+      case "warning":
+        return "var(--color-accent-amber)";
+      case "error":
+        return "var(--color-accent-red)";
+      case "build_failed":
+        return "var(--color-accent-red)";
+      default:
+        return "var(--color-text-muted)";
     }
-  }
+  };
 
   const getHealthIcon = (health: string) => {
     switch (health) {
-      case 'healthy': return <CheckCircle2 className="h-5 w-5" />
-      case 'warning': return <AlertTriangle className="h-5 w-5" />
-      case 'error': return <XCircle className="h-5 w-5" />
-      case 'build_failed': return <XCircle className="h-5 w-5" />
-      default: return <AlertCircle className="h-5 w-5" />
+      case "healthy":
+        return <CheckCircle2 className="h-5 w-5" />;
+      case "warning":
+        return <AlertTriangle className="h-5 w-5" />;
+      case "error":
+        return <XCircle className="h-5 w-5" />;
+      case "build_failed":
+        return <XCircle className="h-5 w-5" />;
+      default:
+        return <AlertCircle className="h-5 w-5" />;
     }
-  }
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'error': return 'var(--color-accent-red)'
-      case 'warning': return 'var(--color-accent-amber)'
-      case 'info': return 'var(--color-accent-cyan)'
-      default: return 'var(--color-text-muted)'
+      case "error":
+        return "var(--color-accent-red)";
+      case "warning":
+        return "var(--color-accent-amber)";
+      case "info":
+        return "var(--color-accent-cyan)";
+      default:
+        return "var(--color-text-muted)";
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -115,7 +138,9 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-              <CardTitle className="text-xl font-mono">Service Health Timeline</CardTitle>
+              <CardTitle className="text-xl font-mono">
+                Service Health Timeline
+              </CardTitle>
             </div>
             <Button
               variant="outline"
@@ -168,12 +193,16 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
         <>
           {/* Anomalies Card - Show FIRST if there are issues */}
           {status.anomalies.length > 0 && (
-            <Card className="border-2" style={{ borderColor: 'var(--color-accent-amber)' }}>
+            <Card
+              className="border-2"
+              style={{ borderColor: "var(--color-accent-amber)" }}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-[var(--color-accent-amber)]" />
                   <CardTitle className="text-base">
-                    {status.anomalies.length} Detected Issue{status.anomalies.length > 1 ? 's' : ''}
+                    {status.anomalies.length} Detected Issue
+                    {status.anomalies.length > 1 ? "s" : ""}
                   </CardTitle>
                 </div>
               </CardHeader>
@@ -185,7 +214,7 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                       className="flex items-start gap-3 p-3 rounded-lg border"
                       style={{
                         borderColor: `${getSeverityColor(anomaly.severity)}40`,
-                        backgroundColor: `${getSeverityColor(anomaly.severity)}10`
+                        backgroundColor: `${getSeverityColor(anomaly.severity)}10`,
                       }}
                     >
                       <AlertCircle
@@ -194,13 +223,15 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium capitalize">{anomaly.type.replace(/_/g, ' ')}</span>
+                          <span className="text-sm font-medium capitalize">
+                            {anomaly.type.replace(/_/g, " ")}
+                          </span>
                           <Badge
                             variant="outline"
                             className="text-xs"
                             style={{
                               color: getSeverityColor(anomaly.severity),
-                              borderColor: getSeverityColor(anomaly.severity)
+                              borderColor: getSeverityColor(anomaly.severity),
                             }}
                           >
                             {anomaly.severity}
@@ -226,8 +257,12 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                     {getHealthIcon(status.health)}
                   </div>
                   <div>
-                    <CardTitle className="text-lg capitalize">{status.health}</CardTitle>
-                    <CardDescription>Overall service health status</CardDescription>
+                    <CardTitle className="text-lg capitalize">
+                      {status.health}
+                    </CardTitle>
+                    <CardDescription>
+                      Overall service health status
+                    </CardDescription>
                   </div>
                 </div>
               </div>
@@ -262,16 +297,22 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                     </div>
                     {status.details?.data?.by_category && (
                       <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)]">
-                        <p className="text-xs text-[var(--color-text-muted)] mb-1">By category:</p>
+                        <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                          By category:
+                        </p>
                         <div className="grid grid-cols-3 gap-2">
-                          {Object.entries(status.details.data.by_category).map(([cat, info]: [string, { timestamp?: string }]) => (
-                            <div key={cat} className="text-xs">
-                              <span className="font-medium">{cat}:</span>{' '}
-                              <span className="text-[var(--color-text-muted)]">
-                                {info.timestamp ? formatTimestamp(info.timestamp).relative : 'N/A'}
-                              </span>
-                            </div>
-                          ))}
+                          {Object.entries(status.details.data.by_category).map(
+                            ([cat, info]: [string, { timestamp?: string }]) => (
+                              <div key={cat} className="text-xs">
+                                <span className="font-medium">{cat}:</span>{" "}
+                                <span className="text-[var(--color-text-muted)]">
+                                  {info.timestamp
+                                    ? formatTimestamp(info.timestamp).relative
+                                    : "N/A"}
+                                </span>
+                              </div>
+                            ),
+                          )}
                         </div>
                       </div>
                     )}
@@ -290,7 +331,8 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-[var(--color-text-muted)]">
-                        {status.details?.deployment?.deployment_id || 'Most recent job execution'}
+                        {status.details?.deployment?.deployment_id ||
+                          "Most recent job execution"}
                       </p>
                       <p className="text-xs text-[var(--color-text-muted)] font-mono">
                         {formatTimestamp(status.last_deployment).absolute}
@@ -300,62 +342,84 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                       <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)] space-y-2">
                         <div className="flex items-center gap-4 text-xs flex-wrap">
                           <div>
-                            <span className="text-[var(--color-text-muted)]">Status:</span>{' '}
+                            <span className="text-[var(--color-text-muted)]">
+                              Status:
+                            </span>{" "}
                             <Badge variant="outline" className="text-xs">
                               {status.details.deployment.status}
                             </Badge>
                           </div>
                           <div>
-                            <span className="text-[var(--color-text-muted)]">Compute:</span>{' '}
-                            <span className="font-mono">{status.details.deployment.compute_type}</span>
+                            <span className="text-[var(--color-text-muted)]">
+                              Compute:
+                            </span>{" "}
+                            <span className="font-mono">
+                              {status.details.deployment.compute_type}
+                            </span>
                           </div>
-                          {status.details.deployment.used_force !== undefined && (
+                          {status.details.deployment.used_force !==
+                            undefined && (
                             <div>
-                              <span className="text-[var(--color-text-muted)]">Force:</span>{' '}
+                              <span className="text-[var(--color-text-muted)]">
+                                Force:
+                              </span>{" "}
                               <Badge
                                 variant="outline"
                                 className="text-xs"
                                 style={{
                                   color: status.details.deployment.used_force
-                                    ? 'var(--color-accent-green)'
-                                    : 'var(--color-accent-red)'
+                                    ? "var(--color-accent-green)"
+                                    : "var(--color-accent-red)",
                                 }}
                               >
-                                {status.details.deployment.used_force ? 'YES' : 'NO'}
+                                {status.details.deployment.used_force
+                                  ? "YES"
+                                  : "NO"}
                               </Badge>
                             </div>
                           )}
                           {status.api?.gcs_fuse?.active !== undefined && (
                             <div>
-                              <span className="text-[var(--color-text-muted)]">GCS Fuse:</span>{' '}
+                              <span className="text-[var(--color-text-muted)]">
+                                GCS Fuse:
+                              </span>{" "}
                               <Badge
                                 variant="outline"
                                 className="text-xs"
                                 style={{
                                   color: status.api.gcs_fuse.active
-                                    ? 'var(--color-accent-green)'
-                                    : 'var(--color-accent-red)'
+                                    ? "var(--color-accent-green)"
+                                    : "var(--color-accent-red)",
                                 }}
                               >
-                                {status.api.gcs_fuse.active ? 'YES' : 'NO'}
+                                {status.api.gcs_fuse.active ? "YES" : "NO"}
                               </Badge>
                             </div>
                           )}
                         </div>
                         {status.details.deployment.tag && (
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">Tag:</span>{' '}
-                            <span className="text-[var(--color-text-secondary)] italic">"{status.details.deployment.tag}"</span>
+                            <span className="text-[var(--color-text-muted)]">
+                              Tag:
+                            </span>{" "}
+                            <span className="text-[var(--color-text-secondary)] italic">
+                              "{status.details.deployment.tag}"
+                            </span>
                           </div>
                         )}
                         {(status.details.deployment.total_shards ?? 0) > 0 && (
                           <div className="text-xs">
-                            <span className="text-[var(--color-text-muted)]">Shards:</span>{' '}
+                            <span className="text-[var(--color-text-muted)]">
+                              Shards:
+                            </span>{" "}
                             <span className="font-mono">
-                              {status.details.deployment.completed_shards}/{status.details.deployment.total_shards} completed
-                              {(status.details.deployment.failed_shards ?? 0) > 0 && (
+                              {status.details.deployment.completed_shards}/
+                              {status.details.deployment.total_shards} completed
+                              {(status.details.deployment.failed_shards ?? 0) >
+                                0 && (
                                 <span className="text-[var(--color-accent-red)] ml-2">
-                                  ({status.details.deployment.failed_shards} failed)
+                                  ({status.details.deployment.failed_shards}{" "}
+                                  failed)
                                 </span>
                               )}
                             </span>
@@ -387,14 +451,17 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                     {status.details?.build && !status.details.build.error && (
                       <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)] flex items-center gap-4 text-xs flex-wrap">
                         <div>
-                          <span className="text-[var(--color-text-muted)]">Status:</span>{' '}
+                          <span className="text-[var(--color-text-muted)]">
+                            Status:
+                          </span>{" "}
                           <Badge
                             variant="outline"
                             className="text-xs"
                             style={{
-                              color: status.details.build.status === 'SUCCESS'
-                                ? 'var(--color-accent-green)'
-                                : 'var(--color-accent-red)'
+                              color:
+                                status.details.build.status === "SUCCESS"
+                                  ? "var(--color-accent-green)"
+                                  : "var(--color-accent-red)",
                             }}
                           >
                             {status.details.build.status}
@@ -402,14 +469,25 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                         </div>
                         {status.details.build.commit_sha && (
                           <div>
-                            <span className="text-[var(--color-text-muted)]">Commit:</span>{' '}
-                            <span className="font-mono">{status.details.build.commit_sha}</span>
+                            <span className="text-[var(--color-text-muted)]">
+                              Commit:
+                            </span>{" "}
+                            <span className="font-mono">
+                              {status.details.build.commit_sha}
+                            </span>
                           </div>
                         )}
                         {status.details.build.duration_seconds && (
                           <div>
-                            <span className="text-[var(--color-text-muted)]">Duration:</span>{' '}
-                            <span className="font-mono">{Math.round(status.details.build.duration_seconds)}s</span>
+                            <span className="text-[var(--color-text-muted)]">
+                              Duration:
+                            </span>{" "}
+                            <span className="font-mono">
+                              {Math.round(
+                                status.details.build.duration_seconds,
+                              )}
+                              s
+                            </span>
                           </div>
                         )}
                       </div>
@@ -438,16 +516,28 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                     {status.details?.code && !status.details.code.error && (
                       <div className="mt-2 pt-2 border-t border-[var(--color-border-subtle)]">
                         <div className="flex items-start gap-2 text-xs">
-                          <span className="text-[var(--color-text-muted)]">SHA:</span>
-                          <span className="font-mono flex-1">{status.details.code.commit_sha}</span>
+                          <span className="text-[var(--color-text-muted)]">
+                            SHA:
+                          </span>
+                          <span className="font-mono flex-1">
+                            {status.details.code.commit_sha}
+                          </span>
                         </div>
                         <div className="flex items-start gap-2 text-xs mt-1">
-                          <span className="text-[var(--color-text-muted)]">Msg:</span>
-                          <span className="flex-1 text-[var(--color-text-secondary)]">{status.details.code.message}</span>
+                          <span className="text-[var(--color-text-muted)]">
+                            Msg:
+                          </span>
+                          <span className="flex-1 text-[var(--color-text-secondary)]">
+                            {status.details.code.message}
+                          </span>
                         </div>
                         <div className="flex items-start gap-2 text-xs mt-1">
-                          <span className="text-[var(--color-text-muted)]">By:</span>
-                          <span className="text-[var(--color-text-secondary)]">{status.details.code.author}</span>
+                          <span className="text-[var(--color-text-muted)]">
+                            By:
+                          </span>
+                          <span className="text-[var(--color-text-secondary)]">
+                            {status.details.code.author}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -468,19 +558,24 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                   {status.checklist_status && (
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                      <span className="text-[var(--color-text-muted)]">Checklist:</span>
+                      <span className="text-[var(--color-text-muted)]">
+                        Checklist:
+                      </span>
                       <span className="font-mono font-medium">
                         {status.checklist_status.percent}% ready
                       </span>
                       <span className="text-xs text-[var(--color-text-muted)]">
-                        ({status.checklist_status.completed}/{status.checklist_status.total} items)
+                        ({status.checklist_status.completed}/
+                        {status.checklist_status.total} items)
                       </span>
                     </div>
                   )}
                   {status.data_coverage && (
                     <div className="flex items-center gap-2">
                       <Database className="h-4 w-4 text-[var(--color-accent-green)]" />
-                      <span className="text-[var(--color-text-muted)]">Data Coverage:</span>
+                      <span className="text-[var(--color-text-muted)]">
+                        Data Coverage:
+                      </span>
                       <span className="font-mono font-medium">
                         {status.data_coverage.percent}% complete
                       </span>
@@ -495,9 +590,8 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
               </CardContent>
             </Card>
           )}
-
         </>
       )}
     </div>
-  )
+  );
 }

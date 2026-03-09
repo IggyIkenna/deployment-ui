@@ -1,247 +1,295 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 import {
-  RefreshCw, Clock, CheckCircle2, XCircle, Loader2,
-  ChevronRight, AlertCircle, Trash2, Square, CheckSquare,
-  StopCircle, Tag
-} from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { cn, formatDateTime } from '../lib/utils'
-import { getDeployments, bulkDeleteDeployments, cancelDeployment } from '../api/client'
+  RefreshCw,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  ChevronRight,
+  AlertCircle,
+  Trash2,
+  Square,
+  CheckSquare,
+  StopCircle,
+  Tag,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { cn, formatDateTime } from "../lib/utils";
+import {
+  getDeployments,
+  bulkDeleteDeployments,
+  cancelDeployment,
+} from "../api/client";
 
 interface DeploymentSummary {
-  deployment_id: string
-  service: string
-  compute_type: string
-  status: string
-  created_at: string
-  total_shards: number
-  progress: string
-  tag?: string | null
+  deployment_id: string;
+  service: string;
+  compute_type: string;
+  status: string;
+  created_at: string;
+  total_shards: number;
+  progress: string;
+  tag?: string | null;
 }
 
 interface DeploymentHistoryProps {
-  serviceName: string
-  onViewDetails?: (deploymentId: string) => void
+  serviceName: string;
+  onViewDetails?: (deploymentId: string) => void;
 }
 
-export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHistoryProps) {
-  const [deployments, setDeployments] = useState<DeploymentSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [cancelling, setCancelling] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
+export function DeploymentHistory({
+  serviceName,
+  onViewDetails,
+}: DeploymentHistoryProps) {
+  const [deployments, setDeployments] = useState<DeploymentSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchDeployments = useCallback(
-    async (forceRefresh = false, clearSelection = false, isBackgroundPoll = false) => {
+    async (
+      forceRefresh = false,
+      clearSelection = false,
+      isBackgroundPoll = false,
+    ) => {
       try {
         // Only show loading spinner on initial/manual fetches, NOT background polls.
         // Background polls update data silently to avoid UI flickering.
         if (!isBackgroundPoll) {
-          setLoading(true)
+          setLoading(true);
         }
-        setError(null)
+        setError(null);
         const response = await getDeployments({
           service: serviceName,
           limit: 20,
           forceRefresh,
-        })
-        setDeployments((response.deployments || []).map(d => ({
-          deployment_id: d.id,
-          service: d.service,
-          compute_type: d.parameters?.compute ?? 'cloud_run',
-          status: d.status,
-          created_at: d.created_at,
-          total_shards: d.total_shards,
-          progress: `${d.completed_shards}/${d.total_shards}`,
-          tag: null,
-        })))
-        if (clearSelection) setSelectedIds(new Set())
+        });
+        setDeployments(
+          (response.deployments || []).map((d) => ({
+            deployment_id: d.id,
+            service: d.service,
+            compute_type: d.parameters?.compute ?? "cloud_run",
+            status: d.status,
+            created_at: d.created_at,
+            total_shards: d.total_shards,
+            progress: `${d.completed_shards}/${d.total_shards}`,
+            tag: null,
+          })),
+        );
+        if (clearSelection) setSelectedIds(new Set());
       } catch (err) {
         // Only show errors for manual fetches, not background polls
         if (!isBackgroundPoll) {
-          setError(err instanceof Error ? err.message : 'Failed to fetch deployments')
+          setError(
+            err instanceof Error ? err.message : "Failed to fetch deployments",
+          );
         }
       } finally {
         if (!isBackgroundPoll) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     },
-    [serviceName]
-  )
+    [serviceName],
+  );
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchDeployments()
-  }, [fetchDeployments])
+    fetchDeployments();
+  }, [fetchDeployments]);
 
   // Poll for updates when any deployment is pending or running (so status/progress update in the list)
   const hasActiveDeployments = deployments.some(
-    (d) => d.status === 'pending' || d.status === 'running'
-  )
+    (d) => d.status === "pending" || d.status === "running",
+  );
   useEffect(() => {
-    if (!hasActiveDeployments) return
+    if (!hasActiveDeployments) return;
     const interval = setInterval(() => {
-      fetchDeployments(true, false, true) // force_refresh, don't clear selection, IS background poll
-    }, 30000) // every 30s while there is at least one active deployment (silent update)
-    return () => clearInterval(interval)
-  }, [hasActiveDeployments, fetchDeployments])
+      fetchDeployments(true, false, true); // force_refresh, don't clear selection, IS background poll
+    }, 30000); // every 30s while there is at least one active deployment (silent update)
+    return () => clearInterval(interval);
+  }, [hasActiveDeployments, fetchDeployments]);
 
   const toggleSelection = (deploymentId: string, event: React.MouseEvent) => {
-    event.stopPropagation()
-    setSelectedIds(prev => {
-      const next = new Set(prev)
+    event.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
       if (next.has(deploymentId)) {
-        next.delete(deploymentId)
+        next.delete(deploymentId);
       } else {
-        next.add(deploymentId)
+        next.add(deploymentId);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const selectAll = () => {
     if (selectedIds.size === deployments.length) {
-      setSelectedIds(new Set())
+      setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(deployments.map(d => d.deployment_id)))
+      setSelectedIds(new Set(deployments.map((d) => d.deployment_id)));
     }
-  }
+  };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return
+    if (selectedIds.size === 0) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedIds.size} deployment(s)? This action cannot be undone.`
-    )
+      `Are you sure you want to delete ${selectedIds.size} deployment(s)? This action cannot be undone.`,
+    );
 
-    if (!confirmed) return
+    if (!confirmed) return;
 
     try {
-      setDeleting(true)
-      setDeleteError(null)
-      const result = await bulkDeleteDeployments(Array.from(selectedIds))
+      setDeleting(true);
+      setDeleteError(null);
+      const result = await bulkDeleteDeployments(Array.from(selectedIds));
 
       if (result.failed > 0) {
-        setDeleteError(`Deleted ${result.deleted}, failed ${result.failed}`)
+        setDeleteError(`Deleted ${result.deleted}, failed ${result.failed}`);
       }
 
       // Refresh the list (force refresh so deleted items disappear; clear selection)
-      await fetchDeployments(true, true)
+      await fetchDeployments(true, true);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Delete failed')
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }
+  };
 
   const handleBulkCancel = async () => {
     // Get selected deployments that are running
-    const runningSelected = deployments
-      .filter(d => selectedIds.has(d.deployment_id) && (d.status === 'running' || d.status === 'pending'))
+    const runningSelected = deployments.filter(
+      (d) =>
+        selectedIds.has(d.deployment_id) &&
+        (d.status === "running" || d.status === "pending"),
+    );
 
     if (runningSelected.length === 0) {
-      setCancelError('No running deployments selected')
-      return
+      setCancelError("No running deployments selected");
+      return;
     }
 
     const confirmed = window.confirm(
-      `Cancel ${runningSelected.length} running deployment(s)? All running shards will be stopped.`
-    )
+      `Cancel ${runningSelected.length} running deployment(s)? All running shards will be stopped.`,
+    );
 
-    if (!confirmed) return
+    if (!confirmed) return;
 
     try {
-      setCancelling(true)
-      setCancelError(null)
+      setCancelling(true);
+      setCancelError(null);
 
-      let cancelled = 0
-      let failed = 0
+      let cancelled = 0;
+      let failed = 0;
 
       for (const dep of runningSelected) {
         try {
-          await cancelDeployment(dep.deployment_id)
-          cancelled++
+          await cancelDeployment(dep.deployment_id);
+          cancelled++;
         } catch {
-          failed++
+          failed++;
         }
       }
 
       if (failed > 0) {
-        setCancelError(`Cancelled ${cancelled}, failed ${failed}`)
+        setCancelError(`Cancelled ${cancelled}, failed ${failed}`);
       }
 
       // Refresh the list (force refresh so status updates; clear selection)
-      await fetchDeployments(true, true)
+      await fetchDeployments(true, true);
     } catch (err) {
-      setCancelError(err instanceof Error ? err.message : 'Cancel failed')
+      setCancelError(err instanceof Error ? err.message : "Cancel failed");
     } finally {
-      setCancelling(false)
+      setCancelling(false);
     }
-  }
+  };
 
   // Count running deployments in selection
-  const selectedRunningCount = deployments
-    .filter(d => selectedIds.has(d.deployment_id) && (d.status === 'running' || d.status === 'pending'))
-    .length
+  const selectedRunningCount = deployments.filter(
+    (d) =>
+      selectedIds.has(d.deployment_id) &&
+      (d.status === "running" || d.status === "pending"),
+  ).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
-      case 'succeeded':
-      case 'clean':
-        return <Badge variant="success">Completed</Badge>
-      case 'completed_pending_delete':
+      case "completed":
+      case "succeeded":
+      case "clean":
+        return <Badge variant="success">Completed</Badge>;
+      case "completed_pending_delete":
         return (
-          <Badge variant="warning" title="VMs may still be deleting; check and delete manually if they remain">
+          <Badge
+            variant="warning"
+            title="VMs may still be deleting; check and delete manually if they remain"
+          >
             Completed (pending delete)
           </Badge>
-        )
-      case 'completed_with_errors':
-        return <Badge variant="warning">Completed with Errors</Badge>
-      case 'completed_with_warnings':
-        return <Badge variant="warning">Completed with Warnings</Badge>
-      case 'running':
-        return <Badge variant="running">Running</Badge>
-      case 'failed':
-        return <Badge variant="error">Failed</Badge>
-      case 'pending':
-        return <Badge variant="pending">Pending</Badge>
-      case 'cancelled':
-        return <Badge variant="warning">Cancelled</Badge>
+        );
+      case "completed_with_errors":
+        return <Badge variant="warning">Completed with Errors</Badge>;
+      case "completed_with_warnings":
+        return <Badge variant="warning">Completed with Warnings</Badge>;
+      case "running":
+        return <Badge variant="running">Running</Badge>;
+      case "failed":
+        return <Badge variant="error">Failed</Badge>;
+      case "pending":
+        return <Badge variant="pending">Pending</Badge>;
+      case "cancelled":
+        return <Badge variant="warning">Cancelled</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
-      case 'succeeded':
-      case 'clean':
-        return <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-      case 'completed_pending_delete':
-        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-      case 'completed_with_errors':
-      case 'completed_with_warnings':
-        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-      case 'running':
-        return <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-      case 'pending':
-        return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />
-      case 'cancelled':
-        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
+      case "completed":
+      case "succeeded":
+      case "clean":
+        return (
+          <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+        );
+      case "completed_pending_delete":
+        return (
+          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
+        );
+      case "completed_with_errors":
+      case "completed_with_warnings":
+        return (
+          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
+        );
+      case "running":
+        return (
+          <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />
+        );
+      case "failed":
+        return <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
+      case "cancelled":
+        return (
+          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
+        );
       default:
-        return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />
+        return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -250,7 +298,7 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
           <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (error) {
@@ -282,7 +330,7 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (deployments.length === 0) {
@@ -292,9 +340,15 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Deployment History</CardTitle>
-              <CardDescription>Recent deployments for {serviceName}</CardDescription>
+              <CardDescription>
+                Recent deployments for {serviceName}
+              </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => fetchDeployments(true, true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchDeployments(true, true)}
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -306,12 +360,13 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
               No Deployment History
             </h3>
             <p className="text-sm text-[var(--color-text-secondary)] max-w-md">
-              No deployments found for {serviceName}. Run a deployment to see it here.
+              No deployments found for {serviceName}. Run a deployment to see it
+              here.
             </p>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -369,7 +424,11 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
               variant="outline"
               size="sm"
               onClick={selectAll}
-              title={selectedIds.size === deployments.length ? "Deselect all" : "Select all"}
+              title={
+                selectedIds.size === deployments.length
+                  ? "Deselect all"
+                  : "Select all"
+              }
             >
               {selectedIds.size === deployments.length ? (
                 <CheckSquare className="h-4 w-4" />
@@ -377,14 +436,20 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
                 <Square className="h-4 w-4" />
               )}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => fetchDeployments(true, true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchDeployments(true, true)}
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
         {(deleteError || cancelError) && (
           <div className="mt-2 p-2 rounded bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
-            <p className="text-sm text-[var(--color-accent-red)]">{deleteError || cancelError}</p>
+            <p className="text-sm text-[var(--color-accent-red)]">
+              {deleteError || cancelError}
+            </p>
           </div>
         )}
       </CardHeader>
@@ -395,7 +460,8 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
               key={deployment.deployment_id}
               className={cn(
                 "flex items-center gap-4 p-4 hover:bg-[var(--color-bg-hover)] transition-colors cursor-pointer",
-                selectedIds.has(deployment.deployment_id) && "bg-[rgba(34,211,238,0.1)]"
+                selectedIds.has(deployment.deployment_id) &&
+                  "bg-[rgba(34,211,238,0.1)]",
               )}
               onClick={() => onViewDetails?.(deployment.deployment_id)}
             >
@@ -411,9 +477,7 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
                 )}
               </div>
 
-              <div className="shrink-0">
-                {getStatusIcon(deployment.status)}
-              </div>
+              <div className="shrink-0">{getStatusIcon(deployment.status)}</div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -434,16 +498,14 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
                 <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                   <span>
                     <Clock className="h-3 w-3 inline mr-1" />
-                    {deployment.created_at ? formatDateTime(deployment.created_at) : 'Unknown'}
+                    {deployment.created_at
+                      ? formatDateTime(deployment.created_at)
+                      : "Unknown"}
                   </span>
-                  <span>
-                    {deployment.total_shards} shards
-                  </span>
-                  <span className="font-mono">
-                    {deployment.progress}
-                  </span>
+                  <span>{deployment.total_shards} shards</span>
+                  <span className="font-mono">{deployment.progress}</span>
                   <Badge variant="outline" className="text-xs">
-                    {deployment.compute_type || 'cloud_run'}
+                    {deployment.compute_type || "cloud_run"}
                   </Badge>
                 </div>
               </div>
@@ -454,5 +516,5 @@ export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHist
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

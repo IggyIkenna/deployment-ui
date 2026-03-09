@@ -23,12 +23,12 @@ Component tests use Vitest + React Testing Library with MSW for API mocking:
 
 ```typescript
 // Mock deployment-api responses
-rest.get('/services/status', (req, res, ctx) =>
-  res(ctx.json({ services: mockServiceStatuses }))
-)
-rest.post('/deployments', (req, res, ctx) =>
-  res(ctx.json({ deployment_id: 'dep-001', status: 'PENDING' }))
-)
+rest.get("/services/status", (req, res, ctx) =>
+  res(ctx.json({ services: mockServiceStatuses })),
+);
+rest.post("/deployments", (req, res, ctx) =>
+  res(ctx.json({ deployment_id: "dep-001", status: "PENDING" })),
+);
 ```
 
 ## Key Test Scenarios

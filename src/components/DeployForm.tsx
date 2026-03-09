@@ -1,290 +1,373 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Play, AlertTriangle, Calendar, CheckCircle2,
-  Loader2, Info, Zap, Server, MapPin, ShieldAlert, HelpCircle
-} from 'lucide-react'
-import { useServiceDimensions, useChecklistValidation } from '../hooks/useServices'
-import { useVenuesByCategory, useVenueCountByCategories, useStartDates } from '../hooks/useConfig'
-import { CloudConfigBrowser } from './CloudConfigBrowser'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Label } from './ui/label'
-import { Checkbox } from './ui/checkbox'
-import { Badge } from './ui/badge'
-import { Dialog, DialogHeader, DialogTitle, DialogContent } from './ui/dialog'
+  Play,
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  Info,
+  Zap,
+  Server,
+  MapPin,
+  ShieldAlert,
+  HelpCircle,
+} from "lucide-react";
+import {
+  useServiceDimensions,
+  useChecklistValidation,
+} from "../hooks/useServices";
+import {
+  useVenuesByCategory,
+  useVenueCountByCategories,
+  useStartDates,
+} from "../hooks/useConfig";
+import { CloudConfigBrowser } from "./CloudConfigBrowser";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
+import { Badge } from "./ui/badge";
+import { Dialog, DialogHeader, DialogTitle, DialogContent } from "./ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select'
-import { CLIPreview } from './CLIPreview'
-import { cn } from '../lib/utils'
-import { getDeploymentQuotaInfo, type QuotaInfoResponse } from '../api/client'
-import type { DeploymentRequest, ServiceDimension } from '../types'
+} from "./ui/select";
+import { CLIPreview } from "./CLIPreview";
+import { cn } from "../lib/utils";
+import { getDeploymentQuotaInfo, type QuotaInfoResponse } from "../api/client";
+import type { DeploymentRequest, ServiceDimension } from "../types";
 
 interface DeployFormProps {
-  serviceName: string
-  onDeploy: (request: DeploymentRequest) => void
-  isDeploying?: boolean
+  serviceName: string;
+  onDeploy: (request: DeploymentRequest) => void;
+  isDeploying?: boolean;
 }
 
-export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormProps) {
-  const { dimensions, loading: loadingDims } = useServiceDimensions(serviceName)
-  const { validateDate } = useStartDates(serviceName)
-  const { validation: checklistValidation } = useChecklistValidation(serviceName)
+export function DeployForm({
+  serviceName,
+  onDeploy,
+  isDeploying,
+}: DeployFormProps) {
+  const { dimensions, loading: loadingDims } =
+    useServiceDimensions(serviceName);
+  const { validateDate } = useStartDates(serviceName);
+  const { validation: checklistValidation } =
+    useChecklistValidation(serviceName);
 
   // Region options for serverless and VMs
   const REGIONS = [
-    { value: 'asia-northeast1', label: 'asia-northeast1 (Tokyo)' },
-    { value: 'asia-northeast2', label: 'asia-northeast2 (Osaka)' },
-    { value: 'asia-southeast1', label: 'asia-southeast1 (Singapore)' },
-    { value: 'us-central1', label: 'us-central1 (Iowa)' },
-    { value: 'us-east1', label: 'us-east1 (South Carolina)' },
-    { value: 'us-west1', label: 'us-west1 (Oregon)' },
-    { value: 'europe-west1', label: 'europe-west1 (Belgium)' },
-    { value: 'europe-west2', label: 'europe-west2 (London)' },
-  ]
+    { value: "asia-northeast1", label: "asia-northeast1 (Tokyo)" },
+    { value: "asia-northeast2", label: "asia-northeast2 (Osaka)" },
+    { value: "asia-southeast1", label: "asia-southeast1 (Singapore)" },
+    { value: "us-central1", label: "us-central1 (Iowa)" },
+    { value: "us-east1", label: "us-east1 (South Carolina)" },
+    { value: "us-west1", label: "us-west1 (Oregon)" },
+    { value: "europe-west1", label: "europe-west1 (Belgium)" },
+    { value: "europe-west2", label: "europe-west2 (London)" },
+  ];
 
   // VM zone options (zone is region + suffix)
   const getZonesForRegion = (region: string) => [
     { value: `${region}-a`, label: `${region}-a` },
     { value: `${region}-b`, label: `${region}-b` },
     { value: `${region}-c`, label: `${region}-c` },
-  ]
+  ];
 
   // Form state
-  const [compute, setCompute] = useState<'cloud_run' | 'vm'>('vm')  // VM is default
-  const [mode, setMode] = useState<'batch' | 'live'>('batch')
-  const [region, setRegion] = useState<string>('asia-northeast1')
-  const [vmZone, setVmZone] = useState<string>('asia-northeast1-b')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedVenues, setSelectedVenues] = useState<string[]>([])
-  const [selectedFeatureGroups, setSelectedFeatureGroups] = useState<string[]>([])
-  const [selectedTimeframes, setSelectedTimeframes] = useState<string[]>([])
-  const [selectedInstruments, setSelectedInstruments] = useState<string[]>([])
-  const [selectedTargetTypes, setSelectedTargetTypes] = useState<string[]>([])
-  const [selectedDomain, setSelectedDomain] = useState<string>('')
-  const [force, setForce] = useState(true)
-  const [dryRun, setDryRun] = useState(true) // Default to dry run for safety
-  const [logLevel, setLogLevel] = useState<'DEBUG' | 'INFO' | 'WARNING' | 'ERROR'>('INFO')
-  const [containerMaxWorkers, setContainerMaxWorkers] = useState<string>('')
-  const [extraArgs, setExtraArgs] = useState<string>('')
-  const [deploymentTag, setDeploymentTag] = useState<string>('')
-  const [acknowledgedWarnings, setAcknowledgedWarnings] = useState(false)
-  const [skipVenueSharding, setSkipVenueSharding] = useState(false)
-  const [skipFeatureGroupSharding, setSkipFeatureGroupSharding] = useState(false)
-  const [dateGranularity, setDateGranularity] = useState<'default' | 'daily' | 'weekly' | 'monthly' | 'none'>('default')
-  const [maxConcurrent, setMaxConcurrent] = useState<string>('') // Optional; empty = backend default (2000)
+  const [compute, setCompute] = useState<"cloud_run" | "vm">("vm"); // VM is default
+  const [mode, setMode] = useState<"batch" | "live">("batch");
+  const [region, setRegion] = useState<string>("asia-northeast1");
+  const [vmZone, setVmZone] = useState<string>("asia-northeast1-b");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [selectedFeatureGroups, setSelectedFeatureGroups] = useState<string[]>(
+    [],
+  );
+  const [selectedTimeframes, setSelectedTimeframes] = useState<string[]>([]);
+  const [selectedInstruments, setSelectedInstruments] = useState<string[]>([]);
+  const [selectedTargetTypes, setSelectedTargetTypes] = useState<string[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState<string>("");
+  const [force, setForce] = useState(true);
+  const [dryRun, setDryRun] = useState(true); // Default to dry run for safety
+  const [logLevel, setLogLevel] = useState<
+    "DEBUG" | "INFO" | "WARNING" | "ERROR"
+  >("INFO");
+  const [containerMaxWorkers, setContainerMaxWorkers] = useState<string>("");
+  const [extraArgs, setExtraArgs] = useState<string>("");
+  const [deploymentTag, setDeploymentTag] = useState<string>("");
+  const [acknowledgedWarnings, setAcknowledgedWarnings] = useState(false);
+  const [skipVenueSharding, setSkipVenueSharding] = useState(false);
+  const [skipFeatureGroupSharding, setSkipFeatureGroupSharding] =
+    useState(false);
+  const [dateGranularity, setDateGranularity] = useState<
+    "default" | "daily" | "weekly" | "monthly" | "none"
+  >("default");
+  const [maxConcurrent, setMaxConcurrent] = useState<string>(""); // Optional; empty = backend default (2000)
 
   // Quota info modal state
-  const [quotaOpen, setQuotaOpen] = useState(false)
-  const [quotaLoading, setQuotaLoading] = useState(false)
-  const [quotaError, setQuotaError] = useState<string | null>(null)
-  const [quotaInfo, setQuotaInfo] = useState<QuotaInfoResponse | null>(null)
+  const [quotaOpen, setQuotaOpen] = useState(false);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfoResponse | null>(null);
 
   // Cloud config path state (for services with gcs_dynamic config dimension)
-  const [cloudConfigPath, setCloudConfigPath] = useState<string>('')
-  const [discoveredConfigCount, setDiscoveredConfigCount] = useState<number | null>(null)
+  const [cloudConfigPath, setCloudConfigPath] = useState<string>("");
+  const [discoveredConfigCount, setDiscoveredConfigCount] = useState<
+    number | null
+  >(null);
 
   // Region validation (backend GCS_REGION for cross-region egress warning)
-  const [backendRegion, setBackendRegion] = useState<string>('asia-northeast1')
-  const [showRegionWarning, setShowRegionWarning] = useState<boolean>(false)
+  const [backendRegion, setBackendRegion] = useState<string>("asia-northeast1");
+  const [showRegionWarning, setShowRegionWarning] = useState<boolean>(false);
 
   useEffect(() => {
-    fetch('/api/config/region')
-      .then(r => r.json())
-      .then(data => setBackendRegion(data.storage_region ?? data.gcs_region ?? 'asia-northeast1'))
-      .catch(() => {})
-  }, [])
+    fetch("/api/config/region")
+      .then((r) => r.json())
+      .then((data) =>
+        setBackendRegion(
+          data.storage_region ?? data.gcs_region ?? "asia-northeast1",
+        ),
+      )
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    setShowRegionWarning(region !== backendRegion)
-  }, [region, backendRegion])
+    setShowRegionWarning(region !== backendRegion);
+  }, [region, backendRegion]);
 
   // Reset acknowledgment when service changes
   useEffect(() => {
-    setAcknowledgedWarnings(false)
-  }, [serviceName])
+    setAcknowledgedWarnings(false);
+  }, [serviceName]);
 
   // Get venues for selected category (used for venue selector UI)
-  const primaryCategory = selectedCategories[0] || null
-  const { venues: categoryVenues } = useVenuesByCategory(primaryCategory)
+  const primaryCategory = selectedCategories[0] || null;
+  const { venues: categoryVenues } = useVenuesByCategory(primaryCategory);
 
   // Get total venue count across ALL selected categories (for accurate shard estimation)
-  const categoryDimForVenues = dimensions?.dimensions?.find((d: ServiceDimension) => d.name === 'category')
-  const allCategoriesForEstimate = selectedCategories.length > 0
-    ? selectedCategories
-    : (categoryDimForVenues?.values ?? [])
-  const { totalVenueCount: allCategoriesVenueCount } = useVenueCountByCategories(allCategoriesForEstimate)
+  const categoryDimForVenues = dimensions?.dimensions?.find(
+    (d: ServiceDimension) => d.name === "category",
+  );
+  const allCategoriesForEstimate =
+    selectedCategories.length > 0
+      ? selectedCategories
+      : (categoryDimForVenues?.values ?? []);
+  const { totalVenueCount: allCategoriesVenueCount } =
+    useVenueCountByCategories(allCategoriesForEstimate);
 
   // Reset venues when category changes
   useEffect(() => {
-    setSelectedVenues([])
-  }, [primaryCategory])
+    setSelectedVenues([]);
+  }, [primaryCategory]);
 
   // Set default dates (today - 7 days to today)
   useEffect(() => {
-    const today = new Date()
-    const weekAgo = new Date(today)
-    weekAgo.setDate(weekAgo.getDate() - 7)
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
 
-    setEndDate(today.toISOString().split('T')[0])
-    setStartDate(weekAgo.toISOString().split('T')[0])
-  }, [])
+    setEndDate(today.toISOString().split("T")[0]);
+    setStartDate(weekAgo.toISOString().split("T")[0]);
+  }, []);
 
   // Date validation
   const dateValidation = useMemo(() => {
-    if (!startDate || !primaryCategory) return { valid: true }
+    if (!startDate || !primaryCategory) return { valid: true };
 
     // If venues selected, validate against each venue
     if (selectedVenues.length > 0) {
       for (const venue of selectedVenues) {
-        const result = validateDate(startDate, primaryCategory, venue)
-        if (!result.valid) return result
+        const result = validateDate(startDate, primaryCategory, venue);
+        if (!result.valid) return result;
       }
     } else {
       // Validate against category
-      return validateDate(startDate, primaryCategory)
+      return validateDate(startDate, primaryCategory);
     }
 
-    return { valid: true }
-  }, [startDate, primaryCategory, selectedVenues, validateDate])
+    return { valid: true };
+  }, [startDate, primaryCategory, selectedVenues, validateDate]);
 
   // Get dimension by name
-  const getDimension = useCallback((name: string): ServiceDimension | undefined => {
-    return dimensions?.dimensions.find(d => d.name === name)
-  }, [dimensions])
+  const getDimension = useCallback(
+    (name: string): ServiceDimension | undefined => {
+      return dimensions?.dimensions.find((d) => d.name === name);
+    },
+    [dimensions],
+  );
 
   // Check which dimensions this service has
-  const hasCategory = !!getDimension('category')
-  const hasVenue = !!getDimension('venue')
-  const hasFeatureGroup = !!getDimension('feature_group')
-  const hasTimeframe = !!getDimension('timeframe')
-  const hasInstrument = !!getDimension('instrument')
-  const hasTargetType = !!getDimension('target_type')
-  const hasDomain = !!getDimension('domain')
-  const hasDate = !!getDimension('date')
+  const hasCategory = !!getDimension("category");
+  const hasVenue = !!getDimension("venue");
+  const hasFeatureGroup = !!getDimension("feature_group");
+  const hasTimeframe = !!getDimension("timeframe");
+  const hasInstrument = !!getDimension("instrument");
+  const hasTargetType = !!getDimension("target_type");
+  const hasDomain = !!getDimension("domain");
+  const hasDate = !!getDimension("date");
 
   // Check for gcs_dynamic config dimension (e.g., execution-services)
-  const configDimension = getDimension('config')
-  const hasCloudConfig = configDimension?.type === 'gcs_dynamic'
+  const configDimension = getDimension("config");
+  const hasCloudConfig = configDimension?.type === "gcs_dynamic";
 
   // Handle cloud config browser selection
   const handleCloudConfigSelected = (path: string, configCount: number) => {
-    setCloudConfigPath(path)
-    setDiscoveredConfigCount(configCount > 0 ? configCount : null)
-  }
+    setCloudConfigPath(path);
+    setDiscoveredConfigCount(configCount > 0 ? configCount : null);
+  };
 
   // Calculate estimated shards - matches CLI default behavior
   // When no filter is selected, CLI uses ALL values for that dimension
   const estimatedShards = useMemo(() => {
     // 'none' granularity = 1 shard (no date sharding), no dates required
-    if (dateGranularity === 'none') {
+    if (dateGranularity === "none") {
       // Still need to account for category/venue multipliers below
       // but days = 1 shard
     } else if (!startDate || !endDate) {
-      return 0
+      return 0;
     }
 
-    let days: number
-    if (dateGranularity === 'none') {
-      days = 1  // Single shard, no date range
+    let days: number;
+    if (dateGranularity === "none") {
+      days = 1; // Single shard, no date range
     } else {
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      days =
+        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) +
+        1;
 
       // Apply date granularity override
-      if (dateGranularity === 'weekly') {
-        days = Math.ceil(days / 7)
-      } else if (dateGranularity === 'monthly') {
-        days = Math.ceil(days / 30)
+      if (dateGranularity === "weekly") {
+        days = Math.ceil(days / 7);
+      } else if (dateGranularity === "monthly") {
+        days = Math.ceil(days / 30);
       }
     }
 
-    let multiplier = 1
+    let multiplier = 1;
 
     // For services with cloud config discovery (e.g., execution-services)
     // Use discovered config count if available
     if (hasCloudConfig && discoveredConfigCount !== null) {
-      multiplier *= discoveredConfigCount
-      return days * multiplier
+      multiplier *= discoveredConfigCount;
+      return days * multiplier;
     }
 
     // For each dimension: if nothing selected, use ALL values (CLI default)
     // If something selected, use selected count
-    const categoryDim = getDimension('category')
-    const venueDim = getDimension('venue')
+    const categoryDim = getDimension("category");
+    const venueDim = getDimension("venue");
 
     // When venue is hierarchical under category, category×venue pairs form a flat list
     // (e.g., CEFI has 9 venues, TRADFI has 6, DEFI has 8 = 23 total category-venue pairs)
     // So we should NOT multiply categories × venues — instead use the total venue count.
-    const isVenueHierarchical = venueDim && !skipVenueSharding
+    const isVenueHierarchical = venueDim && !skipVenueSharding;
 
     if (isVenueHierarchical) {
       // Venue is child of category — use combined venue count across all selected categories
       if (selectedVenues.length > 0) {
         // User explicitly picked venues — use that count
         // Still multiply by categories since user may have selected venues from one category only
-        multiplier *= selectedVenues.length
+        multiplier *= selectedVenues.length;
       } else if (allCategoriesVenueCount > 0) {
         // Use actual venue count summed across all selected (or all) categories
         // This replaces both the hardcoded 18 and the single-category venue count
-        multiplier *= allCategoriesVenueCount
+        multiplier *= allCategoriesVenueCount;
       } else if (categoryVenues?.venues?.length) {
         // Fallback: single-category venue count (while multi-category fetch is loading)
-        const catCount = selectedCategories.length > 0 ? selectedCategories.length : (categoryDim?.values?.length ?? 1)
-        multiplier *= categoryVenues.venues.length * catCount
+        const catCount =
+          selectedCategories.length > 0
+            ? selectedCategories.length
+            : (categoryDim?.values?.length ?? 1);
+        multiplier *= categoryVenues.venues.length * catCount;
       } else {
         // Last resort fallback
-        multiplier *= 23
+        multiplier *= 23;
       }
     } else {
       // Category is not hierarchical with venue — multiply independently
       if (categoryDim?.values?.length) {
-        multiplier *= selectedCategories.length > 0 ? selectedCategories.length : categoryDim.values.length
+        multiplier *=
+          selectedCategories.length > 0
+            ? selectedCategories.length
+            : categoryDim.values.length;
       }
 
       // Venue dimension: if skipVenueSharding enabled, don't multiply by venues
       if (venueDim && !skipVenueSharding) {
         if (selectedVenues.length > 0) {
-          multiplier *= selectedVenues.length
+          multiplier *= selectedVenues.length;
         } else if (categoryVenues?.venues?.length) {
-          multiplier *= categoryVenues.venues.length
+          multiplier *= categoryVenues.venues.length;
         }
       }
     }
 
     // Feature group - skip if skipFeatureGroupSharding is enabled
-    const featureGroupDim = getDimension('feature_group')
+    const featureGroupDim = getDimension("feature_group");
     if (featureGroupDim?.values?.length && !skipFeatureGroupSharding) {
-      multiplier *= selectedFeatureGroups.length > 0 ? selectedFeatureGroups.length : featureGroupDim.values.length
+      multiplier *=
+        selectedFeatureGroups.length > 0
+          ? selectedFeatureGroups.length
+          : featureGroupDim.values.length;
     }
 
-    const timeframeDim = getDimension('timeframe')
+    const timeframeDim = getDimension("timeframe");
     if (timeframeDim?.values?.length) {
-      multiplier *= selectedTimeframes.length > 0 ? selectedTimeframes.length : timeframeDim.values.length
+      multiplier *=
+        selectedTimeframes.length > 0
+          ? selectedTimeframes.length
+          : timeframeDim.values.length;
     }
 
-    const instrumentDim = getDimension('instrument')
+    const instrumentDim = getDimension("instrument");
     if (instrumentDim?.values?.length) {
-      multiplier *= selectedInstruments.length > 0 ? selectedInstruments.length : instrumentDim.values.length
+      multiplier *=
+        selectedInstruments.length > 0
+          ? selectedInstruments.length
+          : instrumentDim.values.length;
     }
 
-    const targetTypeDim = getDimension('target_type')
+    const targetTypeDim = getDimension("target_type");
     if (targetTypeDim?.values?.length) {
-      multiplier *= selectedTargetTypes.length > 0 ? selectedTargetTypes.length : targetTypeDim.values.length
+      multiplier *=
+        selectedTargetTypes.length > 0
+          ? selectedTargetTypes.length
+          : targetTypeDim.values.length;
     }
 
-    return days * multiplier
-  }, [startDate, endDate, selectedCategories, selectedVenues, selectedFeatureGroups, selectedTimeframes, selectedInstruments, selectedTargetTypes, hasCloudConfig, discoveredConfigCount, skipVenueSharding, skipFeatureGroupSharding, dateGranularity, categoryVenues, allCategoriesVenueCount, getDimension])
-
-
+    return days * multiplier;
+  }, [
+    startDate,
+    endDate,
+    selectedCategories,
+    selectedVenues,
+    selectedFeatureGroups,
+    selectedTimeframes,
+    selectedInstruments,
+    selectedTargetTypes,
+    hasCloudConfig,
+    discoveredConfigCount,
+    skipVenueSharding,
+    skipFeatureGroupSharding,
+    dateGranularity,
+    categoryVenues,
+    allCategoriesVenueCount,
+    getDimension,
+  ]);
 
   const buildRequest = (): DeploymentRequest => {
     const request: DeploymentRequest = {
@@ -297,76 +380,101 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
       force,
       dry_run: dryRun,
       log_level: logLevel,
-      region,  // Always include region
-    }
+      region, // Always include region
+    };
 
     // Include VM zone if using VM compute
-    if (compute === 'vm' && vmZone) {
-      request.vm_zone = vmZone
+    if (compute === "vm" && vmZone) {
+      request.vm_zone = vmZone;
     }
 
-    if (selectedCategories.length > 0) request.category = selectedCategories
-    if (selectedVenues.length > 0) request.venue = selectedVenues
-    if (selectedFeatureGroups.length > 0) request.feature_group = selectedFeatureGroups
-    if (selectedTimeframes.length > 0) request.timeframe = selectedTimeframes
-    if (selectedInstruments.length > 0) request.instrument = selectedInstruments
-    if (selectedTargetTypes.length > 0) request.target_type = selectedTargetTypes
-    if (selectedDomain) request.domain = selectedDomain
-    const maxWorkersNum = containerMaxWorkers ? parseInt(containerMaxWorkers, 10) : undefined
-    if (maxWorkersNum !== undefined && !Number.isNaN(maxWorkersNum) && maxWorkersNum > 0) {
-      request.max_workers = maxWorkersNum
+    if (selectedCategories.length > 0) request.category = selectedCategories;
+    if (selectedVenues.length > 0) request.venue = selectedVenues;
+    if (selectedFeatureGroups.length > 0)
+      request.feature_group = selectedFeatureGroups;
+    if (selectedTimeframes.length > 0) request.timeframe = selectedTimeframes;
+    if (selectedInstruments.length > 0)
+      request.instrument = selectedInstruments;
+    if (selectedTargetTypes.length > 0)
+      request.target_type = selectedTargetTypes;
+    if (selectedDomain) request.domain = selectedDomain;
+    const maxWorkersNum = containerMaxWorkers
+      ? parseInt(containerMaxWorkers, 10)
+      : undefined;
+    if (
+      maxWorkersNum !== undefined &&
+      !Number.isNaN(maxWorkersNum) &&
+      maxWorkersNum > 0
+    ) {
+      request.max_workers = maxWorkersNum;
     }
-    if (deploymentTag.trim()) request.tag = deploymentTag.trim()
-    if (extraArgs.trim()) request.extra_args = extraArgs.trim()
-    if (cloudConfigPath.trim()) request.cloud_config_path = cloudConfigPath.trim()
-    if (skipVenueSharding) request.skip_venue_sharding = true
-    if (skipFeatureGroupSharding) request.skip_feature_group_sharding = true
-    if (dateGranularity && dateGranularity !== 'default') request.date_granularity = dateGranularity
-    if (maxConcurrent) request.max_concurrent = parseInt(maxConcurrent)
+    if (deploymentTag.trim()) request.tag = deploymentTag.trim();
+    if (extraArgs.trim()) request.extra_args = extraArgs.trim();
+    if (cloudConfigPath.trim())
+      request.cloud_config_path = cloudConfigPath.trim();
+    if (skipVenueSharding) request.skip_venue_sharding = true;
+    if (skipFeatureGroupSharding) request.skip_feature_group_sharding = true;
+    if (dateGranularity && dateGranularity !== "default")
+      request.date_granularity = dateGranularity;
+    if (maxConcurrent) request.max_concurrent = parseInt(maxConcurrent);
 
-    return request
-  }
+    return request;
+  };
 
   const handleSubmit = () => {
-    onDeploy(buildRequest())
-  }
+    onDeploy(buildRequest());
+  };
 
   // For cloud config services, require path and discovery before submission
-  const cloudConfigReady = !hasCloudConfig || (cloudConfigPath.trim() && discoveredConfigCount !== null && discoveredConfigCount > 0)
+  const cloudConfigReady =
+    !hasCloudConfig ||
+    (cloudConfigPath.trim() &&
+      discoveredConfigCount !== null &&
+      discoveredConfigCount > 0);
 
-  const datesReady = dateGranularity === 'none' || (startDate && endDate)
-  const canCheckQuota = Boolean(datesReady && dateValidation.valid && cloudConfigReady)
+  const datesReady = dateGranularity === "none" || (startDate && endDate);
+  const canCheckQuota = Boolean(
+    datesReady && dateValidation.valid && cloudConfigReady,
+  );
 
   const openQuotaModal = async () => {
-    setQuotaOpen(true)
-    setQuotaLoading(true)
-    setQuotaError(null)
-    setQuotaInfo(null)
+    setQuotaOpen(true);
+    setQuotaLoading(true);
+    setQuotaError(null);
+    setQuotaInfo(null);
 
     try {
-      const info = await getDeploymentQuotaInfo(buildRequest())
-      setQuotaInfo(info)
+      const info = await getDeploymentQuotaInfo(buildRequest());
+      setQuotaInfo(info);
     } catch (e: unknown) {
-      setQuotaError(e instanceof Error ? e.message : 'Failed to load quota info')
+      setQuotaError(
+        e instanceof Error ? e.message : "Failed to load quota info",
+      );
     } finally {
-      setQuotaLoading(false)
+      setQuotaLoading(false);
     }
-  }
+  };
 
   // Determine if checklist warnings need acknowledgment (only for live deployments)
-  const hasChecklistWarnings = checklistValidation && !checklistValidation.ready && !dryRun
-  const needsAcknowledgment = hasChecklistWarnings && checklistValidation.can_proceed_with_acknowledgment
-  const cannotProceed = hasChecklistWarnings && checklistValidation.blocking_items.length > 0
+  const hasChecklistWarnings =
+    checklistValidation && !checklistValidation.ready && !dryRun;
+  const needsAcknowledgment =
+    hasChecklistWarnings && checklistValidation.can_proceed_with_acknowledgment;
+  const cannotProceed =
+    hasChecklistWarnings && checklistValidation.blocking_items.length > 0;
 
   // Validate max_concurrent (hard limit: 2500)
-  const maxConcurrentValue = maxConcurrent ? parseInt(maxConcurrent, 10) : 0
-  const maxConcurrentExceedsLimit = maxConcurrentValue > 2500
+  const maxConcurrentValue = maxConcurrent ? parseInt(maxConcurrent, 10) : 0;
+  const maxConcurrentExceedsLimit = maxConcurrentValue > 2500;
 
-  const canSubmit = datesReady && dateValidation.valid && !isDeploying &&
+  const canSubmit =
+    datesReady &&
+    dateValidation.valid &&
+    !isDeploying &&
     cloudConfigReady && // Cloud config must be discovered if required
     (dryRun || !cannotProceed) && // Can't proceed with blocking items
     (dryRun || !needsAcknowledgment || acknowledgedWarnings) && // Need acknowledgment for warnings
-    !maxConcurrentExceedsLimit // Cannot exceed max concurrent hard limit
+    !maxConcurrentExceedsLimit; // Cannot exceed max concurrent hard limit
 
   if (loadingDims) {
     return (
@@ -375,7 +483,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -396,7 +504,9 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
               <div className="text-2xl font-mono font-bold text-[var(--color-text-primary)]">
                 ~{estimatedShards}
               </div>
-              <div className="text-xs text-[var(--color-text-muted)]">estimated shards</div>
+              <div className="text-xs text-[var(--color-text-muted)]">
+                estimated shards
+              </div>
             </div>
           )}
         </div>
@@ -405,40 +515,53 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
       <CardContent className="space-y-6">
         {/* Checklist Validation Warning */}
         {!dryRun && checklistValidation && !checklistValidation.ready && (
-          <div className={cn(
-            "p-4 rounded-lg border",
-            checklistValidation.blocking_items.length > 0
-              ? "bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.3)]"
-              : "bg-[rgba(251,191,36,0.1)] border-[rgba(251,191,36,0.3)]"
-          )}>
+          <div
+            className={cn(
+              "p-4 rounded-lg border",
+              checklistValidation.blocking_items.length > 0
+                ? "bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.3)]"
+                : "bg-[rgba(251,191,36,0.1)] border-[rgba(251,191,36,0.3)]",
+            )}
+          >
             <div className="flex items-start gap-3">
-              <ShieldAlert className={cn(
-                "h-5 w-5 shrink-0 mt-0.5",
-                checklistValidation.blocking_items.length > 0
-                  ? "text-[var(--color-accent-red)]"
-                  : "text-[var(--color-accent-amber)]"
-              )} />
-              <div className="flex-1">
-                <h3 className={cn(
-                  "text-sm font-medium",
+              <ShieldAlert
+                className={cn(
+                  "h-5 w-5 shrink-0 mt-0.5",
                   checklistValidation.blocking_items.length > 0
                     ? "text-[var(--color-accent-red)]"
-                    : "text-[var(--color-accent-amber)]"
-                )}>
+                    : "text-[var(--color-accent-amber)]",
+                )}
+              />
+              <div className="flex-1">
+                <h3
+                  className={cn(
+                    "text-sm font-medium",
+                    checklistValidation.blocking_items.length > 0
+                      ? "text-[var(--color-accent-red)]"
+                      : "text-[var(--color-accent-amber)]",
+                  )}
+                >
                   Deployment Readiness Warning
                 </h3>
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                  {serviceName} has {checklistValidation.blocking_items.length > 0
-                    ? `${checklistValidation.blocking_items.length} blocking issue${checklistValidation.blocking_items.length > 1 ? 's' : ''}`
-                    : 'pending readiness items'}:
+                  {serviceName} has{" "}
+                  {checklistValidation.blocking_items.length > 0
+                    ? `${checklistValidation.blocking_items.length} blocking issue${checklistValidation.blocking_items.length > 1 ? "s" : ""}`
+                    : "pending readiness items"}
+                  :
                 </p>
 
                 {/* Show blocking items */}
                 {checklistValidation.blocking_items.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {checklistValidation.blocking_items.map((item) => (
-                      <li key={item.id} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
-                        <span className="text-[var(--color-accent-red)]">•</span>
+                      <li
+                        key={item.id}
+                        className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2"
+                      >
+                        <span className="text-[var(--color-accent-red)]">
+                          •
+                        </span>
                         {item.description}
                       </li>
                     ))}
@@ -446,46 +569,63 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 )}
 
                 {/* Show warnings (non-blocking) */}
-                {checklistValidation.warnings.length > 0 && checklistValidation.blocking_items.length === 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {checklistValidation.warnings.slice(0, 5).map((warning, i) => (
-                      <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
-                        <span className="text-[var(--color-accent-amber)]">•</span>
-                        {warning}
-                      </li>
-                    ))}
-                    {checklistValidation.warnings.length > 5 && (
-                      <li className="text-xs text-[var(--color-text-muted)]">
-                        ...and {checklistValidation.warnings.length - 5} more
-                      </li>
-                    )}
-                  </ul>
-                )}
+                {checklistValidation.warnings.length > 0 &&
+                  checklistValidation.blocking_items.length === 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {checklistValidation.warnings
+                        .slice(0, 5)
+                        .map((warning, i) => (
+                          <li
+                            key={i}
+                            className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2"
+                          >
+                            <span className="text-[var(--color-accent-amber)]">
+                              •
+                            </span>
+                            {warning}
+                          </li>
+                        ))}
+                      {checklistValidation.warnings.length > 5 && (
+                        <li className="text-xs text-[var(--color-text-muted)]">
+                          ...and {checklistValidation.warnings.length - 5} more
+                        </li>
+                      )}
+                    </ul>
+                  )}
 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm text-[var(--color-text-muted)]">
-                    Readiness: {checklistValidation.readiness_percent}% ({checklistValidation.completed_items}/{checklistValidation.total_items} items)
+                    Readiness: {checklistValidation.readiness_percent}% (
+                    {checklistValidation.completed_items}/
+                    {checklistValidation.total_items} items)
                   </span>
                 </div>
 
                 {/* Acknowledgment checkbox (only if can proceed) */}
-                {checklistValidation.can_proceed_with_acknowledgment && checklistValidation.blocking_items.length === 0 && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <Checkbox
-                      id="acknowledgeWarnings"
-                      checked={acknowledgedWarnings}
-                      onCheckedChange={(checked) => setAcknowledgedWarnings(checked as boolean)}
-                    />
-                    <Label htmlFor="acknowledgeWarnings" className="text-sm cursor-pointer">
-                      I understand the risks and want to proceed anyway
-                    </Label>
-                  </div>
-                )}
+                {checklistValidation.can_proceed_with_acknowledgment &&
+                  checklistValidation.blocking_items.length === 0 && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Checkbox
+                        id="acknowledgeWarnings"
+                        checked={acknowledgedWarnings}
+                        onCheckedChange={(checked) =>
+                          setAcknowledgedWarnings(checked as boolean)
+                        }
+                      />
+                      <Label
+                        htmlFor="acknowledgeWarnings"
+                        className="text-sm cursor-pointer"
+                      >
+                        I understand the risks and want to proceed anyway
+                      </Label>
+                    </div>
+                  )}
 
                 {/* Cannot proceed message */}
                 {checklistValidation.blocking_items.length > 0 && (
                   <p className="mt-3 text-sm text-[var(--color-accent-red)]">
-                    Deployment blocked. Resolve blocking issues in the Readiness tab first.
+                    Deployment blocked. Resolve blocking issues in the Readiness
+                    tab first.
                   </p>
                 )}
               </div>
@@ -499,8 +639,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <div className="flex gap-2">
             <Button
               type="button"
-              variant={mode === 'batch' ? 'default' : 'outline'}
-              onClick={() => setMode('batch')}
+              variant={mode === "batch" ? "default" : "outline"}
+              onClick={() => setMode("batch")}
               className="flex-1"
             >
               <Calendar className="h-4 w-4 mr-2" />
@@ -508,8 +648,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
             </Button>
             <Button
               type="button"
-              variant={mode === 'live' ? 'default' : 'outline'}
-              onClick={() => setMode('live')}
+              variant={mode === "live" ? "default" : "outline"}
+              onClick={() => setMode("live")}
               className="flex-1"
             >
               <Play className="h-4 w-4 mr-2" />
@@ -524,8 +664,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <div className="flex gap-2">
             <Button
               type="button"
-              variant={compute === 'cloud_run' ? 'default' : 'outline'}
-              onClick={() => setCompute('cloud_run')}
+              variant={compute === "cloud_run" ? "default" : "outline"}
+              onClick={() => setCompute("cloud_run")}
               className="flex-1"
             >
               <Zap className="h-4 w-4 mr-2" />
@@ -533,8 +673,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
             </Button>
             <Button
               type="button"
-              variant={compute === 'vm' ? 'default' : 'outline'}
-              onClick={() => setCompute('vm')}
+              variant={compute === "vm" ? "default" : "outline"}
+              onClick={() => setCompute("vm")}
               className="flex-1"
             >
               <Server className="h-4 w-4 mr-2" />
@@ -549,11 +689,14 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
             <MapPin className="h-4 w-4 text-[var(--color-text-muted)]" />
             Region
           </Label>
-          <Select value={region} onValueChange={(v) => {
-            setRegion(v)
-            // Update zone to match new region
-            setVmZone(`${v}-b`)
-          }}>
+          <Select
+            value={region}
+            onValueChange={(v) => {
+              setRegion(v);
+              // Update zone to match new region
+              setVmZone(`${v}-b`);
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select region..." />
             </SelectTrigger>
@@ -572,12 +715,14 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 <div className="text-sm text-amber-800">
                   <p className="font-semibold">Cross-Region Egress Warning</p>
                   <p className="mt-1">
-                    Selected region ({region}) differs from configured storage region ({backendRegion}).
-                    This will incur significant egress costs as data must cross regions.
+                    Selected region ({region}) differs from configured storage
+                    region ({backendRegion}). This will incur significant egress
+                    costs as data must cross regions.
                   </p>
                   <p className="mt-1 font-medium">
                     Recommendation: Use {backendRegion} to avoid egress charges.
-                    Zone failover (1a → 1b → 1c) provides high availability within the region.
+                    Zone failover (1a → 1b → 1c) provides high availability
+                    within the region.
                   </p>
                 </div>
               </div>
@@ -586,11 +731,9 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         </div>
 
         {/* VM Zone Selector (only shown when VM is selected) */}
-        {compute === 'vm' && (
+        {compute === "vm" && (
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              Zone
-            </Label>
+            <Label className="flex items-center gap-2">Zone</Label>
             <Select value={vmZone} onValueChange={setVmZone}>
               <SelectTrigger>
                 <SelectValue placeholder="Select zone..." />
@@ -604,7 +747,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
               </SelectContent>
             </Select>
             <p className="text-xs text-[var(--color-text-muted)]">
-              Starting zone for VMs. System auto-rotates through zones (1a→1b→1c) within the region.
+              Starting zone for VMs. System auto-rotates through zones
+              (1a→1b→1c) within the region.
             </p>
           </div>
         )}
@@ -614,7 +758,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">
-                Start Date{dateGranularity === 'none' ? ' (optional)' : ''}
+                Start Date{dateGranularity === "none" ? " (optional)" : ""}
               </Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-muted)]" />
@@ -624,13 +768,15 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="pl-10"
-                  placeholder={dateGranularity === 'none' ? 'From config' : undefined}
+                  placeholder={
+                    dateGranularity === "none" ? "From config" : undefined
+                  }
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate">
-                End Date{dateGranularity === 'none' ? ' (optional)' : ''}
+                End Date{dateGranularity === "none" ? " (optional)" : ""}
               </Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-muted)]" />
@@ -640,7 +786,9 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="pl-10"
-                  placeholder={dateGranularity === 'none' ? 'Yesterday' : undefined}
+                  placeholder={
+                    dateGranularity === "none" ? "Yesterday" : undefined
+                  }
                 />
               </div>
             </div>
@@ -676,7 +824,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {/* Category Selection */}
         {hasCategory && (
           <MultiSelectDimension
-            dimension={getDimension('category')!}
+            dimension={getDimension("category")!}
             selected={selectedCategories}
             onChange={setSelectedCategories}
           />
@@ -686,13 +834,13 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {hasVenue && categoryVenues && (
           <MultiSelectDimension
             dimension={{
-              ...getDimension('venue')!,
+              ...getDimension("venue")!,
               values: categoryVenues.venues,
             }}
             selected={selectedVenues}
             onChange={setSelectedVenues}
             disabled={!primaryCategory}
-            hint={!primaryCategory ? 'Select a category first' : undefined}
+            hint={!primaryCategory ? "Select a category first" : undefined}
           />
         )}
 
@@ -705,7 +853,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 <SelectValue placeholder="Select domain..." />
               </SelectTrigger>
               <SelectContent>
-                {getDimension('domain')?.values?.map((val) => (
+                {getDimension("domain")?.values?.map((val) => (
                   <SelectItem key={val} value={val}>
                     {val}
                   </SelectItem>
@@ -726,7 +874,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {/* Feature Group Selection */}
         {hasFeatureGroup && (
           <MultiSelectDimension
-            dimension={getDimension('feature_group')!}
+            dimension={getDimension("feature_group")!}
             selected={selectedFeatureGroups}
             onChange={setSelectedFeatureGroups}
           />
@@ -735,7 +883,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {/* Timeframe Selection */}
         {hasTimeframe && (
           <MultiSelectDimension
-            dimension={getDimension('timeframe')!}
+            dimension={getDimension("timeframe")!}
             selected={selectedTimeframes}
             onChange={setSelectedTimeframes}
           />
@@ -744,7 +892,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {/* Instrument Selection */}
         {hasInstrument && (
           <MultiSelectDimension
-            dimension={getDimension('instrument')!}
+            dimension={getDimension("instrument")!}
             selected={selectedInstruments}
             onChange={setSelectedInstruments}
           />
@@ -753,7 +901,7 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
         {/* Target Type Selection */}
         {hasTargetType && (
           <MultiSelectDimension
-            dimension={getDimension('target_type')!}
+            dimension={getDimension("target_type")!}
             selected={selectedTargetTypes}
             onChange={setSelectedTargetTypes}
           />
@@ -771,7 +919,10 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Log Level</Label>
-              <Select value={logLevel} onValueChange={(v) => setLogLevel(v as typeof logLevel)}>
+              <Select
+                value={logLevel}
+                onValueChange={(v) => setLogLevel(v as typeof logLevel)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -795,7 +946,8 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 max={32}
               />
               <p className="text-xs text-[var(--color-text-muted)]">
-                Higher values auto-scale machine resources (8 workers = 2x CPU/RAM)
+                Higher values auto-scale machine resources (8 workers = 2x
+                CPU/RAM)
               </p>
             </div>
           </div>
@@ -804,16 +956,18 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
           <div className="space-y-2 mt-4">
             <Label htmlFor="deploymentTag">
               Deployment Notes
-              <span className="text-[var(--color-text-muted)] font-normal text-xs ml-2">(Optional but encouraged)</span>
+              <span className="text-[var(--color-text-muted)] font-normal text-xs ml-2">
+                (Optional but encouraged)
+              </span>
             </Label>
             <Input
               id="deploymentTag"
               placeholder="e.g., Fixed Curve adapter, Added DEFI backfill, Testing new venues"
               value={deploymentTag}
               onChange={(e) => {
-                const value = e.target.value
+                const value = e.target.value;
                 if (value.length <= 200) {
-                  setDeploymentTag(value)
+                  setDeploymentTag(value);
                 }
               }}
               maxLength={200}
@@ -858,20 +1012,20 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 placeholder="2000"
                 value={maxConcurrent}
                 onChange={(e) => setMaxConcurrent(e.target.value)}
-                className={maxConcurrentExceedsLimit ? 'border-red-500' : ''}
+                className={maxConcurrentExceedsLimit ? "border-red-500" : ""}
               />
               <p className="text-xs text-[var(--color-text-muted)]">
-                Controls rolling concurrency (how many VMs/jobs run at the same time).
-                Default: 2,000. Maximum: 2,500.
+                Controls rolling concurrency (how many VMs/jobs run at the same
+                time). Default: 2,000. Maximum: 2,500.
               </p>
               {maxConcurrentExceedsLimit && (
                 <p className="text-xs text-red-500">
-                  Max concurrent cannot exceed 2,500. Use date granularity (weekly/monthly) to reduce shard count.
+                  Max concurrent cannot exceed 2,500. Use date granularity
+                  (weekly/monthly) to reduce shard count.
                 </p>
               )}
             </div>
           </div>
-
 
           {/* Skip Venue Sharding option (only shown if service has venue dimension) */}
           {hasVenue && (
@@ -880,18 +1034,38 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 <Checkbox
                   id="skipVenueSharding"
                   checked={skipVenueSharding}
-                  onCheckedChange={(checked) => setSkipVenueSharding(checked as boolean)}
+                  onCheckedChange={(checked) =>
+                    setSkipVenueSharding(checked as boolean)
+                  }
                 />
-                <Label htmlFor="skipVenueSharding" className="cursor-pointer font-medium">
+                <Label
+                  htmlFor="skipVenueSharding"
+                  className="cursor-pointer font-medium"
+                >
                   Skip venue sharding (process all venues per job)
                 </Label>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-6">
-                Reduces job count significantly by processing all venues in a single shard per date.
-                Machine resources are auto-scaled based on max-workers to compensate.
+                Reduces job count significantly by processing all venues in a
+                single shard per date. Machine resources are auto-scaled based
+                on max-workers to compensate.
                 {skipVenueSharding && (
                   <span className="block mt-1 text-[var(--color-accent-cyan)]">
-                    Estimated: ~{Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} × {selectedCategories.length || 3} = ~{((Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) * (selectedCategories.length || 3))} shards (vs full venue sharding)
+                    Estimated: ~
+                    {Math.ceil(
+                      (new Date(endDate).getTime() -
+                        new Date(startDate).getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    ) + 1}{" "}
+                    × {selectedCategories.length || 3} = ~
+                    {(Math.ceil(
+                      (new Date(endDate).getTime() -
+                        new Date(startDate).getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    ) +
+                      1) *
+                      (selectedCategories.length || 3)}{" "}
+                    shards (vs full venue sharding)
                   </span>
                 )}
               </p>
@@ -905,17 +1079,25 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 <Checkbox
                   id="skipFeatureGroupSharding"
                   checked={skipFeatureGroupSharding}
-                  onCheckedChange={(checked) => setSkipFeatureGroupSharding(checked as boolean)}
+                  onCheckedChange={(checked) =>
+                    setSkipFeatureGroupSharding(checked as boolean)
+                  }
                 />
-                <Label htmlFor="skipFeatureGroupSharding" className="cursor-pointer font-medium">
-                  Skip feature group sharding (process all feature groups per job)
+                <Label
+                  htmlFor="skipFeatureGroupSharding"
+                  className="cursor-pointer font-medium"
+                >
+                  Skip feature group sharding (process all feature groups per
+                  job)
                 </Label>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-6">
-                Reduces job count by processing all feature groups in a single shard.
+                Reduces job count by processing all feature groups in a single
+                shard.
                 {skipFeatureGroupSharding && (
                   <span className="block mt-1 text-[var(--color-accent-cyan)]">
-                    Feature groups will be processed together instead of in separate jobs.
+                    Feature groups will be processed together instead of in
+                    separate jobs.
                   </span>
                 )}
               </p>
@@ -929,80 +1111,123 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
                 <Label className="font-medium">Date Granularity Override</Label>
                 <Select
                   value={dateGranularity}
-                  onValueChange={(value) => setDateGranularity(value as 'default' | 'daily' | 'weekly' | 'monthly' | 'none')}
+                  onValueChange={(value) =>
+                    setDateGranularity(
+                      value as
+                        | "default"
+                        | "daily"
+                        | "weekly"
+                        | "monthly"
+                        | "none",
+                    )
+                  }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Use service default" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Use service default</SelectItem>
-                    <SelectItem value="daily">Daily (1 shard per day)</SelectItem>
-                    <SelectItem value="weekly">Weekly (1 shard per 7 days)</SelectItem>
-                    <SelectItem value="monthly">Monthly (1 shard per 30 days)</SelectItem>
-                    <SelectItem value="none">None (single shard, no date args)</SelectItem>
+                    <SelectItem value="daily">
+                      Daily (1 shard per day)
+                    </SelectItem>
+                    <SelectItem value="weekly">
+                      Weekly (1 shard per 7 days)
+                    </SelectItem>
+                    <SelectItem value="monthly">
+                      Monthly (1 shard per 30 days)
+                    </SelectItem>
+                    <SelectItem value="none">
+                      None (single shard, no date args)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  Override the date chunking to reduce job count. Weekly/monthly groups multiple days into one shard.
-                  {dateGranularity === 'none' && (
+                  Override the date chunking to reduce job count. Weekly/monthly
+                  groups multiple days into one shard.
+                  {dateGranularity === "none" && (
                     <span className="block mt-1 text-[var(--color-accent-cyan)]">
-                      Single shard with no start/end date passed to service. Start/end date fields are optional (defaults to service&apos;s expected_start_dates.yaml → yesterday).
+                      Single shard with no start/end date passed to service.
+                      Start/end date fields are optional (defaults to
+                      service&apos;s expected_start_dates.yaml → yesterday).
                     </span>
                   )}
-                  {dateGranularity && dateGranularity !== 'default' && dateGranularity !== 'daily' && dateGranularity !== 'none' && startDate && endDate && (
-                    <span className="block mt-1 text-[var(--color-accent-cyan)]">
-                      {dateGranularity === 'weekly'
-                        ? `~${Math.ceil((Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 7)} weekly chunks instead of ${Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} daily`
-                        : `~${Math.ceil((Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 30)} monthly chunks instead of ${Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} daily`
-                      }
-                    </span>
-                  )}
+                  {dateGranularity &&
+                    dateGranularity !== "default" &&
+                    dateGranularity !== "daily" &&
+                    dateGranularity !== "none" &&
+                    startDate &&
+                    endDate && (
+                      <span className="block mt-1 text-[var(--color-accent-cyan)]">
+                        {dateGranularity === "weekly"
+                          ? `~${Math.ceil((Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 7)} weekly chunks instead of ${Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} daily`
+                          : `~${Math.ceil((Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) / 30)} monthly chunks instead of ${Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} daily`}
+                      </span>
+                    )}
                 </p>
               </div>
             </div>
           )}
 
           {/* Compute Scaling Indicator */}
-          {(containerMaxWorkers || skipVenueSharding || skipFeatureGroupSharding) && (
+          {(containerMaxWorkers ||
+            skipVenueSharding ||
+            skipFeatureGroupSharding) && (
             <div className="mt-4 p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-accent-yellow)]/50">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[var(--color-accent-yellow)]">⚡</span>
-                <Label className="font-medium text-[var(--color-accent-yellow)]">Auto-Scaled Compute Resources</Label>
+                <Label className="font-medium text-[var(--color-accent-yellow)]">
+                  Auto-Scaled Compute Resources
+                </Label>
               </div>
               <div className="text-xs text-[var(--color-text-muted)] space-y-1">
                 {(() => {
-                  const baseWorkers = 4
-                  const maxWorkers = containerMaxWorkers ? parseInt(containerMaxWorkers) : baseWorkers
-                  let scaleFactor = Math.max(1.0, maxWorkers / baseWorkers)
+                  const baseWorkers = 4;
+                  const maxWorkers = containerMaxWorkers
+                    ? parseInt(containerMaxWorkers)
+                    : baseWorkers;
+                  let scaleFactor = Math.max(1.0, maxWorkers / baseWorkers);
 
                   if (skipVenueSharding) {
-                    scaleFactor *= 2.0
+                    scaleFactor *= 2.0;
                   }
 
-                  const factors: string[] = []
-                  if (containerMaxWorkers && parseInt(containerMaxWorkers) > baseWorkers) {
-                    factors.push(`${maxWorkers}/${baseWorkers} workers = ${(maxWorkers / baseWorkers).toFixed(1)}x`)
+                  const factors: string[] = [];
+                  if (
+                    containerMaxWorkers &&
+                    parseInt(containerMaxWorkers) > baseWorkers
+                  ) {
+                    factors.push(
+                      `${maxWorkers}/${baseWorkers} workers = ${(maxWorkers / baseWorkers).toFixed(1)}x`,
+                    );
                   }
                   if (skipVenueSharding) {
-                    factors.push('venue consolidation = 2x')
+                    factors.push("venue consolidation = 2x");
                   }
 
                   if (scaleFactor > 1.0) {
                     return (
                       <>
-                        <p>Machine resources will be scaled up by <span className="text-[var(--color-accent-yellow)] font-semibold">{scaleFactor.toFixed(1)}x</span></p>
+                        <p>
+                          Machine resources will be scaled up by{" "}
+                          <span className="text-[var(--color-accent-yellow)] font-semibold">
+                            {scaleFactor.toFixed(1)}x
+                          </span>
+                        </p>
                         {factors.length > 0 && (
                           <p className="text-[var(--color-text-muted)]">
-                            Factors: {factors.join(' × ')}
+                            Factors: {factors.join(" × ")}
                           </p>
                         )}
                         <p className="mt-1 text-[var(--color-accent-cyan)]">
-                          Example: c2-standard-16 → c2-standard-{Math.min(60, Math.round(16 * scaleFactor))}
+                          Example: c2-standard-16 → c2-standard-
+                          {Math.min(60, Math.round(16 * scaleFactor))}
                         </p>
                       </>
-                    )
+                    );
                   }
-                  return <p>Using base compute resources (no scaling needed)</p>
+                  return (
+                    <p>Using base compute resources (no scaling needed)</p>
+                  );
                 })()}
               </div>
             </div>
@@ -1031,16 +1256,19 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
             compute,
             start_date: startDate,
             end_date: endDate,
-            category: selectedCategories.length > 0 ? selectedCategories : undefined,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : undefined,
             venue: selectedVenues.length > 0 ? selectedVenues : undefined,
             force,
             dry_run: dryRun,
             log_level: logLevel,
             skip_venue_sharding: skipVenueSharding,
             skip_feature_group_sharding: skipFeatureGroupSharding,
-            date_granularity: dateGranularity !== 'default' ? dateGranularity : undefined,
+            date_granularity:
+              dateGranularity !== "default" ? dateGranularity : undefined,
             max_workers:
-              containerMaxWorkers && !Number.isNaN(parseInt(containerMaxWorkers, 10))
+              containerMaxWorkers &&
+              !Number.isNaN(parseInt(containerMaxWorkers, 10))
                 ? parseInt(containerMaxWorkers, 10)
                 : undefined,
             extra_args: extraArgs.trim() || undefined,
@@ -1118,112 +1346,195 @@ export function DeployForm({ serviceName, onDeploy, isDeploying }: DeployFormPro
               </div>
             )}
 
-            {!quotaLoading && !quotaError && quotaInfo && (() => {
-              const rq = quotaInfo.required_quota as Record<string, Record<string, unknown>>
-              const worst = (rq?.worst_case || {}) as Record<string, Record<string, number>>
-              const perShard = (worst?.per_shard || {}) as Record<string, number>
-              const totals = (worst?.totals_at_max_concurrent || {}) as Record<string, number>
+            {!quotaLoading &&
+              !quotaError &&
+              quotaInfo &&
+              (() => {
+                const rq = quotaInfo.required_quota as Record<
+                  string,
+                  Record<string, unknown>
+                >;
+                const worst = (rq?.worst_case || {}) as Record<
+                  string,
+                  Record<string, number>
+                >;
+                const perShard = (worst?.per_shard || {}) as Record<
+                  string,
+                  number
+                >;
+                const totals = (worst?.totals_at_max_concurrent ||
+                  {}) as Record<string, number>;
 
-              const cpuMetric = Object.keys(perShard).find(k => k.endsWith('_CPUS')) || Object.keys(perShard)[0]
-              const metrics = [cpuMetric, 'IN_USE_ADDRESSES', 'SSD_TOTAL_GB'].filter(Boolean) as string[]
+                const cpuMetric =
+                  Object.keys(perShard).find((k) => k.endsWith("_CPUS")) ||
+                  Object.keys(perShard)[0];
+                const metrics = [
+                  cpuMetric,
+                  "IN_USE_ADDRESSES",
+                  "SSD_TOTAL_GB",
+                ].filter(Boolean) as string[];
 
-              const lq = quotaInfo.live_quota as Record<string, Record<string, unknown>> | null | undefined
-              const liveRegion = lq?.regions?.[quotaInfo.region] as Record<string, unknown> | undefined
-              const liveMetrics = ((liveRegion?.metrics || {}) as Record<string, Record<string, unknown>>)
+                const lq = quotaInfo.live_quota as
+                  | Record<string, Record<string, unknown>>
+                  | null
+                  | undefined;
+                const liveRegion = lq?.regions?.[quotaInfo.region] as
+                  | Record<string, unknown>
+                  | undefined;
+                const liveMetrics = (liveRegion?.metrics || {}) as Record<
+                  string,
+                  Record<string, unknown>
+                >;
 
-              const recommended = quotaInfo.recommended_max_concurrent
+                const recommended = quotaInfo.recommended_max_concurrent;
 
-              return (
-                <div className="space-y-4">
-                  <div className="p-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]">
-                    <div className="text-sm text-[var(--color-text-secondary)]">
-                      <div><span className="text-[var(--color-text-muted)]">Service:</span> {quotaInfo.service}</div>
-                      <div><span className="text-[var(--color-text-muted)]">Compute:</span> {quotaInfo.compute}</div>
-                      <div><span className="text-[var(--color-text-muted)]">Region:</span> {quotaInfo.region}</div>
-                      <div><span className="text-[var(--color-text-muted)]">Total shards:</span> {quotaInfo.total_shards.toLocaleString()}</div>
-                      <div><span className="text-[var(--color-text-muted)]">Effective max_concurrent:</span> {quotaInfo.effective_settings.max_concurrent.toLocaleString()}</div>
-                      {recommended !== null && recommended !== undefined && (
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <div>
-                            <span className="text-[var(--color-text-muted)]">Recommended max_concurrent:</span>{' '}
-                            <span className="text-[var(--color-accent-yellow)] font-semibold">
-                              {recommended.toLocaleString()}
-                            </span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setMaxConcurrent(String(recommended))}
-                          >
-                            Apply
-                          </Button>
+                return (
+                  <div className="space-y-4">
+                    <div className="p-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]">
+                      <div className="text-sm text-[var(--color-text-secondary)]">
+                        <div>
+                          <span className="text-[var(--color-text-muted)]">
+                            Service:
+                          </span>{" "}
+                          {quotaInfo.service}
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {metrics.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-semibold text-[var(--color-text-primary)]">VM quota (worst-case)</div>
-                      <div className="overflow-hidden rounded-lg border border-[var(--color-border-default)]">
-                        <div className="grid grid-cols-4 gap-0 text-xs bg-[var(--color-bg-tertiary)] border-b border-[var(--color-border-default)]">
-                          <div className="p-2 font-semibold">Metric</div>
-                          <div className="p-2 font-semibold">Per shard</div>
-                          <div className="p-2 font-semibold">Total @ max_concurrent</div>
-                          <div className="p-2 font-semibold">Live remaining</div>
+                        <div>
+                          <span className="text-[var(--color-text-muted)]">
+                            Compute:
+                          </span>{" "}
+                          {quotaInfo.compute}
                         </div>
-                        {metrics.map((m) => {
-                          const live = liveMetrics?.[m]
-                          const remaining = live?.remaining
-                          return (
-                            <div key={m} className="grid grid-cols-4 gap-0 text-xs border-b border-[var(--color-border-subtle)] last:border-b-0">
-                              <div className="p-2 font-mono text-[var(--color-text-secondary)]">{m}</div>
-                              <div className="p-2 text-[var(--color-text-secondary)]">{perShard[m] ?? '-'}</div>
-                              <div className="p-2 text-[var(--color-text-secondary)]">{totals[m] ?? '-'}</div>
-                              <div className="p-2 text-[var(--color-text-secondary)]">
-                                {remaining !== undefined && remaining !== null
-                                  ? Number(remaining).toLocaleString()
-                                  : <span className="text-[var(--color-text-muted)]">n/a</span>}
-                              </div>
+                        <div>
+                          <span className="text-[var(--color-text-muted)]">
+                            Region:
+                          </span>{" "}
+                          {quotaInfo.region}
+                        </div>
+                        <div>
+                          <span className="text-[var(--color-text-muted)]">
+                            Total shards:
+                          </span>{" "}
+                          {quotaInfo.total_shards.toLocaleString()}
+                        </div>
+                        <div>
+                          <span className="text-[var(--color-text-muted)]">
+                            Effective max_concurrent:
+                          </span>{" "}
+                          {quotaInfo.effective_settings.max_concurrent.toLocaleString()}
+                        </div>
+                        {recommended !== null && recommended !== undefined && (
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <div>
+                              <span className="text-[var(--color-text-muted)]">
+                                Recommended max_concurrent:
+                              </span>{" "}
+                              <span className="text-[var(--color-accent-yellow)] font-semibold">
+                                {recommended.toLocaleString()}
+                              </span>
                             </div>
-                          )
-                        })}
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                setMaxConcurrent(String(recommended))
+                              }
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {!liveRegion && (
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          Live remaining shows n/a when the quota-broker is not configured or unreachable. Set <code className="text-[var(--color-text-secondary)]">QUOTA_BROKER_URL</code> on the dashboard and ensure the quota-broker service is deployed and reachable.
-                        </p>
-                      )}
-                      {!!liveRegion?.error && (
-                        <p className="text-xs text-[var(--color-accent-red)]">
-                          Live quota unavailable for this region: {String(liveRegion.error)}
-                        </p>
-                      )}
-                      {quotaInfo.live_quota_error && (
-                        <p className="text-xs text-[var(--color-accent-red)]">
-                          Live quota error: {quotaInfo.live_quota_error}
-                        </p>
-                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })()}
+
+                    {metrics.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+                          VM quota (worst-case)
+                        </div>
+                        <div className="overflow-hidden rounded-lg border border-[var(--color-border-default)]">
+                          <div className="grid grid-cols-4 gap-0 text-xs bg-[var(--color-bg-tertiary)] border-b border-[var(--color-border-default)]">
+                            <div className="p-2 font-semibold">Metric</div>
+                            <div className="p-2 font-semibold">Per shard</div>
+                            <div className="p-2 font-semibold">
+                              Total @ max_concurrent
+                            </div>
+                            <div className="p-2 font-semibold">
+                              Live remaining
+                            </div>
+                          </div>
+                          {metrics.map((m) => {
+                            const live = liveMetrics?.[m];
+                            const remaining = live?.remaining;
+                            return (
+                              <div
+                                key={m}
+                                className="grid grid-cols-4 gap-0 text-xs border-b border-[var(--color-border-subtle)] last:border-b-0"
+                              >
+                                <div className="p-2 font-mono text-[var(--color-text-secondary)]">
+                                  {m}
+                                </div>
+                                <div className="p-2 text-[var(--color-text-secondary)]">
+                                  {perShard[m] ?? "-"}
+                                </div>
+                                <div className="p-2 text-[var(--color-text-secondary)]">
+                                  {totals[m] ?? "-"}
+                                </div>
+                                <div className="p-2 text-[var(--color-text-secondary)]">
+                                  {remaining !== undefined &&
+                                  remaining !== null ? (
+                                    Number(remaining).toLocaleString()
+                                  ) : (
+                                    <span className="text-[var(--color-text-muted)]">
+                                      n/a
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {!liveRegion && (
+                          <p className="text-xs text-[var(--color-text-muted)]">
+                            Live remaining shows n/a when the quota-broker is
+                            not configured or unreachable. Set{" "}
+                            <code className="text-[var(--color-text-secondary)]">
+                              QUOTA_BROKER_URL
+                            </code>{" "}
+                            on the dashboard and ensure the quota-broker service
+                            is deployed and reachable.
+                          </p>
+                        )}
+                        {!!liveRegion?.error && (
+                          <p className="text-xs text-[var(--color-accent-red)]">
+                            Live quota unavailable for this region:{" "}
+                            {String(liveRegion.error)}
+                          </p>
+                        )}
+                        {quotaInfo.live_quota_error && (
+                          <p className="text-xs text-[var(--color-accent-red)]">
+                            Live quota error: {quotaInfo.live_quota_error}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
           </DialogContent>
         </Dialog>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // Multi-select component for dimensions
 interface MultiSelectDimensionProps {
-  dimension: ServiceDimension
-  selected: string[]
-  onChange: (values: string[]) => void
-  disabled?: boolean
-  hint?: string
+  dimension: ServiceDimension;
+  selected: string[];
+  onChange: (values: string[]) => void;
+  disabled?: boolean;
+  hint?: string;
 }
 
 function MultiSelectDimension({
@@ -1231,20 +1542,20 @@ function MultiSelectDimension({
   selected,
   onChange,
   disabled,
-  hint
+  hint,
 }: MultiSelectDimensionProps) {
-  const values = dimension.values || []
+  const values = dimension.values || [];
 
   const toggleValue = (value: string) => {
     if (selected.includes(value)) {
-      onChange(selected.filter(v => v !== value))
+      onChange(selected.filter((v) => v !== value));
     } else {
-      onChange([...selected, value])
+      onChange([...selected, value]);
     }
-  }
+  };
 
-  const selectAll = () => onChange([...values])
-  const clearAll = () => onChange([])
+  const selectAll = () => onChange([...values]);
+  const clearAll = () => onChange([]);
 
   return (
     <div className="space-y-2">
@@ -1271,16 +1582,16 @@ function MultiSelectDimension({
         </div>
       </div>
 
-      {hint && (
-        <p className="text-xs text-[var(--color-text-muted)]">{hint}</p>
-      )}
+      {hint && <p className="text-xs text-[var(--color-text-muted)]">{hint}</p>}
 
-      <div className={cn(
-        "flex flex-wrap gap-2 p-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] max-h-40 overflow-y-auto",
-        disabled && "opacity-50 pointer-events-none"
-      )}>
+      <div
+        className={cn(
+          "flex flex-wrap gap-2 p-3 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] max-h-40 overflow-y-auto",
+          disabled && "opacity-50 pointer-events-none",
+        )}
+      >
         {values.map((value) => {
-          const isSelected = selected.includes(value)
+          const isSelected = selected.includes(value);
           return (
             <button
               key={value}
@@ -1290,22 +1601,21 @@ function MultiSelectDimension({
                 "px-2.5 py-1 text-xs font-mono rounded border transition-all",
                 isSelected
                   ? "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]"
-                  : "bg-[var(--color-bg-secondary)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-emphasis)]"
+                  : "bg-[var(--color-bg-secondary)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-emphasis)]",
               )}
             >
               {isSelected && <CheckCircle2 className="h-3 w-3 inline mr-1" />}
               {value}
             </button>
-          )
+          );
         })}
       </div>
 
       <p className="text-xs text-[var(--color-text-muted)]">
         {selected.length > 0
           ? `${selected.length} of ${values.length} selected`
-          : `All ${values.length} will be processed (none selected = all)`
-        }
+          : `All ${values.length} will be processed (none selected = all)`}
       </p>
     </div>
-  )
+  );
 }

@@ -1,150 +1,171 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Cloud, ChevronRight, Loader2, FolderOpen, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react'
-import { Label } from './ui/label'
-import { Button } from './ui/button'
+import { useState, useEffect, useCallback } from "react";
+import {
+  Cloud,
+  ChevronRight,
+  Loader2,
+  FolderOpen,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
+import { Label } from "./ui/label";
+import { Button } from "./ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select'
-import { listDirectories, discoverConfigs, getConfigBuckets } from '../api/client'
+} from "./ui/select";
+import {
+  listDirectories,
+  discoverConfigs,
+  getConfigBuckets,
+} from "../api/client";
 
 interface CloudConfigBrowserProps {
-  serviceName: string
-  onPathSelected: (path: string, configCount: number) => void
+  serviceName: string;
+  onPathSelected: (path: string, configCount: number) => void;
 }
 
 interface BreadcrumbLevel {
-  name: string
-  path: string
+  name: string;
+  path: string;
 }
 
-export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigBrowserProps) {
+export function CloudConfigBrowser({
+  serviceName,
+  onPathSelected,
+}: CloudConfigBrowserProps) {
   // State for bucket selection
-  const [buckets, setBuckets] = useState<Array<{ name: string; path: string }>>([])
-  const [selectedBucket, setSelectedBucket] = useState<string>('')
-  const [loadingBuckets, setLoadingBuckets] = useState(false)
+  const [buckets, setBuckets] = useState<Array<{ name: string; path: string }>>(
+    [],
+  );
+  const [selectedBucket, setSelectedBucket] = useState<string>("");
+  const [loadingBuckets, setLoadingBuckets] = useState(false);
 
   // State for directory browsing
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbLevel[]>([])
-  const [currentDirectories, setCurrentDirectories] = useState<string[]>([])
-  const [loadingDirectories, setLoadingDirectories] = useState(false)
-  const [_selectedDirectory, setSelectedDirectory] = useState<string>('')
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbLevel[]>([]);
+  const [currentDirectories, setCurrentDirectories] = useState<string[]>([]);
+  const [loadingDirectories, setLoadingDirectories] = useState(false);
+  const [_selectedDirectory, setSelectedDirectory] = useState<string>("");
 
   // State for config discovery
-  const [discoveredCount, setDiscoveredCount] = useState<number | null>(null)
-  const [isDiscovering, setIsDiscovering] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [discoveredCount, setDiscoveredCount] = useState<number | null>(null);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Get current full path
   const getCurrentPath = useCallback(() => {
-    if (!selectedBucket) return ''
-    if (breadcrumbs.length === 0) return selectedBucket
-    return breadcrumbs[breadcrumbs.length - 1].path
-  }, [selectedBucket, breadcrumbs])
+    if (!selectedBucket) return "";
+    if (breadcrumbs.length === 0) return selectedBucket;
+    return breadcrumbs[breadcrumbs.length - 1].path;
+  }, [selectedBucket, breadcrumbs]);
 
   // Load buckets on mount
   useEffect(() => {
     async function loadBuckets() {
-      setLoadingBuckets(true)
+      setLoadingBuckets(true);
       try {
-        const result = await getConfigBuckets(serviceName)
-        setBuckets(result.buckets || [])
+        const result = await getConfigBuckets(serviceName);
+        setBuckets(result.buckets || []);
         if (result.default_bucket) {
-          setSelectedBucket(result.default_bucket)
+          setSelectedBucket(result.default_bucket);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load buckets')
+        setError(err instanceof Error ? err.message : "Failed to load buckets");
       } finally {
-        setLoadingBuckets(false)
+        setLoadingBuckets(false);
       }
     }
-    loadBuckets()
-  }, [serviceName])
+    loadBuckets();
+  }, [serviceName]);
 
   // Load directories when bucket or breadcrumb changes
   useEffect(() => {
     async function loadDirectories() {
-      const path = getCurrentPath()
-      if (!path) return
+      const path = getCurrentPath();
+      if (!path) return;
 
-      setLoadingDirectories(true)
-      setCurrentDirectories([])
-      setSelectedDirectory('')
-      setError(null)
+      setLoadingDirectories(true);
+      setCurrentDirectories([]);
+      setSelectedDirectory("");
+      setError(null);
 
       try {
-        const result = await listDirectories(serviceName, path)
-        setCurrentDirectories(result.directories)
+        const result = await listDirectories(serviceName, path);
+        setCurrentDirectories(result.directories);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load directories')
+        setError(
+          err instanceof Error ? err.message : "Failed to load directories",
+        );
       } finally {
-        setLoadingDirectories(false)
+        setLoadingDirectories(false);
       }
     }
-    loadDirectories()
-  }, [serviceName, selectedBucket, breadcrumbs, getCurrentPath])
+    loadDirectories();
+  }, [serviceName, selectedBucket, breadcrumbs, getCurrentPath]);
 
   // Handle bucket selection
   const handleBucketSelect = (path: string) => {
-    setSelectedBucket(path)
-    setBreadcrumbs([])
-    setDiscoveredCount(null)
-    onPathSelected('', 0)
-  }
+    setSelectedBucket(path);
+    setBreadcrumbs([]);
+    setDiscoveredCount(null);
+    onPathSelected("", 0);
+  };
 
   // Navigate into a directory
   const navigateInto = (dirName: string) => {
-    const currentPath = getCurrentPath()
-    const newPath = currentPath.endsWith('/')
+    const currentPath = getCurrentPath();
+    const newPath = currentPath.endsWith("/")
       ? `${currentPath}${dirName}/`
-      : `${currentPath}/${dirName}/`
+      : `${currentPath}/${dirName}/`;
 
-    setBreadcrumbs(prev => [...prev, { name: dirName, path: newPath }])
-    setSelectedDirectory('')
-    setDiscoveredCount(null)
-  }
+    setBreadcrumbs((prev) => [...prev, { name: dirName, path: newPath }]);
+    setSelectedDirectory("");
+    setDiscoveredCount(null);
+  };
 
   // Navigate to a breadcrumb level
   const navigateToBreadcrumb = (index: number) => {
     if (index < 0) {
       // Go back to bucket root
-      setBreadcrumbs([])
+      setBreadcrumbs([]);
     } else {
-      setBreadcrumbs(prev => prev.slice(0, index + 1))
+      setBreadcrumbs((prev) => prev.slice(0, index + 1));
     }
-    setDiscoveredCount(null)
-  }
+    setDiscoveredCount(null);
+  };
 
   // Discover configs at current path
   const handleDiscover = async () => {
-    const path = getCurrentPath()
-    if (!path) return
+    const path = getCurrentPath();
+    if (!path) return;
 
-    setIsDiscovering(true)
-    setError(null)
+    setIsDiscovering(true);
+    setError(null);
 
     try {
-      const result = await discoverConfigs(serviceName, path)
-      setDiscoveredCount(result.total_configs)
-      onPathSelected(path, result.total_configs)
+      const result = await discoverConfigs(serviceName, path);
+      setDiscoveredCount(result.total_configs);
+      onPathSelected(path, result.total_configs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to discover configs')
-      setDiscoveredCount(null)
-      onPathSelected('', 0)
+      setError(
+        err instanceof Error ? err.message : "Failed to discover configs",
+      );
+      setDiscoveredCount(null);
+      onPathSelected("", 0);
     } finally {
-      setIsDiscovering(false)
+      setIsDiscovering(false);
     }
-  }
+  };
 
   // Select directory - auto-navigate into it
   const handleDirectorySelect = (dirName: string) => {
-    setSelectedDirectory(dirName)
+    setSelectedDirectory(dirName);
     // Auto-navigate into the selected directory
-    navigateInto(dirName)
-  }
+    navigateInto(dirName);
+  };
 
   return (
     <div className="space-y-3">
@@ -156,7 +177,11 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
       {/* Bucket Selection */}
       {buckets.length > 0 && (
         <div className="space-y-2">
-          <Select value={selectedBucket} onValueChange={handleBucketSelect} disabled={loadingBuckets}>
+          <Select
+            value={selectedBucket}
+            onValueChange={handleBucketSelect}
+            disabled={loadingBuckets}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select config bucket..." />
             </SelectTrigger>
@@ -209,7 +234,9 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
                   Loading directories...
                 </span>
               ) : (
-                <SelectValue placeholder={`Select from ${currentDirectories.length} directories...`} />
+                <SelectValue
+                  placeholder={`Select from ${currentDirectories.length} directories...`}
+                />
               )}
             </SelectTrigger>
             <SelectContent>
@@ -230,11 +257,14 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
       )}
 
       {/* No subdirectories message */}
-      {selectedBucket && !loadingDirectories && currentDirectories.length === 0 && (
-        <div className="text-sm text-[var(--color-text-muted)] p-2 bg-[var(--color-bg-tertiary)] rounded">
-          No subdirectories here - click "Discover Configs" to find config files at this level
-        </div>
-      )}
+      {selectedBucket &&
+        !loadingDirectories &&
+        currentDirectories.length === 0 && (
+          <div className="text-sm text-[var(--color-text-muted)] p-2 bg-[var(--color-bg-tertiary)] rounded">
+            No subdirectories here - click "Discover Configs" to find config
+            files at this level
+          </div>
+        )}
 
       {/* Discover Button */}
       {selectedBucket && (
@@ -263,24 +293,38 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
 
       {/* Discovery Result */}
       {discoveredCount !== null && (
-        <div className={`flex items-center gap-2 p-2 rounded ${
-          discoveredCount >= 10000
-            ? 'bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]'
-            : 'bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.3)]'
-        }`}>
-          <CheckCircle2 className={`h-4 w-4 ${
+        <div
+          className={`flex items-center gap-2 p-2 rounded ${
             discoveredCount >= 10000
-              ? 'text-[var(--color-accent-amber)]'
-              : 'text-[var(--color-accent-green)]'
-          }`} />
-          <span className="text-sm text-[var(--color-text-secondary)]">
-            Found <span className={`font-bold ${
+              ? "bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]"
+              : "bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.3)]"
+          }`}
+        >
+          <CheckCircle2
+            className={`h-4 w-4 ${
               discoveredCount >= 10000
-                ? 'text-[var(--color-accent-amber)]'
-                : 'text-[var(--color-accent-green)]'
-            }`}>{discoveredCount >= 10000 ? `${discoveredCount}+` : discoveredCount}</span> config files
+                ? "text-[var(--color-accent-amber)]"
+                : "text-[var(--color-accent-green)]"
+            }`}
+          />
+          <span className="text-sm text-[var(--color-text-secondary)]">
+            Found{" "}
+            <span
+              className={`font-bold ${
+                discoveredCount >= 10000
+                  ? "text-[var(--color-accent-amber)]"
+                  : "text-[var(--color-accent-green)]"
+              }`}
+            >
+              {discoveredCount >= 10000
+                ? `${discoveredCount}+`
+                : discoveredCount}
+            </span>{" "}
+            config files
             {discoveredCount >= 10000 && (
-              <span className="text-[var(--color-accent-amber)] ml-1">(hit page limit - there may be more)</span>
+              <span className="text-[var(--color-accent-amber)] ml-1">
+                (hit page limit - there may be more)
+              </span>
             )}
           </span>
         </div>
@@ -290,7 +334,9 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
       {error && (
         <div className="flex items-center gap-2 p-2 rounded bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
           <AlertTriangle className="h-4 w-4 text-[var(--color-accent-red)]" />
-          <span className="text-sm text-[var(--color-accent-red)]">{error}</span>
+          <span className="text-sm text-[var(--color-accent-red)]">
+            {error}
+          </span>
         </div>
       )}
 
@@ -301,5 +347,5 @@ export function CloudConfigBrowser({ serviceName, onPathSelected }: CloudConfigB
         </p>
       )}
     </div>
-  )
+  );
 }

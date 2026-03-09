@@ -29,10 +29,10 @@ gcloud run deploy deployment-ui \
 
 ## Environment Variables (Build-Time)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_DEPLOYMENT_API_URL` | `http://localhost:8004` | deployment-api base URL |
-| `VITE_GOOGLE_CLIENT_ID` | — | Google OAuth 2.0 client ID |
+| Variable                  | Default                 | Description                |
+| ------------------------- | ----------------------- | -------------------------- |
+| `VITE_DEPLOYMENT_API_URL` | `http://localhost:8004` | deployment-api base URL    |
+| `VITE_GOOGLE_CLIENT_ID`   | —                       | Google OAuth 2.0 client ID |
 
 ## Google OAuth Setup
 
@@ -43,6 +43,7 @@ gcloud run deploy deployment-ui \
 ## Access Control
 
 This UI triggers live deployments. Restrict access via:
+
 - IAP (Cloud Identity-Aware Proxy) for network-level restriction
 - App-level: `deployment-api` enforces role-based auth on all mutating endpoints
 - Recommended: restrict Cloud Run ingress to internal + load balancer only

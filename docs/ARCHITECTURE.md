@@ -7,16 +7,16 @@ for managing deployments, monitoring build status, checking service readiness, a
 
 ## Tab Structure
 
-| Tab | Route | Purpose |
-|-----|-------|---------|
-| Deploy | `/deploy` | Submit new deployments, select services/versions |
-| Data Status | `/data-status` | GCS data freshness check per service |
-| Builds | `/builds` | Cloud Build history and status |
-| Readiness | `/readiness` | Pre-deployment checklist: QG/health/data gates |
-| Status | `/status` | Live service health across all deployed services |
-| Config | `/config` | View/edit deployment configs (venues.yaml, runtime-topology.yaml) |
-| Config Store | `/config-store` | Key-value runtime config (ConfigStore) |
-| History | `/history` | Deployment history, rollback actions |
+| Tab          | Route           | Purpose                                                           |
+| ------------ | --------------- | ----------------------------------------------------------------- |
+| Deploy       | `/deploy`       | Submit new deployments, select services/versions                  |
+| Data Status  | `/data-status`  | GCS data freshness check per service                              |
+| Builds       | `/builds`       | Cloud Build history and status                                    |
+| Readiness    | `/readiness`    | Pre-deployment checklist: QG/health/data gates                    |
+| Status       | `/status`       | Live service health across all deployed services                  |
+| Config       | `/config`       | View/edit deployment configs (venues.yaml, runtime-topology.yaml) |
+| Config Store | `/config-store` | Key-value runtime config (ConfigStore)                            |
+| History      | `/history`      | Deployment history, rollback actions                              |
 
 ## Component Structure
 
@@ -54,6 +54,7 @@ src/
 All calls go to `deployment-api` at `VITE_DEPLOYMENT_API_URL` (default: `http://localhost:8004`).
 
 Key endpoints consumed:
+
 - `POST /deployments` — trigger deployment
 - `GET /deployments` — history
 - `GET /services/status` — live health

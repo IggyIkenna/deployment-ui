@@ -1,145 +1,172 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo } from "react";
 import {
-  CheckCircle2, Copy, Check, Terminal,
-  Layers, ChevronDown, ChevronUp, Loader2, FolderOpen, Clock
-} from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { cn } from '../lib/utils'
-import type { CreateDeploymentResponse, ShardPreviewInfo, GroupedShards } from '../types'
+  CheckCircle2,
+  Copy,
+  Check,
+  Terminal,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  FolderOpen,
+  Clock,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { cn } from "../lib/utils";
+import type {
+  CreateDeploymentResponse,
+  ShardPreviewInfo,
+  GroupedShards,
+} from "../types";
 
 interface DeploymentResultProps {
-  result: CreateDeploymentResponse
-  onClose: () => void
-  onDeployLive?: () => void
-  onLoadAllShards?: () => Promise<ShardPreviewInfo[]>
+  result: CreateDeploymentResponse;
+  onClose: () => void;
+  onDeployLive?: () => void;
+  onLoadAllShards?: () => Promise<ShardPreviewInfo[]>;
 }
 
 // Extract date from shard - handles various dimension formats
 function extractDate(shard: ShardPreviewInfo): string {
-  const dims = shard.dimensions
+  const dims = shard.dimensions;
 
   // Try direct date field (might be string or object)
   if (dims.date) {
-    if (typeof dims.date === 'string') {
-      return dims.date
+    if (typeof dims.date === "string") {
+      return dims.date;
     }
     // If date is an object like {start: "2020-05-18", end: "2020-05-18"}
-    if (typeof dims.date === 'object' && dims.date !== null) {
-      const dateObj = dims.date as Record<string, string>
-      return dateObj.start || dateObj.end || 'unknown'
+    if (typeof dims.date === "object" && dims.date !== null) {
+      const dateObj = dims.date as Record<string, string>;
+      return dateObj.start || dateObj.end || "unknown";
     }
   }
 
   // Try start_date field
-  if (dims.start_date && typeof dims.start_date === 'string') {
-    return dims.start_date
+  if (dims.start_date && typeof dims.start_date === "string") {
+    return dims.start_date;
   }
 
   // Extract from shard_id (format: CATEGORY_DATE or CATEGORY_VENUE_DATE)
   // Look for YYYY-MM-DD pattern
-  const dateMatch = shard.shard_id.match(/(\d{4}-\d{2}-\d{2})/)
+  const dateMatch = shard.shard_id.match(/(\d{4}-\d{2}-\d{2})/);
   if (dateMatch) {
-    return dateMatch[1]
+    return dateMatch[1];
   }
 
-  return 'unknown'
+  return "unknown";
 }
 
 // Group shards by category -> date
 function groupShards(shards: ShardPreviewInfo[]): GroupedShards {
-  const grouped: GroupedShards = {}
+  const grouped: GroupedShards = {};
 
   for (const shard of shards) {
-    const category = String(shard.dimensions.category || 'unknown')
-    const date = extractDate(shard)
+    const category = String(shard.dimensions.category || "unknown");
+    const date = extractDate(shard);
 
     if (!grouped[category]) {
-      grouped[category] = {}
+      grouped[category] = {};
     }
     if (!grouped[category][date]) {
-      grouped[category][date] = []
+      grouped[category][date] = [];
     }
-    grouped[category][date].push(shard)
+    grouped[category][date].push(shard);
   }
 
-  return grouped
+  return grouped;
 }
 
-export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShards }: DeploymentResultProps) {
-  const [copiedCommand, setCopiedCommand] = useState(false)
-  const [copiedId, setCopiedId] = useState(false)
-  const [showShards, setShowShards] = useState(false)
-  const [allShards, setAllShards] = useState<ShardPreviewInfo[] | null>(null)
-  const [loadingAllShards, setLoadingAllShards] = useState(false)
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+export function DeploymentResult({
+  result,
+  onClose,
+  onDeployLive,
+  onLoadAllShards,
+}: DeploymentResultProps) {
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+  const [showShards, setShowShards] = useState(false);
+  const [allShards, setAllShards] = useState<ShardPreviewInfo[] | null>(null);
+  const [loadingAllShards, setLoadingAllShards] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   // Group shards by category -> date (use all shards if loaded, otherwise preview shards)
   const groupedShards = useMemo(
     () => groupShards(allShards ?? result.shards ?? []),
-    [allShards, result.shards]
-  )
+    [allShards, result.shards],
+  );
 
   const handleLoadAllShards = async () => {
-    if (!onLoadAllShards || loadingAllShards) return
-    setLoadingAllShards(true)
+    if (!onLoadAllShards || loadingAllShards) return;
+    setLoadingAllShards(true);
     try {
-      const shards = await onLoadAllShards()
-      setAllShards(shards)
+      const shards = await onLoadAllShards();
+      setAllShards(shards);
     } catch (e) {
-      console.error('Failed to load all shards:', e)
+      console.error("Failed to load all shards:", e);
     } finally {
-      setLoadingAllShards(false)
+      setLoadingAllShards(false);
     }
-  }
+  };
 
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev)
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
       if (next.has(category)) {
-        next.delete(category)
+        next.delete(category);
       } else {
-        next.add(category)
+        next.add(category);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleDate = (key: string) => {
-    setExpandedDates(prev => {
-      const next = new Set(prev)
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) {
-        next.delete(key)
+        next.delete(key);
       } else {
-        next.add(key)
+        next.add(key);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const handleCopyCommand = async () => {
-    await navigator.clipboard.writeText(result.cli_command)
-    setCopiedCommand(true)
-    setTimeout(() => setCopiedCommand(false), 2000)
-  }
+    await navigator.clipboard.writeText(result.cli_command);
+    setCopiedCommand(true);
+    setTimeout(() => setCopiedCommand(false), 2000);
+  };
 
   const handleCopyId = async () => {
     if (result.deployment_id) {
-      await navigator.clipboard.writeText(result.deployment_id)
-      setCopiedId(true)
-      setTimeout(() => setCopiedId(false), 2000)
+      await navigator.clipboard.writeText(result.deployment_id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
     }
-  }
+  };
 
   return (
-    <Card className={cn(
-      "border-2",
-      result.dry_run
-        ? "border-[var(--color-accent-amber)]/50"
-        : "border-[var(--color-accent-green)]/50"
-    )}>
+    <Card
+      className={cn(
+        "border-2",
+        result.dry_run
+          ? "border-[var(--color-accent-amber)]/50"
+          : "border-[var(--color-accent-green)]/50",
+      )}
+    >
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -154,11 +181,9 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
             )}
             <div>
               <CardTitle className="text-lg">
-                {result.dry_run ? 'Dry Run Preview' : 'Deployment Started'}
+                {result.dry_run ? "Dry Run Preview" : "Deployment Started"}
               </CardTitle>
-              <CardDescription>
-                {result.message}
-              </CardDescription>
+              <CardDescription>{result.message}</CardDescription>
             </div>
           </div>
           <Badge variant={result.dry_run ? "warning" : "success"}>
@@ -174,19 +199,25 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
             <div className="text-2xl font-mono font-bold text-[var(--color-text-primary)]">
               {result.total_shards}
             </div>
-            <div className="text-xs text-[var(--color-text-muted)]">Total Shards</div>
+            <div className="text-xs text-[var(--color-text-muted)]">
+              Total Shards
+            </div>
           </div>
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-sm font-mono font-medium text-[var(--color-text-primary)]">
               {result.service}
             </div>
-            <div className="text-xs text-[var(--color-text-muted)]">Service</div>
+            <div className="text-xs text-[var(--color-text-muted)]">
+              Service
+            </div>
           </div>
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-sm font-mono font-medium text-[var(--color-text-primary)]">
-              {result.compute_mode || 'cloud_run'}
+              {result.compute_mode || "cloud_run"}
             </div>
-            <div className="text-xs text-[var(--color-text-muted)]">Compute</div>
+            <div className="text-xs text-[var(--color-text-muted)]">
+              Compute
+            </div>
           </div>
         </div>
 
@@ -195,7 +226,9 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-[var(--color-text-muted)] mb-1">Deployment ID</div>
+                <div className="text-xs text-[var(--color-text-muted)] mb-1">
+                  Deployment ID
+                </div>
                 <code className="text-sm font-mono text-[var(--color-accent-cyan)]">
                   {result.deployment_id}
                 </code>
@@ -206,7 +239,11 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
                 onClick={handleCopyId}
                 className="h-8"
               >
-                {copiedId ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copiedId ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
               </Button>
             </div>
             <div className="mt-2 text-xs text-[var(--color-text-muted)]">
@@ -223,14 +260,22 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
               Dimension Breakdown
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(result.summary.breakdown || {}).map(([dim, values]) => (
-                <div key={dim} className="text-xs">
-                  <span className="text-[var(--color-text-muted)]">{dim}:</span>{' '}
-                  <span className="font-mono text-[var(--color-text-secondary)]">
-                    {typeof values === 'number' ? values : Object.keys(values as Record<string, unknown>).length} values
-                  </span>
-                </div>
-              ))}
+              {Object.entries(result.summary.breakdown || {}).map(
+                ([dim, values]) => (
+                  <div key={dim} className="text-xs">
+                    <span className="text-[var(--color-text-muted)]">
+                      {dim}:
+                    </span>{" "}
+                    <span className="font-mono text-[var(--color-text-secondary)]">
+                      {typeof values === "number"
+                        ? values
+                        : Object.keys(values as Record<string, unknown>)
+                            .length}{" "}
+                      values
+                    </span>
+                  </div>
+                ),
+              )}
             </div>
           </div>
         )}
@@ -238,19 +283,32 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
         {/* Advisor recommendations (from backend dry-run) */}
         {(() => {
           interface DryRunAdvisor {
-            warnings?: string[]
-            notes?: string[]
-            recommended_date_granularity?: string
-            recommended_max_concurrent?: number
+            warnings?: string[];
+            notes?: string[];
+            recommended_date_granularity?: string;
+            recommended_max_concurrent?: number;
           }
-          const advisor = (result.summary as { advisor?: DryRunAdvisor })?.advisor
-          if (!advisor) return null
-          const warnings: string[] = Array.isArray(advisor.warnings) ? advisor.warnings : []
-          const notes: string[] = Array.isArray(advisor.notes) ? advisor.notes : []
-          const recGranularity: string | undefined = advisor.recommended_date_granularity
-          const recMaxConcurrent: number | undefined = advisor.recommended_max_concurrent
+          const advisor = (result.summary as { advisor?: DryRunAdvisor })
+            ?.advisor;
+          if (!advisor) return null;
+          const warnings: string[] = Array.isArray(advisor.warnings)
+            ? advisor.warnings
+            : [];
+          const notes: string[] = Array.isArray(advisor.notes)
+            ? advisor.notes
+            : [];
+          const recGranularity: string | undefined =
+            advisor.recommended_date_granularity;
+          const recMaxConcurrent: number | undefined =
+            advisor.recommended_max_concurrent;
 
-          if (!recGranularity && !recMaxConcurrent && warnings.length === 0 && notes.length === 0) return null
+          if (
+            !recGranularity &&
+            !recMaxConcurrent &&
+            warnings.length === 0 &&
+            notes.length === 0
+          )
+            return null;
 
           return (
             <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
@@ -259,16 +317,24 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                {typeof recMaxConcurrent === 'number' && (
+                {typeof recMaxConcurrent === "number" && (
                   <div>
-                    <span className="text-[var(--color-text-muted)]">max_concurrent:</span>{' '}
-                    <span className="font-mono text-[var(--color-text-secondary)]">{recMaxConcurrent}</span>
+                    <span className="text-[var(--color-text-muted)]">
+                      max_concurrent:
+                    </span>{" "}
+                    <span className="font-mono text-[var(--color-text-secondary)]">
+                      {recMaxConcurrent}
+                    </span>
                   </div>
                 )}
                 {recGranularity && (
                   <div>
-                    <span className="text-[var(--color-text-muted)]">date_granularity:</span>{' '}
-                    <span className="font-mono text-[var(--color-text-secondary)]">{recGranularity}</span>
+                    <span className="text-[var(--color-text-muted)]">
+                      date_granularity:
+                    </span>{" "}
+                    <span className="font-mono text-[var(--color-text-secondary)]">
+                      {recGranularity}
+                    </span>
                   </div>
                 )}
               </div>
@@ -289,7 +355,7 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
                 </div>
               )}
             </div>
-          )
+          );
         })()}
 
         {/* Shard List (expandable, grouped by category -> date) */}
@@ -301,7 +367,9 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
             >
               <span className="text-sm font-medium text-[var(--color-text-secondary)] flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
-                View Shards ({allShards ? allShards.length : result.shards.length}{!allShards && result.shards_truncated ? '+' : ''})
+                View Shards (
+                {allShards ? allShards.length : result.shards.length}
+                {!allShards && result.shards_truncated ? "+" : ""})
               </span>
               {showShards ? (
                 <ChevronUp className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -327,91 +395,103 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
                           Loading all {result.total_shards} shards...
                         </>
                       ) : (
-                        <>
-                          Load All {result.total_shards} Shards
-                        </>
+                        <>Load All {result.total_shards} Shards</>
                       )}
                     </Button>
                   </div>
                 )}
 
                 {/* Grouped shards by category -> date */}
-                {Object.entries(groupedShards).sort().map(([category, dates]) => (
-                  <div key={category} className="border-b border-[var(--color-border-subtle)] last:border-b-0">
-                    {/* Category header */}
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center justify-between p-2 px-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                {Object.entries(groupedShards)
+                  .sort()
+                  .map(([category, dates]) => (
+                    <div
+                      key={category}
+                      className="border-b border-[var(--color-border-subtle)] last:border-b-0"
                     >
-                      <span className="text-sm font-medium text-[var(--color-accent-cyan)]">
-                        {category}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {Object.keys(dates).length} dates
-                        </Badge>
-                        {expandedCategories.has(category) ? (
-                          <ChevronUp className="h-3 w-3 text-[var(--color-text-muted)]" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
-                        )}
-                      </div>
-                    </button>
+                      {/* Category header */}
+                      <button
+                        onClick={() => toggleCategory(category)}
+                        className="w-full flex items-center justify-between p-2 px-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                      >
+                        <span className="text-sm font-medium text-[var(--color-accent-cyan)]">
+                          {category}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {Object.keys(dates).length} dates
+                          </Badge>
+                          {expandedCategories.has(category) ? (
+                            <ChevronUp className="h-3 w-3 text-[var(--color-text-muted)]" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
+                          )}
+                        </div>
+                      </button>
 
-                    {/* Dates within category */}
-                    {expandedCategories.has(category) && (
-                      <div className="pl-3">
-                        {Object.entries(dates).sort().map(([date, shards]) => {
-                          const dateKey = `${category}-${date}`
-                          return (
-                            <div key={dateKey} className="border-b border-[var(--color-border-subtle)] last:border-b-0">
-                              {/* Date header */}
-                              <button
-                                onClick={() => toggleDate(dateKey)}
-                                className="w-full flex items-center justify-between p-2 pr-3 bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
-                              >
-                                <span className="text-xs font-mono text-[var(--color-text-secondary)]">
-                                  {date}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-[var(--color-text-muted)]">
-                                    {shards.length} shard{shards.length > 1 ? 's' : ''}
-                                  </span>
-                                  {expandedDates.has(dateKey) ? (
-                                    <ChevronUp className="h-3 w-3 text-[var(--color-text-muted)]" />
-                                  ) : (
-                                    <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
+                      {/* Dates within category */}
+                      {expandedCategories.has(category) && (
+                        <div className="pl-3">
+                          {Object.entries(dates)
+                            .sort()
+                            .map(([date, shards]) => {
+                              const dateKey = `${category}-${date}`;
+                              return (
+                                <div
+                                  key={dateKey}
+                                  className="border-b border-[var(--color-border-subtle)] last:border-b-0"
+                                >
+                                  {/* Date header */}
+                                  <button
+                                    onClick={() => toggleDate(dateKey)}
+                                    className="w-full flex items-center justify-between p-2 pr-3 bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                                  >
+                                    <span className="text-xs font-mono text-[var(--color-text-secondary)]">
+                                      {date}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-[var(--color-text-muted)]">
+                                        {shards.length} shard
+                                        {shards.length > 1 ? "s" : ""}
+                                      </span>
+                                      {expandedDates.has(dateKey) ? (
+                                        <ChevronUp className="h-3 w-3 text-[var(--color-text-muted)]" />
+                                      ) : (
+                                        <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
+                                      )}
+                                    </div>
+                                  </button>
+
+                                  {/* Shards for this date */}
+                                  {expandedDates.has(dateKey) && (
+                                    <div className="pl-3 divide-y divide-[var(--color-border-subtle)]">
+                                      {shards.map((shard, idx) => (
+                                        <div
+                                          key={shard.shard_id}
+                                          className="p-2 pr-3 bg-[var(--color-bg-tertiary)]"
+                                        >
+                                          <div className="flex items-center justify-between mb-1">
+                                            <code className="text-[10px] font-mono text-[var(--color-accent-amber)]">
+                                              {shard.shard_id}
+                                            </code>
+                                            <span className="text-[10px] text-[var(--color-text-muted)]">
+                                              #{idx + 1}
+                                            </span>
+                                          </div>
+                                          <div className="text-[10px] text-[var(--color-text-muted)] font-mono break-all">
+                                            {shard.cli_args.join(" ")}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
-                              </button>
-
-                              {/* Shards for this date */}
-                              {expandedDates.has(dateKey) && (
-                                <div className="pl-3 divide-y divide-[var(--color-border-subtle)]">
-                                  {shards.map((shard, idx) => (
-                                    <div key={shard.shard_id} className="p-2 pr-3 bg-[var(--color-bg-tertiary)]">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <code className="text-[10px] font-mono text-[var(--color-accent-amber)]">
-                                          {shard.shard_id}
-                                        </code>
-                                        <span className="text-[10px] text-[var(--color-text-muted)]">
-                                          #{idx + 1}
-                                        </span>
-                                      </div>
-                                      <div className="text-[10px] text-[var(--color-text-muted)] font-mono break-all">
-                                        {shard.cli_args.join(' ')}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
                 {/* Show truncation notice if still showing preview */}
                 {result.shards_truncated && !allShards && (
@@ -454,7 +534,7 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
           </div>
           <div className="bg-[var(--color-bg-primary)] rounded-lg p-3 border border-[var(--color-border-default)]">
             <pre className="text-xs font-mono text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">
-              <span className="text-[var(--color-accent-green)]">$</span>{' '}
+              <span className="text-[var(--color-accent-green)]">$</span>{" "}
               {result.cli_command}
             </pre>
           </div>
@@ -467,9 +547,7 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <Button onClick={onDeployLive}>
-                Deploy for Real
-              </Button>
+              <Button onClick={onDeployLive}>Deploy for Real</Button>
             </>
           ) : (
             <>
@@ -486,5 +564,5 @@ export function DeploymentResult({ result, onClose, onDeployLive, onLoadAllShard
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

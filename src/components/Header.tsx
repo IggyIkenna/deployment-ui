@@ -1,29 +1,36 @@
-import { useState } from 'react'
-import { Activity, Server, AlertCircle, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
-import { useHealth } from '../hooks/useHealth'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
-import * as api from '../api/client'
+import { useState } from "react";
+import {
+  Activity,
+  Server,
+  AlertCircle,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
+import { useHealth } from "../hooks/useHealth";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import * as api from "../api/client";
 
 export function Header() {
-  const { health, isHealthy, error } = useHealth()
-  const [clearingCache, setClearingCache] = useState(false)
-  const [cacheCleared, setCacheCleared] = useState(false)
+  const { health, isHealthy, error } = useHealth();
+  const [clearingCache, setClearingCache] = useState(false);
+  const [cacheCleared, setCacheCleared] = useState(false);
 
   const handleClearCache = async () => {
-    setClearingCache(true)
-    setCacheCleared(false)
+    setClearingCache(true);
+    setCacheCleared(false);
     try {
-      await api.clearCache()
-      setCacheCleared(true)
+      await api.clearCache();
+      setCacheCleared(true);
       // Reset the "cleared" indicator after 3 seconds
-      setTimeout(() => setCacheCleared(false), 3000)
+      setTimeout(() => setCacheCleared(false), 3000);
     } catch (err) {
-      console.error('Failed to clear cache:', err)
+      console.error("Failed to clear cache:", err);
     } finally {
-      setClearingCache(false)
+      setClearingCache(false);
     }
-  }
+  };
 
   return (
     <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
@@ -59,7 +66,7 @@ export function Header() {
             ) : (
               <Trash2 className="h-4 w-4 mr-1" />
             )}
-            {cacheCleared ? 'Cleared!' : 'Clear Cache'}
+            {cacheCleared ? "Cleared!" : "Clear Cache"}
           </Button>
 
           {/* API Status */}
@@ -67,19 +74,25 @@ export function Header() {
             {isHealthy ? (
               <>
                 <Activity className="h-4 w-4 text-[var(--color-accent-green)] animate-pulse" />
-                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  API
+                </span>
                 <Badge variant="success">Connected</Badge>
               </>
             ) : error ? (
               <>
                 <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  API
+                </span>
                 <Badge variant="error">Disconnected</Badge>
               </>
             ) : (
               <>
                 <Activity className="h-4 w-4 text-[var(--color-text-tertiary)] animate-pulse" />
-                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  API
+                </span>
                 <Badge variant="pending">Checking...</Badge>
               </>
             )}
@@ -87,17 +100,20 @@ export function Header() {
 
           {/* GCS FUSE Status */}
           {health?.gcs_fuse && (
-            <div className="flex items-center gap-1" title={health.gcs_fuse.reason}>
+            <div
+              className="flex items-center gap-1"
+              title={health.gcs_fuse.reason}
+            >
               <Badge
                 variant="outline"
                 className="text-xs"
                 style={{
                   color: health.gcs_fuse.active
-                    ? 'var(--color-accent-green)'
-                    : 'var(--color-accent-red)'
+                    ? "var(--color-accent-green)"
+                    : "var(--color-accent-red)",
                 }}
               >
-                {health.gcs_fuse.active ? 'GCS Fuse' : 'GCS API'}
+                {health.gcs_fuse.active ? "GCS Fuse" : "GCS API"}
               </Badge>
             </div>
           )}
@@ -111,5 +127,5 @@ export function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }

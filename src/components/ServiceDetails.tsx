@@ -1,27 +1,54 @@
-import { useMemo } from 'react'
-import { ArrowRight, ArrowDown, AlertTriangle, Info, Calendar, List, Cloud, GitFork, AlertCircle } from 'lucide-react'
-import { useServiceDimensions, useServiceDependencies } from '../hooks/useServices'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { Badge, type BadgeProps } from './ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
-import { cn } from '../lib/utils'
-import type { DependenciesResponse, DagData } from '../types'
+import { useMemo } from "react";
+import {
+  ArrowRight,
+  ArrowDown,
+  AlertTriangle,
+  Info,
+  Calendar,
+  List,
+  Cloud,
+  GitFork,
+  AlertCircle,
+} from "lucide-react";
+import {
+  useServiceDimensions,
+  useServiceDependencies,
+} from "../hooks/useServices";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import { Badge, type BadgeProps } from "./ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { cn } from "../lib/utils";
+import type { DependenciesResponse, DagData } from "../types";
 
 // Infrastructure services that don't have sharding configs
-const INFRASTRUCTURE_SERVICES = ['unified-trading-deployment-v2']
+const INFRASTRUCTURE_SERVICES = ["unified-trading-deployment-v2"];
 
 interface ServiceDetailsProps {
-  serviceName: string
+  serviceName: string;
 }
 
 export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
-  const isInfrastructure = INFRASTRUCTURE_SERVICES.includes(serviceName)
-  const { dimensions, loading: loadingDims, error: errorDims } = useServiceDimensions(
-    isInfrastructure ? null : serviceName  // Skip dimensions fetch for infrastructure
-  )
-  const { dependencies, loading: loadingDeps, error: errorDeps } = useServiceDependencies(serviceName)
+  const isInfrastructure = INFRASTRUCTURE_SERVICES.includes(serviceName);
+  const {
+    dimensions,
+    loading: loadingDims,
+    error: errorDims,
+  } = useServiceDimensions(
+    isInfrastructure ? null : serviceName, // Skip dimensions fetch for infrastructure
+  );
+  const {
+    dependencies,
+    loading: loadingDeps,
+    error: errorDeps,
+  } = useServiceDependencies(serviceName);
 
-  const isLoading = isInfrastructure ? loadingDeps : (loadingDims || loadingDeps)
+  const isLoading = isInfrastructure ? loadingDeps : loadingDims || loadingDeps;
 
   if (isLoading) {
     return (
@@ -29,15 +56,20 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
         <CardContent className="py-12">
           <div className="flex items-center justify-center gap-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-cyan)]" />
-            <span className="text-sm text-[var(--color-text-muted)]">Loading configuration...</span>
+            <span className="text-sm text-[var(--color-text-muted)]">
+              Loading configuration...
+            </span>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // Show errors if both calls failed
-  if ((errorDims && errorDeps) || (!isInfrastructure && errorDims && !dependencies)) {
+  if (
+    (errorDims && errorDeps) ||
+    (!isInfrastructure && errorDims && !dependencies)
+  ) {
     return (
       <Card>
         <CardContent className="py-8">
@@ -52,7 +84,7 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -75,7 +107,10 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
               </Badge>
             )}
             {isInfrastructure && (
-              <Badge variant="outline" className="font-mono text-xs text-[#f472b6] border-[#f472b6]">
+              <Badge
+                variant="outline"
+                className="font-mono text-xs text-[#f472b6] border-[#f472b6]"
+              >
                 Infrastructure
               </Badge>
             )}
@@ -85,7 +120,9 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="dependencies" className="w-full">
-        <TabsList className={`grid w-full ${isInfrastructure ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        <TabsList
+          className={`grid w-full ${isInfrastructure ? "grid-cols-1" : "grid-cols-2"}`}
+        >
           {!isInfrastructure && (
             <TabsTrigger value="dimensions">Sharding Dimensions</TabsTrigger>
           )}
@@ -102,48 +139,55 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
         )}
 
         <TabsContent value="dependencies" className="mt-4">
-          <DependenciesPanel dependencies={dependencies} currentService={serviceName} />
+          <DependenciesPanel
+            dependencies={dependencies}
+            currentService={serviceName}
+          />
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
-function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServiceDimensions>['dimensions'] }) {
-  if (!dimensions) return null
+function DimensionsPanel({
+  dimensions,
+}: {
+  dimensions: ReturnType<typeof useServiceDimensions>["dimensions"];
+}) {
+  if (!dimensions) return null;
 
   const getDimensionIcon = (type: string) => {
     switch (type) {
-      case 'date_range':
-        return Calendar
-      case 'hierarchical':
-        return ArrowDown
-      case 'gcs_dynamic':
-        return Cloud
+      case "date_range":
+        return Calendar;
+      case "hierarchical":
+        return ArrowDown;
+      case "gcs_dynamic":
+        return Cloud;
       default:
-        return List
+        return List;
     }
-  }
+  };
 
-  const getDimensionBadgeVariant = (type: string): BadgeProps['variant'] => {
+  const getDimensionBadgeVariant = (type: string): BadgeProps["variant"] => {
     switch (type) {
-      case 'fixed':
-        return 'cefi'
-      case 'hierarchical':
-        return 'tradfi'
-      case 'date_range':
-        return 'defi'
-      case 'gcs_dynamic':
-        return 'warning'
+      case "fixed":
+        return "cefi";
+      case "hierarchical":
+        return "tradfi";
+      case "date_range":
+        return "defi";
+      case "gcs_dynamic":
+        return "warning";
       default:
-        return 'default'
+        return "default";
     }
-  }
+  };
 
   return (
     <div className="space-y-3">
       {dimensions.dimensions.map((dim) => {
-        const Icon = getDimensionIcon(dim.type)
+        const Icon = getDimensionIcon(dim.type);
         return (
           <Card key={dim.name}>
             <CardContent className="p-4">
@@ -168,7 +212,7 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
                   </p>
 
                   {/* Show values for fixed dimensions */}
-                  {dim.type === 'fixed' && dim.values && (
+                  {dim.type === "fixed" && dim.values && (
                     <div className="flex flex-wrap gap-1.5 mt-3">
                       {dim.values.map((val) => (
                         <span
@@ -182,15 +226,19 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
                   )}
 
                   {/* Show hierarchical relationship */}
-                  {dim.type === 'hierarchical' && dim.parent && (
+                  {dim.type === "hierarchical" && dim.parent && (
                     <div className="mt-3 p-2 bg-[var(--color-bg-tertiary)] rounded text-xs">
-                      <span className="text-[var(--color-text-muted)]">Depends on: </span>
-                      <span className="font-mono text-[var(--color-accent-purple)]">{dim.parent}</span>
+                      <span className="text-[var(--color-text-muted)]">
+                        Depends on:{" "}
+                      </span>
+                      <span className="font-mono text-[var(--color-accent-purple)]">
+                        {dim.parent}
+                      </span>
                     </div>
                   )}
 
                   {/* Dynamic config warning */}
-                  {dim.type === 'gcs_dynamic' && (
+                  {dim.type === "gcs_dynamic" && (
                     <div className="mt-3 flex items-center gap-2 p-2 bg-[rgba(251,191,36,0.1)] rounded border border-[rgba(251,191,36,0.2)]">
                       <Info className="h-4 w-4 text-[var(--color-accent-amber)]" />
                       <span className="text-xs text-[var(--color-accent-amber)]">
@@ -202,7 +250,7 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
               </div>
             </CardContent>
           </Card>
-        )
+        );
       })}
 
       {/* CLI Args Reference */}
@@ -216,7 +264,9 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
               {Object.entries(dimensions.cli_args).map(([key, value]) => (
                 <div key={key} className="flex gap-2">
                   <span className="text-[var(--color-text-muted)]">{key}:</span>
-                  <span className="text-[var(--color-accent-cyan)]">{value || '(date params)'}</span>
+                  <span className="text-[var(--color-accent-cyan)]">
+                    {value || "(date params)"}
+                  </span>
                 </div>
               ))}
             </div>
@@ -224,41 +274,48 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
         </Card>
       )}
     </div>
-  )
+  );
 }
 
 // Layer assignment for vertical positioning
 const LAYER_ORDER = [
-  ['instruments-service', 'corporate-actions', 'features-calendar-service'],
-  ['market-tick-data-handler'],
-  ['market-data-processing-service'],
-  ['features-delta-one-service', 'features-volatility-service', 'features-onchain-service'],
-  ['ml-training-service', 'ml-inference-service'],
-  ['strategy-service'],
-  ['execution-services'],
-]
+  ["instruments-service", "corporate-actions", "features-calendar-service"],
+  ["market-tick-data-handler"],
+  ["market-data-processing-service"],
+  [
+    "features-delta-one-service",
+    "features-volatility-service",
+    "features-onchain-service",
+  ],
+  ["ml-training-service", "ml-inference-service"],
+  ["strategy-service"],
+  ["execution-services"],
+];
 
 const LAYER_COLORS: Record<string, string> = {
-  'instruments-service': '#22d3ee',
-  'corporate-actions': '#22d3ee',
-  'features-calendar-service': '#a78bfa',
-  'market-tick-data-handler': '#60a5fa',
-  'market-data-processing-service': '#60a5fa',
-  'features-delta-one-service': '#a78bfa',
-  'features-volatility-service': '#a78bfa',
-  'features-onchain-service': '#a78bfa',
-  'ml-training-service': '#fbbf24',
-  'ml-inference-service': '#fbbf24',
-  'strategy-service': '#4ade80',
-  'execution-services': '#4ade80',
-}
+  "instruments-service": "#22d3ee",
+  "corporate-actions": "#22d3ee",
+  "features-calendar-service": "#a78bfa",
+  "market-tick-data-handler": "#60a5fa",
+  "market-data-processing-service": "#60a5fa",
+  "features-delta-one-service": "#a78bfa",
+  "features-volatility-service": "#a78bfa",
+  "features-onchain-service": "#a78bfa",
+  "ml-training-service": "#fbbf24",
+  "ml-inference-service": "#fbbf24",
+  "strategy-service": "#4ade80",
+  "execution-services": "#4ade80",
+};
 
 interface DependenciesPanelProps {
-  dependencies: DependenciesResponse | null
-  currentService: string
+  dependencies: DependenciesResponse | null;
+  currentService: string;
 }
 
-function DependenciesPanel({ dependencies, currentService }: DependenciesPanelProps) {
+function DependenciesPanel({
+  dependencies,
+  currentService,
+}: DependenciesPanelProps) {
   if (!dependencies) {
     return (
       <Card>
@@ -268,7 +325,7 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
           </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -278,7 +335,7 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
         <DependencyDag
           dag={dependencies.dag}
           currentService={currentService}
-          upstream={dependencies.upstream.map(u => u.service)}
+          upstream={dependencies.upstream.map((u) => u.service)}
           downstream={dependencies.downstream_dependents}
         />
       )}
@@ -296,7 +353,9 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
         </CardHeader>
         <CardContent>
           {dependencies.upstream.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-muted)]">No upstream dependencies (root service)</p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              No upstream dependencies (root service)
+            </p>
           ) : (
             <div className="space-y-2">
               {dependencies.upstream.map((dep) => (
@@ -306,7 +365,7 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
                     "flex items-start gap-3 p-3 rounded-lg border",
                     dep.required
                       ? "border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.05)]"
-                      : "border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]"
+                      : "border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]",
                   )}
                 >
                   {dep.required && (
@@ -317,9 +376,7 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
                       <span className="font-mono text-sm text-[var(--color-text-primary)]">
                         {dep.service}
                       </span>
-                      {dep.required && (
-                        <Badge variant="error">Required</Badge>
-                      )}
+                      {dep.required && <Badge variant="error">Required</Badge>}
                     </div>
                     <p className="text-xs text-[var(--color-text-secondary)] mt-1">
                       {dep.description}
@@ -339,13 +396,13 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
             <ArrowDown className="h-4 w-4 text-[var(--color-accent-green)]" />
             <CardTitle className="text-sm">Downstream Dependents</CardTitle>
           </div>
-          <CardDescription>
-            Services that depend on this one
-          </CardDescription>
+          <CardDescription>Services that depend on this one</CardDescription>
         </CardHeader>
         <CardContent>
           {dependencies.downstream_dependents.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-muted)]">No downstream dependents (end of pipeline)</p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              No downstream dependents (end of pipeline)
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {dependencies.downstream_dependents.map((service) => (
@@ -388,84 +445,98 @@ function DependenciesPanel({ dependencies, currentService }: DependenciesPanelPr
         </Card>
       )}
     </div>
-  )
+  );
 }
 
 // ============ DAG Visualization ============
 
 interface DependencyDagProps {
-  dag: DagData
-  currentService: string
-  upstream: string[]
-  downstream: string[]
+  dag: DagData;
+  currentService: string;
+  upstream: string[];
+  downstream: string[];
 }
 
-function DependencyDag({ dag, currentService, upstream, downstream }: DependencyDagProps) {
+function DependencyDag({
+  dag,
+  currentService,
+  upstream,
+  downstream,
+}: DependencyDagProps) {
   const dagLayout = useMemo(() => {
     // Group nodes into layers
-    const layers: string[][] = []
-    const nodeToLayer: Record<string, number> = {}
+    const layers: string[][] = [];
+    const nodeToLayer: Record<string, number> = {};
 
     // Use predefined layer order for consistent layout
     for (let i = 0; i < LAYER_ORDER.length; i++) {
-      const layerNodes = LAYER_ORDER[i].filter(n => dag.nodes.includes(n))
+      const layerNodes = LAYER_ORDER[i].filter((n) => dag.nodes.includes(n));
       if (layerNodes.length > 0) {
-        layers.push(layerNodes)
-        layerNodes.forEach(n => { nodeToLayer[n] = layers.length - 1 })
+        layers.push(layerNodes);
+        layerNodes.forEach((n) => {
+          nodeToLayer[n] = layers.length - 1;
+        });
       }
     }
 
     // Add any nodes not in LAYER_ORDER
-    const unmapped = dag.nodes.filter(n => !(n in nodeToLayer))
+    const unmapped = dag.nodes.filter((n) => !(n in nodeToLayer));
     if (unmapped.length > 0) {
-      layers.push(unmapped)
-      unmapped.forEach(n => { nodeToLayer[n] = layers.length - 1 })
+      layers.push(unmapped);
+      unmapped.forEach((n) => {
+        nodeToLayer[n] = layers.length - 1;
+      });
     }
 
     // Calculate positions
-    const nodeWidth = 180
-    const nodeHeight = 32
-    const layerGapY = 60
-    const nodeGapX = 20
-    const paddingX = 20
-    const paddingY = 20
+    const nodeWidth = 180;
+    const nodeHeight = 32;
+    const layerGapY = 60;
+    const nodeGapX = 20;
+    const paddingX = 20;
+    const paddingY = 20;
 
-    const positions: Record<string, { x: number; y: number }> = {}
-    let maxWidth = 0
+    const positions: Record<string, { x: number; y: number }> = {};
+    let maxWidth = 0;
 
     layers.forEach((layer, layerIdx) => {
-      const totalWidth = layer.length * nodeWidth + (layer.length - 1) * nodeGapX
-      if (totalWidth > maxWidth) maxWidth = totalWidth
+      const totalWidth =
+        layer.length * nodeWidth + (layer.length - 1) * nodeGapX;
+      if (totalWidth > maxWidth) maxWidth = totalWidth;
 
       layer.forEach((node, nodeIdx) => {
-        const x = paddingX + (nodeIdx * (nodeWidth + nodeGapX)) + nodeWidth / 2
-        const y = paddingY + (layerIdx * (nodeHeight + layerGapY)) + nodeHeight / 2
-        positions[node] = { x, y }
-      })
-    })
+        const x = paddingX + nodeIdx * (nodeWidth + nodeGapX) + nodeWidth / 2;
+        const y =
+          paddingY + layerIdx * (nodeHeight + layerGapY) + nodeHeight / 2;
+        positions[node] = { x, y };
+      });
+    });
 
     // Center layers horizontally
-    const svgWidth = maxWidth + paddingX * 2
+    const svgWidth = maxWidth + paddingX * 2;
     layers.forEach((layer) => {
-      const totalWidth = layer.length * nodeWidth + (layer.length - 1) * nodeGapX
-      const offset = (svgWidth - totalWidth) / 2 - paddingX
-      layer.forEach(node => {
-        positions[node].x += offset
-      })
-    })
+      const totalWidth =
+        layer.length * nodeWidth + (layer.length - 1) * nodeGapX;
+      const offset = (svgWidth - totalWidth) / 2 - paddingX;
+      layer.forEach((node) => {
+        positions[node].x += offset;
+      });
+    });
 
-    const svgHeight = layers.length * (nodeHeight + layerGapY) - layerGapY + paddingY * 2
+    const svgHeight =
+      layers.length * (nodeHeight + layerGapY) - layerGapY + paddingY * 2;
 
-    return { positions, svgWidth, svgHeight, nodeWidth, nodeHeight }
-  }, [dag])
+    return { positions, svgWidth, svgHeight, nodeWidth, nodeHeight };
+  }, [dag]);
 
-  const { positions, svgWidth, svgHeight, nodeWidth, nodeHeight } = dagLayout
+  const { positions, svgWidth, svgHeight, nodeWidth, nodeHeight } = dagLayout;
 
   // Classify nodes
-  const isUpstream = (n: string) => upstream.includes(n)
-  const isDownstream = (n: string) => downstream.includes(n)
-  const isCurrent = (n: string) => n === currentService
-  const isRelevant = (n: string) => isCurrent(n) || isUpstream(n) || isDownstream(n)
+  const isUpstream = (n: string) => upstream.includes(n);
+  const isDownstream = (n: string) => downstream.includes(n);
+  const isCurrent = (n: string) => n === currentService;
+  const isRelevant = (n: string) =>
+    isCurrent(n) || isUpstream(n) || isDownstream(n);
 
   return (
     <Card>
@@ -475,7 +546,8 @@ function DependencyDag({ dag, currentService, upstream, downstream }: Dependency
           <CardTitle className="text-sm">Pipeline Dependency Graph</CardTitle>
         </div>
         <CardDescription>
-          Data flow between services. Highlighted nodes are directly related to {currentService}.
+          Data flow between services. Highlighted nodes are directly related to{" "}
+          {currentService}.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-2">
@@ -483,15 +555,21 @@ function DependencyDag({ dag, currentService, upstream, downstream }: Dependency
         <div className="flex flex-wrap gap-4 mb-3 px-2 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-cyan)] bg-[rgba(34,211,238,0.2)]" />
-            <span className="text-[var(--color-text-muted)]">Current service</span>
+            <span className="text-[var(--color-text-muted)]">
+              Current service
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.15)]" />
-            <span className="text-[var(--color-text-muted)]">Upstream dependency</span>
+            <span className="text-[var(--color-text-muted)]">
+              Upstream dependency
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-green)] bg-[rgba(74,222,128,0.15)]" />
-            <span className="text-[var(--color-text-muted)]">Downstream dependent</span>
+            <span className="text-[var(--color-text-muted)]">
+              Downstream dependent
+            </span>
           </div>
         </div>
 
@@ -511,7 +589,11 @@ function DependencyDag({ dag, currentService, upstream, downstream }: Dependency
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="var(--color-text-muted)" fillOpacity="0.5" />
+                <polygon
+                  points="0 0, 8 3, 0 6"
+                  fill="var(--color-text-muted)"
+                  fillOpacity="0.5"
+                />
               </marker>
               <marker
                 id="arrowhead-highlight"
@@ -521,75 +603,88 @@ function DependencyDag({ dag, currentService, upstream, downstream }: Dependency
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="var(--color-accent-cyan)" fillOpacity="0.8" />
+                <polygon
+                  points="0 0, 8 3, 0 6"
+                  fill="var(--color-accent-cyan)"
+                  fillOpacity="0.8"
+                />
               </marker>
             </defs>
 
             {/* Edges */}
             {dag.edges.map((edge, i) => {
-              const from = positions[edge.from]
-              const to = positions[edge.to]
-              if (!from || !to) return null
+              const from = positions[edge.from];
+              const to = positions[edge.to];
+              if (!from || !to) return null;
 
-              const highlighted = (
+              const highlighted =
                 (isCurrent(edge.from) && isDownstream(edge.to)) ||
                 (isCurrent(edge.to) && isUpstream(edge.from)) ||
                 (isUpstream(edge.from) && isCurrent(edge.to)) ||
-                (isDownstream(edge.to) && isCurrent(edge.from))
-              )
+                (isDownstream(edge.to) && isCurrent(edge.from));
 
-              const y1 = from.y + nodeHeight / 2
-              const y2 = to.y - nodeHeight / 2
-              const midY = (y1 + y2) / 2
+              const y1 = from.y + nodeHeight / 2;
+              const y2 = to.y - nodeHeight / 2;
+              const midY = (y1 + y2) / 2;
 
               return (
                 <path
                   key={`edge-${i}`}
                   d={`M ${from.x} ${y1} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${y2}`}
                   fill="none"
-                  stroke={highlighted ? 'var(--color-accent-cyan)' : 'var(--color-text-muted)'}
+                  stroke={
+                    highlighted
+                      ? "var(--color-accent-cyan)"
+                      : "var(--color-text-muted)"
+                  }
                   strokeWidth={highlighted ? 2 : 1}
                   strokeOpacity={highlighted ? 0.8 : 0.2}
-                  markerEnd={highlighted ? 'url(#arrowhead-highlight)' : 'url(#arrowhead)'}
-                  strokeDasharray={edge.required ? undefined : '4 3'}
+                  markerEnd={
+                    highlighted
+                      ? "url(#arrowhead-highlight)"
+                      : "url(#arrowhead)"
+                  }
+                  strokeDasharray={edge.required ? undefined : "4 3"}
                 />
-              )
+              );
             })}
 
             {/* Nodes */}
             {dag.nodes.map((node) => {
-              const pos = positions[node]
-              if (!pos) return null
+              const pos = positions[node];
+              if (!pos) return null;
 
-              const current = isCurrent(node)
-              const up = isUpstream(node)
-              const down = isDownstream(node)
-              const relevant = isRelevant(node)
+              const current = isCurrent(node);
+              const up = isUpstream(node);
+              const down = isDownstream(node);
+              const relevant = isRelevant(node);
 
-              let borderColor = 'var(--color-border-subtle)'
-              let bgColor = 'var(--color-bg-primary)'
-              let textColor = 'var(--color-text-muted)'
-              let strokeWidth = 1
+              let borderColor = "var(--color-border-subtle)";
+              let bgColor = "var(--color-bg-primary)";
+              let textColor = "var(--color-text-muted)";
+              let strokeWidth = 1;
 
               if (current) {
-                borderColor = 'var(--color-accent-cyan)'
-                bgColor = 'rgba(34, 211, 238, 0.15)'
-                textColor = 'var(--color-accent-cyan)'
-                strokeWidth = 2.5
+                borderColor = "var(--color-accent-cyan)";
+                bgColor = "rgba(34, 211, 238, 0.15)";
+                textColor = "var(--color-accent-cyan)";
+                strokeWidth = 2.5;
               } else if (up) {
-                borderColor = 'var(--color-accent-amber)'
-                bgColor = 'rgba(251, 191, 36, 0.1)'
-                textColor = 'var(--color-accent-amber)'
-                strokeWidth = 2
+                borderColor = "var(--color-accent-amber)";
+                bgColor = "rgba(251, 191, 36, 0.1)";
+                textColor = "var(--color-accent-amber)";
+                strokeWidth = 2;
               } else if (down) {
-                borderColor = 'var(--color-accent-green)'
-                bgColor = 'rgba(74, 222, 128, 0.1)'
-                textColor = 'var(--color-accent-green)'
-                strokeWidth = 2
+                borderColor = "var(--color-accent-green)";
+                bgColor = "rgba(74, 222, 128, 0.1)";
+                textColor = "var(--color-accent-green)";
+                strokeWidth = 2;
               }
 
               // Short label
-              const label = node.replace('-service', '').replace('features-', 'feat-')
+              const label = node
+                .replace("-service", "")
+                .replace("features-", "feat-");
 
               return (
                 <g key={node} opacity={relevant ? 1 : 0.35}>
@@ -628,11 +723,11 @@ function DependencyDag({ dag, currentService, upstream, downstream }: Dependency
                     {label}
                   </text>
                 </g>
-              )
+              );
             })}
           </svg>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
