@@ -17,6 +17,10 @@ import type {
   ServiceStatus,
   ServicesOverview,
   DiscoverConfigsResponse,
+  DeploymentEventStream,
+  RollbackRequest,
+  RollbackResponse,
+  LiveHealthStatus,
 } from "../types";
 
 const API_BASE = "/api";
@@ -1238,6 +1242,65 @@ export async function getInstrumentAvailability(params: {
   return fetchJson(
     `/data-status/instrument-availability?${searchParams.toString()}`,
   );
+}
+
+// ── Event stream ─────────────────────────────────────────────────────────────
+
+/**
+ * Return the full shard event stream for a deployment.
+ * Each event captures a lifecycle step (JOB_STARTED, VM_PREEMPTED, etc.)
+ * with timestamp, message, and optional metadata.
+ */
+export async function getDeploymentEvents(
+  deploymentId: string,
+  shardId?: string,
+): Promise<DeploymentEventStream> {
+  const params = new URLSearchParams();
+  if (shardId) params.set("shard_id", shardId);
+  const query = params.toString();
+  return fetchJson(
+    `/deployments/${deploymentId}/events${query ? `?${query}` : ""}`,
+  );
+}
+
+/**
+ * Return VM-level infrastructure events for a deployment.
+ * Filters to: VM_PREEMPTED, VM_DELETED, VM_QUOTA_EXHAUSTED, VM_ZONE_UNAVAILABLE,
+ * VM_TIMEOUT, CONTAINER_OOM, CLOUD_RUN_REVISION_FAILED.
+ */
+export async function getDeploymentVmEvents(
+  deploymentId: string,
+): Promise<DeploymentEventStream> {
+  return fetchJson(`/deployments/${deploymentId}/vm-events`);
+}
+
+// ── Live deployment ───────────────────────────────────────────────────────────
+
+/**
+ * Roll back a live Cloud Run Service to the previous (or specified) revision.
+ * Only valid for deployments with deploy_mode="live".
+ */
+export async function rollbackLiveDeployment(
+  deploymentId: string,
+  request: RollbackRequest,
+): Promise<RollbackResponse> {
+  return fetchJson(`/deployments/${deploymentId}/rollback`, {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Return the current health check status of a live Cloud Run Service.
+ * Used by DeploymentDetails to show a live health badge.
+ */
+export async function getLiveDeploymentHealth(
+  deploymentId: string,
+  service: string,
+  region: string,
+): Promise<LiveHealthStatus> {
+  const params = new URLSearchParams({ service, region });
+  return fetchJson(`/deployments/${deploymentId}/live-health?${params.toString()}`);
 }
 
 export { ApiError };

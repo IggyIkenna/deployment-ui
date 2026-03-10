@@ -506,3 +506,95 @@ export interface ServicesOverview {
   warnings: number;
   errors: number;
 }
+
+// ── VM Event lifecycle types ──────────────────────────────────────────────────
+
+/** Mirrors deployment-service VMEventType StrEnum. */
+export type VMEventType =
+  // VM infrastructure events
+  | "VM_PREEMPTED"
+  | "VM_DELETED"
+  | "VM_QUOTA_EXHAUSTED"
+  | "VM_ZONE_UNAVAILABLE"
+  | "VM_TIMEOUT"
+  | "CONTAINER_OOM"
+  // Cloud Run events
+  | "CLOUD_RUN_REVISION_FAILED"
+  // Job lifecycle events
+  | "JOB_RETRY"
+  | "JOB_STARTED"
+  | "JOB_COMPLETED"
+  | "JOB_FAILED"
+  | "JOB_CANCELLED"
+  // Live deployment events
+  | "LIVE_HEALTH_CHECK_PASSED"
+  | "LIVE_HEALTH_CHECK_FAILED"
+  | "LIVE_ROLLBACK_EXECUTED";
+
+/** VM event types subset — displayed as coloured badges in DeploymentDetails. */
+export const VM_EVENT_TYPES: ReadonlySet<VMEventType> = new Set<VMEventType>([
+  "VM_PREEMPTED",
+  "VM_DELETED",
+  "VM_QUOTA_EXHAUSTED",
+  "VM_ZONE_UNAVAILABLE",
+  "VM_TIMEOUT",
+  "CONTAINER_OOM",
+  "CLOUD_RUN_REVISION_FAILED",
+]);
+
+export interface ShardEvent {
+  deployment_id: string;
+  shard_id: string;
+  event_type: VMEventType;
+  message: string;
+  timestamp: string; // ISO-8601
+  metadata: Record<string, string>;
+}
+
+export interface DeploymentEventStream {
+  deployment_id: string;
+  events: ShardEvent[];
+  count: number;
+}
+
+// ── Live deployment types ─────────────────────────────────────────────────────
+
+export interface LiveDeploymentRequest {
+  service: string;
+  image_tag: string;
+  traffic_split_pct?: number; // 0–100, default 10
+  health_gate_timeout_s?: number; // default 300
+  rollback_on_fail?: boolean; // default true
+  region?: string;
+  dry_run?: boolean;
+}
+
+export type LiveDeploymentStatus =
+  | "dry_run"
+  | "started"
+  | "healthy"
+  | "failed"
+  | "rolled_back";
+
+export interface RollbackRequest {
+  service: string;
+  region: string;
+  target_revision?: string;
+}
+
+export interface RollbackResponse {
+  deployment_id: string;
+  service: string;
+  image_tag: string;
+  status: LiveDeploymentStatus;
+  events: ShardEvent[];
+  error?: string | null;
+}
+
+export interface LiveHealthStatus {
+  deployment_id: string;
+  service: string;
+  healthy: boolean;
+  checked_at: string; // ISO-8601
+  status_code?: number;
+}
