@@ -1,39 +1,75 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Quality Gates Template — TypeScript/React UI
+# SSOT: unified-trading-codex/06-coding-standards/quality-gates-ui-template.sh
+#
+# Rolled out via: python3 unified-trading-pm/scripts/propagation/rollout-quality-gates-unified.py
+# Do NOT edit per-repo — edit this template and re-run rollout.
+#
+# Usage:
+#   bash scripts/quality-gates.sh           # Full: typecheck + lint + build
+#   bash scripts/quality-gates.sh --no-fix  # Same (no auto-fix for UI)
+#   bash scripts/quality-gates.sh --quick   # Typecheck + lint only (skip build)
+#
+set -euo pipefail
 
-# Quality gates for TypeScript/React UI repository
-set -e
+QG_START=$(date +%s)
 
-echo "🔍 Running TypeScript/React Quality Gates..."
+# Colour helpers
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+log_success() { echo -e "${GREEN}  ✅ $*${NC}"; }
+log_fail()    { echo -e "${RED}  ❌ $*${NC}" >&2; }
+log_warn()    { echo -e "${YELLOW}  ⚠️  $*${NC}"; }
+log_section() { echo -e "\n${GREEN}── $* ──${NC}"; }
 
-# Step 1: TypeScript type check
-echo "Step 1/3: TypeScript type check..."
-if [ -f "package.json" ] && [ -f "tsconfig.json" ]; then
-    npm run typecheck
-    echo "✅ TypeScript type check passed"
+QUICK=false
+for arg in "$@"; do
+  case "$arg" in
+    --quick) QUICK=true ;;
+    --no-fix) ;;  # no-op for UI; kept for interface compatibility
+  esac
+done
+
+echo "======================================================================"
+echo "  UI Quality Gates — $(basename "$(pwd)")"
+echo "======================================================================"
+
+# ── [1] TYPE CHECK ─────────────────────────────────────────────────────────
+log_section "[1/3] TYPE CHECK"
+if [ ! -f "package.json" ]; then
+  log_fail "No package.json found"; exit 1
+fi
+if npm run typecheck 2>&1; then
+  log_success "TypeScript type check passed"
 else
-    echo "⚠️ No package.json or tsconfig.json found, skipping TypeScript check"
+  log_fail "TypeScript type check FAILED"; exit 1
 fi
 
-# Step 2: ESLint
-echo "Step 2/3: ESLint..."
-if [ -f "package.json" ]; then
-    if npm run lint --silent 2>/dev/null; then
-        echo "✅ ESLint passed"
-    else
-        echo "⚠️ No lint script or lint failed"
-    fi
+# ── [2] LINT ───────────────────────────────────────────────────────────────
+log_section "[2/3] LINT"
+if npm run lint 2>&1; then
+  log_success "ESLint passed"
 else
-    echo "⚠️ No package.json found, skipping ESLint"
+  log_fail "ESLint FAILED"; exit 1
 fi
 
-# Step 3 (optional): Smoke tests
-echo "Step 3/3: Smoke tests (optional)..."
-if [ -f "package.json" ] && grep -q '"smoketest"' package.json; then
-    npm run smoketest || echo "⚠️ Smoke tests failed (not blocking)"
-    echo "✅ Smoke tests completed"
+# ── [3] BUILD ──────────────────────────────────────────────────────────────
+if [ "$QUICK" = false ]; then
+  log_section "[3/3] BUILD"
+  if npm run build 2>&1; then
+    log_success "Build passed"
+  else
+    log_fail "Build FAILED"; exit 1
+  fi
 else
-    echo "⚠️ No smoke tests configured, skipping"
+  log_section "[3/3] BUILD — skipped (--quick)"
 fi
 
-echo ""
-echo "🎉 All TypeScript/React quality gates completed!"
+# ── DURATION ───────────────────────────────────────────────────────────────
+MAX_DURATION=${MAX_DURATION:-180}
+QG_END=$(date +%s); DUR=$((QG_END - QG_START))
+[ $DUR -gt $MAX_DURATION ] && { log_fail "Quality gates must complete in <${MAX_DURATION}s (took ${DUR}s)"; exit 1; }
+
+echo -e "\n${GREEN}======================================================================"
+echo -e "✅ ALL UI QUALITY GATES PASSED (${DUR}s)${NC}"
+echo "======================================================================"
