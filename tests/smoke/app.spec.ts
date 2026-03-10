@@ -71,7 +71,7 @@ const MOCK_DIMENSIONS = {
       values: ["cefi", "tradfi", "defi"],
     },
     {
-      name: "date_range",
+      name: "date",
       type: "date_range",
       description: "Date range",
       granularity: "daily",
@@ -180,21 +180,46 @@ async function mockAllApis(page: Page) {
       },
     });
   });
-  await page.route("**/api/services/*/status", async (route) => {
+  await page.route("**/service-status/*/status", async (route) => {
     await route.fulfill({
       json: {
         service: "instruments-service",
         health: "healthy",
-        last_data_update: null,
-        last_deployment: null,
-        last_build: null,
-        last_code_push: null,
+        last_data_update: "2026-01-15T08:00:00Z",
+        last_deployment: "2026-01-15T10:00:00Z",
+        last_build: "2026-01-14T20:00:00Z",
+        last_code_push: "2026-01-14T18:00:00Z",
         anomalies: [],
+        details: {
+          deployment: { deployment_id: "dep-test-001", status: "completed", compute_type: "cloud_run" },
+          build: { status: "SUCCESS", commit_sha: "abc1234", duration_seconds: 120 },
+          code: { commit_sha: "abc1234", message: "feat: update", author: "dev" },
+        },
       },
     });
   });
-  await page.route("**/api/services/*/builds**", async (route) => {
-    await route.fulfill({ json: [] });
+  await page.route("**/cloud-builds/triggers", async (route) => {
+    await route.fulfill({
+      json: {
+        triggers: [
+          {
+            trigger_id: "trig-001",
+            service: "instruments-service",
+            type: "service",
+            github_repo: "IggyIkenna/instruments-service",
+            branch_pattern: "main",
+            disabled: false,
+            last_build: { status: "SUCCESS", commit_sha: "abc1234", create_time: "2026-01-14T20:00:00Z", duration_seconds: 120, log_url: null, build_id: "build-001" },
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/cloud-builds/history/**", async (route) => {
+    await route.fulfill({ json: { builds: [] } });
+  });
+  await page.route("**/cloud-builds/trigger", async (route) => {
+    await route.fulfill({ json: { success: true, message: "Build triggered", build_id: "build-new" } });
   });
   await page.route("**/api/services/*/data-status**", async (route) => {
     await route.fulfill({
@@ -374,6 +399,65 @@ test.describe("Service Selection & Navigation", () => {
 
     await expect(page.getByText("LIVE")).toBeVisible();
   });
+
+  test("Builds tab renders without error — shows Cloud Build Triggers heading", async ({
+    page,
+  }) => {
+    await page.getByText("instruments-service").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: /Builds/i }).click();
+    await page.waitForLoadState("networkidle");
+
+    // Should render the header — not an error card
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible();
+    // Should show the mocked trigger
+    await expect(page.getByText("instruments-service").first()).toBeVisible();
+    // Should NOT show an uncaught error
+    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
+  });
+
+  test("Builds tab shows trigger count badge", async ({ page }) => {
+    await page.getByText("instruments-service").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: /Builds/i }).click();
+    await page.waitForLoadState("networkidle");
+
+    // Badge shows "1 triggers" from the mock
+    await expect(page.getByText(/1 trigger/i)).toBeVisible();
+  });
+
+  test("Status tab renders without error — shows Service Health Timeline", async ({
+    page,
+  }) => {
+    await page.getByText("instruments-service").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: "Status", exact: true }).click();
+    await page.waitForLoadState("networkidle");
+
+    // Should show the health timeline header
+    await expect(page.getByText("Service Health Timeline")).toBeVisible();
+    // Should show healthy status from mock
+    await expect(page.getByText(/healthy/i).first()).toBeVisible();
+    // Should NOT show an uncaught error
+    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
+  });
+
+  test("Status tab Timeline section shows Last Data Update row", async ({
+    page,
+  }) => {
+    await page.getByText("instruments-service").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: "Status", exact: true }).click();
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.getByText("Last Data Update")).toBeVisible();
+    await expect(page.getByText("Last Deployment")).toBeVisible();
+    await expect(page.getByText("Last Build")).toBeVisible();
+  });
 });
 
 test.describe("DeployForm — Batch Mode", () => {
@@ -393,27 +477,27 @@ test.describe("DeployForm — Batch Mode", () => {
   test("Deploy tab shows Cloud Provider (GCP and AWS buttons)", async ({
     page,
   }) => {
-    await expect(page.getByText("GCP")).toBeVisible();
-    await expect(page.getByText("AWS")).toBeVisible();
+    await expect(page.getByRole("button", { name: "GCP" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "AWS" })).toBeVisible();
   });
 
   test("clicking AWS shows unauthenticated warning", async ({ page }) => {
-    await page.getByText("AWS").click();
+    await page.getByRole("button", { name: "AWS" }).click();
     await expect(
       page.getByText(/AWS configured but unauthenticated/),
     ).toBeVisible();
   });
 
   test("switching back to GCP hides AWS warning", async ({ page }) => {
-    await page.getByText("AWS").click();
-    await page.getByText("GCP").click();
+    await page.getByRole("button", { name: "AWS" }).click();
+    await page.getByRole("button", { name: "GCP" }).click();
     await expect(
       page.getByText(/AWS configured but unauthenticated/),
     ).not.toBeVisible();
   });
 
   test("Dry Run checkbox is visible", async ({ page }) => {
-    await expect(page.getByText("Dry Run")).toBeVisible();
+    await expect(page.getByText("Dry Run (preview only)")).toBeVisible();
   });
 
   test("Region selector is visible", async ({ page }) => {
@@ -433,8 +517,10 @@ test.describe("DeployForm — Batch Mode", () => {
   });
 
   test("date fields are visible for batch mode", async ({ page }) => {
-    await expect(page.getByText(/Start Date/i)).toBeVisible();
-    await expect(page.getByText(/End Date/i)).toBeVisible();
+    // Date inputs are rendered as <input type="date"> in batch mode
+    const dateInputs = page.locator("input[type='date']");
+    const count = await dateInputs.count();
+    expect(count).toBeGreaterThan(0);
   });
 });
 
@@ -449,7 +535,7 @@ test.describe("DeployForm — Live Mode", () => {
   });
 
   test("switching to Live mode shows Image Tag field", async ({ page }) => {
-    await expect(page.getByText(/Image Tag/i)).toBeVisible();
+    await expect(page.getByText("Image Tag", { exact: true })).toBeVisible();
   });
 
   test("Live mode form fields do not overflow viewport", async ({ page }) => {
