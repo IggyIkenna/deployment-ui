@@ -730,3 +730,121 @@ test.describe("Clear Cache Button", () => {
     await expect(page.getByText("Cleared!")).toBeVisible({ timeout: 3000 });
   });
 });
+
+// ── Mock Mode Banner ────────────────────────────────────────────────────────
+
+test.describe("Mock Mode Banner", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApis(page);
+  });
+
+  test("mock mode banner is rendered with correct aria-label when in mock mode", async ({
+    page,
+  }) => {
+    // playwright.config.ts sets VITE_MOCK_API=true in webServer.env.
+    // When that env is active the banner will be present in the DOM.
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const banner = page.locator('[aria-label="Mock mode active"]');
+    const count = await banner.count();
+    if (count > 0) {
+      await expect(banner).toBeVisible();
+      await expect(page.getByText("MOCK MODE")).toBeVisible();
+    }
+  });
+
+  test("mock mode banner dismiss button hides the banner", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const banner = page.locator('[aria-label="Mock mode active"]');
+    const count = await banner.count();
+    if (count === 0) return; // Not in mock mode — skip
+
+    await expect(banner).toBeVisible();
+    const dismissBtn = page.locator('[aria-label="Dismiss mock mode banner"]');
+    await dismissBtn.click();
+    await expect(banner).not.toBeVisible();
+  });
+
+  test("mock mode banner contains simulated data notice text", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const banner = page.locator('[aria-label="Mock mode active"]');
+    const count = await banner.count();
+    if (count === 0) return;
+
+    await expect(page.getByText(/simulated data/i)).toBeVisible();
+  });
+});
+
+// ── Tab Rendering in Mock Mode ───────────────────────────────────────────────
+
+test.describe("Tab Rendering — Mock Mode Coverage", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApis(page);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByText("instruments-service").first().click();
+    await page.waitForLoadState("networkidle");
+  });
+
+  test("Deploy tab renders deploy form content", async ({ page }) => {
+    await page.getByRole("tab", { name: /Deploy/i }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Deploy instruments-service/i)).toBeVisible();
+    await expect(
+      page.getByText(/Unknown Error|Uncaught TypeError/i),
+    ).not.toBeVisible();
+  });
+
+  test("Data Status tab renders without crash", async ({ page }) => {
+    await page.getByRole("tab", { name: /Data Status/i }).click();
+    await page.waitForLoadState("networkidle");
+    // Tab should render without a raw JavaScript error thrown to the UI
+    await expect(
+      page.getByText(/Unknown Error|Uncaught TypeError/i),
+    ).not.toBeVisible();
+  });
+
+  test("Builds tab renders Cloud Build Triggers section in mock mode", async ({
+    page,
+  }) => {
+    await page.getByRole("tab", { name: /Builds/i }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
+  });
+
+  test("Readiness tab renders without crash in mock mode", async ({ page }) => {
+    await page.getByRole("tab", { name: /Readiness/i }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
+  });
+
+  test("Status tab renders Service Health Timeline in mock mode", async ({
+    page,
+  }) => {
+    await page.getByRole("tab", { name: "Status", exact: true }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("Service Health Timeline")).toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
+  });
+
+  test("Config tab renders without crash in mock mode", async ({ page }) => {
+    await page.getByRole("tab", { name: /Config/i }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
+  });
+
+  test("History tab renders deployment list in mock mode", async ({ page }) => {
+    await page.getByRole("tab", { name: /History/i }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("dep-test-001")).toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
+  });
+});

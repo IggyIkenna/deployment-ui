@@ -28,7 +28,12 @@ export function MockModeBanner() {
         onClick={() => setDismissed(true)}
         aria-label="Dismiss mock mode banner"
         className="absolute right-3 opacity-70 hover:opacity-100"
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#fbbf24" }}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#fbbf24",
+        }}
       >
         <X size={12} />
       </button>

@@ -149,7 +149,14 @@ const MOCK_DEPLOYMENTS = [
   },
 ];
 
-const MOCK_CATEGORIES = ["equity", "crypto", "fx", "rates", "commodity", "sports"];
+const MOCK_CATEGORIES = [
+  "equity",
+  "crypto",
+  "fx",
+  "rates",
+  "commodity",
+  "sports",
+];
 
 const MOCK_VENUES_BY_CATEGORY: Record<string, string[]> = {
   equity: ["NYSE", "NASDAQ", "LSE", "TSE", "HKEX"],
@@ -166,7 +173,11 @@ const MOCK_QUOTA = {
   cpuQuota: { used: 847, limit: 2000, unit: "vCPUs" },
   memoryQuota: { used: 3200, limit: 8192, unit: "GB" },
   instanceQuota: { used: 42, limit: 100, unit: "instances" },
-  estimatedCost: { perShard: 0.18, total: null as number | null, currency: "USD" },
+  estimatedCost: {
+    perShard: 0.18,
+    total: null as number | null,
+    currency: "USD",
+  },
 };
 
 const MOCK_DATA_STATUS = {
@@ -195,8 +206,18 @@ const MOCK_CHECKLIST = {
       name: "Data Coverage",
       score: 95,
       items: [
-        { id: "c1", label: "Equity coverage ≥ 95%", status: "pass", detail: "98.2% complete" },
-        { id: "c2", label: "Crypto coverage ≥ 90%", status: "pass", detail: "94.1% complete" },
+        {
+          id: "c1",
+          label: "Equity coverage ≥ 95%",
+          status: "pass",
+          detail: "98.2% complete",
+        },
+        {
+          id: "c2",
+          label: "Crypto coverage ≥ 90%",
+          status: "pass",
+          detail: "94.1% complete",
+        },
         {
           id: "c3",
           label: "FX coverage ≥ 90%",
@@ -215,7 +236,12 @@ const MOCK_CHECKLIST = {
           status: "pass",
           detail: "Build #1847 — 2026-03-10T08:00Z",
         },
-        { id: "b2", label: "No critical CVEs", status: "pass", detail: "0 critical, 2 low severity" },
+        {
+          id: "b2",
+          label: "No critical CVEs",
+          status: "pass",
+          detail: "0 critical, 2 low severity",
+        },
       ],
     },
     {
@@ -228,7 +254,12 @@ const MOCK_CHECKLIST = {
           status: "fail",
           detail: "No canary run in last 7 days",
         },
-        { id: "d2", label: "Rollback tested", status: "pass", detail: "Rollback tested 2026-03-08" },
+        {
+          id: "d2",
+          label: "Rollback tested",
+          status: "pass",
+          detail: "Rollback tested 2026-03-08",
+        },
         {
           id: "d3",
           label: "Alert thresholds configured",
@@ -295,13 +326,21 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Health
   if (path === "/api/health") {
-    return json({ status: "healthy", uptime: 99.97, version: "0.1.1", mock: true });
+    return json({
+      status: "healthy",
+      uptime: 99.97,
+      version: "0.1.1",
+      mock: true,
+    });
   }
 
   // Services overview (must come before /api/services to avoid partial match)
   if (path === "/api/services/overview") {
     return json({
-      services: MOCK_SERVICES.map((s) => ({ ...s, shards: Math.floor(Math.random() * 200) + 20 })),
+      services: MOCK_SERVICES.map((s) => ({
+        ...s,
+        shards: Math.floor(Math.random() * 200) + 20,
+      })),
     });
   }
 
@@ -345,7 +384,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Config
   if (path.match(/^\/api\/config\/venues/)) {
-    const cat = new URL(url, "http://x").searchParams.get("category") ?? "equity";
+    const cat =
+      new URL(url, "http://x").searchParams.get("category") ?? "equity";
     return json({ venues: MOCK_VENUES_BY_CATEGORY[cat] ?? [] });
   }
   if (path.match(/^\/api\/config\/start-dates/)) {
@@ -367,27 +407,39 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Deployments
   if (path === "/api/deployments" && method === "POST") {
-    const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
+    const body = init?.body
+      ? (JSON.parse(init.body as string) as Record<string, unknown>)
+      : {};
     const newDep = {
       id: `dep-${Date.now()}`,
       service: (body.service as string | undefined) ?? "unknown",
       status: "running",
       startedAt: new Date().toISOString(),
       completedAt: null,
-      shards: (body.shards as number | undefined) ?? Math.floor(Math.random() * 100) + 20,
+      shards:
+        (body.shards as number | undefined) ??
+        Math.floor(Math.random() * 100) + 20,
       mode: (body.mode as string | undefined) ?? "batch",
       cloudProvider: "gcp",
       region: (body.region as string | undefined) ?? "asia-northeast1-c",
       createdBy: "mock-user",
       tag: (body.tag as string | undefined) ?? null,
     };
-    return json({ deployment: newDep, message: "Deployment started (mock)" }, 201);
+    return json(
+      { deployment: newDep, message: "Deployment started (mock)" },
+      201,
+    );
   }
   if (path === "/api/deployments") {
-    return json({ deployments: MOCK_DEPLOYMENTS, total: MOCK_DEPLOYMENTS.length });
+    return json({
+      deployments: MOCK_DEPLOYMENTS,
+      total: MOCK_DEPLOYMENTS.length,
+    });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/quota$/)) {
-    const shards = parseInt(new URL(url, "http://x").searchParams.get("shards") ?? "50");
+    const shards = parseInt(
+      new URL(url, "http://x").searchParams.get("shards") ?? "50",
+    );
     return json({
       total_shards: shards,
       max_concurrent: 2000,
@@ -404,14 +456,20 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.match(/^\/api\/deployments\/(.+)$/)) {
     const id = path.split("/").pop();
-    const dep = MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];
+    const dep =
+      MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];
     return json({ deployment: dep });
   }
 
   // Quota (standalone endpoint)
   if (path === "/api/quota" || path.startsWith("/api/quota")) {
-    const shards = parseInt(new URL(url, "http://x").searchParams.get("shards") ?? "50");
-    return json({ ...MOCK_QUOTA, estimatedCost: { ...MOCK_QUOTA.estimatedCost, total: shards * 0.18 } });
+    const shards = parseInt(
+      new URL(url, "http://x").searchParams.get("shards") ?? "50",
+    );
+    return json({
+      ...MOCK_QUOTA,
+      estimatedCost: { ...MOCK_QUOTA.estimatedCost, total: shards * 0.18 },
+    });
   }
 
   // Data status (standalone)
@@ -447,14 +505,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path === "/cloud-builds/trigger" && method === "POST") {
     return json(
-      { success: true, message: "Build triggered (mock)", build_id: `build-${Date.now()}` },
+      {
+        success: true,
+        message: "Build triggered (mock)",
+        build_id: `build-${Date.now()}`,
+      },
       201,
     );
   }
   if (path.match(/^\/api\/cloud-builds\/(.+)\/trigger$/) && method === "POST") {
     return json(
       {
-        build: { id: `cb-${Date.now()}`, status: "QUEUED", startTime: new Date().toISOString() },
+        build: {
+          id: `cb-${Date.now()}`,
+          status: "QUEUED",
+          startTime: new Date().toISOString(),
+        },
         message: "Build triggered (mock)",
       },
       201,
@@ -477,7 +543,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           status: "completed",
           compute_type: "cloud_run",
         },
-        build: { status: "SUCCESS", commit_sha: "abc1234", duration_seconds: 120 },
+        build: {
+          status: "SUCCESS",
+          commit_sha: "abc1234",
+          duration_seconds: 120,
+        },
         code: { commit_sha: "abc1234", message: "feat: update", author: "dev" },
       },
     });
@@ -511,7 +581,11 @@ export function installDeploymentMockHandlers() {
         : input instanceof URL
           ? input.href
           : (input as Request).url;
-    if (url.includes("/api/") || url.includes("/cloud-builds/") || url.includes("/service-status/")) {
+    if (
+      url.includes("/api/") ||
+      url.includes("/cloud-builds/") ||
+      url.includes("/service-status/")
+    ) {
       return handleRoute(url, init);
     }
     return original(input, init);
