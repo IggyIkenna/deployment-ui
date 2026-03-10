@@ -570,8 +570,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   return json({ error: "Mock: no handler", path }, 404);
 }
 
-export function installDeploymentMockHandlers() {
-  if (!MOCK_MODE) return;
+export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
+  if (!enabled) return;
 
   const original = window.fetch.bind(window);
   window.fetch = async (input, init) => {
