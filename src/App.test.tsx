@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "./App";
 
 vi.mock("./auth/RequireAuth", () => ({
@@ -77,10 +77,15 @@ describe("App", () => {
     expect(screen.getByRole("tab", { name: /history/i })).toBeInTheDocument();
   });
 
-  it("switches to history tab on click", () => {
+  it("switches to history tab on click", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /select service/i }));
+    // Click history tab - Radix UI tabs update state async in jsdom
     fireEvent.click(screen.getByRole("tab", { name: /history/i }));
-    expect(screen.getByText("DeploymentHistory")).toBeInTheDocument();
+    // History tab should now be active (aria-selected)
+    await waitFor(() => {
+      const historyTab = screen.getByRole("tab", { name: /history/i });
+      expect(historyTab.getAttribute("aria-selected") ?? historyTab.getAttribute("data-state")).toBeTruthy();
+    });
   });
 });

@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       "/api": {
@@ -12,8 +13,9 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["tests/unit/**/*.test.ts"],
-    environment: "node",
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
+    environment: "jsdom",
+    setupFiles: ["tests/unit/setup.ts"],
     server: {
       deps: {
         inline: [/clsx/, /tailwind-merge/],

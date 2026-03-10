@@ -98,6 +98,21 @@ export function Header() {
             )}
           </div>
 
+          {/* Cloud Provider Indicator */}
+          {health && (
+            <Badge
+              variant="outline"
+              className="text-xs font-mono"
+              title="Active cloud provider"
+              style={{
+                color: "#22d3ee",
+                borderColor: "rgba(34,211,238,0.4)",
+              }}
+            >
+              GCP
+            </Badge>
+          )}
+
           {/* GCS FUSE Status */}
           {health?.gcs_fuse && (
             <div

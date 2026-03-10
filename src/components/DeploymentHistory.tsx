@@ -44,6 +44,7 @@ interface DeploymentSummary {
   progress: string;
   tag?: string | null;
   deploy_mode?: "batch" | "live";
+  cloud_provider?: string;
 }
 
 interface DeploymentHistoryProps {
@@ -98,6 +99,7 @@ export function DeploymentHistory({
             progress: `${d.completed_shards}/${d.total_shards}`,
             tag: null,
             deploy_mode: (d.parameters?.mode as "batch" | "live" | undefined),
+            cloud_provider: (d.parameters?.cloud_provider as string | undefined),
           })),
         );
         if (clearSelection) setSelectedIds(new Set());
@@ -597,6 +599,18 @@ export function DeploymentHistory({
                   <Badge variant="outline" className="text-xs">
                     {deployment.compute_type || "cloud_run"}
                   </Badge>
+                  {deployment.cloud_provider && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs"
+                      style={{
+                        color: deployment.cloud_provider === "aws" ? "#fb923c" : "#22d3ee",
+                        borderColor: deployment.cloud_provider === "aws" ? "rgba(251,146,60,0.4)" : "rgba(34,211,238,0.4)",
+                      }}
+                    >
+                      {deployment.cloud_provider.toUpperCase()}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
