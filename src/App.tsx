@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RequireAuth } from "./auth/RequireAuth";
+import { MockModeBanner } from "./components/MockModeBanner";
 import { Header } from "./components/Header";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
@@ -97,6 +98,7 @@ function App() {
   return (
     <RequireAuth>
       <div className="min-h-screen bg-[var(--color-bg-primary)]">
+        <MockModeBanner />
         <Header />
         <main className="container mx-auto px-6 py-6 max-w-[1600px]">
           <div className="grid grid-cols-12 gap-6">

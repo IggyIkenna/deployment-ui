@@ -191,9 +191,21 @@ async function mockAllApis(page: Page) {
         last_code_push: "2026-01-14T18:00:00Z",
         anomalies: [],
         details: {
-          deployment: { deployment_id: "dep-test-001", status: "completed", compute_type: "cloud_run" },
-          build: { status: "SUCCESS", commit_sha: "abc1234", duration_seconds: 120 },
-          code: { commit_sha: "abc1234", message: "feat: update", author: "dev" },
+          deployment: {
+            deployment_id: "dep-test-001",
+            status: "completed",
+            compute_type: "cloud_run",
+          },
+          build: {
+            status: "SUCCESS",
+            commit_sha: "abc1234",
+            duration_seconds: 120,
+          },
+          code: {
+            commit_sha: "abc1234",
+            message: "feat: update",
+            author: "dev",
+          },
         },
       },
     });
@@ -209,7 +221,14 @@ async function mockAllApis(page: Page) {
             github_repo: "IggyIkenna/instruments-service",
             branch_pattern: "main",
             disabled: false,
-            last_build: { status: "SUCCESS", commit_sha: "abc1234", create_time: "2026-01-14T20:00:00Z", duration_seconds: 120, log_url: null, build_id: "build-001" },
+            last_build: {
+              status: "SUCCESS",
+              commit_sha: "abc1234",
+              create_time: "2026-01-14T20:00:00Z",
+              duration_seconds: 120,
+              log_url: null,
+              build_id: "build-001",
+            },
           },
         ],
       },
@@ -219,7 +238,13 @@ async function mockAllApis(page: Page) {
     await route.fulfill({ json: { builds: [] } });
   });
   await page.route("**/cloud-builds/trigger", async (route) => {
-    await route.fulfill({ json: { success: true, message: "Build triggered", build_id: "build-new" } });
+    await route.fulfill({
+      json: {
+        success: true,
+        message: "Build triggered",
+        build_id: "build-new",
+      },
+    });
   });
   await page.route("**/api/services/*/data-status**", async (route) => {
     await route.fulfill({
@@ -414,7 +439,9 @@ test.describe("Service Selection & Navigation", () => {
     // Should show the mocked trigger
     await expect(page.getByText("instruments-service").first()).toBeVisible();
     // Should NOT show an uncaught error
-    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
+    await expect(
+      page.getByText(/Unknown Error|TypeError|Cannot read/i),
+    ).not.toBeVisible();
   });
 
   test("Builds tab shows trigger count badge", async ({ page }) => {
@@ -442,7 +469,9 @@ test.describe("Service Selection & Navigation", () => {
     // Should show healthy status from mock
     await expect(page.getByText(/healthy/i).first()).toBeVisible();
     // Should NOT show an uncaught error
-    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
+    await expect(
+      page.getByText(/Unknown Error|TypeError|Cannot read/i),
+    ).not.toBeVisible();
   });
 
   test("Status tab Timeline section shows Last Data Update row", async ({
