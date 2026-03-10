@@ -271,7 +271,7 @@ const MOCK_CHECKLIST = {
   ],
 };
 
-const MOCK_CLOUD_BUILDS = [
+const _MOCK_CLOUD_BUILDS = [
   {
     id: "cb-001",
     trigger: "instruments-service",
