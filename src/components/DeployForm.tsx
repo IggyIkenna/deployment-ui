@@ -116,6 +116,9 @@ export function DeployForm({
   >("default");
   const [maxConcurrent, setMaxConcurrent] = useState<string>(""); // Optional; empty = backend default (2000)
 
+  // Cloud provider
+  const [cloudProvider, setCloudProvider] = useState<"gcp" | "aws">("gcp");
+
   // Live mode fields
   const [imageTag, setImageTag] = useState<string>("latest");
   const [trafficSplitPct, setTrafficSplitPct] = useState<number>(10);
@@ -380,6 +383,7 @@ export function DeployForm({
       service: serviceName,
       mode,
       compute,
+      cloud_provider: cloudProvider,
       // Dates are optional - backend defaults to expected_start_dates.yaml / yesterday
       ...(startDate ? { start_date: startDate } : {}),
       ...(endDate ? { end_date: endDate } : {}),
@@ -670,6 +674,41 @@ export function DeployForm({
               Live
             </Button>
           </div>
+        </div>
+
+        {/* Cloud Provider (GCP | AWS) */}
+        <div className="space-y-2">
+          <Label>Cloud Provider</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={cloudProvider === "gcp" ? "default" : "outline"}
+              onClick={() => setCloudProvider("gcp")}
+              className="flex-1"
+            >
+              <Server className="h-4 w-4 mr-2" />
+              GCP
+            </Button>
+            <Button
+              type="button"
+              variant={cloudProvider === "aws" ? "default" : "outline"}
+              onClick={() => setCloudProvider("aws")}
+              className="flex-1"
+            >
+              <Server className="h-4 w-4 mr-2" />
+              AWS
+            </Button>
+          </div>
+          {cloudProvider === "aws" && (
+            <div className="flex items-start gap-2 p-3 rounded-md border border-[rgba(251,191,36,0.4)] bg-[rgba(251,191,36,0.07)] mt-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-300">
+                <span className="font-semibold">AWS configured but unauthenticated</span> — dry-run
+                validation available; live deployment requires AWS credentials (IRSA / service
+                account) in the environment.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Live mode fields — shown only when mode === "live" */}
