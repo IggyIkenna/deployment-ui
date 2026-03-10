@@ -72,7 +72,10 @@ function setupDefaultMocks() {
     vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ gcs_region: "asia-northeast1", cloud_provider: "gcp" }),
+        Promise.resolve({
+          gcs_region: "asia-northeast1",
+          cloud_provider: "gcp",
+        }),
     }),
   );
 }
@@ -128,9 +131,7 @@ describe("DeployForm", () => {
     );
     // Click AWS button
     fireEvent.click(screen.getByText("AWS"));
-    expect(
-      screen.getByText(/AWS configured but unauthenticated/),
-    ).toBeTruthy();
+    expect(screen.getByText(/AWS configured but unauthenticated/)).toBeTruthy();
   });
 
   it("hides AWS warning when GCP is selected", () => {
@@ -144,9 +145,7 @@ describe("DeployForm", () => {
     // Click AWS then GCP
     fireEvent.click(screen.getByText("AWS"));
     fireEvent.click(screen.getByText("GCP"));
-    expect(
-      screen.queryByText(/AWS configured but unauthenticated/),
-    ).toBeNull();
+    expect(screen.queryByText(/AWS configured but unauthenticated/)).toBeNull();
   });
 
   it("renders Dry Run checkbox checked by default", () => {

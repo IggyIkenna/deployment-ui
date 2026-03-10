@@ -9,140 +9,233 @@ import {
   Clock,
   Package,
   Layers,
-  Hammer,
+  Activity,
+  Shield,
+  Radio,
+  Bot,
+  Network,
+  Coins,
+  Globe,
+  LineChart,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { cn } from "../lib/utils";
 
 const serviceIcons: Record<string, React.ElementType> = {
+  // L1
   "instruments-service": Package,
   "corporate-actions": Clock,
-  "market-tick-data-handler": Database,
+  // L2
+  "market-tick-data-service": Database,
   "market-data-processing-service": Cpu,
+  // L3
   "features-calendar-service": Clock,
   "features-delta-one-service": BarChart3,
   "features-volatility-service": TrendingUp,
-  "features-onchain-service": Zap,
+  "features-onchain-service": Coins,
+  "features-sports-service": Activity,
+  "features-multi-timeframe-service": LineChart,
+  "features-cross-instrument-service": Network,
+  "features-commodity-service": Globe,
+  // L4
   "ml-training-service": Brain,
   "ml-inference-service": Brain,
+  // L5
   "strategy-service": TrendingUp,
-  "execution-services": Zap,
-  "unified-trading-deployment-v2": Hammer,
+  "strategy-validation-service": Shield,
+  "execution-service": Zap,
+  "trading-agent-service": Bot,
+  // L6
+  "position-balance-monitor-service": Activity,
+  "risk-and-exposure-service": Shield,
+  "pnl-attribution-service": BarChart3,
+  "alerting-service": Radio,
+  // Infrastructure
+  "ibkr-gateway-infra": Network,
+  "deployment-service": Layers,
 };
 
-// Static service metadata - no API call needed!
-// This makes the service list instant to render
 const SERVICE_METADATA: Record<
   string,
   { description: string; dimensions: string[] }
 > = {
+  // L1
   "instruments-service": {
-    description: "Generate instrument definitions",
+    description: "Instrument universe & definitions",
     dimensions: ["category", "date"],
   },
   "corporate-actions": {
-    description: "Corporate actions data",
+    description: "Dividends, splits, adjustments",
     dimensions: ["category", "date"],
   },
-  "market-tick-data-handler": {
-    description: "Download raw tick data",
+  // L2
+  "market-tick-data-service": {
+    description: "Download & normalise raw tick data",
     dimensions: ["category", "venue", "date"],
   },
   "market-data-processing-service": {
-    description: "Process tick data into candles",
+    description: "Resample ticks into OHLCV candles",
     dimensions: ["category", "venue", "date"],
   },
+  // L3
   "features-calendar-service": {
-    description: "Calendar-based features",
+    description: "Calendar & seasonality features",
     dimensions: ["category", "date"],
   },
   "features-delta-one-service": {
-    description: "Delta-one features",
+    description: "Returns, spreads, delta-one signals",
     dimensions: ["category", "feature_group", "date"],
   },
   "features-volatility-service": {
-    description: "Volatility features",
+    description: "Realised & implied vol surface",
     dimensions: ["category", "feature_group", "date"],
   },
   "features-onchain-service": {
-    description: "On-chain features",
+    description: "On-chain DeFi & network metrics",
     dimensions: ["category", "feature_group", "date"],
   },
+  "features-sports-service": {
+    description: "Sports market event features",
+    dimensions: ["category", "feature_group", "date"],
+  },
+  "features-multi-timeframe-service": {
+    description: "Cross-timeframe feature aggregation",
+    dimensions: ["category", "timeframe", "date"],
+  },
+  "features-cross-instrument-service": {
+    description: "Cross-asset correlation features",
+    dimensions: ["category", "feature_group", "date"],
+  },
+  "features-commodity-service": {
+    description: "Commodity-specific features",
+    dimensions: ["category", "feature_group", "date"],
+  },
+  // L4
   "ml-training-service": {
-    description: "Train ML models",
+    description: "Train & evaluate ML models",
     dimensions: ["instrument", "timeframe", "target_type", "config"],
   },
   "ml-inference-service": {
-    description: "Run ML inference",
+    description: "Batch & live model inference",
     dimensions: ["instrument", "timeframe", "target_type", "config"],
   },
+  // L5
   "strategy-service": {
-    description: "Backtest strategies",
+    description: "Backtest & optimise strategies",
     dimensions: ["config"],
   },
-  "execution-services": {
-    description: "Execution algorithms",
+  "strategy-validation-service": {
+    description: "OOS validation & risk checks",
     dimensions: ["config"],
   },
-  "unified-trading-deployment-v2": {
-    description: "Deployment orchestration platform",
+  "execution-service": {
+    description: "Live order execution & algos",
+    dimensions: ["config"],
+  },
+  "trading-agent-service": {
+    description: "Autonomous trading agents",
+    dimensions: ["config"],
+  },
+  // L6
+  "position-balance-monitor-service": {
+    description: "Real-time position & balance tracking",
+    dimensions: ["config"],
+  },
+  "risk-and-exposure-service": {
+    description: "Greeks, VaR & exposure limits",
+    dimensions: ["config"],
+  },
+  "pnl-attribution-service": {
+    description: "P&L attribution & reporting",
+    dimensions: ["config"],
+  },
+  "alerting-service": {
+    description: "Alerts, circuit breakers & notifications",
+    dimensions: ["config"],
+  },
+  // Infrastructure
+  "ibkr-gateway-infra": {
+    description: "Interactive Brokers TWS gateway",
+    dimensions: ["config"],
+  },
+  "deployment-service": {
+    description: "Deployment orchestration & sharding",
     dimensions: ["service"],
   },
 };
 
-// Define pipeline layers in correct execution order (from dependencies.yaml)
 const PIPELINE_LAYERS = [
   {
     id: "layer1",
     title: "Layer 1: Root Services",
-    description: "Generate instrument definitions and corporate actions",
-    color: "#22d3ee", // cyan
+    description: "Instrument universe and corporate actions",
+    color: "#22d3ee",
     services: ["instruments-service", "corporate-actions"],
   },
   {
     id: "layer2",
     title: "Layer 2: Data Ingestion",
     description: "Download and process raw tick data",
-    color: "#60a5fa", // blue
-    services: ["market-tick-data-handler", "market-data-processing-service"],
+    color: "#60a5fa",
+    services: ["market-tick-data-service", "market-data-processing-service"],
   },
   {
     id: "layer3",
     title: "Layer 3: Feature Engineering",
     description: "Generate features from processed data",
-    color: "#a78bfa", // purple
+    color: "#a78bfa",
     services: [
       "features-calendar-service",
       "features-delta-one-service",
       "features-volatility-service",
       "features-onchain-service",
+      "features-sports-service",
+      "features-multi-timeframe-service",
+      "features-cross-instrument-service",
+      "features-commodity-service",
     ],
   },
   {
     id: "layer4",
     title: "Layer 4: Machine Learning",
     description: "Train and run ML models",
-    color: "#fbbf24", // amber
+    color: "#fbbf24",
     services: ["ml-training-service", "ml-inference-service"],
   },
   {
     id: "layer5",
     title: "Layer 5: Strategy & Execution",
-    description: "Backtest strategies and execution algorithms",
-    color: "#4ade80", // green
-    services: ["strategy-service", "execution-services"],
+    description: "Backtest, validate, execute and trade",
+    color: "#4ade80",
+    services: [
+      "strategy-service",
+      "strategy-validation-service",
+      "execution-service",
+      "trading-agent-service",
+    ],
+  },
+  {
+    id: "layer6",
+    title: "Layer 6: Risk & Monitoring",
+    description: "Positions, risk, P&L and alerting",
+    color: "#f87171",
+    services: [
+      "position-balance-monitor-service",
+      "risk-and-exposure-service",
+      "pnl-attribution-service",
+      "alerting-service",
+    ],
   },
   {
     id: "infrastructure",
     title: "Infrastructure",
-    description: "Deployment and orchestration tools",
-    color: "#f472b6", // pink
-    services: ["unified-trading-deployment-v2"],
+    description: "Deployment orchestration and IBKR connectivity",
+    color: "#f472b6",
+    services: ["ibkr-gateway-infra", "deployment-service"],
   },
 ];
 
-// Count total services
 const TOTAL_SERVICES = PIPELINE_LAYERS.reduce(
   (sum, layer) => sum + layer.services.length,
   0,
@@ -157,8 +250,6 @@ export function ServiceList({
   selectedService,
   onSelectService,
 }: ServiceListProps) {
-  // No API call needed - render immediately from static data!
-
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
@@ -243,12 +334,7 @@ function ServiceItem({
       style={isSelected ? { borderLeft: `2px solid ${layerColor}` } : undefined}
     >
       <div
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-          isSelected
-            ? "bg-[var(--color-bg-tertiary)]"
-            : "bg-[var(--color-bg-tertiary)]",
-        )}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-bg-tertiary)]"
         style={
           isSelected
             ? { color: layerColor }

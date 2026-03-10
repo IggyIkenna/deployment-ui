@@ -10,9 +10,27 @@ const MOCK_HEALTH = {
 };
 
 const MOCK_SERVICES = [
-  { name: "instruments-service", description: "Instrument universe", dimensions: ["category", "date"], docker_image: "gcr.io/project/instruments-service:latest", cloud_run_job_name: "instruments-service" },
-  { name: "execution-service", description: "Live order execution", dimensions: ["config"], docker_image: "gcr.io/project/execution-service:latest", cloud_run_job_name: "execution-service" },
-  { name: "ml-training-service", description: "Train ML models", dimensions: ["instrument", "timeframe"], docker_image: "gcr.io/project/ml-training:latest", cloud_run_job_name: "ml-training-service" },
+  {
+    name: "instruments-service",
+    description: "Instrument universe",
+    dimensions: ["category", "date"],
+    docker_image: "gcr.io/project/instruments-service:latest",
+    cloud_run_job_name: "instruments-service",
+  },
+  {
+    name: "execution-service",
+    description: "Live order execution",
+    dimensions: ["config"],
+    docker_image: "gcr.io/project/execution-service:latest",
+    cloud_run_job_name: "execution-service",
+  },
+  {
+    name: "ml-training-service",
+    description: "Train ML models",
+    dimensions: ["instrument", "timeframe"],
+    docker_image: "gcr.io/project/ml-training:latest",
+    cloud_run_job_name: "ml-training-service",
+  },
 ];
 
 const MOCK_DEPLOYMENTS = {
@@ -104,9 +122,13 @@ async function mockAllApis(page: Page) {
         },
       });
     } else if (url.includes("/events")) {
-      await route.fulfill({ json: { deployment_id: "dep-test-001", events: [], count: 0 } });
+      await route.fulfill({
+        json: { deployment_id: "dep-test-001", events: [], count: 0 },
+      });
     } else if (url.includes("/vm-events")) {
-      await route.fulfill({ json: { deployment_id: "dep-test-001", events: [], count: 0 } });
+      await route.fulfill({
+        json: { deployment_id: "dep-test-001", events: [], count: 0 },
+      });
     } else {
       await route.fulfill({ json: MOCK_DEPLOYMENTS });
     }
@@ -204,7 +226,11 @@ async function mockAllApis(page: Page) {
   });
   await page.route("**/api/deployments/*/quota**", async (route) => {
     await route.fulfill({
-      json: { total_shards: 24, max_concurrent: 2000, estimated_duration_min: 5 },
+      json: {
+        total_shards: 24,
+        max_concurrent: 2000,
+        estimated_duration_min: 5,
+      },
     });
   });
 }
@@ -400,7 +426,9 @@ test.describe("DeployForm — Batch Mode", () => {
 
   test("Deploy button is present on form", async ({ page }) => {
     // The deploy button text contains "Deploy" or "Preview"
-    const deployBtn = page.getByRole("button", { name: /Deploy|Preview|dry.run/i });
+    const deployBtn = page.getByRole("button", {
+      name: /Deploy|Preview|dry.run/i,
+    });
     await expect(deployBtn.first()).toBeVisible();
   });
 
@@ -429,9 +457,7 @@ test.describe("DeployForm — Live Mode", () => {
     if (!viewport) return;
 
     // Check nothing overflows to the right
-    const bodyWidth = await page.evaluate(
-      () => document.body.scrollWidth,
-    );
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(viewport.width + 10); // 10px tolerance
   });
 });
@@ -449,11 +475,11 @@ test.describe("Deploy Button (Mocked)", () => {
 
     // Fill required date fields
     const startInputs = page.getByLabel(/Start Date/i);
-    if (await startInputs.count() > 0) {
+    if ((await startInputs.count()) > 0) {
       await startInputs.first().fill("2026-01-01");
     }
     const endInputs = page.getByLabel(/End Date/i);
-    if (await endInputs.count() > 0) {
+    if ((await endInputs.count()) > 0) {
       await endInputs.first().fill("2026-01-31");
     }
 

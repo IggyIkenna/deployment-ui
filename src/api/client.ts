@@ -1300,7 +1300,9 @@ export async function getLiveDeploymentHealth(
   region: string,
 ): Promise<LiveHealthStatus> {
   const params = new URLSearchParams({ service, region });
-  return fetchJson(`/deployments/${deploymentId}/live-health?${params.toString()}`);
+  return fetchJson(
+    `/deployments/${deploymentId}/live-health?${params.toString()}`,
+  );
 }
 
 export { ApiError };

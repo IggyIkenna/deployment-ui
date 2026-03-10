@@ -703,9 +703,11 @@ export function DeployForm({
             <div className="flex items-start gap-2 p-3 rounded-md border border-[rgba(251,191,36,0.4)] bg-[rgba(251,191,36,0.07)] mt-2">
               <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-300">
-                <span className="font-semibold">AWS configured but unauthenticated</span> — dry-run
-                validation available; live deployment requires AWS credentials (IRSA / service
-                account) in the environment.
+                <span className="font-semibold">
+                  AWS configured but unauthenticated
+                </span>{" "}
+                — dry-run validation available; live deployment requires AWS
+                credentials (IRSA / service account) in the environment.
               </p>
             </div>
           )}

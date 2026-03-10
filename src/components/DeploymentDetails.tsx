@@ -476,7 +476,9 @@ export function DeploymentDetails({
         service: status.service,
         region: status.region ?? "",
       });
-      setActionSuccess("Rollback initiated. Traffic shifted to previous revision.");
+      setActionSuccess(
+        "Rollback initiated. Traffic shifted to previous revision.",
+      );
       fetchStatus();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Rollback failed");
@@ -3179,7 +3181,10 @@ export function DeploymentDetails({
                     <ChevronDown className="h-3 w-3" />
                   )}
                   VM Event Summary (
-                  {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length}{" "}
+                  {
+                    events.filter((e) => VM_EVENT_TYPES.has(e.event_type))
+                      .length
+                  }{" "}
                   events)
                 </button>
                 {eventsExpanded && (
@@ -3370,13 +3375,37 @@ const VM_EVENT_BADGE_CONFIG: Record<
   string,
   { label: string; color: string; bg: string }
 > = {
-  VM_PREEMPTED: { label: "Preempted", color: "#f97316", bg: "rgba(249,115,22,0.2)" },
+  VM_PREEMPTED: {
+    label: "Preempted",
+    color: "#f97316",
+    bg: "rgba(249,115,22,0.2)",
+  },
   CONTAINER_OOM: { label: "OOM", color: "#ef4444", bg: "rgba(239,68,68,0.2)" },
-  VM_QUOTA_EXHAUSTED: { label: "Quota", color: "#eab308", bg: "rgba(234,179,8,0.2)" },
-  VM_ZONE_UNAVAILABLE: { label: "Zone N/A", color: "#eab308", bg: "rgba(234,179,8,0.2)" },
-  CLOUD_RUN_REVISION_FAILED: { label: "Rev Failed", color: "#ef4444", bg: "rgba(239,68,68,0.2)" },
-  VM_TIMEOUT: { label: "Timeout", color: "#f97316", bg: "rgba(249,115,22,0.2)" },
-  VM_DELETED: { label: "VM Deleted", color: "#6b7280", bg: "rgba(107,114,128,0.2)" },
+  VM_QUOTA_EXHAUSTED: {
+    label: "Quota",
+    color: "#eab308",
+    bg: "rgba(234,179,8,0.2)",
+  },
+  VM_ZONE_UNAVAILABLE: {
+    label: "Zone N/A",
+    color: "#eab308",
+    bg: "rgba(234,179,8,0.2)",
+  },
+  CLOUD_RUN_REVISION_FAILED: {
+    label: "Rev Failed",
+    color: "#ef4444",
+    bg: "rgba(239,68,68,0.2)",
+  },
+  VM_TIMEOUT: {
+    label: "Timeout",
+    color: "#f97316",
+    bg: "rgba(249,115,22,0.2)",
+  },
+  VM_DELETED: {
+    label: "VM Deleted",
+    color: "#6b7280",
+    bg: "rgba(107,114,128,0.2)",
+  },
 };
 
 function ShardRow({

@@ -9,9 +9,7 @@ vi.mock("../../../src/api/client", () => ({
   updateDeploymentTag: vi.fn(),
 }));
 
-import {
-  getDeployments,
-} from "../../../src/api/client";
+import { getDeployments } from "../../../src/api/client";
 import { DeploymentHistory } from "../../../src/components/DeploymentHistory";
 
 function makeDeployment(overrides: Record<string, unknown> = {}) {
@@ -39,9 +37,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockImplementation(
       () => new Promise(() => {}),
     );
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     // Loading state renders a spinner (Loader2 svg) inside the card
     const card = document.querySelector("svg");
     expect(card).toBeTruthy();
@@ -51,9 +47,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockResolvedValue({
       deployments: [makeDeployment()],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("dep-001")).toBeTruthy();
     });
@@ -63,9 +57,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockResolvedValue({
       deployments: [makeDeployment({ status: "completed" })],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("Completed")).toBeTruthy();
     });
@@ -82,9 +74,7 @@ describe("DeploymentHistory", () => {
         }),
       ],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("Running")).toBeTruthy();
     });
@@ -94,9 +84,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockResolvedValue({
       deployments: [makeDeployment({ id: "dep-003", status: "failed" })],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("Failed")).toBeTruthy();
     });
@@ -106,9 +94,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Network error"),
     );
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("Network error")).toBeTruthy();
     });
@@ -118,9 +104,7 @@ describe("DeploymentHistory", () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockResolvedValue({
       deployments: [],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText(/No deployments/i)).toBeTruthy();
     });
@@ -128,13 +112,9 @@ describe("DeploymentHistory", () => {
 
   it("renders progress as completed/total", async () => {
     (getDeployments as ReturnType<typeof vi.fn>).mockResolvedValue({
-      deployments: [
-        makeDeployment({ completed_shards: 7, total_shards: 10 }),
-      ],
+      deployments: [makeDeployment({ completed_shards: 7, total_shards: 10 })],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("7/10")).toBeTruthy();
     });
@@ -149,9 +129,7 @@ describe("DeploymentHistory", () => {
         }),
       ],
     });
-    render(
-      <DeploymentHistory serviceName="instruments-service" />,
-    );
+    render(<DeploymentHistory serviceName="instruments-service" />);
     await waitFor(() => {
       expect(screen.getByText("LIVE")).toBeTruthy();
     });

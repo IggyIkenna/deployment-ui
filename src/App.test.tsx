@@ -85,7 +85,10 @@ describe("App", () => {
     // History tab should now be active (aria-selected)
     await waitFor(() => {
       const historyTab = screen.getByRole("tab", { name: /history/i });
-      expect(historyTab.getAttribute("aria-selected") ?? historyTab.getAttribute("data-state")).toBeTruthy();
+      expect(
+        historyTab.getAttribute("aria-selected") ??
+          historyTab.getAttribute("data-state"),
+      ).toBeTruthy();
     });
   });
 });
