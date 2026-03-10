@@ -1,5 +1,8 @@
 const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID || "";
-const COGNITO_DOMAIN = (import.meta.env.VITE_COGNITO_DOMAIN || "").replace(/\/$/, "");
+const COGNITO_DOMAIN = (import.meta.env.VITE_COGNITO_DOMAIN || "").replace(
+  /\/$/,
+  "",
+);
 const COGNITO_REDIRECT_URI =
   import.meta.env.VITE_COGNITO_REDIRECT_URI ||
   window.location.origin + "/auth/callback";
@@ -7,7 +10,10 @@ const COGNITO_REDIRECT_URI =
 const STORAGE_ACCESS_TOKEN = "cognito_access_token";
 const STORAGE_PKCE_VERIFIER = "cognito_pkce_verifier";
 
-async function _generatePKCE(): Promise<{ verifier: string; challenge: string }> {
+async function _generatePKCE(): Promise<{
+  verifier: string;
+  challenge: string;
+}> {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   const verifier = btoa(String.fromCharCode(...array))

@@ -36,7 +36,11 @@ export function RequireAuth({ children }: RequireAuthProps) {
         if (new URLSearchParams(window.location.search).has("code")) {
           const ok = await handleCognitoCallback();
           if (ok) {
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname,
+            );
             setIsAuthenticated(true);
             setIsLoading(false);
             return;
@@ -57,7 +61,11 @@ export function RequireAuth({ children }: RequireAuthProps) {
         const idToken = urlParams.get("id_token");
         if (idToken) {
           sessionStorage.setItem("google_id_token", idToken);
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
           setIsAuthenticated(true);
         } else if (!window.location.pathname.includes("/auth/callback")) {
           initiateGoogleLogin();
