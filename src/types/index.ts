@@ -264,6 +264,11 @@ export interface DeploymentRequest {
   include_all_shards?: boolean; // Include all shards in dry run response (not just first 50)
   deploy_missing_only?: boolean; // Use backend to calculate missing shards (more accurate than exclude_dates)
   first_day_of_month_only?: boolean; // Only deploy first day of each month (TARDIS free tier)
+  // Live mode fields
+  image_tag?: string; // Docker image tag for live mode deployments
+  traffic_split_pct?: number; // Canary traffic split (0–100, default 10)
+  health_gate_timeout_s?: number; // Health poll timeout before rollback (default 300)
+  rollback_on_fail?: boolean; // Auto-rollback if health gate fails (default true)
 }
 
 // Cloud config discovery response

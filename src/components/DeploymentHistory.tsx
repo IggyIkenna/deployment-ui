@@ -12,6 +12,9 @@ import {
   CheckSquare,
   StopCircle,
   Tag,
+  Edit2,
+  Check,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -27,7 +30,9 @@ import {
   getDeployments,
   bulkDeleteDeployments,
   cancelDeployment,
+  updateDeploymentTag,
 } from "../api/client";
+import { Input } from "./ui/input";
 
 interface DeploymentSummary {
   deployment_id: string;
@@ -38,6 +43,7 @@ interface DeploymentSummary {
   total_shards: number;
   progress: string;
   tag?: string | null;
+  deploy_mode?: "batch" | "live";
 }
 
 interface DeploymentHistoryProps {
@@ -57,6 +63,11 @@ export function DeploymentHistory({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // Inline tag editing
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editingTagValue, setEditingTagValue] = useState<string>("");
+  const [savingTag, setSavingTag] = useState(false);
 
   const fetchDeployments = useCallback(
     async (
@@ -86,6 +97,7 @@ export function DeploymentHistory({
             total_shards: d.total_shards,
             progress: `${d.completed_shards}/${d.total_shards}`,
             tag: null,
+            deploy_mode: (d.parameters?.mode as "batch" | "live" | undefined),
           })),
         );
         if (clearSelection) setSelectedIds(new Set());
@@ -215,6 +227,25 @@ export function DeploymentHistory({
       setCancelError(err instanceof Error ? err.message : "Cancel failed");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleSaveTag = async (deploymentId: string) => {
+    setSavingTag(true);
+    try {
+      await updateDeploymentTag(deploymentId, editingTagValue.trim() || null);
+      setDeployments((prev) =>
+        prev.map((d) =>
+          d.deployment_id === deploymentId
+            ? { ...d, tag: editingTagValue.trim() || null }
+            : d,
+        ),
+      );
+      setEditingTagId(null);
+    } catch {
+      // silently ignore — tag is non-critical
+    } finally {
+      setSavingTag(false);
     }
   };
 
@@ -485,16 +516,75 @@ export function DeploymentHistory({
                     {deployment.deployment_id}
                   </code>
                   {getStatusBadge(deployment.status)}
-                </div>
-                {/* Tag display */}
-                {deployment.tag && (
-                  <div className="flex items-center gap-1 mb-1">
-                    <Tag className="h-3 w-3 text-[var(--color-text-muted)]" />
-                    <span className="text-xs text-[var(--color-text-secondary)] truncate max-w-xs">
-                      {deployment.tag}
+                  {deployment.deploy_mode === "live" && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(34,211,238,0.15)] text-[var(--color-accent-cyan)]">
+                      LIVE
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
+                {/* Tag display + inline edit */}
+                <div className="flex items-center gap-1 mb-1">
+                  <Tag className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                  {editingTagId === deployment.deployment_id ? (
+                    <div
+                      className="flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Input
+                        value={editingTagValue}
+                        onChange={(e) => setEditingTagValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            handleSaveTag(deployment.deployment_id);
+                          if (e.key === "Escape") setEditingTagId(null);
+                        }}
+                        className="h-6 text-xs w-40"
+                        autoFocus
+                        placeholder="Add description..."
+                      />
+                      <button
+                        className="p-0.5 hover:text-[var(--color-accent-green)]"
+                        onClick={() => handleSaveTag(deployment.deployment_id)}
+                        disabled={savingTag}
+                      >
+                        {savingTag ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Check className="h-3 w-3" />
+                        )}
+                      </button>
+                      <button
+                        className="p-0.5 hover:text-[var(--color-accent-red)]"
+                        onClick={() => setEditingTagId(null)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-center gap-1 group"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="text-xs text-[var(--color-text-secondary)] truncate max-w-xs">
+                        {deployment.tag || (
+                          <span className="text-[var(--color-text-muted)] italic">
+                            No tag
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[var(--color-accent-cyan)]"
+                        onClick={() => {
+                          setEditingTagId(deployment.deployment_id);
+                          setEditingTagValue(deployment.tag ?? "");
+                        }}
+                        title="Edit tag"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                   <span>
                     <Clock className="h-3 w-3 inline mr-1" />

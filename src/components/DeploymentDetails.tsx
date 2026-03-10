@@ -49,8 +49,13 @@ import {
   updateDeploymentTag,
   getDeploymentReport,
   getRerunCommands,
+  getDeploymentEvents,
+  rollbackLiveDeployment,
+  getLiveDeploymentHealth,
 } from "../api/client";
 import type { DeploymentReport, RerunCommands } from "../api/client";
+import type { ShardEvent, LiveHealthStatus } from "../types/index";
+import { VM_EVENT_TYPES } from "../types/index";
 
 interface ExecutionAttempt {
   attempt: number;
@@ -133,6 +138,8 @@ interface DeploymentStatusData {
   image_all_tags?: string[]; // All tags pointing to this digest
   error_message?: string;
   log_analysis?: LogAnalysis | null;
+  deploy_mode?: "batch" | "live";
+  service_url?: string;
   retry_stats?: {
     total_retries: number;
     succeeded_after_retry: number;
@@ -225,6 +232,14 @@ export function DeploymentDetails({
   const [rerunCommands, setRerunCommands] = useState<RerunCommands | null>(
     null,
   );
+
+  // Event timeline
+  const [events, setEvents] = useState<ShardEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsExpanded, setEventsExpanded] = useState(false);
+
+  // Live health
+  const [liveHealth, setLiveHealth] = useState<LiveHealthStatus | null>(null);
 
   // Shard log modal
   const [selectedShardForLogs, setSelectedShardForLogs] =
@@ -414,6 +429,57 @@ export function DeploymentDetails({
       setActionError(
         err instanceof Error ? err.message : "Failed to update tag",
       );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const fetchEvents = useCallback(async () => {
+    if (eventsLoading) return;
+    setEventsLoading(true);
+    try {
+      const stream = await getDeploymentEvents(deploymentId);
+      setEvents(stream.events);
+    } catch {
+      // silently ignore — events endpoint may not be available for all deployments
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [deploymentId, eventsLoading]);
+
+  const fetchLiveHealth = useCallback(async () => {
+    if (!status?.service_url) return;
+    try {
+      const health = await getLiveDeploymentHealth(
+        deploymentId,
+        status.service,
+        status.region ?? "",
+      );
+      setLiveHealth(health);
+    } catch {
+      // silently ignore
+    }
+  }, [deploymentId, status?.service, status?.region, status?.service_url]);
+
+  const handleRollback = async () => {
+    if (!status) return;
+    if (
+      !window.confirm(
+        `Roll back live deployment "${deploymentId}"? The previous revision will receive 100% of traffic.`,
+      )
+    )
+      return;
+    try {
+      setActionLoading("rollback");
+      setActionError(null);
+      await rollbackLiveDeployment(deploymentId, {
+        service: status.service,
+        region: status.region ?? "",
+      });
+      setActionSuccess("Rollback initiated. Traffic shifted to previous revision.");
+      fetchStatus();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Rollback failed");
     } finally {
       setActionLoading(null);
     }
@@ -1043,6 +1109,14 @@ export function DeploymentDetails({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit `status` object to avoid re-running on every status poll
   }, [status?.status, status?.status_detail, loadAllShards, allShards]);
 
+  // Poll live health every 15s for live-mode running deployments
+  useEffect(() => {
+    if (status?.deploy_mode !== "live" || status?.status !== "running") return;
+    fetchLiveHealth();
+    const interval = setInterval(fetchLiveHealth, 15000);
+    return () => clearInterval(interval);
+  }, [status?.deploy_mode, status?.status, fetchLiveHealth]);
+
   const getStatusBadge = (status: string, statusDetail?: string) => {
     // Use status_detail for nuanced display if available
     const detailStatus = statusDetail || status;
@@ -1312,6 +1386,22 @@ export function DeploymentDetails({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Live health indicator for live-mode deployments */}
+            {status.deploy_mode === "live" && liveHealth && (
+              <span
+                className={`text-xs flex items-center gap-1 ${
+                  liveHealth.healthy
+                    ? "text-[var(--color-accent-green)]"
+                    : "text-[var(--color-accent-red)]"
+                }`}
+                title={`Health check at ${liveHealth.checked_at}${liveHealth.status_code ? ` — HTTP ${liveHealth.status_code}` : ""}`}
+              >
+                <span
+                  className={`inline-block h-2 w-2 rounded-full ${liveHealth.healthy ? "bg-[var(--color-accent-green)]" : "bg-[var(--color-accent-red)]"}`}
+                />
+                {liveHealth.healthy ? "Healthy" : "Unhealthy"}
+              </span>
+            )}
             {status.status === "running" && (
               <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -1389,6 +1479,31 @@ export function DeploymentDetails({
               )}
             </Button>
           )}
+
+          {/* Rollback - live mode only, not when completed */}
+          {status.deploy_mode === "live" &&
+            status.status !== "completed" &&
+            status.status !== "cancelled" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRollback}
+                disabled={actionLoading !== null}
+                className="border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[rgba(251,191,36,0.1)]"
+              >
+                {actionLoading === "rollback" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    Rolling back...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Rollback
+                  </>
+                )}
+              </Button>
+            )}
         </div>
 
         {/* Action Messages */}
@@ -1904,7 +2019,7 @@ export function DeploymentDetails({
 
         {/* Tabs for Shards and Logs */}
         <Tabs defaultValue="shards" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="shards">
               Shards ({status.total_shards})
             </TabsTrigger>
@@ -1924,6 +2039,16 @@ export function DeploymentDetails({
               onClick={() => !report && fetchReport()}
             >
               Report
+            </TabsTrigger>
+            <TabsTrigger
+              value="events"
+              onClick={() => {
+                if (events.length === 0 && !eventsLoading) {
+                  fetchEvents();
+                }
+              }}
+            >
+              Events {events.length > 0 ? `(${events.length})` : ""}
             </TabsTrigger>
           </TabsList>
 
@@ -2304,6 +2429,9 @@ export function DeploymentDetails({
                                       shard.shard_id
                                     ]
                                   }
+                                  vmEvents={events.filter(
+                                    (e) => e.shard_id === shard.shard_id,
+                                  )}
                                 />
                               ))}
                             </div>
@@ -2329,6 +2457,9 @@ export function DeploymentDetails({
                         classification={
                           status?.shard_classifications?.[shard.shard_id]
                         }
+                        vmEvents={events.filter(
+                          (e) => e.shard_id === shard.shard_id,
+                        )}
                       />
                     ))}
                   </div>
@@ -2958,6 +3089,126 @@ export function DeploymentDetails({
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="events" className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+                Shard Event Timeline
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={fetchEvents}
+                disabled={eventsLoading}
+              >
+                {eventsLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Refresh
+              </Button>
+            </div>
+
+            {eventsLoading && events.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent-cyan)]" />
+                <span className="ml-2 text-sm text-[var(--color-text-muted)]">
+                  Loading events...
+                </span>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  No events recorded for this deployment.
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  Events are emitted by VM/Cloud Run backends during execution.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {[...events]
+                  .sort(
+                    (a, b) =>
+                      new Date(a.timestamp).getTime() -
+                      new Date(b.timestamp).getTime(),
+                  )
+                  .map((ev, idx) => {
+                    const isVm = VM_EVENT_TYPES.has(ev.event_type);
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 p-2 rounded text-xs bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)]"
+                      >
+                        <span className="text-[var(--color-text-muted)] font-mono whitespace-nowrap shrink-0">
+                          {formatDateTime(ev.timestamp)}
+                        </span>
+                        <code className="text-[var(--color-text-muted)] truncate shrink-0 max-w-[180px]">
+                          {ev.shard_id}
+                        </code>
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                            isVm
+                              ? "bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)]"
+                              : "bg-[rgba(34,211,238,0.15)] text-[var(--color-accent-cyan)]"
+                          }`}
+                        >
+                          {ev.event_type.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[var(--color-text-secondary)] flex-1 min-w-0 truncate">
+                          {ev.message}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* Collapsible: aggregate VM error summary */}
+            {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length >
+              0 && (
+              <div className="mt-4">
+                <button
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                  onClick={() => setEventsExpanded((v) => !v)}
+                >
+                  {eventsExpanded ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                  VM Event Summary (
+                  {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length}{" "}
+                  events)
+                </button>
+                {eventsExpanded && (
+                  <div className="mt-2 pl-4 space-y-1">
+                    {Object.entries(
+                      events
+                        .filter((e) => VM_EVENT_TYPES.has(e.event_type))
+                        .reduce<Record<string, number>>((acc, e) => {
+                          acc[e.event_type] = (acc[e.event_type] ?? 0) + 1;
+                          return acc;
+                        }, {}),
+                    ).map(([type, count]) => (
+                      <div
+                        key={type}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <span className="text-[var(--color-accent-amber)]">
+                          {type.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[var(--color-text-muted)]">
+                          ×{count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </CardContent>
 
@@ -3095,6 +3346,7 @@ interface ShardRowProps {
   onViewLogs?: () => void;
   cancelling?: boolean;
   classification?: string;
+  vmEvents?: ShardEvent[];
 }
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -3114,6 +3366,19 @@ const CLASSIFICATION_COLORS: Record<string, string> = {
   STILL_RUNNING: "#06b6d4",
 };
 
+const VM_EVENT_BADGE_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string }
+> = {
+  VM_PREEMPTED: { label: "Preempted", color: "#f97316", bg: "rgba(249,115,22,0.2)" },
+  CONTAINER_OOM: { label: "OOM", color: "#ef4444", bg: "rgba(239,68,68,0.2)" },
+  VM_QUOTA_EXHAUSTED: { label: "Quota", color: "#eab308", bg: "rgba(234,179,8,0.2)" },
+  VM_ZONE_UNAVAILABLE: { label: "Zone N/A", color: "#eab308", bg: "rgba(234,179,8,0.2)" },
+  CLOUD_RUN_REVISION_FAILED: { label: "Rev Failed", color: "#ef4444", bg: "rgba(239,68,68,0.2)" },
+  VM_TIMEOUT: { label: "Timeout", color: "#f97316", bg: "rgba(249,115,22,0.2)" },
+  VM_DELETED: { label: "VM Deleted", color: "#6b7280", bg: "rgba(107,114,128,0.2)" },
+};
+
 function ShardRow({
   shard,
   selected,
@@ -3122,6 +3387,7 @@ function ShardRow({
   onViewLogs,
   cancelling,
   classification,
+  vmEvents,
 }: ShardRowProps) {
   const getIcon = () => {
     switch (shard.status) {
@@ -3227,6 +3493,28 @@ function ShardRow({
               {classification.replace(/_/g, " ")}
             </span>
           )}
+          {/* VM event badges — derived from event timeline */}
+          {vmEvents &&
+            vmEvents.length > 0 &&
+            Array.from(
+              new Set(
+                vmEvents
+                  .map((e) => e.event_type)
+                  .filter((t) => t in VM_EVENT_BADGE_CONFIG),
+              ),
+            ).map((eventType) => {
+              const cfg = VM_EVENT_BADGE_CONFIG[eventType];
+              return cfg ? (
+                <span
+                  key={eventType}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{ color: cfg.color, backgroundColor: cfg.bg }}
+                  title={eventType}
+                >
+                  {cfg.label}
+                </span>
+              ) : null;
+            })}
         </div>
         {/* CLI args (compact, hover for full) */}
         {shard.args && shard.args.length > 0 && (

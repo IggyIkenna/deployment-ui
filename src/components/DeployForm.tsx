@@ -116,6 +116,12 @@ export function DeployForm({
   >("default");
   const [maxConcurrent, setMaxConcurrent] = useState<string>(""); // Optional; empty = backend default (2000)
 
+  // Live mode fields
+  const [imageTag, setImageTag] = useState<string>("latest");
+  const [trafficSplitPct, setTrafficSplitPct] = useState<number>(10);
+  const [healthGateTimeoutS, setHealthGateTimeoutS] = useState<number>(300);
+  const [rollbackOnFail, setRollbackOnFail] = useState<boolean>(true);
+
   // Quota info modal state
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -418,6 +424,14 @@ export function DeployForm({
       request.date_granularity = dateGranularity;
     if (maxConcurrent) request.max_concurrent = parseInt(maxConcurrent);
 
+    // Live mode fields
+    if (mode === "live") {
+      if (imageTag.trim()) request.image_tag = imageTag.trim();
+      request.traffic_split_pct = trafficSplitPct;
+      request.health_gate_timeout_s = healthGateTimeoutS;
+      request.rollback_on_fail = rollbackOnFail;
+    }
+
     return request;
   };
 
@@ -657,6 +671,76 @@ export function DeployForm({
             </Button>
           </div>
         </div>
+
+        {/* Live mode fields — shown only when mode === "live" */}
+        {mode === "live" && (
+          <div className="space-y-4 p-4 rounded-lg border border-[rgba(34,211,238,0.3)] bg-[rgba(34,211,238,0.05)]">
+            <p className="text-xs font-medium text-[var(--color-accent-cyan)] uppercase tracking-wider">
+              Live Deployment Settings
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="imageTag">Image Tag</Label>
+              <Input
+                id="imageTag"
+                value={imageTag}
+                onChange={(e) => setImageTag(e.target.value)}
+                placeholder="latest"
+              />
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Docker image tag to deploy (e.g. latest, v1.2.3, git-sha)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Traffic Split:{" "}
+                <span className="text-[var(--color-accent-cyan)]">
+                  {trafficSplitPct}%
+                </span>
+              </Label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={trafficSplitPct}
+                onChange={(e) => setTrafficSplitPct(Number(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Canary traffic sent to new revision before full cutover
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="healthGateTimeout">
+                Health Gate Timeout (seconds)
+              </Label>
+              <Input
+                id="healthGateTimeout"
+                type="number"
+                min={30}
+                max={3600}
+                value={healthGateTimeoutS}
+                onChange={(e) =>
+                  setHealthGateTimeoutS(Number(e.target.value) || 300)
+                }
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="rollbackOnFail"
+                checked={rollbackOnFail}
+                onCheckedChange={(v) => setRollbackOnFail(!!v)}
+              />
+              <Label htmlFor="rollbackOnFail">
+                Auto-rollback if health gate fails
+              </Label>
+            </div>
+          </div>
+        )}
 
         {/* Compute Target */}
         <div className="space-y-2">
