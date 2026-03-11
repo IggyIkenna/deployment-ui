@@ -1,7 +1,7 @@
 {
   "name": "deployment-ui",
   "version": "0.1.0",
-  "description": "Deployment management UI — orchestrator status, shard progress, Cloud Build logs, service health",
+  "description": "Deployment management UI \u2014 orchestrator status, shard progress, Cloud Build logs, service health",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,8 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-router-dom": "^6.20.0",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "@unified-admin/core": "file:../unified-admin-ui/packages/core"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
