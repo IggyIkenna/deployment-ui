@@ -603,3 +603,69 @@ export interface LiveHealthStatus {
   checked_at: string; // ISO-8601
   status_code?: number;
 }
+
+// Epic readiness types
+export interface EpicBranchStatus {
+  reached: boolean;
+  qg_passed: boolean;
+  quickmerged: boolean;
+}
+
+export interface EpicAssetClassData {
+  historical_available: boolean;
+  live_available: boolean;
+  mock_available: boolean;
+  testnet_available: boolean;
+  historical_start_date: string | null;
+}
+
+export interface EpicRepoStatus {
+  repo: string;
+  arch_tier: string | null;
+  asset_class: string;
+  cr_current: string | null;
+  cr_required: string;
+  br_current: string | null;
+  br_required: string;
+  main_quickmerged: boolean;
+  branch_status?: Record<string, EpicBranchStatus>;
+  data?: EpicAssetClassData;
+  feature_groups?: string[];
+  ml_models?: string[];
+  venue_deps?: string[];
+  blocking_reason?: string;
+}
+
+export interface EpicOptionalRepo {
+  repo: string;
+  asset_class: string;
+  note: string;
+  yaml_present: boolean;
+}
+
+export interface EpicSummary {
+  epic_id: string;
+  display_name: string;
+  mvp_priority: number;
+  epic_pct: number;
+  total_required: number;
+  completed: number;
+  epic_complete: boolean;
+  blocking_count: number;
+  business_requirement_minimum: string;
+}
+
+export interface EpicDetail {
+  epic_id: string;
+  display_name: string;
+  mvp_priority: number;
+  business_requirement_minimum: string;
+  epic_pct: number;
+  total_required: number;
+  completed: number;
+  epic_complete: boolean;
+  completion_criteria: Record<string, string>;
+  blocking_repos: EpicRepoStatus[];
+  completed_repos: string[];
+  optional_repos_status: EpicOptionalRepo[];
+}

@@ -21,6 +21,8 @@ import type {
   RollbackRequest,
   RollbackResponse,
   LiveHealthStatus,
+  EpicSummary,
+  EpicDetail,
 } from "../types";
 
 const API_BASE = "/api";
@@ -468,6 +470,15 @@ export async function listChecklists(): Promise<{
   count: number;
 }> {
   return fetchJson("/checklists");
+}
+
+// Epics
+export async function getEpics(): Promise<EpicSummary[]> {
+  return fetchJson("/epics");
+}
+
+export async function getEpicDetail(epicId: string): Promise<EpicDetail> {
+  return fetchJson(`/epics/${epicId}`);
 }
 
 // Data Status
@@ -1303,6 +1314,15 @@ export async function getLiveDeploymentHealth(
   return fetchJson(
     `/deployments/${deploymentId}/live-health?${params.toString()}`,
   );
+}
+
+// Epics
+export async function getEpics(): Promise<EpicSummary[]> {
+  return fetchJson("/epics");
+}
+
+export async function getEpicDetail(epicId: string): Promise<EpicDetail> {
+  return fetchJson(`/epics/${epicId}`);
 }
 
 export { ApiError };

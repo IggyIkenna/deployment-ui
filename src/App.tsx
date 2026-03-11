@@ -13,6 +13,7 @@ import { DataStatusTab } from "./components/DataStatusTab";
 import { ServiceStatusTab } from "./components/ServiceStatusTab";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { CloudBuildsTab } from "./components/CloudBuildsTab";
+import { EpicReadinessView } from "./components/EpicReadinessView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import {
   Settings,
@@ -23,6 +24,8 @@ import {
   Database,
   Activity,
   Hammer,
+  Trophy,
+  LayoutGrid,
 } from "lucide-react";
 import { createDeployment } from "./api/client";
 import type { DeploymentRequest, CreateDeploymentResponse } from "./types";
@@ -303,7 +306,24 @@ function App() {
                   );
                 })()
               ) : (
-                <ServicesOverviewTab onSelectService={setSelectedService} />
+                <Tabs defaultValue="overview" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="overview" className="gap-2">
+                      <LayoutGrid className="h-4 w-4" />
+                      Overview
+                    </TabsTrigger>
+                    <TabsTrigger value="epics" className="gap-2">
+                      <Trophy className="h-4 w-4" />
+                      Epics
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="overview">
+                    <ServicesOverviewTab onSelectService={setSelectedService} />
+                  </TabsContent>
+                  <TabsContent value="epics">
+                    <EpicReadinessView />
+                  </TabsContent>
+                </Tabs>
               )}
             </div>
           </div>
