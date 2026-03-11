@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/setupTests.ts"],
     include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}"],
+    // Use forks pool to avoid memory issues with V8 coverage on macOS
+    // (threads pool causes SIGURG/exit-144 when all 178 tests run with coverage)
+    pool: "forks",
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],
