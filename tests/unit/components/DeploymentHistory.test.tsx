@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 
 vi.mock("../../../src/api/client", () => ({
   getDeployments: vi.fn(),
@@ -32,15 +32,16 @@ describe("DeploymentHistory", () => {
     vi.clearAllMocks();
   });
 
-  it("shows loading spinner initially", () => {
-    // Never resolves — stays loading
+  it("shows loading spinner initially", async () => {
+    let resolveRef!: (v: unknown) => void;
     (getDeployments as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => {}),
+      () => new Promise((r) => (resolveRef = r)),
     );
     render(<DeploymentHistory serviceName="instruments-service" />);
     // Loading state renders a spinner (Loader2 svg) inside the card
     const card = document.querySelector("svg");
     expect(card).toBeTruthy();
+    await act(async () => resolveRef({ deployments: [] }));
   });
 
   it("renders deployment rows after data loads", async () => {

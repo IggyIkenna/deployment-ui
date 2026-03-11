@@ -12,6 +12,20 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json-summary"],
       reportsDirectory: "./coverage",
+      exclude: [
+        "src/main.tsx",
+        "src/vite-env.d.ts",
+        "src/**/*.d.ts",
+        "src/setupTests.ts",
+        "src/lib/mock-api.ts",
+        "playwright.config.ts",
+      ],
+      thresholds: {
+        lines: 70,
+        statements: 70,
+        functions: 70,
+        branches: 70,
+      },
     },
   },
 });
