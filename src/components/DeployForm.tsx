@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { CLIPreview } from "./CLIPreview";
+import { BuildSelector } from "./BuildSelector";
 import { cn } from "../lib/utils";
 import { getDeploymentQuotaInfo, type QuotaInfoResponse } from "../api/client";
 import type { DeploymentRequest, ServiceDimension } from "../types";
@@ -720,6 +721,11 @@ export function DeployForm({
               Live Deployment Settings
             </p>
 
+            <BuildSelector
+              service={serviceName}
+              onSelect={(tag) => setImageTag(tag)}
+            />
+
             <div className="space-y-2">
               <Label htmlFor="imageTag">Image Tag</Label>
               <Input
@@ -729,7 +735,9 @@ export function DeployForm({
                 placeholder="latest"
               />
               <p className="text-xs text-[var(--color-text-muted)]">
-                Docker image tag to deploy (e.g. latest, v1.2.3, git-sha)
+                Docker image tag to deploy (e.g. 1.0.0,
+                0.3.168-feat-my-feature). Select a build above to pre-fill, or
+                type a tag manually.
               </p>
             </div>
 

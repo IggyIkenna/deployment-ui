@@ -4,6 +4,16 @@ import type {
   DeployJob,
 } from "../types/deploymentTypes";
 
+export interface BuildEntry {
+  tag: string;
+  display: string;
+  version: string;
+  branch: string;
+  is_v1: boolean;
+}
+
+export type BuildEnvironment = "dev" | "staging" | "prod";
+
 const DEPLOYMENT_API =
   import.meta.env.VITE_DEPLOYMENT_API_URL ?? "http://localhost:8004";
 
@@ -45,4 +55,40 @@ export async function rollbackDeployment(jobId: string): Promise<DeployJob> {
     },
   );
   return handleResponse<DeployJob>(response);
+}
+
+export async function fetchBuilds(
+  service: string,
+  env: BuildEnvironment,
+): Promise<BuildEntry[]> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/builds/${encodeURIComponent(service)}?env=${env}`,
+  );
+  return handleResponse<BuildEntry[]>(response);
+}
+
+export async function deployBuild(
+  service: string,
+  imageTag: string,
+  environment: BuildEnvironment,
+): Promise<{
+  status: string;
+  service: string;
+  image_tag: string;
+  environment: string;
+}> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(service)}/deploy`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_tag: imageTag, environment }),
+    },
+  );
+  return handleResponse<{
+    status: string;
+    service: string;
+    image_tag: string;
+    environment: string;
+  }>(response);
 }

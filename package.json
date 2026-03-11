@@ -1,7 +1,7 @@
 {
   "name": "deployment-ui",
   "version": "0.1.0",
-  "description": "Deployment management UI \u2014 orchestrator status, shard progress, Cloud Build logs, service health",
+  "description": "Deployment management UI — orchestrator status, shard progress, Cloud Build logs, service health",
   "type": "module",
   "scripts": {
     "dev": "vite",
