@@ -399,9 +399,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.getByText("dep-test-001")).toBeVisible();
+    // The internal mock returns dep-001, dep-002, etc.
+    await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10000 });
   });
 
   test("History tab shows Completed and Running badges", async ({ page }) => {
@@ -409,7 +408,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
-    await page.waitForLoadState("networkidle");
+    // Wait for deployment rows to appear before checking badges
+    await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Completed").first()).toBeVisible();
     await expect(page.getByText("Running")).toBeVisible();
@@ -420,7 +420,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
-    await page.waitForLoadState("networkidle");
+    // Wait for deployment rows to appear before checking LIVE badge
+    await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("LIVE")).toBeVisible();
   });
@@ -432,10 +433,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /Builds/i }).click();
-    await page.waitForLoadState("networkidle");
-
-    // Should render the header — not an error card
-    await expect(page.getByText("Cloud Build Triggers")).toBeVisible();
+    // Wait for async trigger fetch to resolve
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
     // Should show the mocked trigger
     await expect(page.getByText("instruments-service").first()).toBeVisible();
     // Should NOT show an uncaught error
@@ -449,7 +448,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /Builds/i }).click();
-    await page.waitForLoadState("networkidle");
+    // Wait for content to load then check badge
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
 
     // Badge shows "1 triggers" from the mock
     await expect(page.getByText(/1 trigger/i)).toBeVisible();
@@ -462,10 +462,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
-    await page.waitForLoadState("networkidle");
-
-    // Should show the health timeline header
-    await expect(page.getByText("Service Health Timeline")).toBeVisible();
+    // Wait for async status fetch to resolve
+    await expect(page.getByText("Service Health Timeline")).toBeVisible({ timeout: 10000 });
     // Should show healthy status from mock
     await expect(page.getByText(/healthy/i).first()).toBeVisible();
     // Should NOT show an uncaught error
@@ -481,7 +479,8 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
-    await page.waitForLoadState("networkidle");
+    // Wait for content to render
+    await expect(page.getByText("Service Health Timeline")).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("Last Data Update")).toBeVisible();
     await expect(page.getByText("Last Deployment")).toBeVisible();
@@ -546,8 +545,12 @@ test.describe("DeployForm — Batch Mode", () => {
   });
 
   test("date fields are visible for batch mode", async ({ page }) => {
+    // Date inputs are rendered only after dimensions load (hasDate depends on the "date" dimension).
+    // Wait for dimensions to finish loading by waiting for the Region selector to appear.
+    await expect(page.getByText(/Region/).first()).toBeVisible({ timeout: 10000 });
     // Date inputs are rendered as <input type="date"> in batch mode
     const dateInputs = page.locator("input[type='date']");
+    await expect(dateInputs.first()).toBeVisible({ timeout: 10000 });
     const count = await dateInputs.count();
     expect(count).toBeGreaterThan(0);
   });
@@ -722,7 +725,8 @@ test.describe("Clear Cache Button", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    const clearBtn = page.getByText("Clear Cache");
+    // Use the header's Clear Cache button specifically (there may be another in DataStatusTab)
+    const clearBtn = page.getByText("Clear Cache").first();
     await expect(clearBtn).toBeVisible();
     await clearBtn.click();
 
@@ -815,8 +819,8 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
     page,
   }) => {
     await page.getByRole("tab", { name: /Builds/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByText("Cloud Build Triggers")).toBeVisible();
+    // Wait for the async trigger fetch to resolve
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
   });
 
@@ -843,8 +847,8 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
 
   test("History tab renders deployment list in mock mode", async ({ page }) => {
     await page.getByRole("tab", { name: /History/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByText("dep-test-001")).toBeVisible();
+    // The internal mock returns dep-001, dep-002, etc.
+    await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
   });
 });

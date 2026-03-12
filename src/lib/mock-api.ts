@@ -98,53 +98,48 @@ const MOCK_DEPLOYMENTS = [
     id: "dep-001",
     service: "instruments-service",
     status: "completed",
-    startedAt: "2026-03-10T08:00:00Z",
-    completedAt: "2026-03-10T08:45:00Z",
-    shards: 48,
-    mode: "batch",
-    cloudProvider: "gcp",
-    region: "asia-northeast1-c",
-    createdBy: "pipeline-agent",
+    created_at: "2026-03-10T08:00:00Z",
+    updated_at: "2026-03-10T08:45:00Z",
+    total_shards: 48,
+    completed_shards: 48,
+    failed_shards: 0,
+    parameters: { compute: "vm", mode: "batch", cloud_provider: "gcp" },
     tag: "daily-run",
   },
   {
     id: "dep-002",
-    service: "market-tick-data-service",
+    service: "instruments-service",
     status: "running",
-    startedAt: "2026-03-10T09:30:00Z",
-    completedAt: null,
-    shards: 126,
-    mode: "batch",
-    cloudProvider: "gcp",
-    region: "asia-northeast1-c",
-    createdBy: "pipeline-agent",
+    created_at: "2026-03-10T09:30:00Z",
+    updated_at: "2026-03-10T09:30:00Z",
+    total_shards: 126,
+    completed_shards: 78,
+    failed_shards: 0,
+    parameters: { compute: "cloud_run", mode: "live", cloud_provider: "gcp" },
     tag: null,
   },
   {
     id: "dep-003",
-    service: "features-delta-one-service",
+    service: "instruments-service",
     status: "failed",
-    startedAt: "2026-03-10T07:00:00Z",
-    completedAt: "2026-03-10T07:22:00Z",
-    shards: 72,
-    mode: "batch",
-    cloudProvider: "gcp",
-    region: "asia-northeast1-c",
-    createdBy: "pipeline-agent",
+    created_at: "2026-03-10T07:00:00Z",
+    updated_at: "2026-03-10T07:22:00Z",
+    total_shards: 72,
+    completed_shards: 31,
+    failed_shards: 8,
+    parameters: { compute: "vm", mode: "batch", cloud_provider: "gcp" },
     tag: "debug-run",
-    error: "Quota exceeded: VM instance quota in asia-northeast1-c",
   },
   {
     id: "dep-004",
-    service: "ml-training-service",
+    service: "instruments-service",
     status: "completed",
-    startedAt: "2026-03-09T22:00:00Z",
-    completedAt: "2026-03-09T23:40:00Z",
-    shards: 12,
-    mode: "batch",
-    cloudProvider: "gcp",
-    region: "us-central1",
-    createdBy: "pipeline-agent",
+    created_at: "2026-03-09T22:00:00Z",
+    updated_at: "2026-03-09T23:40:00Z",
+    total_shards: 12,
+    completed_shards: 12,
+    failed_shards: 0,
+    parameters: { compute: "vm", mode: "batch", cloud_provider: "gcp" },
     tag: "weekly-retrain",
   },
 ];
@@ -317,7 +312,37 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Service sub-routes
   if (path.match(/^\/api\/services\/(.+)\/dimensions$/)) {
     const svc = MOCK_SERVICES.find((s) => path.includes(s.name));
-    return json({ dimensions: svc?.dimensions ?? ["date"] });
+    const dimNames: string[] = svc?.dimensions ?? ["date"];
+    const dimensionObjects = dimNames.map((name) => {
+      if (name === "date") {
+        return {
+          name: "date",
+          type: "date_range",
+          description: "Date range for batch processing",
+          granularity: "daily",
+        };
+      }
+      if (name === "category") {
+        return {
+          name: "category",
+          type: "fixed",
+          description: "Market category",
+          values: ["cefi", "tradfi", "defi"],
+        };
+      }
+      if (name === "venue") {
+        return { name: "venue", type: "fixed", description: "Trading venue", values: [] };
+      }
+      if (name === "feature_group") {
+        return { name: "feature_group", type: "fixed", description: "Feature group", values: [] };
+      }
+      return { name, type: "fixed", description: name, values: [] };
+    });
+    return json({
+      service: "instruments-service",
+      dimensions: dimensionObjects,
+      cli_args: { "--start-date": null, "--end-date": null },
+    });
   }
   if (path.match(/^\/api\/services\/(.+)\/dependencies$/)) {
     return json({ upstream: [], downstream: [], dependents: [] });
@@ -443,7 +468,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Cloud builds
-  if (path === "/api/cloud-builds" || path === "/cloud-builds/triggers") {
+  if (
+    path === "/api/cloud-builds" ||
+    path === "/cloud-builds/triggers" ||
+    path === "/api/cloud-builds/triggers"
+  ) {
     return json({
       triggers: [
         {
@@ -493,7 +522,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Service status
-  if (path.match(/^\/service-status\/(.+)\/status$/)) {
+  if (path.match(/^\/(?:api\/)?service-status\/(.+)\/status$/)) {
     return json({
       service: "instruments-service",
       health: "healthy",
@@ -518,11 +547,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  // Cache
-  if (path === "/api/cache/clear" && method === "DELETE") {
+  // Cache — handle both POST (client uses POST) and DELETE
+  if (path === "/api/cache/clear") {
     return json({ cleared: true, message: "Cache cleared (mock)" });
   }
-  if (path === "/api/cache" && method === "DELETE") {
+  if (path === "/api/cache") {
     return json({ cleared: true, message: "Cache cleared (mock)" });
   }
 
