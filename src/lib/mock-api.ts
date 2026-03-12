@@ -271,41 +271,6 @@ const MOCK_CHECKLIST = {
   ],
 };
 
-const _MOCK_CLOUD_BUILDS = [
-  {
-    id: "cb-001",
-    trigger: "instruments-service",
-    status: "SUCCESS",
-    startTime: "2026-03-10T08:00:00Z",
-    finishTime: "2026-03-10T08:12:00Z",
-    duration: 720,
-  },
-  {
-    id: "cb-002",
-    trigger: "market-tick-data-service",
-    status: "WORKING",
-    startTime: "2026-03-10T09:00:00Z",
-    finishTime: null,
-    duration: null,
-  },
-  {
-    id: "cb-003",
-    trigger: "features-delta-one-service",
-    status: "FAILURE",
-    startTime: "2026-03-10T07:30:00Z",
-    finishTime: "2026-03-10T07:45:00Z",
-    duration: 900,
-  },
-  {
-    id: "cb-004",
-    trigger: "ml-training-service",
-    status: "SUCCESS",
-    startTime: "2026-03-09T20:00:00Z",
-    finishTime: "2026-03-09T20:18:00Z",
-    duration: 1080,
-  },
-];
-
 // ---- Route handler ----
 
 function delay(ms = 60): Promise<void> {

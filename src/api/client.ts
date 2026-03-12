@@ -1316,13 +1316,4 @@ export async function getLiveDeploymentHealth(
   );
 }
 
-// Epics
-export async function getEpics(): Promise<EpicSummary[]> {
-  return fetchJson("/epics");
-}
-
-export async function getEpicDetail(epicId: string): Promise<EpicDetail> {
-  return fetchJson(`/epics/${epicId}`);
-}
-
 export { ApiError };
