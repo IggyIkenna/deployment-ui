@@ -331,10 +331,20 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         };
       }
       if (name === "venue") {
-        return { name: "venue", type: "fixed", description: "Trading venue", values: [] };
+        return {
+          name: "venue",
+          type: "fixed",
+          description: "Trading venue",
+          values: [],
+        };
       }
       if (name === "feature_group") {
-        return { name: "feature_group", type: "fixed", description: "Feature group", values: [] };
+        return {
+          name: "feature_group",
+          type: "fixed",
+          description: "Feature group",
+          values: [],
+        };
       }
       return { name, type: "fixed", description: name, values: [] };
     });

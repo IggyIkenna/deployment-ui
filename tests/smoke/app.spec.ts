@@ -434,7 +434,9 @@ test.describe("Service Selection & Navigation", () => {
 
     await page.getByRole("tab", { name: /Builds/i }).click();
     // Wait for async trigger fetch to resolve
-    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({
+      timeout: 10000,
+    });
     // Should show the mocked trigger
     await expect(page.getByText("instruments-service").first()).toBeVisible();
     // Should NOT show an uncaught error
@@ -449,7 +451,9 @@ test.describe("Service Selection & Navigation", () => {
 
     await page.getByRole("tab", { name: /Builds/i }).click();
     // Wait for content to load then check badge
-    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Badge shows "1 triggers" from the mock
     await expect(page.getByText(/1 trigger/i)).toBeVisible();
@@ -463,7 +467,9 @@ test.describe("Service Selection & Navigation", () => {
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
     // Wait for async status fetch to resolve
-    await expect(page.getByText("Service Health Timeline")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Service Health Timeline")).toBeVisible({
+      timeout: 10000,
+    });
     // Should show healthy status from mock
     await expect(page.getByText(/healthy/i).first()).toBeVisible();
     // Should NOT show an uncaught error
@@ -480,7 +486,9 @@ test.describe("Service Selection & Navigation", () => {
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
     // Wait for content to render
-    await expect(page.getByText("Service Health Timeline")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Service Health Timeline")).toBeVisible({
+      timeout: 10000,
+    });
 
     await expect(page.getByText("Last Data Update")).toBeVisible();
     await expect(page.getByText("Last Deployment")).toBeVisible();
@@ -547,7 +555,9 @@ test.describe("DeployForm — Batch Mode", () => {
   test("date fields are visible for batch mode", async ({ page }) => {
     // Date inputs are rendered only after dimensions load (hasDate depends on the "date" dimension).
     // Wait for dimensions to finish loading by waiting for the Region selector to appear.
-    await expect(page.getByText(/Region/).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Region/).first()).toBeVisible({
+      timeout: 10000,
+    });
     // Date inputs are rendered as <input type="date"> in batch mode
     const dateInputs = page.locator("input[type='date']");
     await expect(dateInputs.first()).toBeVisible({ timeout: 10000 });
@@ -820,7 +830,9 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
   }) => {
     await page.getByRole("tab", { name: /Builds/i }).click();
     // Wait for the async trigger fetch to resolve
-    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Cloud Build Triggers")).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
   });
 
