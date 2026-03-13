@@ -294,6 +294,8 @@ export interface HealthResponse {
   status: string;
   version: string;
   config_dir: string;
+  cloud_provider?: string;
+  mock_mode?: boolean;
   gcs_fuse?: { active: boolean; env?: string; reason?: string };
 }
 

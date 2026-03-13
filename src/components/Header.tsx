@@ -99,17 +99,42 @@ export function Header() {
           </div>
 
           {/* Cloud Provider Indicator */}
-          {health && (
+          {health?.cloud_provider && (
             <Badge
               variant="outline"
               className="text-xs font-mono"
-              title="Active cloud provider"
+              title={`Cloud provider: ${health.cloud_provider.toUpperCase()}`}
               style={{
-                color: "#22d3ee",
-                borderColor: "rgba(34,211,238,0.4)",
+                color:
+                  health.cloud_provider === "gcp"
+                    ? "#22d3ee"
+                    : health.cloud_provider === "aws"
+                      ? "#f97316"
+                      : "#a78bfa",
+                borderColor:
+                  health.cloud_provider === "gcp"
+                    ? "rgba(34,211,238,0.4)"
+                    : health.cloud_provider === "aws"
+                      ? "rgba(249,115,22,0.4)"
+                      : "rgba(167,139,250,0.4)",
               }}
             >
-              GCP
+              {health.cloud_provider.toUpperCase()}
+            </Badge>
+          )}
+
+          {/* Mock Mode Indicator */}
+          {health?.mock_mode && (
+            <Badge
+              variant="outline"
+              className="text-xs font-mono"
+              title="Mock mode active — no live cloud calls"
+              style={{
+                color: "#fbbf24",
+                borderColor: "rgba(251,191,36,0.4)",
+              }}
+            >
+              MOCK
             </Badge>
           )}
 
