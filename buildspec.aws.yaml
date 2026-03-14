@@ -1,60 +1,57 @@
-# AWS CodeBuild equivalent of cloudbuild.yaml for deployment-ui
-# ARCHITECTURE: Quality gates in build env; lean nginx runtime image
+# CodeBuild buildspec template — Unified Trading System UI Repos
 #
-# Note: deployment-ui has a local dep on @unified-admin/core (file:../unified-admin-ui/packages/core).
-# CodeBuild must be configured to clone unified-admin-ui as a secondary source at ../unified-admin-ui.
+# UI variant: Node.js 20, npm ci, typecheck, lint, test in pre_build; docker build, push in build/post_build.
+#
+# Placeholders: deployment-ui, unified-trading-system.
+# Registry image: {{REGISTRY_URI}}/unified-trading-system/deployment-ui
+
 version: 0.2
 
 env:
   variables:
-    AWS_DEFAULT_REGION: "ap-northeast-1"
-  exported-variables:
-    - IMAGE_TAG
+    SERVICE_NAME: "deployment-ui"
+    REGISTRY_REPO: "unified-trading-system"
+    IMAGE_TAG: "latest"
+  # AWS_ACCOUNT_ID, AWS_DEFAULT_REGION available in CodeBuild
 
 phases:
   install:
     runtime-versions:
       nodejs: "20"
     commands:
-      - npm ci
-      - VERSION=$(node -p "require('./package.json').version") && export VERSION
-      - export IMAGE_TAG=$VERSION
-      - ECR_HOST=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION
-        | docker login --username AWS --password-stdin $ECR_HOST
+      - echo "Installing Docker..."
+      - yum install -y docker || true
+      - service docker start || true
 
   pre_build:
     commands:
-      - REPO_NAME=deployment-ui
-      - ECR_REPO=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME
-      - aws ecr describe-repositories --repository-names $REPO_NAME
-        || aws ecr create-repository --repository-name $REPO_NAME
-        --image-scanning-configuration scanOnPush=true
+      - echo "Installing dependencies..."
+      - npm ci --prefer-offline 2>/dev/null || npm ci
       - echo "--- Typecheck ---"
-      - npm run typecheck
+      - npm run typecheck 2>/dev/null || npm run type-check
       - echo "--- Lint ---"
       - npm run lint
       - echo "--- Unit tests ---"
       - npm test
+      - echo "Quality gates passed"
+      - echo "Logging in to ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin
+        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - aws ecr describe-repositories --repository-names $REGISTRY_REPO --region $AWS_DEFAULT_REGION 2>/dev/null || aws
+        ecr create-repository --repository-name $REGISTRY_REPO --region $AWS_DEFAULT_REGION
+      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REGISTRY_REPO/$SERVICE_NAME"
 
   build:
     commands:
-      - REPO_NAME=deployment-ui
-      - ECR_REPO=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME
-      - docker build -f Dockerfile -t $ECR_REPO:$VERSION -t $ECR_REPO:latest .
-      - docker push $ECR_REPO --all-tags
+      - echo "Building Docker image..."
+      - docker build -f Dockerfile -t $IMAGE_URI:$IMAGE_TAG -t $IMAGE_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION .
 
   post_build:
     commands:
-      - echo "Build complete for deployment-ui $VERSION"
-      - |
-        if [ -n "$GH_PAT" ]; then
-          GH_URL=https://api.github.com/repos/IggyIkenna/deployment-service/dispatches
-          GH_PAYLOAD='{"event_type":"service-deployed","client_payload":{"service_name":"deployment-ui","version":"'"$VERSION"'"}}'
-          curl -sS -X POST -H "Authorization: token $GH_PAT" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "$GH_URL" -d "$GH_PAYLOAD" || true  # || true: cleanup step, failure is intentional (optional GitHub dispatch notification)
-        fi
+      - echo "Pushing image..."
+      - docker push $IMAGE_URI:$IMAGE_TAG
+      - docker push $IMAGE_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - echo "Build complete"
 
 artifacts:
   files:
@@ -62,5 +59,4 @@ artifacts:
 
 cache:
   paths:
-    - "/root/.cache/npm/**/*"
     - "node_modules/**/*"

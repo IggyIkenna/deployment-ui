@@ -1,3 +1,9 @@
+import {
+  createApiClient,
+  createClientConfig,
+  ApiClientError,
+} from "@unified-admin/core";
+import type { ApiClient } from "@unified-admin/core";
 import type {
   Service,
   ServiceDimensionsResponse,
@@ -27,12 +33,16 @@ import type {
 
 const API_BASE = "/api";
 
-class ApiError extends Error {
-  status: number;
+const apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
 
+/**
+ * Backward-compatible ApiError class.
+ * Old signature: `new ApiError(status, message)`.
+ * New underlying class: `ApiClientError({ status, code, message })`.
+ */
+class ApiError extends ApiClientError {
   constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
+    super({ status, code: `HTTP_${status}`, message });
     this.name = "ApiError";
   }
 }
@@ -47,32 +57,68 @@ export class AbortError extends Error {
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE}${url}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
+    // Determine HTTP method from options
+    const method = options?.method?.toUpperCase() ?? "GET";
+    const body = options?.body ? JSON.parse(options.body as string) : undefined;
+    const fetchOptions: RequestInit = {};
+    if (options?.signal) fetchOptions.signal = options.signal;
 
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ detail: "Unknown error" }));
-      throw new ApiError(
-        response.status,
-        error.detail || `HTTP ${response.status}`,
-      );
+    switch (method) {
+      case "POST":
+        return await apiClient.post<T>(url, body, fetchOptions);
+      case "PUT":
+        return await apiClient.put<T>(url, body, fetchOptions);
+      case "DELETE":
+        return await apiClient.delete<T>(url, fetchOptions);
+      case "PATCH":
+        // PATCH falls through to direct fetch since ApiClient doesn't expose patch
+        return await fetchJsonDirect<T>(url, options);
+      default:
+        return await apiClient.get<T>(url, fetchOptions);
     }
-
-    return response.json();
   } catch (err) {
     // Re-throw abort errors with our custom type
     if (err instanceof Error && err.name === "AbortError") {
       throw new AbortError();
     }
+    // Wrap ApiClientError as ApiError for backward compatibility
+    if (err instanceof ApiClientError && !(err instanceof ApiError)) {
+      throw new ApiError(err.status, err.message);
+    }
     throw err;
   }
+}
+
+/** Direct fetch fallback for methods not in ApiClient (e.g. PATCH) */
+async function fetchJsonDirect<T>(
+  url: string,
+  options?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${API_BASE}${url}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...options?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Unknown error" }));
+    throw new ApiClientError({
+      status: response.status,
+      code: `HTTP_${response.status}`,
+      message: error.detail || `HTTP ${response.status}`,
+    });
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
 }
 
 // Health
@@ -290,34 +336,13 @@ export async function retryFailedShards(
   if (options?.dryRun) params.set("dry_run", "true");
   const query = params.toString();
 
-  // Retry can take 30-60 seconds as it creates VMs - use AbortController with longer timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-
-  try {
-    const response = await fetch(
-      `${API_BASE}/deployments/${id}/retry-failed${query ? `?${query}` : ""}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-      },
-    );
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ detail: "Unknown error" }));
-      throw new ApiError(
-        response.status,
-        error.detail || `HTTP ${response.status}`,
-      );
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  // Retry can take 30-60 seconds as it creates VMs — use a dedicated client with 2-minute timeout
+  const retryClient = createApiClient(
+    createClientConfig(API_BASE, { timeoutMs: 120_000 }),
+  );
+  return retryClient.post<RetryFailedResult>(
+    `/deployments/${id}/retry-failed${query ? `?${query}` : ""}`,
+  );
 }
 
 // Single Shard Actions

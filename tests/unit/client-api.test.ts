@@ -72,7 +72,9 @@ function mockFetchError(status: number, detail: string) {
     vi.fn().mockResolvedValue({
       ok: false,
       status,
-      json: () => Promise.resolve({ detail }),
+      statusText: `HTTP ${status}`,
+      json: () =>
+        Promise.resolve({ detail, message: detail, code: `HTTP_${status}` }),
     }),
   );
 }
@@ -84,6 +86,7 @@ function mockFetchErrorNoJson(status: number) {
     vi.fn().mockResolvedValue({
       ok: false,
       status,
+      statusText: `HTTP ${status}`,
       json: () => Promise.reject(new Error("no json")),
     }),
   );

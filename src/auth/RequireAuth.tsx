@@ -10,7 +10,9 @@ interface RequireAuthProps {
   children: ReactNode;
 }
 
-const SKIP_AUTH = import.meta.env.VITE_SKIP_AUTH === "true";
+const SKIP_AUTH =
+  import.meta.env.VITE_SKIP_AUTH === "true" ||
+  import.meta.env.VITE_MOCK_API === "true";
 const AUTH_PROVIDER = import.meta.env.VITE_AUTH_PROVIDER || "google";
 
 export function RequireAuth({ children }: RequireAuthProps) {

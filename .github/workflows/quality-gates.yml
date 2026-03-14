@@ -13,3 +13,4 @@ jobs:
       node-version: "22"
     secrets:
       GH_PAT: ${{ secrets.GH_PAT }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
