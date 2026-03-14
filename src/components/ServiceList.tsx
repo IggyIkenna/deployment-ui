@@ -43,7 +43,6 @@ const serviceIcons: Record<string, React.ElementType> = {
   "ml-inference-service": Brain,
   // L5
   "strategy-service": TrendingUp,
-  "strategy-validation-service": Shield,
   "execution-service": Zap,
   "trading-agent-service": Bot,
   // L6
@@ -123,10 +122,6 @@ const SERVICE_METADATA: Record<
   // L5
   "strategy-service": {
     description: "Backtest & optimise strategies",
-    dimensions: ["config"],
-  },
-  "strategy-validation-service": {
-    description: "OOS validation & risk checks",
     dimensions: ["config"],
   },
   "execution-service": {
@@ -210,7 +205,6 @@ const PIPELINE_LAYERS = [
     color: "#4ade80",
     services: [
       "strategy-service",
-      "strategy-validation-service",
       "execution-service",
       "trading-agent-service",
     ],
