@@ -282,7 +282,10 @@ function json<T>(data: T, status = 200): Response {
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
-  const path = url.replace(/^https?:\/\/[^/]+/, "").replace(/\?.*$/, "");
+  const path = url
+    .replace(/^https?:\/\/[^/]+/, "")
+    .replace(/\?.*$/, "")
+    .replace("/api/v1/", "/api/");
 
   // Health
   if (path === "/api/health") {
@@ -426,7 +429,20 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       tag: (body.tag as string | undefined) ?? null,
     };
     return json(
-      { deployment: newDep, message: "Deployment started (mock)" },
+      {
+        dry_run: false,
+        deployment_id: newDep.id,
+        shards: Array.from({ length: Math.min(newDep.shards, 10) }, (_, i) => ({
+          shard_id: `shard-${i}`,
+          status: "queued",
+          category: "crypto",
+          date_range: { start: "2026-01-01", end: "2026-03-15" },
+        })),
+        total_shards: newDep.shards,
+        shards_truncated: newDep.shards > 10,
+        deployment: newDep,
+        message: "Deployment started (mock)",
+      },
       201,
     );
   }
@@ -568,6 +584,259 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Categories
   if (path === "/api/categories") {
     return json({ categories: MOCK_CATEGORIES });
+  }
+
+  // Builds
+  if (path.match(/^\/api\/builds\/.+/)) {
+    return json([
+      {
+        tag: "v0.3.1-abc1234",
+        display: "v0.3.1 (abc1234)",
+        version: "0.3.1",
+        branch: "main",
+        is_v1: false,
+      },
+      {
+        tag: "v0.3.0-def5678",
+        display: "v0.3.0 (def5678)",
+        version: "0.3.0",
+        branch: "main",
+        is_v1: false,
+      },
+    ]);
+  }
+
+  // Deploy a specific build
+  if (path.match(/^\/api\/deployments\/.+\/deploy$/) && method === "POST") {
+    const body = init?.body
+      ? (JSON.parse(init.body as string) as Record<string, unknown>)
+      : {};
+    return json(
+      {
+        status: "deploying",
+        service: path.split("/")[3],
+        image_tag: (body.image_tag as string | undefined) ?? "latest",
+        environment: (body.environment as string | undefined) ?? "dev",
+      },
+      201,
+    );
+  }
+
+  // Rollback
+  if (path.match(/^\/api\/deployments\/.+\/rollback$/) && method === "POST") {
+    return json({
+      id: path.split("/")[3],
+      status: "rolling_back",
+      message: "Rollback initiated (mock)",
+    });
+  }
+
+  // Epics
+  if (path === "/api/epics") {
+    return json([
+      {
+        id: "epic-code-completion",
+        name: "Code Completion",
+        status: "in_progress",
+        repos_total: 62,
+        repos_done: 38,
+        repos_blocked: 2,
+        completion_pct: 61.3,
+      },
+      {
+        id: "epic-deployment",
+        name: "Deployment",
+        status: "in_progress",
+        repos_total: 62,
+        repos_done: 12,
+        repos_blocked: 5,
+        completion_pct: 19.4,
+      },
+      {
+        id: "epic-business",
+        name: "Business Readiness",
+        status: "not_started",
+        repos_total: 62,
+        repos_done: 0,
+        repos_blocked: 0,
+        completion_pct: 0,
+      },
+    ]);
+  }
+  if (path.match(/^\/api\/epics\/(.+)$/)) {
+    const epicId = path.split("/").pop();
+    return json({
+      id: epicId,
+      name: epicId,
+      status: "in_progress",
+      repos: MOCK_SERVICES.map((s) => ({
+        name: s.name,
+        code_gate: "C4",
+        deployment_gate: "D1",
+        business_gate: "B0",
+      })),
+    });
+  }
+
+  // Services overview
+  if (
+    path === "/api/service-status/overview" ||
+    path === "/api/services/overview"
+  ) {
+    return json({
+      services: MOCK_SERVICES.map((s) => ({
+        name: s.name,
+        layer: s.layer,
+        category: s.category,
+        status: s.status,
+        health: "healthy",
+        lastDeployed: s.lastDeployed,
+      })),
+      total: MOCK_SERVICES.length,
+      healthy: MOCK_SERVICES.length - 1,
+      warning: 1,
+      error: 0,
+    });
+  }
+
+  // Config dependencies
+  if (path.match(/^\/api\/config\/dependencies\/.+/)) {
+    return json({
+      dependencies: ["unified-trading-library", "unified-cloud-interface"],
+      service: path.split("/").pop(),
+    });
+  }
+
+  // Config expected-start-dates
+  if (path.match(/^\/api\/config\/expected-start-dates\/.+/)) {
+    return json({
+      service: path.split("/").pop(),
+      start_dates: {
+        equity: "2020-01-02",
+        crypto: "2019-01-01",
+        fx: "2018-01-02",
+      },
+    });
+  }
+
+  // Checklists
+  if (path.match(/^\/api\/checklists\/(.+)\/checklist\/validate$/)) {
+    return json({ valid: true, errors: [], warnings: [] });
+  }
+  if (path.match(/^\/api\/checklists\/(.+)\/checklist$/)) {
+    return json(MOCK_CHECKLIST);
+  }
+  if (path === "/api/checklists") {
+    return json({
+      checklists: MOCK_SERVICES.map((s) => ({
+        service: s.name,
+        items_total: 10,
+        items_complete: 7,
+        completion_pct: 70.0,
+      })),
+    });
+  }
+
+  // Capabilities
+  if (path === "/api/capabilities") {
+    return json({
+      capabilities: [
+        "batch_deploy",
+        "live_deploy",
+        "cloud_build",
+        "rollback",
+        "config_browse",
+      ],
+      version: "0.3.0",
+    });
+  }
+  if (path.match(/^\/api\/capabilities\/service-categories\/.+/)) {
+    return json({
+      categories: ["data", "ingestion", "features", "ml"],
+      service: path.split("/").pop(),
+    });
+  }
+
+  // Deployment quota-info
+  if (path === "/api/deployments/quota-info") {
+    return json({
+      max_concurrent: 2000,
+      current_running: 0,
+      available: 2000,
+      estimated_cost_per_shard: 0.18,
+      daily_budget: 500.0,
+      daily_spent: 0,
+    });
+  }
+
+  // Deployment report
+  if (path.match(/^\/api\/deployments\/(.+)\/report$/)) {
+    return json({
+      deployment_id: path.split("/")[3],
+      shards_total: 50,
+      shards_completed: 50,
+      shards_failed: 0,
+      duration_minutes: 12,
+      cost_usd: 9.0,
+    });
+  }
+
+  // Deployment live-health
+  if (path.match(/^\/api\/deployments\/(.+)\/live-health$/)) {
+    return json({
+      deployment_id: path.split("/")[3],
+      status: "healthy",
+      checks: [],
+    });
+  }
+
+  // Data status turbo
+  if (path.startsWith("/api/data-status/turbo/cache/clear")) {
+    return json({ cleared: true });
+  }
+  if (path.startsWith("/api/data-status/turbo")) {
+    return json(MOCK_DATA_STATUS);
+  }
+  if (path.startsWith("/api/data-status/venue-filters")) {
+    return json({
+      venues: ["Binance", "OKX", "Bybit", "Coinbase"],
+      categories: ["crypto", "equity", "fx"],
+    });
+  }
+  if (path.startsWith("/api/data-status/list-files")) {
+    return json({ files: [], directories: [], error: null });
+  }
+  if (path.startsWith("/api/data-status/instruments")) {
+    return json({
+      instruments: ["BTC/USDT", "ETH/USDT", "AAPL", "MSFT"],
+      error: null,
+    });
+  }
+  if (path.startsWith("/api/data-status/instrument-availability")) {
+    return json({
+      overall: { total: 5, available: 5, missing: 0 },
+      by_data_type: {},
+      error: null,
+    });
+  }
+
+  // Cloud builds history (fix path to also match /api/ prefix)
+  if (path.match(/^\/api\/cloud-builds\/history\/.+/)) {
+    return json({ builds: [] });
+  }
+
+  // Config discover/browse
+  if (path.match(/^\/api\/services\/(.+)\/discover-configs$/)) {
+    return json({ configs: [], total: 0 });
+  }
+  if (path.match(/^\/api\/services\/(.+)\/list-directories$/)) {
+    return json({ directories: [], total: 0 });
+  }
+  if (path.match(/^\/api\/services\/(.+)\/config-buckets$/)) {
+    return json({
+      buckets: ["mock-config-bucket"],
+      project_id: "mock-project",
+    });
   }
 
   console.warn("[MOCK] Unhandled path:", path);

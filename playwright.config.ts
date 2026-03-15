@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: "html",
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5183",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -23,7 +23,7 @@ export default defineConfig({
 
   webServer: {
     command: "npm run dev",
-    url: "http://localhost:5173",
+    url: "http://localhost:5183",
     reuseExistingServer: true,
     timeout: 120 * 1000,
     env: { VITE_MOCK_API: "true" },
