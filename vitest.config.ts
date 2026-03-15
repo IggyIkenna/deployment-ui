@@ -20,6 +20,8 @@ export default defineConfig({
       reporter: ["text", "json-summary"],
       reportsDirectory: "./coverage",
       exclude: [
+        // Build output (not source code)
+        "dist/**",
         // Entry points and config
         "src/main.tsx",
         "src/vite-env.d.ts",
