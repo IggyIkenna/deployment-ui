@@ -2021,7 +2021,7 @@ export function DeploymentDetails({
 
         {/* Tabs for Shards and Logs */}
         <Tabs defaultValue="shards" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList variant="pill" className="grid w-full grid-cols-4">
             <TabsTrigger value="shards">
               Shards ({status.total_shards})
             </TabsTrigger>

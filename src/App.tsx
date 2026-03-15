@@ -218,6 +218,7 @@ function App() {
                           className="w-full"
                         >
                           <TabsList
+                            variant="pill"
                             className={`grid w-full ${isInfra ? "grid-cols-3" : "grid-cols-7"} mb-6`}
                           >
                             {!isInfra && (
@@ -332,7 +333,7 @@ function App() {
                   })()
                 ) : (
                   <Tabs defaultValue="overview" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsList variant="pill" className="grid w-full grid-cols-2 mb-6">
                       <TabsTrigger value="overview" className="gap-2">
                         <LayoutGrid className="h-4 w-4" />
                         Overview

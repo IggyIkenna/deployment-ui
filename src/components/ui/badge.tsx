@@ -1,9 +1,16 @@
+/**
+ * Badge component — extends @unified-trading/ui-kit Badge with
+ * deployment-specific variants (cefi, tradfi, defi).
+ *
+ * When these variants are upstreamed to ui-kit, this file should
+ * become a re-export like the other ui components.
+ */
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+import { cn } from "@unified-trading/ui-kit";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-cyan)] focus:ring-offset-2",
+  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] focus:ring-offset-2",
   {
     variants: {
       variant: {
@@ -19,8 +26,10 @@ const badgeVariants = cva(
           "border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]",
         pending:
           "border-[rgba(161,161,170,0.3)] bg-[rgba(161,161,170,0.1)] text-[var(--color-text-secondary)]",
+        info: "badge-info",
         outline:
           "border-[var(--color-border-default)] text-[var(--color-text-secondary)]",
+        /* Deployment-specific: market category badges */
         cefi: "border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.1)] text-[var(--color-accent-blue)]",
         tradfi:
           "border-[rgba(167,139,250,0.3)] bg-[rgba(167,139,250,0.1)] text-[var(--color-accent-purple)]",

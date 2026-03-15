@@ -121,6 +121,7 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
       {/* Tabs */}
       <Tabs defaultValue="dependencies" className="w-full">
         <TabsList
+          variant="pill"
           className={`grid w-full ${isInfrastructure ? "grid-cols-1" : "grid-cols-2"}`}
         >
           {!isInfrastructure && (
