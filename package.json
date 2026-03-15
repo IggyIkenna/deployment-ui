@@ -28,6 +28,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^25.3.3",
     "@unified-admin/core": "file:../unified-admin-ui/packages/core",
+    "@unified-trading/ui-auth": "file:../unified-trading-ui-auth",
     "@unified-trading/ui-kit": "file:../unified-trading-ui-kit",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

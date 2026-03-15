@@ -1,6 +1,7 @@
 import { ErrorBoundary } from "@unified-trading/ui-kit";
 import { useState } from "react";
-import { RequireAuth } from "./auth/RequireAuth";
+import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
+import type { AuthProviderConfig } from "@unified-trading/ui-auth";
 import { MockModeBanner } from "./components/MockModeBanner";
 import { Header } from "./components/Header";
 import { ServiceList } from "./components/ServiceList";
@@ -30,6 +31,19 @@ import {
 } from "lucide-react";
 import { createDeployment } from "./api/client";
 import type { DeploymentRequest, CreateDeploymentResponse } from "./types";
+
+const SKIP_AUTH =
+  import.meta.env.VITE_SKIP_AUTH === "true" ||
+  import.meta.env.VITE_MOCK_API === "true";
+
+const authConfig: AuthProviderConfig = {
+  provider: "google",
+  clientId: import.meta.env.VITE_OAUTH_CLIENT_ID ?? "",
+  redirectUri: window.location.origin + "/auth/callback",
+  scopes: ["openid", "email", "profile"],
+  skipAuth: SKIP_AUTH,
+  serviceName: "deployment-ui",
+};
 
 const INFRASTRUCTURE_SERVICES = ["unified-trading-deployment-v2"];
 
@@ -101,8 +115,9 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <RequireAuth>
-        <div className="min-h-screen bg-[var(--color-bg-primary)]">
+      <AuthProvider config={authConfig}>
+        <RequireAuth>
+          <div className="min-h-screen bg-[var(--color-bg-primary)]">
           <MockModeBanner />
           <Header />
           <main className="container mx-auto px-6 py-6 max-w-[1600px]">
@@ -341,7 +356,8 @@ function App() {
             </div>
           </main>
         </div>
-      </RequireAuth>
+        </RequireAuth>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
