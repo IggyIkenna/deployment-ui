@@ -54,6 +54,8 @@ const serviceIcons: Record<string, React.ElementType> = {
   // Infrastructure
   "ibkr-gateway-infra": Network,
   "deployment-service": Layers,
+  // Website
+  "odum-research-website": Globe,
 };
 
 const SERVICE_METADATA: Record<
@@ -159,6 +161,10 @@ const SERVICE_METADATA: Record<
     description: "Deployment orchestration & sharding",
     dimensions: ["service"],
   },
+  "odum-research-website": {
+    description: "Corporate website & presentation portal",
+    dimensions: ["environment"],
+  },
 };
 
 const PIPELINE_LAYERS = [
@@ -228,6 +234,13 @@ const PIPELINE_LAYERS = [
     description: "Deployment orchestration and IBKR connectivity",
     color: "var(--color-accent-pink)",
     services: ["ibkr-gateway-infra", "deployment-service"],
+  },
+  {
+    id: "website",
+    title: "Website",
+    description: "Odum Research corporate website and presentation portal",
+    color: "var(--color-accent-teal)",
+    services: ["odum-research-website"],
   },
 ];
 
