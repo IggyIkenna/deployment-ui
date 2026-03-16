@@ -1,5 +1,6 @@
-import { ErrorBoundary } from "@unified-trading/ui-kit";
+import { ErrorBoundary, Button } from "@unified-trading/ui-kit";
 import { useState } from "react";
+import { BrowserRouter } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
 import type { AuthProviderConfig } from "@unified-trading/ui-auth";
 import { MockModeBanner } from "./components/MockModeBanner";
@@ -116,6 +117,7 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider config={authConfig}>
+        <BrowserRouter>
         <RequireAuth>
           <div className="min-h-screen bg-[var(--color-bg-primary)]">
             <MockModeBanner />
@@ -163,12 +165,14 @@ function App() {
                                         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
                                           {deploymentError}
                                         </p>
-                                        <button
+                                        <Button
                                           onClick={handleCloseResult}
-                                          className="mt-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="mt-2 text-xs"
                                         >
                                           Dismiss
-                                        </button>
+                                        </Button>
                                       </div>
                                     </div>
                                   </div>
@@ -365,6 +369,7 @@ function App() {
             </main>
           </div>
         </RequireAuth>
+        </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>
   );

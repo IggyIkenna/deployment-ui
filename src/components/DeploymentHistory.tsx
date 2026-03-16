@@ -544,8 +544,10 @@ export function DeploymentHistory({
                         autoFocus
                         placeholder="Add description..."
                       />
-                      <button
-                        className="p-0.5 hover:text-[var(--color-accent-green)]"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-0.5 h-auto hover:text-[var(--color-accent-green)]"
                         onClick={() => handleSaveTag(deployment.deployment_id)}
                         disabled={savingTag}
                       >
@@ -554,13 +556,15 @@ export function DeploymentHistory({
                         ) : (
                           <Check className="h-3 w-3" />
                         )}
-                      </button>
-                      <button
-                        className="p-0.5 hover:text-[var(--color-accent-red)]"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-0.5 h-auto hover:text-[var(--color-accent-red)]"
                         onClick={() => setEditingTagId(null)}
                       >
                         <X className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <div
@@ -574,8 +578,10 @@ export function DeploymentHistory({
                           </span>
                         )}
                       </span>
-                      <button
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[var(--color-accent-cyan)]"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 h-auto hover:text-[var(--color-accent-cyan)]"
                         onClick={() => {
                           setEditingTagId(deployment.deployment_id);
                           setEditingTagValue(deployment.tag ?? "");
@@ -583,7 +589,7 @@ export function DeploymentHistory({
                         title="Edit tag"
                       >
                         <Edit2 className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>

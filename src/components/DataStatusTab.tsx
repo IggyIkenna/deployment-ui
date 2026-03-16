@@ -1277,32 +1277,26 @@ function DataStatusTabInternal({
         <CardContent>
           {useTurboMode && (
             <div className="mb-4">
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Mode
-              </label>
+              </Label>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant={dataStatusMode === "batch" ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setDataStatusMode("batch")}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    dataStatusMode === "batch"
-                      ? "bg-[var(--color-accent-cyan)] text-white"
-                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-                  }`}
                 >
                   Batch
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant={dataStatusMode === "live" ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setDataStatusMode("live")}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    dataStatusMode === "live"
-                      ? "bg-[var(--color-accent-cyan)] text-white"
-                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-                  }`}
                 >
                   Live
-                </button>
+                </Button>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 Batch: historical GCS paths. Live: real-time GCS paths.
@@ -1311,9 +1305,9 @@ function DataStatusTabInternal({
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Start Date
-              </label>
+              </Label>
               <Input
                 type="date"
                 value={startDate}
@@ -1324,9 +1318,9 @@ function DataStatusTabInternal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 End Date
-              </label>
+              </Label>
               <Input
                 type="date"
                 value={endDate}
@@ -1337,24 +1331,22 @@ function DataStatusTabInternal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Require Freshness
-              </label>
+              </Label>
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  type="button"
+                  variant={requireFreshness ? "default" : "outline"}
+                  size="sm"
                   onClick={() => {
                     const turningOn = !requireFreshness;
                     setRequireFreshness(turningOn);
                     if (turningOn) setFreshnessDate(getTodayAt8am());
                   }}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    requireFreshness
-                      ? "bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)] border border-[rgba(251,191,36,0.4)]"
-                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-                  }`}
                 >
                   {requireFreshness ? "On" : "Off"}
-                </button>
+                </Button>
                 {requireFreshness && (
                   <>
                     <Input
@@ -1386,9 +1378,9 @@ function DataStatusTabInternal({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Categories
-              </label>
+              </Label>
               <div className="flex gap-2 flex-wrap">
                 {categoriesLoading ? (
                   <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
@@ -1397,8 +1389,11 @@ function DataStatusTabInternal({
                   </div>
                 ) : (
                   availableCategories.map((cat) => (
-                    <button
+                    <Button
                       key={cat}
+                      type="button"
+                      variant={selectedCategories.includes(cat) ? "default" : "outline"}
+                      size="sm"
                       onClick={() => {
                         setSelectedCategories((prev) =>
                           prev.includes(cat)
@@ -1406,15 +1401,9 @@ function DataStatusTabInternal({
                             : [...prev, cat],
                         );
                       }}
-                      className={cn(
-                        "px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                        selectedCategories.includes(cat)
-                          ? "bg-[var(--color-accent-cyan)] text-white"
-                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
-                      )}
                     >
                       {cat}
-                    </button>
+                    </Button>
                   ))
                 )}
               </div>
@@ -1426,21 +1415,23 @@ function DataStatusTabInternal({
             <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
               <div className="flex items-center gap-2 mb-2">
                 <Building2 className="h-4 w-4 text-[var(--color-text-muted)]" />
-                <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                <Label className="text-xs font-medium text-[var(--color-text-muted)]">
                   Filter by Venue
                   {selectedVenues.length > 0 && (
                     <span className="ml-2 text-[var(--color-accent-cyan)]">
                       ({selectedVenues.length} selected)
                     </span>
                   )}
-                </label>
+                </Label>
                 {selectedVenues.length > 0 && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setSelectedVenues([])}
-                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] ml-auto"
+                    className="ml-auto"
                   >
                     Clear
-                  </button>
+                  </Button>
                 )}
               </div>
               {venuesLoading ? (
@@ -1451,8 +1442,11 @@ function DataStatusTabInternal({
               ) : availableVenues.length > 0 ? (
                 <div className="flex gap-2 flex-wrap">
                   {availableVenues.map((venue) => (
-                    <button
+                    <Button
                       key={venue}
+                      type="button"
+                      variant={selectedVenues.includes(venue) ? "default" : "outline"}
+                      size="sm"
                       onClick={() => {
                         setSelectedVenues((prev) =>
                           prev.includes(venue)
@@ -1460,15 +1454,9 @@ function DataStatusTabInternal({
                             : [...prev, venue],
                         );
                       }}
-                      className={cn(
-                        "px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                        selectedVenues.includes(venue)
-                          ? "bg-[var(--color-accent-purple)] text-white"
-                          : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
-                      )}
                     >
                       {venue}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ) : (
@@ -1497,27 +1485,32 @@ function DataStatusTabInternal({
                     <div className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-                        <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
                           Filter by Instrument Type
                           {selectedFolders.length > 0 && (
                             <span className="ml-2 text-[var(--color-accent-green)]">
                               ({selectedFolders.length} selected)
                             </span>
                           )}
-                        </label>
+                        </Label>
                         {selectedFolders.length > 0 && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setSelectedFolders([])}
-                            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] ml-auto"
+                            className="ml-auto"
                           >
                             Clear
-                          </button>
+                          </Button>
                         )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {venueAvailableFolders.map((f) => (
-                          <button
+                          <Button
                             key={f}
+                            type="button"
+                            variant={selectedFolders.includes(f) ? "default" : "outline"}
+                            size="sm"
                             onClick={() => {
                               setSelectedFolders((prev) =>
                                 prev.includes(f)
@@ -1525,15 +1518,9 @@ function DataStatusTabInternal({
                                   : [...prev, f],
                               );
                             }}
-                            className={cn(
-                              "px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                              selectedFolders.includes(f)
-                                ? "bg-[var(--color-accent-green)] text-white"
-                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
-                            )}
                           >
                             {f}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -1544,27 +1531,32 @@ function DataStatusTabInternal({
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-                        <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
                           Filter by Data Type
                           {selectedDataTypes.length > 0 && (
                             <span className="ml-2 text-[var(--color-accent-orange)]">
                               ({selectedDataTypes.length} selected)
                             </span>
                           )}
-                        </label>
+                        </Label>
                         {selectedDataTypes.length > 0 && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setSelectedDataTypes([])}
-                            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] ml-auto"
+                            className="ml-auto"
                           >
                             Clear
-                          </button>
+                          </Button>
                         )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {venueAvailableDataTypes.map((dt) => (
-                          <button
+                          <Button
                             key={dt}
+                            type="button"
+                            variant={selectedDataTypes.includes(dt) ? "default" : "outline"}
+                            size="sm"
                             onClick={() => {
                               setSelectedDataTypes((prev) =>
                                 prev.includes(dt)
@@ -1572,15 +1564,9 @@ function DataStatusTabInternal({
                                   : [...prev, dt],
                               );
                             }}
-                            className={cn(
-                              "px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                              selectedDataTypes.includes(dt)
-                                ? "bg-[var(--color-accent-orange)] text-white"
-                                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
-                            )}
                           >
                             {dt}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -1598,38 +1584,31 @@ function DataStatusTabInternal({
                         {serviceName === "market-data-processing-service" && (
                           <div className="mb-3">
                             <div className="flex items-center gap-2 mb-2">
-                              <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                              <Label className="text-xs font-medium text-[var(--color-text-muted)]">
                                 Select Timeframe
-                              </label>
+                              </Label>
                             </div>
                             <div className="flex gap-1.5 flex-wrap">
                               {availableTimeframes.map((tf) => (
-                                <button
+                                <Button
                                   key={tf}
+                                  type="button"
+                                  variant={selectedTimeframe === tf ? "default" : "outline"}
+                                  size="sm"
                                   onClick={() => setSelectedTimeframe(tf)}
-                                  className={cn(
-                                    "px-2 py-1 rounded text-xs font-medium transition-colors",
-                                    selectedTimeframe === tf
-                                      ? "bg-[var(--color-accent-purple)] text-white"
-                                      : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
-                                  )}
                                 >
                                   {tf}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                           </div>
                         )}
 
-                        <button
+                        <Button
+                          variant="default"
                           onClick={fetchFileListing}
                           disabled={fileListingLoading}
-                          className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors w-full justify-center",
-                            fileListingLoading
-                              ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-wait"
-                              : "bg-[var(--color-accent-cyan)] text-white hover:bg-[var(--color-accent-cyan)]/90",
-                          )}
+                          className="w-full justify-center"
                         >
                           {fileListingLoading ? (
                             <>
@@ -1642,7 +1621,7 @@ function DataStatusTabInternal({
                               List Files in GCS
                             </>
                           )}
-                        </button>
+                        </Button>
                         <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
                           Query GCS to see actual parquet files for this path
                         </p>
@@ -1664,13 +1643,13 @@ function DataStatusTabInternal({
                     setFirstDayOfMonthOnly(checked === true)
                   }
                 />
-                <label
+                <Label
                   htmlFor="first-day-of-month"
                   className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
                 >
                   <Calendar className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                   First day of each month only
-                </label>
+                </Label>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-7">
                 TARDIS free tier: no API key required for first-day-of-month
@@ -1694,13 +1673,13 @@ function DataStatusTabInternal({
                       setInstrumentSearchMode(checked === true)
                     }
                   />
-                  <label
+                  <Label
                     htmlFor="instrument-search-mode"
                     className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
                   >
                     <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
                     Instrument-Level Search
-                  </label>
+                  </Label>
                 </div>
 
                 {instrumentSearchMode && (
@@ -1749,8 +1728,9 @@ function DataStatusTabInternal({
                         !selectedInstrument && (
                           <div className="absolute z-50 w-full mt-1 max-h-64 overflow-auto bg-[var(--color-bg-primary)] border border-[var(--color-border-default)] rounded-lg shadow-lg">
                             {instrumentSearchResults.map((instrument) => (
-                              <button
+                              <Button
                                 key={instrument.instrument_key}
+                                variant="ghost"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -1768,7 +1748,7 @@ function DataStatusTabInternal({
                                   setShowInstrumentDropdown(false);
                                   setInstrumentSearchResults([]); // Clear results to prevent dropdown flash
                                 }}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                               >
                                 <div className="font-medium">
                                   {instrument.instrument_key}
@@ -1779,7 +1759,7 @@ function DataStatusTabInternal({
                                   {instrument.symbol &&
                                     ` • ${instrument.symbol}`}
                                 </div>
-                              </button>
+                              </Button>
                             ))}
                           </div>
                         )}
@@ -2134,7 +2114,10 @@ function DataStatusTabInternal({
         <div className="flex items-center justify-end gap-2">
           <span className="text-xs text-[var(--color-text-muted)]">View:</span>
           <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setViewMode("table")}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
@@ -2145,8 +2128,11 @@ function DataStatusTabInternal({
             >
               <Table2 className="h-3.5 w-3.5" />
               Table
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setViewMode("calendar")}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
@@ -2157,7 +2143,7 @@ function DataStatusTabInternal({
             >
               <CalendarDays className="h-3.5 w-3.5" />
               Calendar
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -2271,9 +2257,10 @@ function DataStatusTabInternal({
                           className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
                         >
                           {/* Category Header */}
-                          <button
+                          <Button
+                            variant="ghost"
                             onClick={() => toggleCategory(catName)}
-                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                           >
                             <div className="flex items-center gap-3">
                               {isExpanded ? (
@@ -2303,7 +2290,7 @@ function DataStatusTabInternal({
                                 </Badge>
                               )}
                             </div>
-                          </button>
+                          </Button>
 
                           {/* Expanded: Dates with missing venues */}
                           {isExpanded && datesWithIssues > 0 && (
@@ -2319,9 +2306,10 @@ function DataStatusTabInternal({
                                       key={dateInfo.date}
                                       className="border border-[var(--color-border-subtle)] rounded bg-[var(--color-bg-primary)]"
                                     >
-                                      <button
+                                      <Button
+                                        variant="ghost"
                                         onClick={() => toggleDate(dateKey)}
-                                        className="w-full px-3 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                                        className="w-full px-3 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors h-auto"
                                       >
                                         <div className="flex items-center gap-2">
                                           {isDateExpanded ? (
@@ -2340,7 +2328,7 @@ function DataStatusTabInternal({
                                         >
                                           {dateInfo.missing.length} missing
                                         </Badge>
-                                      </button>
+                                      </Button>
 
                                       {isDateExpanded && (
                                         <div className="px-3 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
@@ -2441,12 +2429,14 @@ function DataStatusTabInternal({
                             },
                           )}
                         </h4>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setSelectedCalendarDate(null)}
-                          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
                         >
                           ✕ Close
-                        </button>
+                        </Button>
                       </div>
                       {heatmapData.find((d) => d.date === selectedCalendarDate)
                         ?.tooltip && (
@@ -2532,9 +2522,10 @@ function DataStatusTabInternal({
                             key={venueName}
                             className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
                           >
-                            <button
+                            <Button
+                              variant="ghost"
                               onClick={() => toggleVenue(venueName)}
-                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                             >
                               <div className="flex items-center gap-3">
                                 {isExpanded ? (
@@ -2577,7 +2568,7 @@ function DataStatusTabInternal({
                                   {venueData.complete}/{venueData.total}
                                 </span>
                               </div>
-                            </button>
+                            </Button>
 
                             {/* Expanded: Data type breakdown */}
                             {isExpanded && venueData.data_types && (
@@ -3414,12 +3405,14 @@ function DataStatusTabInternal({
                           },
                         )}
                       </h4>
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setSelectedCalendarDate(null)}
-                        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
                       >
                         ✕ Close
-                      </button>
+                      </Button>
                     </div>
                     {heatmapData.find((d) => d.date === selectedCalendarDate)
                       ?.tooltip && (
@@ -3453,9 +3446,10 @@ function DataStatusTabInternal({
                     return (
                       <div key={catName}>
                         {/* Category Row */}
-                        <button
+                        <Button
+                          variant="ghost"
                           onClick={() => toggleCategory(catName)}
-                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                         >
                           <div className="flex items-center gap-3">
                             {isExpanded ? (
@@ -3494,7 +3488,7 @@ function DataStatusTabInternal({
                               />
                             </div>
                           </div>
-                        </button>
+                        </Button>
 
                         {/* Expanded Venue Table */}
                         {isExpanded && (
@@ -3727,7 +3721,7 @@ function DataStatusTabInternal({
                     setDeployMissingDryRun(checked === true)
                   }
                 />
-                <label
+                <Label
                   htmlFor="deploy-missing-dry-run"
                   className="text-sm cursor-pointer"
                 >
@@ -3736,7 +3730,7 @@ function DataStatusTabInternal({
                     Show what shards would be deployed without actually
                     deploying
                   </p>
-                </label>
+                </Label>
               </div>
 
               <div className="flex items-center gap-3">
@@ -3747,7 +3741,7 @@ function DataStatusTabInternal({
                     setDeployMissingForce(checked === true)
                   }
                 />
-                <label
+                <Label
                   htmlFor="deploy-missing-force"
                   className="text-sm cursor-pointer"
                 >
@@ -3757,7 +3751,7 @@ function DataStatusTabInternal({
                   <p className="text-xs text-[var(--color-text-muted)]">
                     Regenerate even if data already exists for the venue/date
                   </p>
-                </label>
+                </Label>
               </div>
             </div>
 
@@ -3768,20 +3762,17 @@ function DataStatusTabInternal({
               </div>
               <div className="flex gap-2">
                 {(["daily", "weekly", "monthly", "none"] as const).map((g) => (
-                  <button
+                  <Button
                     key={g}
+                    type="button"
+                    variant={deployMissingDateGranularity === g ? "default" : "outline"}
+                    size="sm"
                     onClick={() => setDeployMissingDateGranularity(g)}
-                    className={cn(
-                      "px-3 py-1.5 text-xs rounded-md border transition-colors",
-                      deployMissingDateGranularity === g
-                        ? "bg-[var(--color-accent-purple)] text-white border-[var(--color-accent-purple)]"
-                        : "border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)]",
-                    )}
                   >
                     {g === "none"
                       ? "None (Bulk)"
                       : g.charAt(0).toUpperCase() + g.slice(1)}
-                  </button>
+                  </Button>
                 ))}
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">

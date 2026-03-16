@@ -199,21 +199,25 @@ export function CloudConfigBrowser({
       {/* Breadcrumb Navigation */}
       {selectedBucket && (
         <div className="flex items-center gap-1 text-xs font-mono text-[var(--color-text-muted)] flex-wrap bg-[var(--color-bg-tertiary)] p-2 rounded">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigateToBreadcrumb(-1)}
-            className="hover:text-[var(--color-accent-cyan)] transition-colors"
+            className="hover:text-[var(--color-accent-cyan)] transition-colors h-auto p-0 text-xs font-mono"
           >
             configs/
-          </button>
+          </Button>
           {breadcrumbs.map((crumb, index) => (
             <span key={crumb.path} className="flex items-center gap-1">
               <ChevronRight className="h-3 w-3" />
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => navigateToBreadcrumb(index)}
-                className="hover:text-[var(--color-accent-cyan)] transition-colors"
+                className="hover:text-[var(--color-accent-cyan)] transition-colors h-auto p-0 text-xs font-mono"
               >
                 {crumb.name}/
-              </button>
+              </Button>
             </span>
           ))}
         </div>

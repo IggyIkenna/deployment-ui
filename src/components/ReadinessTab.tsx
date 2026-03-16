@@ -22,6 +22,7 @@ import {
   CardDescription,
 } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 import type { ChecklistItem, ChecklistCategory } from "../types";
 
@@ -105,13 +106,15 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
             <div>
               <CardTitle className="text-xl font-mono flex items-center gap-2">
                 Production Readiness
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => refetch()}
-                  className="p-1 hover:bg-[var(--color-bg-tertiary)] rounded"
+                  className="p-1 h-7 w-7"
                   title="Refresh"
                 >
                   <RefreshCw className="h-4 w-4 text-[var(--color-text-muted)]" />
-                </button>
+                </Button>
               </CardTitle>
               <CardDescription className="mt-1 flex items-center gap-2">
                 <Calendar className="h-3 w-3" />

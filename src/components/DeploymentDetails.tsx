@@ -39,6 +39,13 @@ import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
 import { Dialog, DialogHeader, DialogTitle, DialogContent } from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { cn, formatDateTime } from "../lib/utils";
 import {
   cancelDeployment,
@@ -1524,12 +1531,14 @@ export function DeploymentDetails({
                 <CheckCircle2 className="h-4 w-4" />
                 {actionSuccess}
               </p>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setActionSuccess(null)}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-6 w-6"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -2151,14 +2160,16 @@ export function DeploymentDetails({
                         ]
                           .filter((f) => f.key === "all" || f.count > 0)
                           .map((f) => (
-                            <button
+                            <Button
                               key={f.key}
+                              variant={shardStatusFilter === f.key ? "default" : "ghost"}
+                              size="sm"
                               onClick={() => setShardStatusFilter(f.key)}
                               className={cn(
-                                "px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
+                                "px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap h-auto",
                                 shardStatusFilter === f.key
                                   ? "text-white"
-                                  : "hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]",
+                                  : "text-[var(--color-text-secondary)]",
                               )}
                               style={
                                 shardStatusFilter === f.key
@@ -2167,7 +2178,7 @@ export function DeploymentDetails({
                               }
                             >
                               {f.label} ({f.count})
-                            </button>
+                            </Button>
                           ))}
                       </div>
 
@@ -2210,12 +2221,14 @@ export function DeploymentDetails({
                             {shardStatusFilter.replace(/_/g, " ")}
                           </span>
                         </span>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setShardStatusFilter("all")}
-                          className="text-xs text-[var(--color-accent-cyan)] hover:underline"
+                          className="text-xs text-[var(--color-accent-cyan)] hover:underline h-auto p-0"
                         >
                           Clear
-                        </button>
+                        </Button>
                       </div>
                     )}
 
@@ -2226,23 +2239,27 @@ export function DeploymentDetails({
                           Showing {filteredShards.length} of{" "}
                           {(allShards ?? status?.shards ?? []).length} shards
                           {shardSearchText.trim() && (
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setShardSearchText("")}
-                              className="ml-2 text-[var(--color-accent-cyan)] hover:underline"
+                              className="ml-2 text-[var(--color-accent-cyan)] hover:underline h-auto p-0"
                             >
                               Clear search
-                            </button>
+                            </Button>
                           )}
                           {shardStatusFilter !== "all" &&
                             !CLASSIFICATION_FILTERS.includes(
                               shardStatusFilter as (typeof CLASSIFICATION_FILTERS)[number],
                             ) && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setShardStatusFilter("all")}
-                                className="ml-2 text-[var(--color-accent-cyan)] hover:underline"
+                                className="ml-2 text-[var(--color-accent-cyan)] hover:underline h-auto p-0"
                               >
                                 Clear filter
-                              </button>
+                              </Button>
                             )}
                         </span>
                       ) : (
@@ -2259,30 +2276,24 @@ export function DeploymentDetails({
               <div className="flex items-center gap-2">
                 {/* View mode toggle */}
                 <div className="flex items-center border border-[var(--color-border-subtle)] rounded-md overflow-hidden">
-                  <button
+                  <Button
+                    variant={viewMode === "grouped" ? "default" : "ghost"}
+                    size="icon"
                     onClick={() => setViewMode("grouped")}
-                    className={cn(
-                      "p-1.5 text-xs flex items-center gap-1",
-                      viewMode === "grouped"
-                        ? "bg-[var(--color-accent-purple)] text-white"
-                        : "hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]",
-                    )}
+                    className="h-7 w-7"
                     title="Group by category"
                   >
                     <Layers className="h-3 w-3" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant={viewMode === "flat" ? "default" : "ghost"}
+                    size="icon"
                     onClick={() => setViewMode("flat")}
-                    className={cn(
-                      "p-1.5 text-xs flex items-center gap-1",
-                      viewMode === "flat"
-                        ? "bg-[var(--color-accent-purple)] text-white"
-                        : "hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]",
-                    )}
+                    className="h-7 w-7"
                     title="Flat list"
                   >
                     <List className="h-3 w-3" />
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Shard selection controls */}
@@ -2361,9 +2372,10 @@ export function DeploymentDetails({
                           className="border-b border-[var(--color-border-subtle)] last:border-b-0"
                         >
                           {/* Category header */}
-                          <button
+                          <Button
+                            variant="ghost"
                             onClick={() => toggleCategory(category)}
-                            className="w-full p-2 flex items-center justify-between hover:bg-[var(--color-bg-hover)] transition-colors"
+                            className="w-full p-2 flex items-center justify-between hover:bg-[var(--color-bg-hover)] transition-colors h-auto"
                           >
                             <div className="flex items-center gap-2">
                               {isExpanded ? (
@@ -2407,7 +2419,7 @@ export function DeploymentDetails({
                                 )}
                               />
                             </div>
-                          </button>
+                          </Button>
                           {/* Category shards */}
                           {isExpanded && (
                             <div className="divide-y divide-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
@@ -2466,9 +2478,10 @@ export function DeploymentDetails({
                     ))}
                   </div>
                   {shardsForDisplay.length > 50 && (
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={() => setShowAllShards(!showAllShards)}
-                      className="w-full p-2 bg-[var(--color-bg-tertiary)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] flex items-center justify-center gap-1"
+                      className="w-full p-2 text-xs text-[var(--color-text-secondary)] flex items-center justify-center gap-1 h-auto"
                     >
                       {showAllShards ? (
                         <>
@@ -2481,7 +2494,7 @@ export function DeploymentDetails({
                           Show all {shardsForDisplay.length} shards
                         </>
                       )}
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -2492,21 +2505,27 @@ export function DeploymentDetails({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 {/* Severity filter (structured, not text search) */}
-                <select
-                  className="h-8 px-2 rounded text-xs bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]"
+                <Select
                   value={logSeverityFilter}
-                  onChange={(e) =>
+                  onValueChange={(v) =>
                     setLogSeverityFilter(
-                      e.target.value as "ALL" | "ERROR" | "WARNING" | "INFO",
+                      v as "ALL" | "ERROR" | "WARNING" | "INFO",
                     )
                   }
-                  title="Filter by log severity (uses structured severity field, not text matching)"
                 >
-                  <option value="ALL">All levels</option>
-                  <option value="ERROR">ERROR only</option>
-                  <option value="WARNING">WARNING+</option>
-                  <option value="INFO">INFO+</option>
-                </select>
+                  <SelectTrigger
+                    className="h-8 text-xs w-32"
+                    title="Filter by log severity (uses structured severity field, not text matching)"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All levels</SelectItem>
+                    <SelectItem value="ERROR">ERROR only</SelectItem>
+                    <SelectItem value="WARNING">WARNING+</SelectItem>
+                    <SelectItem value="INFO">INFO+</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 <div className="flex-1 relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-[var(--color-text-muted)]" />
@@ -2517,12 +2536,14 @@ export function DeploymentDetails({
                     className="h-8 pl-7 text-xs"
                   />
                   {logSearch && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => setLogSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-5 w-5"
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
@@ -2562,22 +2583,27 @@ export function DeploymentDetails({
                 </span>
 
                 {/* Time range (Serverless: historical logs; VM: cloud storage logs) */}
-                <select
-                  className="h-8 px-2 rounded text-xs bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]"
-                  value={logsHoursBack ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                <Select
+                  value={logsHoursBack != null ? String(logsHoursBack) : ""}
+                  onValueChange={(v) => {
                     const num = v === "" ? null : parseInt(v, 10);
                     setLogsHoursBack(num);
                     fetchLogs("DEFAULT", false, num);
                   }}
-                  title="Time range for serverless logs (VM shows persisted cloud storage logs)"
                 >
-                  <option value="">All time</option>
-                  <option value="24">Last 24h</option>
-                  <option value="72">Last 72h</option>
-                  <option value="168">Last 7d</option>
-                </select>
+                  <SelectTrigger
+                    className="h-8 text-xs w-28"
+                    title="Time range for serverless logs (VM shows persisted cloud storage logs)"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All time</SelectItem>
+                    <SelectItem value="24">Last 24h</SelectItem>
+                    <SelectItem value="72">Last 72h</SelectItem>
+                    <SelectItem value="168">Last 7d</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Auto-follow toggle */}
                 <Button
@@ -3171,8 +3197,10 @@ export function DeploymentDetails({
             {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length >
               0 && (
               <div className="mt-4">
-                <button
-                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] h-auto p-0"
                   onClick={() => setEventsExpanded((v) => !v)}
                 >
                   {eventsExpanded ? (
@@ -3186,7 +3214,7 @@ export function DeploymentDetails({
                       .length
                   }{" "}
                   events)
-                </button>
+                </Button>
                 {eventsExpanded && (
                   <div className="mt-2 pl-4 space-y-1">
                     {Object.entries(

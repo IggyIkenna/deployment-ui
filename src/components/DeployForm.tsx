@@ -1695,23 +1695,27 @@ function MultiSelectDimension({
       <div className="flex items-center justify-between">
         <Label>{dimension.name}</Label>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={selectAll}
             disabled={disabled}
-            className="text-xs text-[var(--color-accent-cyan)] hover:underline disabled:opacity-50"
+            className="text-xs text-[var(--color-accent-cyan)] hover:underline disabled:opacity-50 h-auto p-0"
           >
             Select all
-          </button>
+          </Button>
           <span className="text-[var(--color-text-muted)]">|</span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={clearAll}
             disabled={disabled}
-            className="text-xs text-[var(--color-text-secondary)] hover:underline disabled:opacity-50"
+            className="text-xs text-[var(--color-text-secondary)] hover:underline disabled:opacity-50 h-auto p-0"
           >
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1726,20 +1730,20 @@ function MultiSelectDimension({
         {values.map((value) => {
           const isSelected = selected.includes(value);
           return (
-            <button
+            <Button
               key={value}
               type="button"
+              variant={isSelected ? "default" : "outline"}
+              size="sm"
               onClick={() => toggleValue(value)}
               className={cn(
-                "px-2.5 py-1 text-xs font-mono rounded border transition-all",
-                isSelected
-                  ? "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]"
-                  : "bg-[var(--color-bg-secondary)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-emphasis)]",
+                "px-2.5 py-1 text-xs font-mono",
+                isSelected && "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]",
               )}
             >
               {isSelected && <CheckCircle2 className="h-3 w-3 inline mr-1" />}
               {value}
-            </button>
+            </Button>
           );
         })}
       </div>

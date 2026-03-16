@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchServices, triggerDeploy } from "../api/deploymentApi";
 import type { ServiceStatus, DeployParams } from "../types/deploymentTypes";
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@unified-trading/ui-kit";
 
 export function DeployTrigger() {
   const navigate = useNavigate();
@@ -52,121 +62,60 @@ export function DeployTrigger() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
-          <label
-            style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#9CA3AF",
-              marginBottom: "6px",
-            }}
-          >
+          <Label style={{ display: "block", marginBottom: "6px" }}>
             Service
-          </label>
-          <select
-            value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              background: "#1F2937",
-              color: "#E5E7EB",
-              border: "1px solid #374151",
-              borderRadius: "4px",
-              boxSizing: "border-box",
-            }}
-          >
-            <option value="">Select a service...</option>
-            {services.map((s) => (
-              <option key={s.service_id} value={s.service_id}>
-                {s.name} (current: {s.current_version})
-              </option>
-            ))}
-          </select>
+          </Label>
+          <Select value={serviceId} onValueChange={setServiceId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a service..." />
+            </SelectTrigger>
+            <SelectContent>
+              {services.map((s) => (
+                <SelectItem key={s.service_id} value={s.service_id}>
+                  {s.name} (current: {s.current_version})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
-          <label
-            style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#9CA3AF",
-              marginBottom: "6px",
-            }}
-          >
+          <Label style={{ display: "block", marginBottom: "6px" }}>
             Version
-          </label>
-          <input
+          </Label>
+          <Input
             type="text"
             value={version}
             onChange={(e) => setVersion(e.target.value)}
             placeholder="e.g. v1.2.3 or sha-abc123"
-            style={{
-              width: "100%",
-              padding: "10px",
-              background: "#1F2937",
-              color: "#E5E7EB",
-              border: "1px solid #374151",
-              borderRadius: "4px",
-              boxSizing: "border-box",
-            }}
           />
         </div>
 
         <div>
-          <label
-            style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#9CA3AF",
-              marginBottom: "6px",
-            }}
-          >
+          <Label style={{ display: "block", marginBottom: "6px" }}>
             Environment
-          </label>
-          <select
-            value={environment}
-            onChange={(e) => setEnvironment(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              background: "#1F2937",
-              color: "#E5E7EB",
-              border: "1px solid #374151",
-              borderRadius: "4px",
-              boxSizing: "border-box",
-            }}
-          >
-            <option value="production">production</option>
-            <option value="staging">staging</option>
-            <option value="dev">dev</option>
-          </select>
+          </Label>
+          <Select value={environment} onValueChange={setEnvironment}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="production">production</SelectItem>
+              <SelectItem value="staging">staging</SelectItem>
+              <SelectItem value="dev">dev</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
-          <label
-            style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#9CA3AF",
-              marginBottom: "6px",
-            }}
-          >
+          <Label style={{ display: "block", marginBottom: "6px" }}>
             Reason (optional)
-          </label>
-          <input
+          </Label>
+          <Input
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Hotfix for memory leak"
-            style={{
-              width: "100%",
-              padding: "10px",
-              background: "#1F2937",
-              color: "#E5E7EB",
-              border: "1px solid #374151",
-              borderRadius: "4px",
-              boxSizing: "border-box",
-            }}
           />
         </div>
 
@@ -175,38 +124,20 @@ export function DeployTrigger() {
         )}
 
         <div style={{ display: "flex", gap: "8px" }}>
-          <button
+          <Button
+            variant="ghost"
             onClick={() => navigate("/")}
-            style={{
-              flex: 1,
-              padding: "10px",
-              background: "#374151",
-              color: "#E5E7EB",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
+            style={{ flex: 1 }}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => void handleDeploy()}
             disabled={deploying || !serviceId || !version}
-            style={{
-              flex: 1,
-              padding: "10px",
-              background:
-                deploying || !serviceId || !version ? "#374151" : "#2563EB",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor:
-                deploying || !serviceId || !version ? "not-allowed" : "pointer",
-              fontWeight: 600,
-            }}
+            style={{ flex: 1 }}
           >
             {deploying ? "Deploying..." : "Deploy"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

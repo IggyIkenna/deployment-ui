@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 
 interface DayData {
@@ -261,11 +262,12 @@ export function HeatmapCalendar({
                         const dayNum = new Date(day.date).getDate();
 
                         return (
-                          <button
+                          <Button
                             key={day.date}
+                            variant="ghost"
                             onClick={() => onDateClick?.(day.date)}
                             className={cn(
-                              "w-6 h-6 rounded-sm text-[10px] font-mono relative",
+                              "w-6 h-6 rounded-sm text-[10px] font-mono relative p-0",
                               "hover:ring-1 hover:ring-[var(--color-accent-cyan)] transition-all",
                               isSelected &&
                                 "ring-2 ring-[var(--color-accent-cyan)]",
@@ -285,7 +287,7 @@ export function HeatmapCalendar({
                             <span className="absolute inset-0 flex items-center justify-center text-white mix-blend-difference">
                               {dayNum}
                             </span>
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>

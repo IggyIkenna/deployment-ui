@@ -5,6 +5,7 @@ import {
   rollbackDeployment,
 } from "../api/deploymentApi";
 import type { DeployJob, DeployJobStatus } from "../types/deploymentTypes";
+import { Button } from "@unified-trading/ui-kit";
 
 const STATUS_COLORS: Record<DeployJobStatus, string> = {
   QUEUED: "#6B7280",
@@ -70,20 +71,9 @@ export function DeploymentHistory() {
         <h2 style={{ margin: 0 }}>
           Deployment History {serviceId ? `— ${serviceId}` : "(All Services)"}
         </h2>
-        <button
-          onClick={load}
-          style={{
-            padding: "6px 12px",
-            background: "#1F2937",
-            color: "#E5E7EB",
-            border: "1px solid #374151",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontSize: "13px",
-          }}
-        >
+        <Button variant="outline" onClick={load}>
           Refresh
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -95,35 +85,31 @@ export function DeploymentHistory() {
       {jobs.length === 0 ? (
         <p style={{ color: "#6B7280" }}>No deployment history found.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table className="w-full">
           <thead>
-            <tr style={{ borderBottom: "2px solid #333" }}>
-              <th style={{ textAlign: "left", padding: "8px" }}>Service</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Version</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Env</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>
-                Triggered By
-              </th>
-              <th style={{ textAlign: "left", padding: "8px" }}>
-                Triggered At
-              </th>
-              <th style={{ padding: "8px" }}>Actions</th>
+            <tr>
+              <th className="table-header-cell">Service</th>
+              <th className="table-header-cell">Version</th>
+              <th className="table-header-cell">Env</th>
+              <th className="table-header-cell">Status</th>
+              <th className="table-header-cell">Triggered By</th>
+              <th className="table-header-cell">Triggered At</th>
+              <th className="table-header-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
             {jobs.map((job) => (
-              <tr key={job.job_id} style={{ borderBottom: "1px solid #222" }}>
-                <td style={{ padding: "8px", fontWeight: 600 }}>
+              <tr key={job.job_id} className="table-row">
+                <td className="table-cell font-semibold">
                   {job.service_name}
                 </td>
-                <td style={{ padding: "8px", color: "#9CA3AF" }}>
+                <td className="table-cell" style={{ color: "#9CA3AF" }}>
                   {job.version}
                 </td>
-                <td style={{ padding: "8px", color: "#9CA3AF" }}>
+                <td className="table-cell" style={{ color: "#9CA3AF" }}>
                   {job.environment}
                 </td>
-                <td style={{ padding: "8px" }}>
+                <td className="table-cell">
                   <span
                     style={{
                       color: STATUS_COLORS[job.status],
@@ -133,61 +119,41 @@ export function DeploymentHistory() {
                     {job.status}
                   </span>
                 </td>
-                <td
-                  style={{ padding: "8px", color: "#9CA3AF", fontSize: "12px" }}
-                >
+                <td className="table-cell text-xs" style={{ color: "#9CA3AF" }}>
                   {job.triggered_by}
                 </td>
-                <td
-                  style={{ padding: "8px", color: "#9CA3AF", fontSize: "12px" }}
-                >
+                <td className="table-cell text-xs" style={{ color: "#9CA3AF" }}>
                   {new Date(job.triggered_at).toLocaleString()}
                 </td>
-                <td
-                  style={{
-                    padding: "8px",
-                    display: "flex",
-                    gap: "8px",
-                    alignItems: "center",
-                  }}
-                >
-                  {job.logs_url && (
-                    <a
-                      href={job.logs_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "#2563EB",
-                        textDecoration: "none",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Logs ↗
-                    </a>
-                  )}
-                  {job.status === "SUCCESS" && (
-                    <button
-                      onClick={() => void handleRollback(job.job_id)}
-                      disabled={rollingBack === job.job_id}
-                      style={{
-                        padding: "3px 8px",
-                        background:
-                          rollingBack === job.job_id ? "#374151" : "#7F1D1D",
-                        color: "#FCA5A5",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor:
-                          rollingBack === job.job_id
-                            ? "not-allowed"
-                            : "pointer",
-                        fontSize: "11px",
-                      }}
-                    >
-                      {rollingBack === job.job_id
-                        ? "Rolling back..."
-                        : "Rollback"}
-                    </button>
-                  )}
+                <td className="table-cell">
+                  <div className="flex gap-2 items-center">
+                    {job.logs_url && (
+                      <a
+                        href={job.logs_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#2563EB",
+                          textDecoration: "none",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Logs ↗
+                      </a>
+                    )}
+                    {job.status === "SUCCESS" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleRollback(job.job_id)}
+                        disabled={rollingBack === job.job_id}
+                      >
+                        {rollingBack === job.job_id
+                          ? "Rolling back..."
+                          : "Rollback"}
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

@@ -447,9 +447,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             key={name}
             className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
           >
-            <button
+            <Button
+              variant="ghost"
               onClick={() => toggleBreakdown(key)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
             >
               <div className="flex items-center gap-3">
                 {isExpanded ? (
@@ -488,7 +489,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   />
                 </div>
               </div>
-            </button>
+            </Button>
 
             {isExpanded && item.missing_samples.length > 0 && (
               <div className="bg-[var(--color-bg-secondary)] px-4 py-3">
@@ -584,9 +585,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Start Date (filter results)
-              </label>
+              </Label>
               <Input
                 type="date"
                 value={startDate}
@@ -595,9 +596,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 End Date (filter results)
-              </label>
+              </Label>
               <Input
                 type="date"
                 value={endDate}
@@ -758,19 +759,16 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   icon: <Cpu className="h-3.5 w-3.5" />,
                 },
               ].map(({ id, label, icon }) => (
-                <button
+                <Button
                   key={id}
+                  variant={viewMode === id ? "default" : "ghost"}
+                  size="sm"
                   onClick={() => setViewMode(id as ViewMode)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                    viewMode === id
-                      ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
-                  )}
+                  className="flex items-center gap-1.5 text-xs font-medium"
                 >
                   {icon}
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -861,9 +859,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     return (
                       <div key={strategyKey}>
                         {/* Strategy Row */}
-                        <button
+                        <Button
+                          variant="ghost"
                           onClick={() => toggleStrategy(strategyKey)}
-                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors"
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                         >
                           <div className="flex items-center gap-3">
                             {isStrategyExpanded ? (
@@ -909,7 +908,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                               />
                             </div>
                           </div>
-                        </button>
+                        </Button>
 
                         {/* Modes */}
                         {isStrategyExpanded && (
@@ -922,9 +921,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
 
                               return (
                                 <div key={modeKey}>
-                                  <button
+                                  <Button
+                                    variant="ghost"
                                     onClick={() => toggleMode(modeKey)}
-                                    className="w-full px-6 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                                    className="w-full px-6 py-2 flex items-center justify-between hover:bg-[var(--color-bg-tertiary)] transition-colors h-auto"
                                   >
                                     <div className="flex items-center gap-3">
                                       {isModeExpanded ? (
@@ -955,7 +955,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                         {mode.completion_pct.toFixed(0)}%
                                       </span>
                                     </div>
-                                  </button>
+                                  </Button>
 
                                   {/* Timeframes */}
                                   {isModeExpanded && (
@@ -969,11 +969,12 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
 
                                         return (
                                           <div key={tfKey}>
-                                            <button
+                                            <Button
+                                              variant="ghost"
                                               onClick={() =>
                                                 toggleTimeframe(tfKey)
                                               }
-                                              className="w-full px-8 py-2 flex items-center justify-between hover:bg-[var(--color-bg-primary)] transition-colors"
+                                              className="w-full px-8 py-2 flex items-center justify-between hover:bg-[var(--color-bg-primary)] transition-colors h-auto"
                                             >
                                               <div className="flex items-center gap-3">
                                                 {isTfExpanded ? (
@@ -1022,7 +1023,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                   </span>
                                                 )}
                                               </div>
-                                            </button>
+                                            </Button>
 
                                             {/* Config Files */}
                                             {isTfExpanded && (
@@ -1064,7 +1065,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                             key={i}
                                                             className="border border-[rgba(248,113,113,0.2)] rounded overflow-hidden"
                                                           >
-                                                            <button
+                                                            <Button
+                                                              variant="ghost"
                                                               onClick={() =>
                                                                 hasDayBreakdown &&
                                                                 toggleConfig(
@@ -1072,9 +1074,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                 )
                                                               }
                                                               className={cn(
-                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(248,113,113,0.05)] px-2 py-1.5",
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(248,113,113,0.05)] px-2 py-1.5 h-auto",
                                                                 hasDayBreakdown &&
-                                                                  "hover:bg-[rgba(248,113,113,0.1)] cursor-pointer",
+                                                                  "hover:bg-[rgba(248,113,113,0.1)]",
                                                               )}
                                                             >
                                                               {hasDayBreakdown &&
@@ -1107,7 +1109,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                   days missing
                                                                 </span>
                                                               )}
-                                                            </button>
+                                                            </Button>
 
                                                             {/* Day breakdown dropdown */}
                                                             {isConfigExpanded &&
@@ -1173,7 +1175,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                             key={i}
                                                             className="border border-[rgba(34,197,94,0.2)] rounded overflow-hidden"
                                                           >
-                                                            <button
+                                                            <Button
+                                                              variant="ghost"
                                                               onClick={() =>
                                                                 hasDayBreakdown &&
                                                                 toggleConfig(
@@ -1181,9 +1184,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                 )
                                                               }
                                                               className={cn(
-                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(34,197,94,0.05)] px-2 py-1.5",
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(34,197,94,0.05)] px-2 py-1.5 h-auto",
                                                                 hasDayBreakdown &&
-                                                                  "hover:bg-[rgba(34,197,94,0.1)] cursor-pointer",
+                                                                  "hover:bg-[rgba(34,197,94,0.1)]",
                                                               )}
                                                             >
                                                               {hasDayBreakdown &&
@@ -1239,7 +1242,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                   </span>
                                                                 )}
                                                               </span>
-                                                            </button>
+                                                            </Button>
 
                                                             {/* Day breakdown dropdown */}
                                                             {isConfigExpanded &&

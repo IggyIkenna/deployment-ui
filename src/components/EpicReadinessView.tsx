@@ -14,6 +14,7 @@ import {
 import { useEpics, useEpicDetail } from "../hooks/useEpics";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 import type { EpicSummary, EpicRepoStatus } from "../types";
 
@@ -148,10 +149,11 @@ function EpicCard({ epic, selected, onClick }: EpicCardProps) {
     EPIC_BORDER[epic.epic_id] ?? "border-[rgba(255,255,255,0.1)]";
 
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-lg border p-4 transition-colors",
+        "w-full text-left rounded-lg border p-4 transition-colors h-auto",
         "bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)]",
         borderClass,
         selected && "ring-1 ring-[var(--color-accent-cyan)]",
@@ -199,7 +201,7 @@ function EpicCard({ epic, selected, onClick }: EpicCardProps) {
           <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)] flex-shrink-0" />
         )}
       </div>
-    </button>
+    </Button>
   );
 }
 
@@ -428,13 +430,15 @@ export function EpicReadinessView() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Epic Readiness</CardTitle>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => refetch()}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors h-7 w-7"
             title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </CardHeader>
       <CardContent>

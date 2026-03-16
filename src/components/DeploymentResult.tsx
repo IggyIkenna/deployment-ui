@@ -361,9 +361,10 @@ export function DeploymentResult({
         {/* Shard List (expandable, grouped by category -> date) */}
         {result.shards && result.shards.length > 0 && (
           <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setShowShards(!showShards)}
-              className="w-full flex items-center justify-between p-3 bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+              className="w-full flex items-center justify-between p-3 bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-hover)] transition-colors h-auto rounded-none"
             >
               <span className="text-sm font-medium text-[var(--color-text-secondary)] flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
@@ -376,7 +377,7 @@ export function DeploymentResult({
               ) : (
                 <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
               )}
-            </button>
+            </Button>
             {showShards && (
               <div className="max-h-96 overflow-y-auto">
                 {/* Load All button if truncated */}
@@ -410,9 +411,10 @@ export function DeploymentResult({
                       className="border-b border-[var(--color-border-subtle)] last:border-b-0"
                     >
                       {/* Category header */}
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => toggleCategory(category)}
-                        className="w-full flex items-center justify-between p-2 px-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                        className="w-full flex items-center justify-between p-2 px-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors h-auto rounded-none"
                       >
                         <span className="text-sm font-medium text-[var(--color-accent-cyan)]">
                           {category}
@@ -427,7 +429,7 @@ export function DeploymentResult({
                             <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
                           )}
                         </div>
-                      </button>
+                      </Button>
 
                       {/* Dates within category */}
                       {expandedCategories.has(category) && (
@@ -442,9 +444,10 @@ export function DeploymentResult({
                                   className="border-b border-[var(--color-border-subtle)] last:border-b-0"
                                 >
                                   {/* Date header */}
-                                  <button
+                                  <Button
+                                    variant="ghost"
                                     onClick={() => toggleDate(dateKey)}
-                                    className="w-full flex items-center justify-between p-2 pr-3 bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                                    className="w-full flex items-center justify-between p-2 pr-3 bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-hover)] transition-colors h-auto rounded-none"
                                   >
                                     <span className="text-xs font-mono text-[var(--color-text-secondary)]">
                                       {date}
@@ -460,7 +463,7 @@ export function DeploymentResult({
                                         <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
                                       )}
                                     </div>
-                                  </button>
+                                  </Button>
 
                                   {/* Shards for this date */}
                                   {expandedDates.has(dateKey) && (
