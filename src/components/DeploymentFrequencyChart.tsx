@@ -38,13 +38,13 @@ export function DeploymentFrequencyChart() {
     (sum, d) => sum + d.successful + d.failed + d.rolled_back,
     0,
   );
-  const totalFailed = MOCK_DEPLOYMENT_FREQUENCY.reduce(
-    (sum, d) => sum + d.failed,
+  const totalUnsuccessful = MOCK_DEPLOYMENT_FREQUENCY.reduce(
+    (sum, d) => sum + d.failed + d.rolled_back,
     0,
   );
   const successRate =
     totalDeploys > 0
-      ? (((totalDeploys - totalFailed) / totalDeploys) * 100).toFixed(1)
+      ? (((totalDeploys - totalUnsuccessful) / totalDeploys) * 100).toFixed(1)
       : "0.0";
 
   return (
@@ -115,7 +115,7 @@ export function DeploymentFrequencyChart() {
                 contentStyle={{
                   backgroundColor: "var(--color-surface, #18181b)",
                   border: "1px solid var(--color-border, #27272a)",
-                  borderRadius: 6,
+                  borderRadius: "6px",
                   fontSize: 12,
                 }}
               />

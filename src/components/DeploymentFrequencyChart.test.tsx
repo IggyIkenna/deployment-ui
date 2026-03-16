@@ -62,10 +62,10 @@ describe("DeploymentFrequencyChart", () => {
     expect(screen.getByText("70")).toBeInTheDocument();
   });
 
-  it("renders the success rate", () => {
+  it("renders the success rate (excludes failed + rolled_back)", () => {
     render(<DeploymentFrequencyChart />);
-    // (70 - 4) / 70 * 100 = 94.3%
-    expect(screen.getByText("94.3%")).toBeInTheDocument();
+    // (70 - 4 failed - 3 rolled_back) / 70 * 100 = 90.0%
+    expect(screen.getByText("90.0%")).toBeInTheDocument();
   });
 
   it("renders axes", () => {
