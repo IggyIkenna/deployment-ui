@@ -100,9 +100,7 @@ export function DeploymentHistory() {
           <tbody>
             {jobs.map((job) => (
               <tr key={job.job_id} className="table-row">
-                <td className="table-cell font-semibold">
-                  {job.service_name}
-                </td>
+                <td className="table-cell font-semibold">{job.service_name}</td>
                 <td className="table-cell" style={{ color: "#9CA3AF" }}>
                   {job.version}
                 </td>

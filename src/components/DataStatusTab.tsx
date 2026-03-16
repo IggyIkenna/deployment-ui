@@ -1392,7 +1392,9 @@ function DataStatusTabInternal({
                     <Button
                       key={cat}
                       type="button"
-                      variant={selectedCategories.includes(cat) ? "default" : "outline"}
+                      variant={
+                        selectedCategories.includes(cat) ? "default" : "outline"
+                      }
                       size="sm"
                       onClick={() => {
                         setSelectedCategories((prev) =>
@@ -1445,7 +1447,9 @@ function DataStatusTabInternal({
                     <Button
                       key={venue}
                       type="button"
-                      variant={selectedVenues.includes(venue) ? "default" : "outline"}
+                      variant={
+                        selectedVenues.includes(venue) ? "default" : "outline"
+                      }
                       size="sm"
                       onClick={() => {
                         setSelectedVenues((prev) =>
@@ -1509,7 +1513,11 @@ function DataStatusTabInternal({
                           <Button
                             key={f}
                             type="button"
-                            variant={selectedFolders.includes(f) ? "default" : "outline"}
+                            variant={
+                              selectedFolders.includes(f)
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
                             onClick={() => {
                               setSelectedFolders((prev) =>
@@ -1555,7 +1563,11 @@ function DataStatusTabInternal({
                           <Button
                             key={dt}
                             type="button"
-                            variant={selectedDataTypes.includes(dt) ? "default" : "outline"}
+                            variant={
+                              selectedDataTypes.includes(dt)
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
                             onClick={() => {
                               setSelectedDataTypes((prev) =>
@@ -1593,7 +1605,11 @@ function DataStatusTabInternal({
                                 <Button
                                   key={tf}
                                   type="button"
-                                  variant={selectedTimeframe === tf ? "default" : "outline"}
+                                  variant={
+                                    selectedTimeframe === tf
+                                      ? "default"
+                                      : "outline"
+                                  }
                                   size="sm"
                                   onClick={() => setSelectedTimeframe(tf)}
                                 >
@@ -3765,7 +3781,9 @@ function DataStatusTabInternal({
                   <Button
                     key={g}
                     type="button"
-                    variant={deployMissingDateGranularity === g ? "default" : "outline"}
+                    variant={
+                      deployMissingDateGranularity === g ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setDeployMissingDateGranularity(g)}
                   >

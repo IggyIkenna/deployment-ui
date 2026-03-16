@@ -8,15 +8,15 @@ deployments and live trading service deployments.
 
 ## What it does
 
-| Tab | Purpose |
-|-----|---------|
-| Deploy | Submit a new deployment — select service, mode (batch/live), image version, feature branch, date range, and asset scope |
-| Data Status | Data readiness check — which data files are present in GCS for the selected deployment scope and date range |
-| Builds | Cloud Build run history — trigger status, logs link, commit SHA, duration per build |
-| Readiness | Service readiness probe — checks all services respond healthy before a live deployment proceeds |
-| Service Status | Live Cloud Run instance status — deployed version, instance count, health per service |
-| Config | Active deployment config viewer — rendered config for the current deployment |
-| History | Historical deployment log — all past deployments with version, status, triggered-by, and timestamps |
+| Tab            | Purpose                                                                                                                 |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Deploy         | Submit a new deployment — select service, mode (batch/live), image version, feature branch, date range, and asset scope |
+| Data Status    | Data readiness check — which data files are present in GCS for the selected deployment scope and date range             |
+| Builds         | Cloud Build run history — trigger status, logs link, commit SHA, duration per build                                     |
+| Readiness      | Service readiness probe — checks all services respond healthy before a live deployment proceeds                         |
+| Service Status | Live Cloud Run instance status — deployed version, instance count, health per service                                   |
+| Config         | Active deployment config viewer — rendered config for the current deployment                                            |
+| History        | Historical deployment log — all past deployments with version, status, triggered-by, and timestamps                     |
 
 There is also an **Overview / Epics** top-level tab for workspace-level deployment tracking.
 
@@ -44,12 +44,12 @@ VITE_MOCK_API=true VITE_SKIP_AUTH=true npm run dev
 
 ## Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_API_URL` | `http://localhost:8004` | deployment-api base URL |
-| `VITE_OAUTH_CLIENT_ID` | — | Google OAuth client ID |
-| `VITE_MOCK_API` | `false` | Enable client-side static mock mode |
-| `VITE_SKIP_AUTH` | `false` | Bypass auth gate (use with VITE_MOCK_API) |
+| Variable               | Default                 | Description                               |
+| ---------------------- | ----------------------- | ----------------------------------------- |
+| `VITE_API_URL`         | `http://localhost:8004` | deployment-api base URL                   |
+| `VITE_OAUTH_CLIENT_ID` | —                       | Google OAuth client ID                    |
+| `VITE_MOCK_API`        | `false`                 | Enable client-side static mock mode       |
+| `VITE_SKIP_AUTH`       | `false`                 | Bypass auth gate (use with VITE_MOCK_API) |
 
 ## Tests
 

@@ -2162,7 +2162,11 @@ export function DeploymentDetails({
                           .map((f) => (
                             <Button
                               key={f.key}
-                              variant={shardStatusFilter === f.key ? "default" : "ghost"}
+                              variant={
+                                shardStatusFilter === f.key
+                                  ? "default"
+                                  : "ghost"
+                              }
                               size="sm"
                               onClick={() => setShardStatusFilter(f.key)}
                               className={cn(

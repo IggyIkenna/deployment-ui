@@ -1738,7 +1738,8 @@ function MultiSelectDimension({
               onClick={() => toggleValue(value)}
               className={cn(
                 "px-2.5 py-1 text-xs font-mono",
-                isSelected && "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]",
+                isSelected &&
+                  "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]",
               )}
             >
               {isSelected && <CheckCircle2 className="h-3 w-3 inline mr-1" />}

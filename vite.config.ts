@@ -13,8 +13,14 @@ export default defineConfig(({ mode }) => ({
     alias:
       mode === "development"
         ? [
-            { find: "@unified-trading/ui-kit/globals.css", replacement: path.join(uiKitSrc, "globals.css") },
-            { find: "@unified-trading/ui-kit", replacement: path.join(uiKitSrc, "index.ts") },
+            {
+              find: "@unified-trading/ui-kit/globals.css",
+              replacement: path.join(uiKitSrc, "globals.css"),
+            },
+            {
+              find: "@unified-trading/ui-kit",
+              replacement: path.join(uiKitSrc, "index.ts"),
+            },
           ]
         : undefined,
   },
