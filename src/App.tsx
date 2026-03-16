@@ -118,245 +118,252 @@ function App() {
       <AuthProvider config={authConfig}>
         <RequireAuth>
           <div className="min-h-screen bg-[var(--color-bg-primary)]">
-          <MockModeBanner />
-          <Header />
-          <main className="container mx-auto px-6 py-6 max-w-[1600px]">
-            <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-12 lg:col-span-4 xl:col-span-3">
-                <ServiceList
-                  selectedService={selectedService}
-                  onSelectService={(service) => {
-                    setSelectedService(service);
-                    if (
-                      INFRASTRUCTURE_SERVICES.includes(service) &&
-                      !["builds", "service-status", "config"].includes(
-                        activeTab,
-                      )
-                    ) {
-                      setActiveTab("builds");
-                    }
-                    setDeploymentResult(null);
-                    setDeploymentError(null);
-                    setSelectedDeploymentId(null);
-                  }}
-                />
-              </div>
-              <div className="col-span-12 lg:col-span-8 xl:col-span-9">
-                {selectedService ? (
-                  (() => {
-                    const isInfra =
-                      INFRASTRUCTURE_SERVICES.includes(selectedService);
-                    return (
-                      <>
-                        {!isInfra &&
-                          (deploymentResult || deploymentError) &&
-                          !selectedDeploymentId && (
-                            <div className="mb-6">
-                              {deploymentError ? (
-                                <div className="p-4 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
-                                  <div className="flex items-start gap-3">
-                                    <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                      <h3 className="text-sm font-medium text-[var(--color-accent-red)]">
-                                        Deployment Failed
-                                      </h3>
-                                      <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                                        {deploymentError}
-                                      </p>
-                                      <button
-                                        onClick={handleCloseResult}
-                                        className="mt-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-                                      >
-                                        Dismiss
-                                      </button>
+            <MockModeBanner />
+            <Header />
+            <main className="container mx-auto px-6 py-6 max-w-[1600px]">
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-4 xl:col-span-3">
+                  <ServiceList
+                    selectedService={selectedService}
+                    onSelectService={(service) => {
+                      setSelectedService(service);
+                      if (
+                        INFRASTRUCTURE_SERVICES.includes(service) &&
+                        !["builds", "service-status", "config"].includes(
+                          activeTab,
+                        )
+                      ) {
+                        setActiveTab("builds");
+                      }
+                      setDeploymentResult(null);
+                      setDeploymentError(null);
+                      setSelectedDeploymentId(null);
+                    }}
+                  />
+                </div>
+                <div className="col-span-12 lg:col-span-8 xl:col-span-9">
+                  {selectedService ? (
+                    (() => {
+                      const isInfra =
+                        INFRASTRUCTURE_SERVICES.includes(selectedService);
+                      return (
+                        <>
+                          {!isInfra &&
+                            (deploymentResult || deploymentError) &&
+                            !selectedDeploymentId && (
+                              <div className="mb-6">
+                                {deploymentError ? (
+                                  <div className="p-4 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+                                    <div className="flex items-start gap-3">
+                                      <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
+                                      <div className="flex-1">
+                                        <h3 className="text-sm font-medium text-[var(--color-accent-red)]">
+                                          Deployment Failed
+                                        </h3>
+                                        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                                          {deploymentError}
+                                        </p>
+                                        <button
+                                          onClick={handleCloseResult}
+                                          className="mt-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                                        >
+                                          Dismiss
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ) : deploymentResult ? (
-                                <DeploymentResult
-                                  result={deploymentResult}
-                                  onClose={handleCloseResult}
-                                  onDeployLive={
-                                    deploymentResult.dry_run
-                                      ? handleDeployLive
-                                      : undefined
-                                  }
-                                  onLoadAllShards={
-                                    deploymentResult.dry_run &&
-                                    deploymentResult.shards_truncated
-                                      ? handleLoadAllShards
-                                      : undefined
-                                  }
-                                />
-                              ) : null}
+                                ) : deploymentResult ? (
+                                  <DeploymentResult
+                                    result={deploymentResult}
+                                    onClose={handleCloseResult}
+                                    onDeployLive={
+                                      deploymentResult.dry_run
+                                        ? handleDeployLive
+                                        : undefined
+                                    }
+                                    onLoadAllShards={
+                                      deploymentResult.dry_run &&
+                                      deploymentResult.shards_truncated
+                                        ? handleLoadAllShards
+                                        : undefined
+                                    }
+                                  />
+                                ) : null}
+                              </div>
+                            )}
+                          {!isInfra && selectedDeploymentId && (
+                            <div id="deployment-details-panel" className="mb-6">
+                              <DeploymentDetails
+                                deploymentId={selectedDeploymentId}
+                                onClose={handleCloseDeploymentDetails}
+                              />
                             </div>
                           )}
-                        {!isInfra && selectedDeploymentId && (
-                          <div id="deployment-details-panel" className="mb-6">
-                            <DeploymentDetails
-                              deploymentId={selectedDeploymentId}
-                              onClose={handleCloseDeploymentDetails}
-                            />
-                          </div>
-                        )}
-                        <Tabs
-                          value={activeTab}
-                          onValueChange={(tab: string) => {
-                            setActiveTab(tab);
-                            if (
-                              [
-                                "deploy",
-                                "config",
-                                "readiness",
-                                "data-status",
-                                "service-status",
-                                "builds",
-                              ].includes(tab)
-                            )
-                              setSelectedDeploymentId(null);
-                          }}
-                          className="w-full"
-                        >
-                          <TabsList
-                            variant="pill"
-                            className={`grid w-full ${isInfra ? "grid-cols-3" : "grid-cols-7"} mb-6`}
+                          <Tabs
+                            value={activeTab}
+                            onValueChange={(tab: string) => {
+                              setActiveTab(tab);
+                              if (
+                                [
+                                  "deploy",
+                                  "config",
+                                  "readiness",
+                                  "data-status",
+                                  "service-status",
+                                  "builds",
+                                ].includes(tab)
+                              )
+                                setSelectedDeploymentId(null);
+                            }}
+                            className="w-full"
                           >
-                            {!isInfra && (
-                              <TabsTrigger value="deploy" className="gap-2">
-                                <Play className="h-4 w-4" />
-                                Deploy
+                            <TabsList
+                              variant="pill"
+                              className={`grid w-full ${isInfra ? "grid-cols-3" : "grid-cols-7"} mb-6`}
+                            >
+                              {!isInfra && (
+                                <TabsTrigger value="deploy" className="gap-2">
+                                  <Play className="h-4 w-4" />
+                                  Deploy
+                                </TabsTrigger>
+                              )}
+                              {!isInfra && (
+                                <TabsTrigger
+                                  value="data-status"
+                                  className="gap-2"
+                                >
+                                  <Database className="h-4 w-4" />
+                                  Data Status
+                                </TabsTrigger>
+                              )}
+                              <TabsTrigger value="builds" className="gap-2">
+                                <Hammer className="h-4 w-4" />
+                                Builds
                               </TabsTrigger>
-                            )}
-                            {!isInfra && (
+                              {!isInfra && (
+                                <TabsTrigger
+                                  value="readiness"
+                                  className="gap-2"
+                                >
+                                  <ShieldCheck className="h-4 w-4" />
+                                  Readiness
+                                </TabsTrigger>
+                              )}
                               <TabsTrigger
-                                value="data-status"
+                                value="service-status"
                                 className="gap-2"
                               >
-                                <Database className="h-4 w-4" />
-                                Data Status
+                                <Activity className="h-4 w-4" />
+                                Status
                               </TabsTrigger>
-                            )}
-                            <TabsTrigger value="builds" className="gap-2">
-                              <Hammer className="h-4 w-4" />
-                              Builds
-                            </TabsTrigger>
+                              <TabsTrigger value="config" className="gap-2">
+                                <Settings className="h-4 w-4" />
+                                Config
+                              </TabsTrigger>
+                              {!isInfra && (
+                                <TabsTrigger value="history" className="gap-2">
+                                  <History className="h-4 w-4" />
+                                  History
+                                </TabsTrigger>
+                              )}
+                            </TabsList>
                             {!isInfra && (
-                              <TabsTrigger value="readiness" className="gap-2">
-                                <ShieldCheck className="h-4 w-4" />
-                                Readiness
-                              </TabsTrigger>
+                              <TabsContent value="deploy">
+                                <DeployForm
+                                  serviceName={selectedService}
+                                  onDeploy={handleDeploy}
+                                  isDeploying={isDeploying}
+                                />
+                              </TabsContent>
                             )}
-                            <TabsTrigger
-                              value="service-status"
-                              className="gap-2"
-                            >
-                              <Activity className="h-4 w-4" />
-                              Status
-                            </TabsTrigger>
-                            <TabsTrigger value="config" className="gap-2">
-                              <Settings className="h-4 w-4" />
-                              Config
-                            </TabsTrigger>
                             {!isInfra && (
-                              <TabsTrigger value="history" className="gap-2">
-                                <History className="h-4 w-4" />
-                                History
-                              </TabsTrigger>
+                              <TabsContent value="data-status">
+                                <DataStatusTab
+                                  serviceName={selectedService}
+                                  deploymentResult={deploymentResult}
+                                  isDeploying={isDeploying}
+                                  onDeployMissing={(params) => {
+                                    if (!params.previewRefreshOnly)
+                                      setActiveTab("deploy");
+                                    handleDeploy({
+                                      service: params.service,
+                                      compute: "vm",
+                                      region: params.region,
+                                      start_date: params.start_date,
+                                      end_date: params.end_date,
+                                      category: params.categories,
+                                      venue: params.venues,
+                                      folder: params.folders,
+                                      data_type: params.data_types,
+                                      force: params.force ?? false,
+                                      dry_run: params.dry_run ?? true,
+                                      skip_existing:
+                                        params.skip_existing ?? true,
+                                      deploy_missing_only:
+                                        params.deploy_missing_only ?? true,
+                                      date_granularity: params.date_granularity,
+                                      first_day_of_month_only:
+                                        params.first_day_of_month_only ?? false,
+                                    });
+                                  }}
+                                />
+                              </TabsContent>
                             )}
-                          </TabsList>
-                          {!isInfra && (
-                            <TabsContent value="deploy">
-                              <DeployForm
-                                serviceName={selectedService}
-                                onDeploy={handleDeploy}
-                                isDeploying={isDeploying}
-                              />
+                            <TabsContent value="builds">
+                              <CloudBuildsTab serviceName={selectedService} />
                             </TabsContent>
-                          )}
-                          {!isInfra && (
-                            <TabsContent value="data-status">
-                              <DataStatusTab
-                                serviceName={selectedService}
-                                deploymentResult={deploymentResult}
-                                isDeploying={isDeploying}
-                                onDeployMissing={(params) => {
-                                  if (!params.previewRefreshOnly)
-                                    setActiveTab("deploy");
-                                  handleDeploy({
-                                    service: params.service,
-                                    compute: "vm",
-                                    region: params.region,
-                                    start_date: params.start_date,
-                                    end_date: params.end_date,
-                                    category: params.categories,
-                                    venue: params.venues,
-                                    folder: params.folders,
-                                    data_type: params.data_types,
-                                    force: params.force ?? false,
-                                    dry_run: params.dry_run ?? true,
-                                    skip_existing: params.skip_existing ?? true,
-                                    deploy_missing_only:
-                                      params.deploy_missing_only ?? true,
-                                    date_granularity: params.date_granularity,
-                                    first_day_of_month_only:
-                                      params.first_day_of_month_only ?? false,
-                                  });
-                                }}
-                              />
+                            {!isInfra && (
+                              <TabsContent value="readiness">
+                                <ReadinessTab serviceName={selectedService} />
+                              </TabsContent>
+                            )}
+                            <TabsContent value="service-status">
+                              <ServiceStatusTab serviceName={selectedService} />
                             </TabsContent>
-                          )}
-                          <TabsContent value="builds">
-                            <CloudBuildsTab serviceName={selectedService} />
-                          </TabsContent>
-                          {!isInfra && (
-                            <TabsContent value="readiness">
-                              <ReadinessTab serviceName={selectedService} />
+                            <TabsContent value="config">
+                              <ServiceDetails serviceName={selectedService} />
                             </TabsContent>
-                          )}
-                          <TabsContent value="service-status">
-                            <ServiceStatusTab serviceName={selectedService} />
-                          </TabsContent>
-                          <TabsContent value="config">
-                            <ServiceDetails serviceName={selectedService} />
-                          </TabsContent>
-                          {!isInfra && (
-                            <TabsContent value="history">
-                              <DeploymentHistory
-                                serviceName={selectedService}
-                                onViewDetails={handleViewDeploymentDetails}
-                              />
-                            </TabsContent>
-                          )}
-                        </Tabs>
-                      </>
-                    );
-                  })()
-                ) : (
-                  <Tabs defaultValue="overview" className="w-full">
-                    <TabsList variant="pill" className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="overview" className="gap-2">
-                        <LayoutGrid className="h-4 w-4" />
-                        Overview
-                      </TabsTrigger>
-                      <TabsTrigger value="epics" className="gap-2">
-                        <Trophy className="h-4 w-4" />
-                        Epics
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="overview">
-                      <ServicesOverviewTab
-                        onSelectService={setSelectedService}
-                      />
-                    </TabsContent>
-                    <TabsContent value="epics">
-                      <EpicReadinessView />
-                    </TabsContent>
-                  </Tabs>
-                )}
+                            {!isInfra && (
+                              <TabsContent value="history">
+                                <DeploymentHistory
+                                  serviceName={selectedService}
+                                  onViewDetails={handleViewDeploymentDetails}
+                                />
+                              </TabsContent>
+                            )}
+                          </Tabs>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <Tabs defaultValue="overview" className="w-full">
+                      <TabsList
+                        variant="pill"
+                        className="grid w-full grid-cols-2 mb-6"
+                      >
+                        <TabsTrigger value="overview" className="gap-2">
+                          <LayoutGrid className="h-4 w-4" />
+                          Overview
+                        </TabsTrigger>
+                        <TabsTrigger value="epics" className="gap-2">
+                          <Trophy className="h-4 w-4" />
+                          Epics
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="overview">
+                        <ServicesOverviewTab
+                          onSelectService={setSelectedService}
+                        />
+                      </TabsContent>
+                      <TabsContent value="epics">
+                        <EpicReadinessView />
+                      </TabsContent>
+                    </Tabs>
+                  )}
+                </div>
               </div>
-            </div>
-          </main>
-        </div>
+            </main>
+          </div>
         </RequireAuth>
       </AuthProvider>
     </ErrorBoundary>
