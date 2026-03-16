@@ -839,7 +839,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  console.warn("[MOCK] Unhandled path:", path);
   return json({ error: "Mock: no handler", path }, 404);
 }
 
@@ -863,9 +862,4 @@ export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
     }
     return original(input, init);
   };
-
-  console.info(
-    "%c[MOCK MODE] deployment-ui: all /api/* calls intercepted",
-    "color: #fbbf24; font-weight: bold",
-  );
 }

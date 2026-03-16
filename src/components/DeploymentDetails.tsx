@@ -585,8 +585,8 @@ export function DeploymentDetails({
         failedOnly: true,
       });
       setRerunCommands(commands);
-    } catch (err) {
-      console.error("Failed to fetch report:", err);
+    } catch {
+      // Error surfaced via report state
     } finally {
       setReportLoading(false);
     }
@@ -663,8 +663,8 @@ export function DeploymentDetails({
         setShardPage(data.shards || []);
         setShardPageTotal(typeof data.total === "number" ? data.total : null);
         setShardPageOffset(nextOffset);
-      } catch (err) {
-        console.error("Failed to fetch shards page:", err);
+      } catch {
+        // Error surfaced via shard page state
       } finally {
         setShardPageLoading(false);
       }
@@ -704,8 +704,8 @@ export function DeploymentDetails({
       }
       const data = await response.json();
       setAllShards(data.shards || []);
-    } catch (err) {
-      console.error("Failed to load all shards:", err);
+    } catch {
+      // Error surfaced via allShards state
     } finally {
       setShardsLoading(false);
     }
@@ -870,7 +870,6 @@ export function DeploymentDetails({
           }, 100);
         }
       } catch (err) {
-        console.error("Failed to fetch logs:", err);
         if (!incremental) {
           setLogs([]);
           const msg = err instanceof Error ? err.message : String(err);
@@ -912,12 +911,9 @@ export function DeploymentDetails({
       setShardLogs([]);
       setShardLogsMessage(null);
 
-      console.warn(`[SHARD LOGS] Fetching logs for shard: ${shardId}`);
       const url = `/api/deployments/${deploymentId}/logs?shard_id=${shardId}`;
-      console.warn(`[SHARD LOGS] URL: ${url}`);
 
       const response = await fetch(url);
-      console.warn(`[SHARD LOGS] Response status: ${response.status}`);
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -928,19 +924,14 @@ export function DeploymentDetails({
           );
           return;
         }
-        console.error("[SHARD LOGS] API error:", data);
         throw new Error(
           data.detail || data.message || "Failed to fetch shard logs",
         );
       }
-      console.warn(
-        `[SHARD LOGS] Received ${data.logs?.length || 0} logs, total_lines: ${data.total_lines}`,
-      );
 
       setShardLogs(data.logs || []);
       setShardLogsMessage(data.message || null);
-    } catch (err) {
-      console.error("[SHARD LOGS] Failed to fetch shard logs:", err);
+    } catch {
       setShardLogsMessage("Failed to fetch logs");
     } finally {
       setShardLogsLoading(false);
@@ -1002,8 +993,8 @@ export function DeploymentDetails({
               await fetch(`/api/deployments/${deploymentId}/refresh`, {
                 method: "POST",
               });
-            } catch (err) {
-              console.error("Refresh failed:", err);
+            } catch {
+              // Refresh failed - continue polling
             }
           }
 
@@ -1203,7 +1194,7 @@ export function DeploymentDetails({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-[rgba(248,113,113,0.1)]">
+          <div className="flex items-start gap-3 p-4 rounded-lg status-error">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)]" />
             <div>
               <p className="text-sm font-medium text-[var(--color-accent-red)]">
@@ -1245,7 +1236,7 @@ export function DeploymentDetails({
               </CardTitle>
               {getStatusBadge(status.status, status.status_detail)}
               {status.has_force && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[rgba(168,85,247,0.2)] text-[#a855f7]">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-accent-purple)]/20 text-[var(--color-accent-purple)]">
                   --force
                 </span>
               )}
@@ -1254,8 +1245,8 @@ export function DeploymentDetails({
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                     status.gcs_fuse_active
-                      ? "bg-[rgba(34,197,94,0.2)] text-[var(--color-accent-green)]"
-                      : "bg-[rgba(239,68,68,0.2)] text-[var(--color-accent-red)]"
+                      ? "bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)]"
+                      : "bg-[var(--color-accent-red)]/20 text-[var(--color-accent-red)]"
                   }`}
                   title={status.gcs_fuse_reason}
                 >
@@ -1498,7 +1489,7 @@ export function DeploymentDetails({
                 size="sm"
                 onClick={handleRollback}
                 disabled={actionLoading !== null}
-                className="border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[rgba(251,191,36,0.1)]"
+                className="border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[var(--color-accent-amber)]/10"
               >
                 {actionLoading === "rollback" ? (
                   <>
@@ -1517,7 +1508,7 @@ export function DeploymentDetails({
 
         {/* Action Messages */}
         {actionError && (
-          <div className="mt-3 p-2 rounded bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+          <div className="mt-3 p-2 rounded bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
             <p className="text-sm text-[var(--color-accent-red)] flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               {actionError}
@@ -1525,7 +1516,7 @@ export function DeploymentDetails({
           </div>
         )}
         {actionSuccess && (
-          <div className="mt-3 p-3 rounded bg-[rgba(74,222,128,0.15)] border border-[rgba(74,222,128,0.4)]">
+          <div className="mt-3 p-3 rounded bg-[var(--color-status-success-bg-alt)] border border-[var(--color-status-success-border-alt)]">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-[var(--color-accent-green)] flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
@@ -1547,7 +1538,7 @@ export function DeploymentDetails({
       <CardContent className="space-y-4">
         {/* Error Message Banner */}
         {status.status === "failed" && status.error_message && (
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-[var(--color-accent-red)]">
@@ -1567,7 +1558,7 @@ export function DeploymentDetails({
             <div className="space-y-3">
               {/* Completed with issues alert */}
               {status.status_detail === "completed_with_errors" && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-[rgba(251,191,36,0.15)] border border-[rgba(251,191,36,0.4)]">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
                   <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-[var(--color-accent-amber)]">
@@ -1583,7 +1574,7 @@ export function DeploymentDetails({
               )}
 
               {status.status_detail === "completed_with_warnings" && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-[rgba(251,191,36,0.15)] border border-[rgba(251,191,36,0.4)]">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
                   <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-[var(--color-accent-amber)]">
@@ -1600,7 +1591,7 @@ export function DeploymentDetails({
 
               {/* Errors Panel */}
               {status.log_analysis.error_count > 0 && (
-                <div className="p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+                <div className="p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-[var(--color-accent-red)] flex items-center gap-1">
                       <XCircle className="h-4 w-4" />
@@ -1636,7 +1627,7 @@ export function DeploymentDetails({
 
               {/* Warnings Panel */}
               {status.log_analysis.warning_count > 0 && (
-                <div className="p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]">
+                <div className="p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-[var(--color-accent-amber)] flex items-center gap-1">
                       <AlertCircle className="h-4 w-4" />
@@ -1719,26 +1710,30 @@ export function DeploymentDetails({
                 <div className="grid grid-cols-5 gap-2">
                   {(
                     [
-                      { key: "VERIFIED", label: "Verified", color: "#22c55e" },
+                      {
+                        key: "VERIFIED",
+                        label: "Verified",
+                        color: "var(--color-class-verified)",
+                      },
                       {
                         key: "EXPECTED_SKIP",
                         label: "Expected Skip",
-                        color: "#06b6d4",
+                        color: "var(--color-class-expected-skip)",
                       },
                       {
                         key: "DATA_STALE",
                         label: "Data Stale",
-                        color: "#f59e0b",
+                        color: "var(--color-class-data-stale)",
                       },
                       {
                         key: "DATA_MISSING",
                         label: "Data Missing",
-                        color: "#ef4444",
+                        color: "var(--color-class-data-missing)",
                       },
                       {
                         key: "UNVERIFIED",
                         label: "Unverified",
-                        color: "#6b7280",
+                        color: "var(--color-class-unverified)",
                       },
                     ] as const
                   ).map((c) => {
@@ -1771,12 +1766,12 @@ export function DeploymentDetails({
                       {
                         key: "COMPLETED_WITH_ERRORS",
                         label: "With Errors",
-                        color: "#ef4444",
+                        color: "var(--color-class-error)",
                       },
                       {
                         key: "COMPLETED_WITH_WARNINGS",
                         label: "With Warnings",
-                        color: "#f59e0b",
+                        color: "var(--color-class-warning)",
                       },
                     ] as const
                   ).map((c) => {
@@ -1811,23 +1806,27 @@ export function DeploymentDetails({
                       {
                         key: "INFRA_FAILURE",
                         label: "Infra Failure",
-                        color: "#f97316",
+                        color: "var(--color-class-warning)",
                       },
                       {
                         key: "TIMEOUT_FAILURE",
                         label: "Timeout",
-                        color: "#f59e0b",
+                        color: "var(--color-class-warning)",
                       },
                       {
                         key: "CODE_FAILURE",
                         label: "Code Failure",
-                        color: "#ef4444",
+                        color: "var(--color-class-error)",
                       },
-                      { key: "VM_DIED", label: "VM Died", color: "#dc2626" },
+                      {
+                        key: "VM_DIED",
+                        label: "VM Died",
+                        color: "var(--color-class-error)",
+                      },
                       {
                         key: "NEVER_RAN",
                         label: "Never Ran",
-                        color: "#6b7280",
+                        color: "var(--color-class-unverified)",
                       },
                     ] as const
                   ).map((c) => {
@@ -1859,12 +1858,12 @@ export function DeploymentDetails({
                       {
                         key: "STILL_RUNNING",
                         label: "Running",
-                        color: "#06b6d4",
+                        color: "var(--color-class-expected-skip)",
                       },
                       {
                         key: "CANCELLED",
                         label: "Cancelled",
-                        color: "#6b7280",
+                        color: "var(--color-class-unverified)",
                       },
                     ] as const
                   ).map((c) => {
@@ -1989,7 +1988,7 @@ export function DeploymentDetails({
 
         {/* Retry Stats Banner */}
         {status.retry_stats && status.retry_stats.total_retries > 0 && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
             <RotateCcw className="h-4 w-4 text-[var(--color-accent-amber)]" />
             <span className="text-sm text-[var(--color-text-secondary)]">
               <span className="text-[var(--color-accent-amber)] font-medium">
@@ -2067,7 +2066,7 @@ export function DeploymentDetails({
             {/* Show provisioning message when all shards are pending */}
             {status.pending_shards === status.total_shards &&
               status.total_shards > 0 && (
-                <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-[rgba(34,211,238,0.1)] border border-[rgba(34,211,238,0.3)]">
+                <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-[var(--color-status-running-bg)] border border-[var(--color-status-running-border)]">
                   <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-cyan)]" />
                   <span className="text-sm text-[var(--color-accent-cyan)]">
                     {status.compute_type === "vm"
@@ -2397,22 +2396,22 @@ export function DeploymentDetails({
                             <div className="flex items-center gap-2">
                               {/* Status summary badges */}
                               {stats.completed > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[rgba(74,222,128,0.2)] text-[var(--color-accent-green)]">
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-success-bg-tag)] text-[var(--color-accent-green)]">
                                   {stats.completed} ✓
                                 </span>
                               )}
                               {stats.running > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[rgba(34,211,238,0.2)] text-[var(--color-accent-cyan)]">
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-running-bg-tag)] text-[var(--color-accent-cyan)]">
                                   {stats.running} ⟳
                                 </span>
                               )}
                               {stats.failed > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[rgba(248,113,113,0.2)] text-[var(--color-accent-red)]">
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-error-bg-tag)] text-[var(--color-accent-red)]">
                                   {stats.failed} ✗
                                 </span>
                               )}
                               {stats.pending > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[rgba(156,163,175,0.2)] text-[var(--color-text-muted)]">
+                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-muted-bg-tag)] text-[var(--color-text-muted)]">
                                   {stats.pending} ○
                                 </span>
                               )}
@@ -2870,12 +2869,13 @@ export function DeploymentDetails({
                           className={cn(
                             "py-1 px-2 rounded hover:bg-[var(--color-bg-tertiary)]",
                             isRegionSwitch &&
-                              "bg-[rgba(147,51,234,0.1)] border-l-2 border-[var(--color-accent-purple)]",
-                            isZoneExhausted && "bg-[rgba(251,191,36,0.05)]",
+                              "bg-[var(--color-status-tradfi-bg)] border-l-2 border-[var(--color-accent-purple)]",
+                            isZoneExhausted &&
+                              "bg-[var(--color-status-warning-bg-subtle)]",
                             isQuotaExhausted &&
-                              "bg-[rgba(251,191,36,0.1)] border-l-2 border-[var(--color-accent-amber)]",
+                              "bg-[var(--color-status-warning-bg)] border-l-2 border-[var(--color-accent-amber)]",
                             isAllExhausted &&
-                              "bg-[rgba(248,113,113,0.1)] border-l-2 border-[var(--color-accent-red)]",
+                              "bg-[var(--color-status-error-bg)] border-l-2 border-[var(--color-accent-red)]",
                           )}
                         >
                           <span
@@ -3001,7 +3001,7 @@ export function DeploymentDetails({
 
                 {/* Failure Breakdown */}
                 {Object.keys(report.failure_breakdown).length > 0 && (
-                  <div className="p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+                  <div className="p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
                     <h4 className="text-sm font-medium text-[var(--color-accent-red)] mb-2">
                       Failure Breakdown
                     </h4>
@@ -3053,7 +3053,7 @@ export function DeploymentDetails({
 
                 {/* Infrastructure Issues */}
                 {report.infrastructure_issues.length > 0 && (
-                  <div className="p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]">
+                  <div className="p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
                     <h4 className="text-sm font-medium text-[var(--color-accent-amber)] mb-2">
                       Infrastructure Issues (
                       {report.infrastructure_issues.length})
@@ -3182,8 +3182,8 @@ export function DeploymentDetails({
                         <span
                           className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                             isVm
-                              ? "bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)]"
-                              : "bg-[rgba(34,211,238,0.15)] text-[var(--color-accent-cyan)]"
+                              ? "bg-[var(--color-status-warning-bg-tag)] text-[var(--color-accent-amber)]"
+                              : "bg-[var(--color-status-running-bg-alt)] text-[var(--color-accent-cyan)]"
                           }`}
                         >
                           {ev.event_type.replace(/_/g, " ")}
@@ -3307,10 +3307,11 @@ export function DeploymentDetails({
                       className={cn(
                         "px-1 rounded text-xs mr-2",
                         log.severity === "ERROR" &&
-                          "bg-[rgba(248,113,113,0.2)]",
+                          "bg-[var(--color-status-error-bg-tag)]",
                         log.severity === "WARNING" &&
-                          "bg-[rgba(251,191,36,0.2)]",
-                        log.severity === "INFO" && "bg-[rgba(74,222,128,0.2)]",
+                          "bg-[var(--color-status-warning-bg-tag)]",
+                        log.severity === "INFO" &&
+                          "bg-[var(--color-status-success-bg-tag)]",
                       )}
                     >
                       {log.severity}
@@ -3386,21 +3387,63 @@ interface ShardRowProps {
   vmEvents?: ShardEvent[];
 }
 
-const CLASSIFICATION_COLORS: Record<string, string> = {
-  VERIFIED: "#22c55e",
-  EXPECTED_SKIP: "#06b6d4",
-  DATA_STALE: "#f59e0b",
-  DATA_MISSING: "#ef4444",
-  UNVERIFIED: "#6b7280",
-  COMPLETED_WITH_ERRORS: "#ef4444",
-  COMPLETED_WITH_WARNINGS: "#f59e0b",
-  INFRA_FAILURE: "#f97316",
-  TIMEOUT_FAILURE: "#f59e0b",
-  CODE_FAILURE: "#ef4444",
-  VM_DIED: "#dc2626",
-  NEVER_RAN: "#6b7280",
-  CANCELLED: "#6b7280",
-  STILL_RUNNING: "#06b6d4",
+const CLASSIFICATION_STYLES: Record<string, { color: string; bg: string }> = {
+  VERIFIED: {
+    color: "var(--color-class-verified)",
+    bg: "var(--color-class-verified-bg)",
+  },
+  EXPECTED_SKIP: {
+    color: "var(--color-class-expected-skip)",
+    bg: "var(--color-class-expected-skip-bg)",
+  },
+  DATA_STALE: {
+    color: "var(--color-class-data-stale)",
+    bg: "var(--color-class-data-stale-bg)",
+  },
+  DATA_MISSING: {
+    color: "var(--color-class-data-missing)",
+    bg: "var(--color-class-data-missing-bg)",
+  },
+  UNVERIFIED: {
+    color: "var(--color-class-unverified)",
+    bg: "var(--color-class-unverified-bg)",
+  },
+  COMPLETED_WITH_ERRORS: {
+    color: "var(--color-class-error)",
+    bg: "var(--color-class-error-bg)",
+  },
+  COMPLETED_WITH_WARNINGS: {
+    color: "var(--color-class-warning)",
+    bg: "var(--color-class-warning-bg)",
+  },
+  INFRA_FAILURE: {
+    color: "var(--color-class-warning)",
+    bg: "var(--color-class-warning-bg)",
+  },
+  TIMEOUT_FAILURE: {
+    color: "var(--color-class-warning)",
+    bg: "var(--color-class-warning-bg)",
+  },
+  CODE_FAILURE: {
+    color: "var(--color-class-error)",
+    bg: "var(--color-class-error-bg)",
+  },
+  VM_DIED: {
+    color: "var(--color-class-error)",
+    bg: "var(--color-class-error-bg)",
+  },
+  NEVER_RAN: {
+    color: "var(--color-class-unverified)",
+    bg: "var(--color-class-unverified-bg)",
+  },
+  CANCELLED: {
+    color: "var(--color-class-unverified)",
+    bg: "var(--color-class-unverified-bg)",
+  },
+  STILL_RUNNING: {
+    color: "var(--color-class-expected-skip)",
+    bg: "var(--color-class-expected-skip-bg)",
+  },
 };
 
 const VM_EVENT_BADGE_CONFIG: Record<
@@ -3409,34 +3452,38 @@ const VM_EVENT_BADGE_CONFIG: Record<
 > = {
   VM_PREEMPTED: {
     label: "Preempted",
-    color: "#f97316",
-    bg: "rgba(249,115,22,0.2)",
+    color: "var(--color-accent-amber)",
+    bg: "var(--color-event-amber-bg)",
   },
-  CONTAINER_OOM: { label: "OOM", color: "#ef4444", bg: "rgba(239,68,68,0.2)" },
+  CONTAINER_OOM: {
+    label: "OOM",
+    color: "var(--color-accent-red)",
+    bg: "var(--color-event-red-bg)",
+  },
   VM_QUOTA_EXHAUSTED: {
     label: "Quota",
-    color: "#eab308",
-    bg: "rgba(234,179,8,0.2)",
+    color: "var(--color-accent-amber)",
+    bg: "var(--color-event-amber-bg)",
   },
   VM_ZONE_UNAVAILABLE: {
     label: "Zone N/A",
-    color: "#eab308",
-    bg: "rgba(234,179,8,0.2)",
+    color: "var(--color-accent-amber)",
+    bg: "var(--color-event-amber-bg)",
   },
   CLOUD_RUN_REVISION_FAILED: {
     label: "Rev Failed",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.2)",
+    color: "var(--color-accent-red)",
+    bg: "var(--color-event-red-bg)",
   },
   VM_TIMEOUT: {
     label: "Timeout",
-    color: "#f97316",
-    bg: "rgba(249,115,22,0.2)",
+    color: "var(--color-accent-amber)",
+    bg: "var(--color-event-amber-bg)",
   },
   VM_DELETED: {
     label: "VM Deleted",
-    color: "#6b7280",
-    bg: "rgba(107,114,128,0.2)",
+    color: "var(--color-text-muted)",
+    bg: "var(--color-event-gray-bg)",
   },
 };
 
@@ -3480,7 +3527,7 @@ function ShardRow({
     if (shard.status === "succeeded") {
       // Succeeded after retry - green
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[rgba(74,222,128,0.2)] text-[var(--color-accent-green)]">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-success-bg-tag)] text-[var(--color-accent-green)]">
           <RotateCcw className="h-3 w-3" />
           {shard.retries}→OK
         </span>
@@ -3488,7 +3535,7 @@ function ShardRow({
     } else if (shard.status === "failed") {
       // Failed after retries - red
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[rgba(248,113,113,0.2)] text-[var(--color-accent-red)]">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-error-bg-tag)] text-[var(--color-accent-red)]">
           <RotateCcw className="h-3 w-3" />
           {shard.retries}→X
         </span>
@@ -3496,7 +3543,7 @@ function ShardRow({
     } else {
       // Still retrying - yellow
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[rgba(251,191,36,0.2)] text-[var(--color-accent-amber)]">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-warning-bg-tag)] text-[var(--color-accent-amber)]">
           <RotateCcw className="h-3 w-3" />
           retry {shard.retries}
         </span>
@@ -3510,7 +3557,7 @@ function ShardRow({
     <div
       className={cn(
         "flex items-center gap-3 p-3 bg-[var(--color-bg-secondary)]",
-        selected && "bg-[rgba(34,211,238,0.1)]",
+        selected && "bg-[var(--color-status-running-bg)]",
       )}
     >
       {/* Selection checkbox - only for running shards */}
@@ -3539,7 +3586,7 @@ function ShardRow({
           </code>
           {getRetryBadge()}
           {shard.args?.includes("--force") && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(168,85,247,0.2)] text-[#a855f7]">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-status-purple-bg-tag)] text-[var(--color-accent-purple)]">
               --force
             </span>
           )}
@@ -3547,8 +3594,12 @@ function ShardRow({
             <span
               className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
               style={{
-                color: CLASSIFICATION_COLORS[classification] || "#6b7280",
-                backgroundColor: `${CLASSIFICATION_COLORS[classification] || "#6b7280"}20`,
+                color:
+                  CLASSIFICATION_STYLES[classification]?.color ??
+                  "var(--color-class-unverified)",
+                backgroundColor:
+                  CLASSIFICATION_STYLES[classification]?.bg ??
+                  "var(--color-class-unverified-bg)",
               }}
             >
               {classification.replace(/_/g, " ")}

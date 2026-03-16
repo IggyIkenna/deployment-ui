@@ -5,10 +5,10 @@ import type { ServiceStatus, ServiceHealth } from "../types/deploymentTypes";
 import { Button } from "@unified-trading/ui-kit";
 
 const HEALTH_COLORS: Record<ServiceHealth, string> = {
-  HEALTHY: "#16A34A",
-  DEGRADED: "#D97706",
-  UNHEALTHY: "#DC2626",
-  UNKNOWN: "#6B7280",
+  HEALTHY: "var(--color-accent-green)",
+  DEGRADED: "var(--color-accent-amber)",
+  UNHEALTHY: "var(--color-accent-red)",
+  UNKNOWN: "var(--color-text-muted)",
 };
 
 const HEALTH_ICONS: Record<ServiceHealth, string> = {
@@ -45,7 +45,11 @@ export function DeploymentsList() {
   if (loading)
     return (
       <div
-        style={{ padding: "24px", color: "#6B7280", fontFamily: "monospace" }}
+        style={{
+          padding: "24px",
+          color: "var(--color-text-muted)",
+          fontFamily: "monospace",
+        }}
       >
         Loading services...
       </div>
@@ -65,7 +69,10 @@ export function DeploymentsList() {
         <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
           <span
             style={{
-              color: healthy === total ? "#16A34A" : "#D97706",
+              color:
+                healthy === total
+                  ? "var(--color-accent-green)"
+                  : "var(--color-accent-amber)",
               fontSize: "14px",
             }}
           >
@@ -78,7 +85,7 @@ export function DeploymentsList() {
             to="/deploy"
             style={{
               padding: "6px 12px",
-              background: "#2563EB",
+              background: "var(--color-accent-blue)",
               color: "white",
               borderRadius: "4px",
               textDecoration: "none",
@@ -91,13 +98,18 @@ export function DeploymentsList() {
       </div>
 
       {error && (
-        <div style={{ color: "#DC2626", marginBottom: "12px" }}>
+        <div
+          style={{
+            color: "var(--color-accent-red)",
+            marginBottom: "12px",
+          }}
+        >
           Error: {error}
         </div>
       )}
 
       {services.length === 0 ? (
-        <p style={{ color: "#6B7280" }}>No services found.</p>
+        <p style={{ color: "var(--color-text-muted)" }}>No services found.</p>
       ) : (
         <table className="w-full">
           <thead>
@@ -120,10 +132,16 @@ export function DeploymentsList() {
                     {HEALTH_ICONS[svc.health]} {svc.health}
                   </span>
                 </td>
-                <td className="table-cell" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {svc.current_version}
                 </td>
-                <td className="table-cell" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {svc.environment}
                 </td>
                 <td className="table-cell text-right">
@@ -131,21 +149,24 @@ export function DeploymentsList() {
                     style={{
                       color:
                         svc.replicas_ready < svc.replicas_total
-                          ? "#D97706"
-                          : "#16A34A",
+                          ? "var(--color-accent-amber)"
+                          : "var(--color-accent-green)",
                     }}
                   >
                     {svc.replicas_ready}/{svc.replicas_total}
                   </span>
                 </td>
-                <td className="table-cell text-xs" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell text-xs"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {new Date(svc.last_deployed_at).toLocaleString()}
                 </td>
                 <td className="table-cell">
                   <Link
                     to={`/history?service=${svc.service_id}`}
                     style={{
-                      color: "#2563EB",
+                      color: "var(--color-accent-blue)",
                       textDecoration: "none",
                       fontSize: "12px",
                     }}

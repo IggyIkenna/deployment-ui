@@ -77,7 +77,6 @@ function App() {
       setDeploymentError(
         err instanceof Error ? err.message : "Deployment failed",
       );
-      console.error("Deployment error:", err);
     } finally {
       setIsDeploying(false);
     }
@@ -155,7 +154,7 @@ function App() {
                               !selectedDeploymentId && (
                                 <div className="mb-6">
                                   {deploymentError ? (
-                                    <div className="p-4 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+                                    <div className="p-4 rounded-lg status-error">
                                       <div className="flex items-start gap-3">
                                         <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
                                         <div className="flex-1">

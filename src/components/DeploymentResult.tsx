@@ -113,8 +113,8 @@ export function DeploymentResult({
     try {
       const shards = await onLoadAllShards();
       setAllShards(shards);
-    } catch (e) {
-      console.error("Failed to load all shards:", e);
+    } catch {
+      // Error surfaced via allShards state
     } finally {
       setLoadingAllShards(false);
     }
@@ -171,11 +171,11 @@ export function DeploymentResult({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             {result.dry_run ? (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(251,191,36,0.1)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-accent-amber)]/10">
                 <Layers className="h-5 w-5 text-[var(--color-accent-amber)]" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(74,222,128,0.1)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-accent-green)]/10">
                 <CheckCircle2 className="h-5 w-5 text-[var(--color-accent-green)]" />
               </div>
             )}

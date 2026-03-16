@@ -14,8 +14,7 @@ export interface BuildEntry {
 
 export type BuildEnvironment = "dev" | "staging" | "prod";
 
-const DEPLOYMENT_API =
-  import.meta.env.VITE_DEPLOYMENT_API_URL ?? "http://localhost:8004";
+const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

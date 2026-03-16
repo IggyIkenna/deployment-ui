@@ -42,7 +42,7 @@ function getStatusColor(status: DayData["status"], coverage?: number): string {
       if (coverage !== undefined) {
         if (coverage >= 75) return "var(--color-accent-green)";
         if (coverage >= 50) return "var(--color-accent-amber)";
-        if (coverage >= 25) return "#f97316"; // orange
+        if (coverage >= 25) return "var(--color-accent-orange)";
         return "var(--color-accent-red)";
       }
       return "var(--color-accent-amber)";

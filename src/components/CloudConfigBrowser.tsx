@@ -299,9 +299,7 @@ export function CloudConfigBrowser({
       {discoveredCount !== null && (
         <div
           className={`flex items-center gap-2 p-2 rounded ${
-            discoveredCount >= 10000
-              ? "bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]"
-              : "bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.3)]"
+            discoveredCount >= 10000 ? "status-warning" : "status-success"
           }`}
         >
           <CheckCircle2
@@ -336,7 +334,7 @@ export function CloudConfigBrowser({
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-2 rounded bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+        <div className="flex items-center gap-2 p-2 rounded status-error">
           <AlertTriangle className="h-4 w-4 text-[var(--color-accent-red)]" />
           <span className="text-sm text-[var(--color-accent-red)]">
             {error}

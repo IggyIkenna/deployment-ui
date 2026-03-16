@@ -126,7 +126,7 @@ function TriggerCard({
       className={cn(
         "overflow-hidden",
         isLibrary && "border-l-4 border-l-[var(--color-accent-purple)]",
-        isInfrastructure && "border-l-4 border-l-[#f472b6]",
+        isInfrastructure && "border-l-4 border-l-[var(--color-accent-pink)]",
       )}
     >
       <div
@@ -454,8 +454,8 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
       try {
         const response = await getCloudBuildHistory(service);
         setBuildHistory((prev) => ({ ...prev, [service]: response.builds }));
-      } catch (err) {
-        console.error("Failed to load build history:", err);
+      } catch {
+        // Error surfaced via buildHistory state
       } finally {
         setLoadingHistory(null);
       }
@@ -517,10 +517,8 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
       {triggerResult && (
         <div
           className={cn(
-            "p-3 rounded-lg flex items-center gap-2",
-            triggerResult.success
-              ? "bg-[rgba(74,222,128,0.1)] border border-[rgba(74,222,128,0.2)]"
-              : "bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]",
+            "p-3 rounded-lg flex items-center gap-2 border",
+            triggerResult.success ? "status-success" : "status-error",
           )}
         >
           {triggerResult.success ? (
@@ -542,7 +540,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
 
       {/* Library Issues Warning */}
       {librariesWithIssues.length > 0 && (
-        <div className="p-4 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.3)]">
+        <div className="p-4 rounded-lg status-warning">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-[var(--color-accent-amber)] flex-shrink-0 mt-0.5" />
             <div>

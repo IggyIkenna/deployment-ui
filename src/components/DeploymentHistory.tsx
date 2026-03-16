@@ -341,7 +341,7 @@ export function DeploymentHistory({
           <CardTitle>Deployment History</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+          <div className="flex items-start gap-3 p-4 rounded-lg status-error">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0" />
             <div>
               <p className="text-sm font-medium text-[var(--color-accent-red)]">
@@ -442,7 +442,7 @@ export function DeploymentHistory({
                   size="sm"
                   onClick={handleBulkDelete}
                   disabled={deleting}
-                  className="text-[var(--color-accent-red)] hover:bg-[rgba(248,113,113,0.1)]"
+                  className="text-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/10"
                 >
                   {deleting ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -479,7 +479,7 @@ export function DeploymentHistory({
           </div>
         </div>
         {(deleteError || cancelError) && (
-          <div className="mt-2 p-2 rounded bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+          <div className="mt-2 p-2 rounded status-error">
             <p className="text-sm text-[var(--color-accent-red)]">
               {deleteError || cancelError}
             </p>
@@ -494,7 +494,7 @@ export function DeploymentHistory({
               className={cn(
                 "flex items-center gap-4 p-4 hover:bg-[var(--color-bg-hover)] transition-colors cursor-pointer",
                 selectedIds.has(deployment.deployment_id) &&
-                  "bg-[rgba(34,211,238,0.1)]",
+                  "bg-[var(--color-accent-cyan)]/10",
               )}
               onClick={() => onViewDetails?.(deployment.deployment_id)}
             >
@@ -519,7 +519,7 @@ export function DeploymentHistory({
                   </code>
                   {getStatusBadge(deployment.status)}
                   {deployment.deploy_mode === "live" && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[rgba(34,211,238,0.15)] text-[var(--color-accent-cyan)]">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent-cyan)]/15 text-[var(--color-accent-cyan)]">
                       LIVE
                     </span>
                   )}
@@ -612,12 +612,12 @@ export function DeploymentHistory({
                       style={{
                         color:
                           deployment.cloud_provider === "aws"
-                            ? "#fb923c"
-                            : "#22d3ee",
+                            ? "var(--color-accent-orange)"
+                            : "var(--color-accent-cyan)",
                         borderColor:
                           deployment.cloud_provider === "aws"
-                            ? "rgba(251,146,60,0.4)"
-                            : "rgba(34,211,238,0.4)",
+                            ? "var(--color-accent-orange)"
+                            : "var(--color-accent-cyan)",
                       }}
                     >
                       {deployment.cloud_provider.toUpperCase()}

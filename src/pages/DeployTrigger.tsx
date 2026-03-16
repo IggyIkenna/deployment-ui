@@ -120,7 +120,14 @@ export function DeployTrigger() {
         </div>
 
         {error && (
-          <div style={{ color: "#DC2626", fontSize: "13px" }}>{error}</div>
+          <div
+            style={{
+              color: "var(--color-accent-red)",
+              fontSize: "13px",
+            }}
+          >
+            {error}
+          </div>
         )}
 
         <div style={{ display: "flex", gap: "8px" }}>

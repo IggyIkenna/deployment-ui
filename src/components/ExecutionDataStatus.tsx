@@ -401,8 +401,8 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 date === "..."
                   ? "text-[var(--color-text-muted)]"
                   : colorClass.includes("green")
-                    ? "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
-                    : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]",
+                    ? "status-success"
+                    : "status-error",
               )}
             >
               {date}
@@ -421,13 +421,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   };
 
   const getCompletionBadgeClass = (percent: number) => {
-    if (percent >= 100)
-      return "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]";
-    if (percent >= 80)
-      return "bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]";
-    if (percent >= 50)
-      return "bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]";
-    return "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]";
+    if (percent >= 100) return "status-success";
+    if (percent >= 80) return "status-running";
+    if (percent >= 50) return "status-warning";
+    return "status-error";
   };
 
   // Render breakdown view (by mode, timeframe, or algo)
@@ -466,10 +463,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   {item.with_results} / {item.total}
                 </span>
                 {!isComplete && item.missing_count > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
-                  >
+                  <Badge variant="outline" className="status-error">
                     {item.missing_count} missing
                   </Badge>
                 )}
@@ -697,14 +691,14 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
 
               {/* Status message */}
               {data.completion_pct >= 100 ? (
-                <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
+                <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)]">
                   <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] mr-2" />
                   <span className="text-sm text-[var(--color-accent-green)]">
                     All configs have execution results
                   </span>
                 </div>
               ) : (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
@@ -717,7 +711,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     size="sm"
                     onClick={fetchMissingShards}
                     disabled={loadingMissingShards}
-                    className="border-[var(--color-accent-red)] text-[var(--color-accent-red)] hover:bg-[rgba(248,113,113,0.1)]"
+                    className="border-[var(--color-accent-red)] text-[var(--color-accent-red)] hover:bg-[var(--color-status-error-bg)]"
                   >
                     {loadingMissingShards ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -881,10 +875,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                           </div>
                           <div className="flex items-center gap-3">
                             {!isComplete && (
-                              <Badge
-                                variant="outline"
-                                className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
-                              >
+                              <Badge variant="outline" className="status-error">
                                 {strategy.total - strategy.with_results} missing
                               </Badge>
                             )}
@@ -993,7 +984,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                     0 && (
                                                     <Badge
                                                       variant="outline"
-                                                      className="text-[10px] bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                                      className="text-[10px] bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
                                                     >
                                                       {
                                                         tf.missing_configs
@@ -1063,7 +1054,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                         return (
                                                           <div
                                                             key={i}
-                                                            className="border border-[rgba(248,113,113,0.2)] rounded overflow-hidden"
+                                                            className="border border-[var(--color-status-error-border)] rounded overflow-hidden"
                                                           >
                                                             <Button
                                                               variant="ghost"
@@ -1074,9 +1065,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                 )
                                                               }
                                                               className={cn(
-                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(248,113,113,0.05)] px-2 py-1.5 h-auto",
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[var(--color-status-error-bg-subtle)] px-2 py-1.5 h-auto",
                                                                 hasDayBreakdown &&
-                                                                  "hover:bg-[rgba(248,113,113,0.1)]",
+                                                                  "hover:bg-[var(--color-status-error-bg)]",
                                                               )}
                                                             >
                                                               {hasDayBreakdown &&
@@ -1115,7 +1106,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                             {isConfigExpanded &&
                                                               hasDayBreakdown &&
                                                               fullConfig && (
-                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(248,113,113,0.2)]">
+                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-error-border)]">
                                                                   {renderDatesList(
                                                                     fullConfig.dates_found_list,
                                                                     fullConfig.dates_found_list_tail,
@@ -1173,7 +1164,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                         return (
                                                           <div
                                                             key={i}
-                                                            className="border border-[rgba(34,197,94,0.2)] rounded overflow-hidden"
+                                                            className="border border-[var(--color-status-success-border)] rounded overflow-hidden"
                                                           >
                                                             <Button
                                                               variant="ghost"
@@ -1184,9 +1175,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                                 )
                                                               }
                                                               className={cn(
-                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[rgba(34,197,94,0.05)] px-2 py-1.5 h-auto",
+                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[var(--color-status-success-bg-subtle)] px-2 py-1.5 h-auto",
                                                                 hasDayBreakdown &&
-                                                                  "hover:bg-[rgba(34,197,94,0.1)]",
+                                                                  "hover:bg-[var(--color-status-success-bg)]",
                                                               )}
                                                             >
                                                               {hasDayBreakdown &&
@@ -1247,7 +1238,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                             {/* Day breakdown dropdown */}
                                                             {isConfigExpanded &&
                                                               hasDayBreakdown && (
-                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[rgba(34,197,94,0.2)]">
+                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-success-border)]">
                                                                   {renderDatesList(
                                                                     cfg.dates_found_list,
                                                                     cfg.dates_found_list_tail,
@@ -1354,7 +1345,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     {missingShardsData.total_dates}
                   </p>
                 </div>
-                <div className="bg-[rgba(248,113,113,0.1)] p-3 rounded-lg border border-[rgba(248,113,113,0.2)]">
+                <div className="bg-[var(--color-status-error-bg)] p-3 rounded-lg border border-[var(--color-status-error-border)]">
                   <p className="text-xs text-[var(--color-accent-red)]">
                     Missing Shards
                   </p>

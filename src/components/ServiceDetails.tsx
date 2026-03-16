@@ -109,7 +109,7 @@ export function ServiceDetails({ serviceName }: ServiceDetailsProps) {
             {isInfrastructure && (
               <Badge
                 variant="outline"
-                className="font-mono text-xs text-[#f472b6] border-[#f472b6]"
+                className="font-mono text-xs text-[var(--color-accent-pink)] border-[var(--color-accent-pink)]"
               >
                 Infrastructure
               </Badge>
@@ -240,7 +240,7 @@ function DimensionsPanel({
 
                   {/* Dynamic config warning */}
                   {dim.type === "gcs_dynamic" && (
-                    <div className="mt-3 flex items-center gap-2 p-2 bg-[rgba(251,191,36,0.1)] rounded border border-[rgba(251,191,36,0.2)]">
+                    <div className="mt-3 flex items-center gap-2 p-2 status-warning rounded">
                       <Info className="h-4 w-4 text-[var(--color-accent-amber)]" />
                       <span className="text-xs text-[var(--color-accent-amber)]">
                         Values loaded from GCS at runtime
@@ -294,18 +294,18 @@ const LAYER_ORDER = [
 ];
 
 const LAYER_COLORS: Record<string, string> = {
-  "instruments-service": "#22d3ee",
-  "corporate-actions": "#22d3ee",
-  "features-calendar-service": "#a78bfa",
-  "market-tick-data-handler": "#60a5fa",
-  "market-data-processing-service": "#60a5fa",
-  "features-delta-one-service": "#a78bfa",
-  "features-volatility-service": "#a78bfa",
-  "features-onchain-service": "#a78bfa",
-  "ml-training-service": "#fbbf24",
-  "ml-inference-service": "#fbbf24",
-  "strategy-service": "#4ade80",
-  "execution-services": "#4ade80",
+  "instruments-service": "var(--color-accent-cyan)",
+  "corporate-actions": "var(--color-accent-cyan)",
+  "features-calendar-service": "var(--color-accent-purple)",
+  "market-tick-data-handler": "var(--color-accent-blue)",
+  "market-data-processing-service": "var(--color-accent-blue)",
+  "features-delta-one-service": "var(--color-accent-purple)",
+  "features-volatility-service": "var(--color-accent-purple)",
+  "features-onchain-service": "var(--color-accent-purple)",
+  "ml-training-service": "var(--color-accent-amber)",
+  "ml-inference-service": "var(--color-accent-amber)",
+  "strategy-service": "var(--color-accent-green)",
+  "execution-services": "var(--color-accent-green)",
 };
 
 interface DependenciesPanelProps {
@@ -365,7 +365,7 @@ function DependenciesPanel({
                   className={cn(
                     "flex items-start gap-3 p-3 rounded-lg border",
                     dep.required
-                      ? "border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.05)]"
+                      ? "status-error"
                       : "border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]",
                   )}
                 >
@@ -555,19 +555,19 @@ function DependencyDag({
         {/* Legend */}
         <div className="flex flex-wrap gap-4 mb-3 px-2 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-cyan)] bg-[rgba(34,211,238,0.2)]" />
+            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/20" />
             <span className="text-[var(--color-text-muted)]">
               Current service
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-amber)] bg-[rgba(251,191,36,0.15)]" />
+            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-amber)] bg-[var(--color-accent-amber)]/15" />
             <span className="text-[var(--color-text-muted)]">
               Upstream dependency
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-green)] bg-[rgba(74,222,128,0.15)]" />
+            <div className="w-3 h-3 rounded border-2 border-[var(--color-accent-green)] bg-[var(--color-accent-green)]/15" />
             <span className="text-[var(--color-text-muted)]">
               Downstream dependent
             </span>
@@ -667,17 +667,17 @@ function DependencyDag({
 
               if (current) {
                 borderColor = "var(--color-accent-cyan)";
-                bgColor = "rgba(34, 211, 238, 0.15)";
+                bgColor = "var(--color-accent-cyan)";
                 textColor = "var(--color-accent-cyan)";
                 strokeWidth = 2.5;
               } else if (up) {
                 borderColor = "var(--color-accent-amber)";
-                bgColor = "rgba(251, 191, 36, 0.1)";
+                bgColor = "var(--color-accent-amber)";
                 textColor = "var(--color-accent-amber)";
                 strokeWidth = 2;
               } else if (down) {
                 borderColor = "var(--color-accent-green)";
-                bgColor = "rgba(74, 222, 128, 0.1)";
+                bgColor = "var(--color-accent-green)";
                 textColor = "var(--color-accent-green)";
                 strokeWidth = 2;
               }

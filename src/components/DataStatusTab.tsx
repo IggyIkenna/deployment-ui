@@ -249,7 +249,6 @@ function DataStatusTabInternal({
   // Cancel any pending query
   const cancelQuery = useCallback(() => {
     if (abortControllerRef.current) {
-      console.warn("[DATA STATUS] Cancelling pending query...");
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
@@ -270,10 +269,6 @@ function DataStatusTabInternal({
 
       // Increment request ID - only the latest request should update state
       const thisRequestId = ++requestIdRef.current;
-      console.warn(
-        `[DATA STATUS] Request #${thisRequestId}: ${serviceName} ${fetchStart} to ${fetchEnd}, categories:`,
-        selectedCategories,
-      );
 
       setLoading(true);
       setError(null);
@@ -297,21 +292,13 @@ function DataStatusTabInternal({
           })) as VenueCheckResponse;
 
           // Skip if a newer request has started
-          if (thisRequestId !== requestIdRef.current) {
-            console.warn(
-              `[DATA STATUS] Request #${thisRequestId} superseded by #${requestIdRef.current}, ignoring response`,
-            );
-            return;
-          }
+          if (thisRequestId !== requestIdRef.current) return;
 
           // CRITICAL: Validate response matches request
           if (
             result.start_date !== fetchStart ||
             result.end_date !== fetchEnd
           ) {
-            console.error(
-              `[DATA STATUS] DATE MISMATCH! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
-            );
             setError(
               `Backend returned wrong dates! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
             );
@@ -332,12 +319,7 @@ function DataStatusTabInternal({
           })) as DataTypeCheckResponse;
 
           // Skip if a newer request has started
-          if (thisRequestId !== requestIdRef.current) {
-            console.warn(
-              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring response`,
-            );
-            return;
-          }
+          if (thisRequestId !== requestIdRef.current) return;
           setDataTypeCheckData(result);
         } else if (useTurboMode) {
           // TURBO MODE: Uses month-prefix queries (5s instead of 60s+)
@@ -351,9 +333,6 @@ function DataStatusTabInternal({
             selectedFolders.length > 0 ? selectedFolders : undefined;
           const dataTypeFilter =
             selectedDataTypes.length > 0 ? selectedDataTypes : undefined;
-          console.warn(
-            `[DATA STATUS] Using TURBO mode for ${serviceName}, dates: ${fetchStart} to ${fetchEnd}${venueFilter ? ` venues: ${venueFilter.join(",")}` : ""}${folderFilter ? ` folders: ${folderFilter.join(",")}` : ""}${dataTypeFilter ? ` data_types: ${dataTypeFilter.join(",")}` : ""}${checkUpstream ? " (with upstream check)" : ""}${firstDayOfMonthOnly ? " (first day of month only)" : ""}`,
-          );
           const result = await api.getDataStatusTurbo({
             service: serviceName,
             start_date: fetchStart,
@@ -377,21 +356,13 @@ function DataStatusTabInternal({
           });
 
           // Skip if a newer request has started
-          if (thisRequestId !== requestIdRef.current) {
-            console.warn(
-              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring turbo response`,
-            );
-            return;
-          }
+          if (thisRequestId !== requestIdRef.current) return;
 
           // Validate response matches requested dates (detect stale data/bugs)
           if (
             result.date_range.start !== fetchStart ||
             result.date_range.end !== fetchEnd
           ) {
-            console.error(
-              `[DATA STATUS] DATE MISMATCH in turbo mode! Requested ${fetchStart}-${fetchEnd}, got ${result.date_range.start}-${result.date_range.end}`,
-            );
             setError(
               `Date mismatch: requested ${fetchStart} to ${fetchEnd}, but received ${result.date_range.start} to ${result.date_range.end}. This may indicate a bug - please report this.`,
             );
@@ -411,21 +382,14 @@ function DataStatusTabInternal({
           })) as DataStatusResponse;
 
           // Skip if a newer request has started
-          if (thisRequestId !== requestIdRef.current) {
-            console.warn(
-              `[DATA STATUS] Request #${thisRequestId} superseded, ignoring standard response`,
-            );
-            return;
-          }
+          if (thisRequestId !== requestIdRef.current) return;
 
           // Validate response matches requested dates (detect cache issues)
           if (
             result.start_date !== fetchStart ||
             result.end_date !== fetchEnd
           ) {
-            console.warn(
-              `Date mismatch! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
-            );
+            // Date mismatch - use data anyway but could indicate cache issues
           }
 
           setData(result);
@@ -439,7 +403,6 @@ function DataStatusTabInternal({
             (err.name === "AbortError" ||
               err.message === "Request was cancelled")
           ) {
-            console.warn("[DATA STATUS] Request cancelled by user");
             return;
           }
           setError(
@@ -480,14 +443,10 @@ function DataStatusTabInternal({
   const handleClearDataStatusCache = useCallback(async () => {
     setClearingCache(true);
     try {
-      const result = await api.clearDataStatusCache();
-      console.warn(
-        `[DATA STATUS] Cache cleared: ${result.entries_cleared} entries`,
-      );
+      await api.clearDataStatusCache();
       // Re-fetch with fresh data
       await fetchData(startDate, endDate);
     } catch (err) {
-      console.error("[DATA STATUS] Failed to clear cache:", err);
       setError(err instanceof Error ? err.message : "Failed to clear cache");
     } finally {
       setClearingCache(false);
@@ -535,7 +494,6 @@ function DataStatusTabInternal({
         setFileListingData(result);
       }
     } catch (err) {
-      console.error("[FILE LISTING] Failed to fetch:", err);
       setFileListingError(
         err instanceof Error ? err.message : "Failed to fetch file listing",
       );
@@ -580,7 +538,6 @@ function DataStatusTabInternal({
             limit: 50, // Show top 50 matches
           });
           if (result.error) {
-            console.error("[INSTRUMENT SEARCH] Error:", result.error);
             setInstrumentSearchResults([]);
           } else {
             setInstrumentSearchResults(result.instruments);
@@ -590,8 +547,7 @@ function DataStatusTabInternal({
               setShowInstrumentDropdown(result.instruments.length > 0);
             }
           }
-        } catch (err) {
-          console.error("[INSTRUMENT SEARCH] Failed:", err);
+        } catch {
           setInstrumentSearchResults([]);
         } finally {
           setInstrumentSearchLoading(false);
@@ -633,7 +589,6 @@ function DataStatusTabInternal({
         setInstrumentAvailability(result);
       }
     } catch (err) {
-      console.error("[INSTRUMENT AVAILABILITY] Failed:", err);
       setInstrumentAvailabilityError(
         err instanceof Error ? err.message : "Failed to check availability",
       );
@@ -685,8 +640,7 @@ function DataStatusTabInternal({
           setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
         }
       })
-      .catch((err) => {
-        console.error("[FETCH CATEGORIES] Error:", err);
+      .catch(() => {
         // On error, default to all categories
         setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
       })
@@ -736,8 +690,7 @@ function DataStatusTabInternal({
       .then((response: CategoryVenuesResponse) => {
         setAvailableVenues(response.venues || []);
       })
-      .catch((err) => {
-        console.error("Failed to fetch venues for category:", err);
+      .catch(() => {
         setAvailableVenues([]);
       })
       .finally(() => {
@@ -768,8 +721,7 @@ function DataStatusTabInternal({
         setVenueAvailableFolders(response.folders || []);
         setVenueAvailableDataTypes(response.data_types || []);
       })
-      .catch((err) => {
-        console.error("Failed to fetch venue filters:", err);
+      .catch(() => {
         setVenueAvailableFolders([]);
         setVenueAvailableDataTypes([]);
       })
@@ -824,12 +776,12 @@ function DataStatusTabInternal({
 
   const getCompletionBadgeClass = (percent: number) => {
     if (percent >= 100)
-      return "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]";
+      return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]";
     if (percent >= 80)
-      return "bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)] border-[rgba(34,211,238,0.3)]";
+      return "bg-[var(--color-status-running-bg)] text-[var(--color-accent-cyan)] border-[var(--color-status-running-border)]";
     if (percent >= 50)
-      return "bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]";
-    return "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]";
+      return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]";
+    return "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]";
   };
 
   const getCategoryCompletion = (catData: CategoryStatus) => {
@@ -941,9 +893,6 @@ function DataStatusTabInternal({
       // IMPORTANT: If no categories have missing data, don't deploy
       // This prevents accidentally deploying all categories when user's filter has no missing data
       if (effectiveDeployCategories.length === 0) {
-        console.warn(
-          "[DEPLOY MISSING] No categories with missing data to deploy",
-        );
         if (!previewRefreshOnly) setDeployMissingModalOpen(false);
         return;
       }
@@ -1004,9 +953,6 @@ function DataStatusTabInternal({
       deployMissingDryRun &&
       effectiveDeployCategories.length > 0
     ) {
-      console.warn(
-        `[DEPLOY MISSING] Auto-refreshing preview after granularity change to: ${deployMissingDateGranularity}`,
-      );
       const timeoutId = setTimeout(() => {
         handleConfirmDeployMissing(true); // previewRefreshOnly: stay in modal, don't switch tabs
       }, 300);
@@ -1032,10 +978,7 @@ function DataStatusTabInternal({
       .filter(([, stats]) => stats.dates_missing > 0)
       .map(([dataType]) => dataType);
 
-    if (dataTypesWithMissing.length === 0) {
-      console.warn("[INSTRUMENT DEPLOY] No missing data to deploy");
-      return;
-    }
+    if (dataTypesWithMissing.length === 0) return;
 
     // Parse instrument key to get venue and folder/instrument_type
     const venue = selectedInstrument.venue;
@@ -1046,15 +989,6 @@ function DataStatusTabInternal({
       instrumentAvailability.availability_window?.effective_start || startDate;
     const effectiveEnd =
       instrumentAvailability.availability_window?.effective_end || endDate;
-
-    console.warn("[INSTRUMENT DEPLOY]", {
-      instrument: selectedInstrument.instrument_key,
-      venue,
-      folder,
-      dataTypes: dataTypesWithMissing,
-      dateRange: `${effectiveStart} to ${effectiveEnd}`,
-      firstDayOfMonthOnly,
-    });
 
     // Deploy with instrument-specific filters
     onDeployMissing({
@@ -1227,8 +1161,7 @@ function DataStatusTabInternal({
       }
 
       return result;
-    } catch (error) {
-      console.error("Error generating heatmap data:", error);
+    } catch {
       return [];
     }
   }, [data, venueCheckData, startDate, endDate]);
@@ -1976,7 +1909,7 @@ function DataStatusTabInternal({
                         {/* Deploy Missing for Instrument */}
                         {instrumentAvailability.overall.missing > 0 &&
                           onDeployMissing && (
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                               <div className="flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                                 <span className="text-sm">
@@ -2053,13 +1986,13 @@ function DataStatusTabInternal({
                                         ▸ {stats.dates_found} available days
                                         (click to expand)
                                       </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
+                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
                                         <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
                                           {stats.dates_found_list.map(
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                               >
                                                 {date}
                                               </span>
@@ -2078,13 +2011,13 @@ function DataStatusTabInternal({
                                         ▸ {stats.dates_missing} missing days
                                         (click to expand)
                                       </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
+                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
                                         <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
                                           {stats.dates_missing_list.map(
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                               >
                                                 {date}
                                               </span>
@@ -2290,7 +2223,7 @@ function DataStatusTabInternal({
                               {isClean ? (
                                 <Badge
                                   variant="outline"
-                                  className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                                  className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   All venues present
@@ -2298,7 +2231,7 @@ function DataStatusTabInternal({
                               ) : (
                                 <Badge
                                   variant="outline"
-                                  className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                  className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
                                 >
                                   <AlertCircle className="h-3 w-3 mr-1" />
                                   {datesWithIssues} / {totalDates} dates have
@@ -2340,7 +2273,7 @@ function DataStatusTabInternal({
                                         </div>
                                         <Badge
                                           variant="outline"
-                                          className="text-xs bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                          className="text-xs bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
                                         >
                                           {dateInfo.missing.length} missing
                                         </Badge>
@@ -2356,7 +2289,7 @@ function DataStatusTabInternal({
                                               <Badge
                                                 key={venue}
                                                 variant="outline"
-                                                className="text-xs font-mono bg-[rgba(248,113,113,0.05)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.2)]"
+                                                className="text-xs font-mono bg-[var(--color-status-error-bg-subtle)] text-[var(--color-accent-red)] border-[var(--color-status-error-border)]"
                                               >
                                                 {venue}
                                               </Badge>
@@ -2391,7 +2324,7 @@ function DataStatusTabInternal({
                   (c) => c.dates_with_missing_venues.length > 0,
                 ) &&
                   onDeployMissing && (
-                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                       <div className="flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                         <span className="text-sm">
@@ -2564,8 +2497,8 @@ function DataStatusTabInternal({
                                   variant="outline"
                                   className={cn(
                                     isComplete
-                                      ? "bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
-                                      : "bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]",
+                                      ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                      : "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]",
                                   )}
                                 >
                                   {isComplete ? (
@@ -2668,7 +2601,7 @@ function DataStatusTabInternal({
                     Data Coverage
                     <Badge
                       variant="outline"
-                      className="ml-2 bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                      className="ml-2 bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
                     >
                       TURBO
                     </Badge>
@@ -2718,7 +2651,7 @@ function DataStatusTabInternal({
 
               {/* Deploy Missing Button - shows only expected missing (dates >= venue start) */}
               {totalMissing > 0 && onDeployMissing && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
@@ -2738,7 +2671,7 @@ function DataStatusTabInternal({
 
               {/* All data complete message */}
               {totalMissing === 0 && (
-                <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
+                <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)]">
                   <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] mr-2" />
                   <span className="text-sm text-[var(--color-accent-green)]">
                     All expected data present
@@ -2859,13 +2792,13 @@ function DataStatusTabInternal({
                                     <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                       {catData.dates_found_count} available days
                                     </summary>
-                                    <div className="mt-1 pl-2 border-l-2 border-[rgba(34,197,94,0.3)]">
+                                    <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                                         {catData.dates_found_list?.map(
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                             >
                                               {date}
                                             </span>
@@ -2880,7 +2813,7 @@ function DataStatusTabInternal({
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -2899,13 +2832,13 @@ function DataStatusTabInternal({
                                     <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                       {catData.dates_missing_count} missing days
                                     </summary>
-                                    <div className="mt-1 pl-2 border-l-2 border-[rgba(248,113,113,0.3)]">
+                                    <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                                         {catData.dates_missing_list?.map(
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                             >
                                               {date}
                                             </span>
@@ -2920,7 +2853,7 @@ function DataStatusTabInternal({
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -3017,7 +2950,7 @@ function DataStatusTabInternal({
                                       .expected_coverage_pct === 100 ? (
                                       <Badge
                                         variant="outline"
-                                        className="bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)] border-[rgba(34,197,94,0.3)]"
+                                        className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
                                       >
                                         <CheckCircle2 className="h-3 w-3 mr-1" />
                                         All{" "}
@@ -3027,7 +2960,7 @@ function DataStatusTabInternal({
                                     ) : (
                                       <Badge
                                         variant="outline"
-                                        className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)] cursor-help"
+                                        className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)] cursor-help"
                                         title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
                                       >
                                         <XCircle className="h-3 w-3 mr-1" />
@@ -3042,7 +2975,7 @@ function DataStatusTabInternal({
                                       .length > 0 && (
                                       <Badge
                                         variant="outline"
-                                        className="bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)] border-[rgba(251,191,36,0.3)]"
+                                        className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
                                       >
                                         +
                                         {
@@ -3067,7 +3000,7 @@ function DataStatusTabInternal({
                                       (venue: string) => (
                                         <span
                                           key={venue}
-                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[rgba(248,113,113,0.15)] text-[var(--color-accent-red)] border border-[rgba(248,113,113,0.3)]"
+                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                         >
                                           {venue}
                                         </span>
@@ -3229,13 +3162,13 @@ function DataStatusTabInternal({
                                               {subData.dates_found_count}{" "}
                                               available days
                                             </summary>
-                                            <div className="mt-1 pl-1 border-l border-[rgba(34,197,94,0.3)]">
+                                            <div className="mt-1 pl-1 border-l border-[var(--color-status-success-border-strong)]">
                                               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                                                 {subData.dates_found_list?.map(
                                                   (date: string) => (
                                                     <span
                                                       key={date}
-                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                     >
                                                       {date}
                                                     </span>
@@ -3250,7 +3183,7 @@ function DataStatusTabInternal({
                                                       (date: string) => (
                                                         <span
                                                           key={date}
-                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(34,197,94,0.1)] text-[var(--color-accent-green)]"
+                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                         >
                                                           {date}
                                                         </span>
@@ -3270,13 +3203,13 @@ function DataStatusTabInternal({
                                               {subData.dates_missing_count}{" "}
                                               missing days
                                             </summary>
-                                            <div className="mt-1 pl-1 border-l border-[rgba(248,113,113,0.3)]">
+                                            <div className="mt-1 pl-1 border-l border-[var(--color-status-error-border-strong)]">
                                               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                                                 {subData.dates_missing_list?.map(
                                                   (date: string) => (
                                                     <span
                                                       key={date}
-                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                     >
                                                       {date}
                                                     </span>
@@ -3291,7 +3224,7 @@ function DataStatusTabInternal({
                                                       (date: string) => (
                                                         <span
                                                           key={date}
-                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]"
+                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                         >
                                                           {date}
                                                         </span>
@@ -3368,7 +3301,7 @@ function DataStatusTabInternal({
 
               {/* Deploy Missing Button */}
               {totalMissing > 0 && onDeployMissing && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]">
+                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
@@ -3482,7 +3415,7 @@ function DataStatusTabInternal({
                             {missing > 0 && (
                               <Badge
                                 variant="outline"
-                                className="bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)] border-[rgba(248,113,113,0.3)]"
+                                className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
                               >
                                 {missing} missing
                               </Badge>

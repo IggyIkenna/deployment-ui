@@ -8,11 +8,11 @@ import type { DeployJob, DeployJobStatus } from "../types/deploymentTypes";
 import { Button } from "@unified-trading/ui-kit";
 
 const STATUS_COLORS: Record<DeployJobStatus, string> = {
-  QUEUED: "#6B7280",
-  RUNNING: "#2563EB",
-  SUCCESS: "#16A34A",
-  FAILED: "#DC2626",
-  CANCELLED: "#D97706",
+  QUEUED: "var(--color-text-muted)",
+  RUNNING: "var(--color-accent-blue)",
+  SUCCESS: "var(--color-accent-green)",
+  FAILED: "var(--color-accent-red)",
+  CANCELLED: "var(--color-accent-amber)",
 };
 
 export function DeploymentHistory() {
@@ -52,7 +52,11 @@ export function DeploymentHistory() {
   if (loading)
     return (
       <div
-        style={{ padding: "24px", color: "#6B7280", fontFamily: "monospace" }}
+        style={{
+          padding: "24px",
+          color: "var(--color-text-muted)",
+          fontFamily: "monospace",
+        }}
       >
         Loading deployment history...
       </div>
@@ -77,13 +81,20 @@ export function DeploymentHistory() {
       </div>
 
       {error && (
-        <div style={{ color: "#DC2626", marginBottom: "12px" }}>
+        <div
+          style={{
+            color: "var(--color-accent-red)",
+            marginBottom: "12px",
+          }}
+        >
           Error: {error}
         </div>
       )}
 
       {jobs.length === 0 ? (
-        <p style={{ color: "#6B7280" }}>No deployment history found.</p>
+        <p style={{ color: "var(--color-text-muted)" }}>
+          No deployment history found.
+        </p>
       ) : (
         <table className="w-full">
           <thead>
@@ -101,10 +112,16 @@ export function DeploymentHistory() {
             {jobs.map((job) => (
               <tr key={job.job_id} className="table-row">
                 <td className="table-cell font-semibold">{job.service_name}</td>
-                <td className="table-cell" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {job.version}
                 </td>
-                <td className="table-cell" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {job.environment}
                 </td>
                 <td className="table-cell">
@@ -117,10 +134,16 @@ export function DeploymentHistory() {
                     {job.status}
                   </span>
                 </td>
-                <td className="table-cell text-xs" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell text-xs"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {job.triggered_by}
                 </td>
-                <td className="table-cell text-xs" style={{ color: "#9CA3AF" }}>
+                <td
+                  className="table-cell text-xs"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
                   {new Date(job.triggered_at).toLocaleString()}
                 </td>
                 <td className="table-cell">
@@ -131,7 +154,7 @@ export function DeploymentHistory() {
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                          color: "#2563EB",
+                          color: "var(--color-accent-blue)",
                           textDecoration: "none",
                           fontSize: "12px",
                         }}

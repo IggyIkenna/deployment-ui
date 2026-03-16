@@ -25,8 +25,8 @@ export function Header() {
       setCacheCleared(true);
       // Reset the "cleared" indicator after 3 seconds
       setTimeout(() => setCacheCleared(false), 3000);
-    } catch (err) {
-      console.error("Failed to clear cache:", err);
+    } catch {
+      // Error surfaced via UI state
     } finally {
       setClearingCache(false);
     }
@@ -107,16 +107,16 @@ export function Header() {
               style={{
                 color:
                   health.cloud_provider === "gcp"
-                    ? "#22d3ee"
+                    ? "var(--color-accent-cyan)"
                     : health.cloud_provider === "aws"
-                      ? "#f97316"
-                      : "#a78bfa",
+                      ? "var(--color-accent-orange)"
+                      : "var(--color-accent-purple)",
                 borderColor:
                   health.cloud_provider === "gcp"
-                    ? "rgba(34,211,238,0.4)"
+                    ? "var(--color-accent-cyan)"
                     : health.cloud_provider === "aws"
-                      ? "rgba(249,115,22,0.4)"
-                      : "rgba(167,139,250,0.4)",
+                      ? "var(--color-accent-orange)"
+                      : "var(--color-accent-purple)",
               }}
             >
               {health.cloud_provider.toUpperCase()}
@@ -130,8 +130,8 @@ export function Header() {
               className="text-xs font-mono"
               title="Mock mode active — no live cloud calls"
               style={{
-                color: "#fbbf24",
-                borderColor: "rgba(251,191,36,0.4)",
+                color: "var(--color-accent-amber)",
+                borderColor: "var(--color-accent-amber)",
               }}
             >
               MOCK

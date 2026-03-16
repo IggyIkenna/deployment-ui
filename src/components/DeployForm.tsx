@@ -538,8 +538,8 @@ export function DeployForm({
             className={cn(
               "p-4 rounded-lg border",
               checklistValidation.blocking_items.length > 0
-                ? "bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.3)]"
-                : "bg-[rgba(251,191,36,0.1)] border-[rgba(251,191,36,0.3)]",
+                ? "status-error"
+                : "status-warning",
             )}
           >
             <div className="flex items-start gap-3">
@@ -701,7 +701,7 @@ export function DeployForm({
             </Button>
           </div>
           {cloudProvider === "aws" && (
-            <div className="flex items-start gap-2 p-3 rounded-md border border-[rgba(251,191,36,0.4)] bg-[rgba(251,191,36,0.07)] mt-2">
+            <div className="flex items-start gap-2 p-3 rounded-md status-warning mt-2">
               <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-300">
                 <span className="font-semibold">
@@ -716,7 +716,7 @@ export function DeployForm({
 
         {/* Live mode fields — shown only when mode === "live" */}
         {mode === "live" && (
-          <div className="space-y-4 p-4 rounded-lg border border-[rgba(34,211,238,0.3)] bg-[rgba(34,211,238,0.05)]">
+          <div className="space-y-4 p-4 rounded-lg status-running">
             <p className="text-xs font-medium text-[var(--color-accent-cyan)] uppercase tracking-wider">
               Live Deployment Settings
             </p>
@@ -930,7 +930,7 @@ export function DeployForm({
 
         {/* Date Validation Warning */}
         {!dateValidation.valid && (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.3)]">
+          <div className="flex items-start gap-3 p-3 rounded-lg status-error">
             <AlertTriangle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-[var(--color-accent-red)]">

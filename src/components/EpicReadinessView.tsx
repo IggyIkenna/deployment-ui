@@ -38,10 +38,10 @@ function RadialProgress({
   const offset = circumference - (pct / 100) * circumference;
   const color =
     pct === 100
-      ? "var(--color-accent-green, #22c55e)"
+      ? "var(--color-accent-green)"
       : pct >= 50
-        ? "var(--color-accent-cyan, #06b6d4)"
-        : "var(--color-accent-orange, #f97316)";
+        ? "var(--color-accent-cyan)"
+        : "var(--color-accent-orange)";
 
   return (
     <svg width={size} height={size} className="rotate-[-90deg]">
@@ -50,7 +50,7 @@ function RadialProgress({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="rgba(255,255,255,0.08)"
+        stroke="var(--color-border-subtle)"
         strokeWidth={strokeWidth}
       />
       <circle
@@ -81,10 +81,10 @@ const EPIC_COLORS: Record<string, string> = {
 };
 
 const EPIC_BORDER: Record<string, string> = {
-  defi: "border-[rgba(6,182,212,0.25)]",
-  cefi: "border-[rgba(34,197,94,0.25)]",
-  tradfi: "border-[rgba(249,115,22,0.25)]",
-  sports: "border-[rgba(192,132,252,0.25)]",
+  defi: "border-[var(--color-accent-cyan)]/25",
+  cefi: "border-[var(--color-accent-green)]/25",
+  tradfi: "border-[var(--color-accent-orange)]/25",
+  sports: "border-[var(--color-accent-purple)]/25",
 };
 
 function crColor(current: string | null, required: string): string {
@@ -100,7 +100,7 @@ function DataChips({ data }: { data: EpicRepoStatus["data"] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {data.historical_available && (
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[rgba(6,182,212,0.12)] text-[var(--color-accent-cyan)] border border-[rgba(6,182,212,0.2)]">
+        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-cyan)]/12 text-[var(--color-accent-cyan)] border border-[var(--color-accent-cyan)]/20">
           <Archive className="h-2.5 w-2.5" />
           hist
           {data.historical_start_date && (
@@ -111,19 +111,19 @@ function DataChips({ data }: { data: EpicRepoStatus["data"] }) {
         </span>
       )}
       {data.live_available && (
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[rgba(34,197,94,0.12)] text-[var(--color-accent-green)] border border-[rgba(34,197,94,0.2)]">
+        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-green)]/12 text-[var(--color-accent-green)] border border-[var(--color-accent-green)]/20">
           <Wifi className="h-2.5 w-2.5" />
           live
         </span>
       )}
       {data.mock_available && (
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[var(--color-text-muted)] border border-[rgba(255,255,255,0.1)]">
+        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]">
           <FlaskConical className="h-2.5 w-2.5" />
           mock
         </span>
       )}
       {data.testnet_available && (
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[rgba(249,115,22,0.12)] text-[var(--color-accent-orange)] border border-[rgba(249,115,22,0.2)]">
+        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-orange)]/12 text-[var(--color-accent-orange)] border border-[var(--color-accent-orange)]/20">
           <Database className="h-2.5 w-2.5" />
           testnet
         </span>
@@ -146,7 +146,7 @@ function EpicCard({ epic, selected, onClick }: EpicCardProps) {
   const colorClass =
     EPIC_COLORS[epic.epic_id] ?? "text-[var(--color-text-primary)]";
   const borderClass =
-    EPIC_BORDER[epic.epic_id] ?? "border-[rgba(255,255,255,0.1)]";
+    EPIC_BORDER[epic.epic_id] ?? "border-[var(--color-border-default)]";
 
   return (
     <Button
@@ -219,8 +219,10 @@ function RepoRow({
   return (
     <tr
       className={cn(
-        "border-b border-[rgba(255,255,255,0.05)] last:border-0",
-        blocking ? "bg-[rgba(248,113,113,0.04)]" : "bg-[rgba(34,197,94,0.04)]",
+        "border-b border-[var(--color-border-subtle)] last:border-0",
+        blocking
+          ? "bg-[var(--color-accent-red)]/4"
+          : "bg-[var(--color-accent-green)]/4",
       )}
     >
       <td className="py-2 px-3 text-xs font-mono text-[var(--color-text-primary)]">
@@ -323,10 +325,10 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
           <h4 className="text-xs font-semibold text-[var(--color-accent-red)] uppercase tracking-wide mb-2 px-1">
             Blocking ({epic.blocking_repos.length})
           </h4>
-          <div className="overflow-x-auto rounded border border-[rgba(255,255,255,0.08)]">
+          <div className="overflow-x-auto rounded border border-[var(--color-border-default)]">
             <table className="w-full text-left min-w-[600px]">
               <thead>
-                <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)]">
+                <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]">
                   <th className="py-1.5 px-3 text-[10px] text-[var(--color-text-muted)] uppercase">
                     Repo
                   </th>
@@ -373,7 +375,7 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
             {epic.completed_repos.map((repo) => (
               <span
                 key={repo}
-                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] text-[var(--color-accent-green)] font-mono"
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/20 text-[var(--color-accent-green)] font-mono"
               >
                 <CheckCircle2 className="h-3 w-3" />
                 {repo}
@@ -395,8 +397,8 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
                 className={cn(
                   "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-mono border",
                   r.yaml_present
-                    ? "bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.12)] text-[var(--color-text-secondary)]"
-                    : "bg-transparent border-[rgba(255,255,255,0.06)] text-[var(--color-text-muted)]",
+                    ? "bg-[var(--color-bg-tertiary)] border-[var(--color-border-default)] text-[var(--color-text-secondary)]"
+                    : "bg-transparent border-[var(--color-border-subtle)] text-[var(--color-text-muted)]",
                 )}
                 title={r.note || undefined}
               >
@@ -475,7 +477,7 @@ export function EpicReadinessView() {
                   onClick={() => handleCardClick(epic.epic_id)}
                 />
                 {selectedEpicId === epic.epic_id && (
-                  <div className="mt-2 ml-2 pl-3 border-l border-[rgba(255,255,255,0.08)]">
+                  <div className="mt-2 ml-2 pl-3 border-l border-[var(--color-border-default)]">
                     <EpicDetailPanel epicId={epic.epic_id} />
                   </div>
                 )}

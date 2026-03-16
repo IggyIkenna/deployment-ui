@@ -17,23 +17,23 @@ const badgeVariants = cva(
         default:
           "border-transparent bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]",
         running:
-          "border-[rgba(34,211,238,0.3)] bg-[rgba(34,211,238,0.1)] text-[var(--color-accent-cyan)]",
+          "border-[var(--color-status-running-border)] bg-[var(--color-status-running-bg)] text-[var(--color-accent-cyan)]",
         success:
-          "border-[rgba(74,222,128,0.3)] bg-[rgba(74,222,128,0.1)] text-[var(--color-accent-green)]",
+          "border-[var(--color-status-success-border-strong)] bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]",
         warning:
-          "border-[rgba(251,191,36,0.3)] bg-[rgba(251,191,36,0.1)] text-[var(--color-accent-amber)]",
+          "border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]",
         error:
-          "border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.1)] text-[var(--color-accent-red)]",
+          "border-[var(--color-status-error-border-strong)] bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]",
         pending:
-          "border-[rgba(161,161,170,0.3)] bg-[rgba(161,161,170,0.1)] text-[var(--color-text-secondary)]",
+          "border-[var(--color-status-pending-border)] bg-[var(--color-status-pending-bg)] text-[var(--color-text-secondary)]",
         info: "badge-info",
         outline:
           "border-[var(--color-border-default)] text-[var(--color-text-secondary)]",
         /* Deployment-specific: market category badges */
-        cefi: "border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.1)] text-[var(--color-accent-blue)]",
+        cefi: "border-[var(--color-status-info-border)] bg-[var(--color-status-info-bg)] text-[var(--color-accent-blue)]",
         tradfi:
-          "border-[rgba(167,139,250,0.3)] bg-[rgba(167,139,250,0.1)] text-[var(--color-accent-purple)]",
-        defi: "border-[rgba(74,222,128,0.3)] bg-[rgba(74,222,128,0.1)] text-[var(--color-accent-green)]",
+          "border-[var(--color-status-tradfi-border)] bg-[var(--color-status-tradfi-bg)] text-[var(--color-accent-purple)]",
+        defi: "border-[var(--color-status-success-border-strong)] bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]",
       },
     },
     defaultVariants: {

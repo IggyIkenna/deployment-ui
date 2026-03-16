@@ -189,7 +189,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
 
       {/* Blocking Items */}
       {checklist.blocking_items.length > 0 && (
-        <Card className="border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.05)]">
+        <Card className="status-error">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-[var(--color-accent-red)]" />
@@ -204,10 +204,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
           <CardContent>
             <div className="space-y-2">
               {checklist.blocking_items.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 rounded-lg bg-[rgba(248,113,113,0.1)] border border-[rgba(248,113,113,0.2)]"
-                >
+                <div key={item.id} className="p-3 rounded-lg status-error">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
                     <div>
@@ -371,9 +368,7 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
         "rounded-lg border border-transparent transition-colors",
         hasDetails &&
           "cursor-pointer hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-tertiary)]",
-        item.blocking &&
-          item.status !== "done" &&
-          "border-[rgba(248,113,113,0.2)] bg-[rgba(248,113,113,0.05)]",
+        item.blocking && item.status !== "done" && "status-error",
       )}
       onClick={() => hasDetails && setExpanded(!expanded)}
     >
@@ -445,7 +440,7 @@ function VenueCoverageCard() {
   };
 
   return (
-    <Card className="border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.05)]">
+    <Card className="border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/5">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Search className="h-5 w-5 text-[var(--color-accent-cyan)]" />
