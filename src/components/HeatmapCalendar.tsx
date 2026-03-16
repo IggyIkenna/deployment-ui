@@ -329,7 +329,6 @@ export function HeatmapCalendar({
 }
 
 // Helper to convert API response to HeatmapCalendar data format (shared with data status views)
-// eslint-disable-next-line react-refresh/only-export-components -- shared util, not a component
 export function convertDataStatusToHeatmap(
   categories: Record<
     string,

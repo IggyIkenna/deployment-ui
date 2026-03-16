@@ -41,7 +41,7 @@ export default defineConfig({
         "vitest.config.ts",
         "*.config.{ts,js,cjs}",
         "src/*.config.{ts,js}",
-        ".eslintrc.cjs",
+        "eslint.config.js",
         // Test files themselves
         "src/**/*.test.{ts,tsx}",
         "tests/**",

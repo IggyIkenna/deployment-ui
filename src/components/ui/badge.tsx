@@ -52,5 +52,4 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- badgeVariants is CVA API, not a component
 export { Badge, badgeVariants };
