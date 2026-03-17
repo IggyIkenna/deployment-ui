@@ -1,4 +1,4 @@
-import { ErrorBoundary, Button } from "@unified-trading/ui-kit";
+import { ErrorBoundary, Button, ConfigLink } from "@unified-trading/ui-kit";
 import { useState } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
@@ -121,6 +121,16 @@ function App() {
             <div className="min-h-screen bg-[var(--color-bg-primary)]">
               <MockModeBanner />
               <Header />
+              <div className="container mx-auto px-6 pt-2 max-w-[1600px] flex justify-end">
+                <ConfigLink
+                  label="Venue Connections"
+                  path="/venue-connections"
+                  onboardingBaseUrl={
+                    import.meta.env.VITE_ONBOARDING_URL ??
+                    "http://localhost:5173"
+                  }
+                />
+              </div>
               <main className="container mx-auto px-6 py-6 max-w-[1600px]">
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-12 lg:col-span-4 xl:col-span-3">
@@ -233,38 +243,12 @@ function App() {
                                     Deploy
                                   </TabsTrigger>
                                 )}
-                                {!isInfra && (
-                                  <TabsTrigger
-                                    value="data-status"
-                                    className="gap-2"
-                                  >
-                                    <Database className="h-4 w-4" />
-                                    Data Status
-                                  </TabsTrigger>
-                                )}
-                                <TabsTrigger value="builds" className="gap-2">
-                                  <Hammer className="h-4 w-4" />
-                                  Builds
-                                </TabsTrigger>
-                                {!isInfra && (
-                                  <TabsTrigger
-                                    value="readiness"
-                                    className="gap-2"
-                                  >
-                                    <ShieldCheck className="h-4 w-4" />
-                                    Readiness
-                                  </TabsTrigger>
-                                )}
                                 <TabsTrigger
                                   value="service-status"
                                   className="gap-2"
                                 >
                                   <Activity className="h-4 w-4" />
                                   Status
-                                </TabsTrigger>
-                                <TabsTrigger value="config" className="gap-2">
-                                  <Settings className="h-4 w-4" />
-                                  Config
                                 </TabsTrigger>
                                 {!isInfra && (
                                   <TabsTrigger
@@ -275,6 +259,32 @@ function App() {
                                     History
                                   </TabsTrigger>
                                 )}
+                                <TabsTrigger value="builds" className="gap-2">
+                                  <Hammer className="h-4 w-4" />
+                                  Builds
+                                </TabsTrigger>
+                                {!isInfra && (
+                                  <TabsTrigger
+                                    value="data-status"
+                                    className="gap-2"
+                                  >
+                                    <Database className="h-4 w-4" />
+                                    Data Status
+                                  </TabsTrigger>
+                                )}
+                                {!isInfra && (
+                                  <TabsTrigger
+                                    value="readiness"
+                                    className="gap-2"
+                                  >
+                                    <ShieldCheck className="h-4 w-4" />
+                                    Readiness
+                                  </TabsTrigger>
+                                )}
+                                <TabsTrigger value="config" className="gap-2">
+                                  <Settings className="h-4 w-4" />
+                                  Config
+                                </TabsTrigger>
                               </TabsList>
                               {!isInfra && (
                                 <TabsContent value="deploy">
@@ -285,6 +295,22 @@ function App() {
                                   />
                                 </TabsContent>
                               )}
+                              <TabsContent value="service-status">
+                                <ServiceStatusTab
+                                  serviceName={selectedService}
+                                />
+                              </TabsContent>
+                              {!isInfra && (
+                                <TabsContent value="history">
+                                  <DeploymentHistory
+                                    serviceName={selectedService}
+                                    onViewDetails={handleViewDeploymentDetails}
+                                  />
+                                </TabsContent>
+                              )}
+                              <TabsContent value="builds">
+                                <CloudBuildsTab serviceName={selectedService} />
+                              </TabsContent>
                               {!isInfra && (
                                 <TabsContent value="data-status">
                                   <DataStatusTab
@@ -320,30 +346,14 @@ function App() {
                                   />
                                 </TabsContent>
                               )}
-                              <TabsContent value="builds">
-                                <CloudBuildsTab serviceName={selectedService} />
-                              </TabsContent>
                               {!isInfra && (
                                 <TabsContent value="readiness">
                                   <ReadinessTab serviceName={selectedService} />
                                 </TabsContent>
                               )}
-                              <TabsContent value="service-status">
-                                <ServiceStatusTab
-                                  serviceName={selectedService}
-                                />
-                              </TabsContent>
                               <TabsContent value="config">
                                 <ServiceDetails serviceName={selectedService} />
                               </TabsContent>
-                              {!isInfra && (
-                                <TabsContent value="history">
-                                  <DeploymentHistory
-                                    serviceName={selectedService}
-                                    onViewDetails={handleViewDeploymentDetails}
-                                  />
-                                </TabsContent>
-                              )}
                             </Tabs>
                           </>
                         );

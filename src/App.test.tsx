@@ -61,6 +61,9 @@ vi.mock("./components/ServicesOverviewTab", () => ({
 vi.mock("./components/CloudBuildsTab", () => ({
   CloudBuildsTab: () => <div>CloudBuildsTab</div>,
 }));
+vi.mock("./components/EpicReadinessView", () => ({
+  EpicReadinessView: () => <div>EpicReadinessView</div>,
+}));
 vi.mock("./api/client", () => ({ createDeployment: vi.fn() }));
 
 describe("App", () => {
@@ -101,5 +104,25 @@ describe("App", () => {
           historyTab.getAttribute("data-state"),
       ).toBeTruthy();
     });
+  });
+
+  it("renders ConfigLink to onboarding venue connections", () => {
+    render(<App />);
+    const configLink = screen.getByTestId("config-link");
+    expect(configLink).toBeInTheDocument();
+    expect(configLink).toHaveTextContent("Venue Connections");
+    expect(configLink.getAttribute("href")).toContain("/venue-connections");
+  });
+
+  it("shows tabs in correct order: Deploy, Status, History, Builds, Data Status, Readiness, Config", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /select service/i }));
+    const tabs = screen.getAllByRole("tab");
+    const tabLabels = tabs.map((tab) => tab.textContent?.trim());
+    // Verify Deploy comes first and Status is second
+    expect(tabLabels[0]).toBe("Deploy");
+    expect(tabLabels[1]).toBe("Status");
+    expect(tabLabels[2]).toBe("History");
+    expect(tabLabels[3]).toBe("Builds");
   });
 });

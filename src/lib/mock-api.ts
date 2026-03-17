@@ -6,7 +6,18 @@
  * This enables full E2E smoke testing without a real backend.
  */
 
+/**
+ * Mock API handlers for deployment-ui.
+ * Active when VITE_MOCK_API=true.
+ *
+ * Supports:
+ * - VITE_STRESS_SCENARIO: BIG_DRAWDOWN | BIG_TICKS | MISSING_DATA | BAD_SCHEMAS | STALE_DATA | HIGH_CARDINALITY
+ * - VITE_MOCK_DELAY_MS: artificial delay in ms for all mock responses
+ */
+
 export const MOCK_MODE = import.meta.env.VITE_MOCK_API === "true";
+const STRESS_SCENARIO = import.meta.env.VITE_STRESS_SCENARIO || "";
+const MOCK_DELAY_MS = parseInt(import.meta.env.VITE_MOCK_DELAY_MS || "60", 10);
 
 // ---- Mock data ----
 
@@ -268,8 +279,57 @@ const MOCK_CHECKLIST = {
 
 // ---- Route handler ----
 
-function delay(ms = 60): Promise<void> {
+function delay(ms = MOCK_DELAY_MS): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// ---- Stress overrides ----
+function getStressDeployments(): typeof MOCK_DEPLOYMENTS {
+  if (STRESS_SCENARIO === "MISSING_DATA") return [];
+  if (STRESS_SCENARIO === "HIGH_CARDINALITY") {
+    return Array.from({ length: 500 }, (_, i) => ({
+      id: `dep-hc-${String(i).padStart(4, "0")}`,
+      service: MOCK_SERVICES[i % MOCK_SERVICES.length].name,
+      status: ["completed", "running", "failed", "queued"][i % 4],
+      created_at: new Date(Date.now() - i * 3600000).toISOString(),
+      updated_at: new Date(Date.now() - i * 1800000).toISOString(),
+      total_shards: Math.floor(Math.random() * 200) + 10,
+      completed_shards: Math.floor(Math.random() * 100),
+      failed_shards: i % 4 === 2 ? Math.floor(Math.random() * 20) : 0,
+      parameters: { compute: "vm", mode: "batch", cloud_provider: "gcp" },
+      tag: null,
+    }));
+  }
+  if (STRESS_SCENARIO === "BIG_DRAWDOWN") {
+    return MOCK_DEPLOYMENTS.map((d) => ({
+      ...d,
+      status: "failed",
+      failed_shards: d.total_shards,
+    }));
+  }
+  return MOCK_DEPLOYMENTS;
+}
+
+function getStressServices(): typeof MOCK_SERVICES {
+  if (STRESS_SCENARIO === "MISSING_DATA") return [];
+  if (STRESS_SCENARIO === "HIGH_CARDINALITY") {
+    return Array.from({ length: 100 }, (_, i) => ({
+      name: `service-${String(i).padStart(3, "0")}`,
+      layer: (i % 6) + 1,
+      category: [
+        "data",
+        "ingestion",
+        "features",
+        "ml",
+        "execution",
+        "monitoring",
+      ][i % 6],
+      dimensions: ["category", "date"],
+      status: i % 10 === 0 ? "warning" : "healthy",
+      lastDeployed: new Date(Date.now() - i * 86400000).toISOString(),
+    }));
+  }
+  return MOCK_SERVICES;
 }
 
 function json<T>(data: T, status = 200): Response {
@@ -309,7 +369,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Services list
   if (path === "/api/services") {
-    return json({ services: MOCK_SERVICES });
+    return json({ services: getStressServices() });
   }
 
   // Service sub-routes
@@ -447,9 +507,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     );
   }
   if (path === "/api/deployments") {
+    const deps = getStressDeployments();
     return json({
-      deployments: MOCK_DEPLOYMENTS,
-      total: MOCK_DEPLOYMENTS.length,
+      deployments: deps,
+      total: deps.length,
     });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/quota$/)) {
