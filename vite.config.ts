@@ -5,12 +5,14 @@ import path from "path";
 
 export default defineConfig({
   root: path.resolve(__dirname),
+  cacheDir: path.resolve(__dirname, "node_modules/.vite"),
   define: {
     "import.meta.env.VITE_MOCK_API": JSON.stringify("true"),
     "import.meta.env.VITE_SKIP_AUTH": JSON.stringify("true"),
   },
   optimizeDeps: {
     force: true,
+    entries: ["./src/main.tsx"],
   },
   resolve: {
     dedupe: ["react", "react-dom", "react-router-dom"],
