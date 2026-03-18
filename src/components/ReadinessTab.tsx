@@ -90,6 +90,20 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
     );
   }
 
+  // Ensure required fields have defaults
+  const safeChecklist = {
+    ...checklist,
+    readiness_percent: checklist.readiness_percent ?? 0,
+    total_items: checklist.total_items ?? 0,
+    completed_items: checklist.completed_items ?? 0,
+    partial_items: checklist.partial_items ?? 0,
+    pending_items: checklist.pending_items ?? 0,
+    not_applicable_items: checklist.not_applicable_items ?? 0,
+    last_updated: checklist.last_updated ?? new Date().toISOString(),
+    blocking_items: checklist.blocking_items ?? [],
+    categories: checklist.categories ?? [],
+  };
+
   const getReadinessColor = (percent: number) => {
     if (percent >= 90) return "var(--color-accent-green)";
     if (percent >= 70) return "var(--color-accent-cyan)";
@@ -118,28 +132,28 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
               </CardTitle>
               <CardDescription className="mt-1 flex items-center gap-2">
                 <Calendar className="h-3 w-3" />
-                Last updated: {checklist.last_updated}
+                Last updated: {safeChecklist.last_updated}
               </CardDescription>
             </div>
             <div className="text-right">
               <div
                 className="text-3xl font-bold font-mono"
                 style={{
-                  color: getReadinessColor(checklist.readiness_percent),
+                  color: getReadinessColor(safeChecklist.readiness_percent),
                 }}
               >
-                {checklist.readiness_percent}%
+                {safeChecklist.readiness_percent}%
               </div>
               <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                {checklist.not_applicable_items > 0 ? (
+                {safeChecklist.not_applicable_items > 0 ? (
                   <>
-                    {checklist.completed_items} of{" "}
-                    {checklist.total_items - checklist.not_applicable_items}{" "}
+                    {safeChecklist.completed_items} of{" "}
+                    {safeChecklist.total_items - safeChecklist.not_applicable_items}{" "}
                     applicable items
                   </>
                 ) : (
                   <>
-                    {checklist.completed_items}/{checklist.total_items} items
+                    {safeChecklist.completed_items}/{safeChecklist.total_items} items
                     complete
                   </>
                 )}
@@ -154,9 +168,9 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
-                  width: `${checklist.readiness_percent}%`,
+                  width: `${safeChecklist.readiness_percent}%`,
                   backgroundColor: getReadinessColor(
-                    checklist.readiness_percent,
+                    safeChecklist.readiness_percent,
                   ),
                 }}
               />
@@ -165,21 +179,21 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-[var(--color-accent-green)]" />
-                  {checklist.completed_items} done
+                  {safeChecklist.completed_items} done
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3 text-[var(--color-accent-amber)]" />
-                  {checklist.partial_items} partial
+                  {safeChecklist.partial_items} partial
                 </span>
                 <span className="flex items-center gap-1">
                   <AlertCircle className="h-3 w-3 text-[var(--color-text-muted)]" />
-                  {checklist.pending_items} pending
+                  {safeChecklist.pending_items} pending
                 </span>
               </div>
-              {checklist.not_applicable_items > 0 && (
+              {safeChecklist.not_applicable_items > 0 && (
                 <span className="flex items-center gap-1">
                   <MinusCircle className="h-3 w-3" />
-                  {checklist.not_applicable_items} n/a
+                  {safeChecklist.not_applicable_items} n/a
                 </span>
               )}
             </div>
@@ -188,13 +202,13 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
       </Card>
 
       {/* Blocking Items */}
-      {checklist.blocking_items.length > 0 && (
+      {safeChecklist.blocking_items.length > 0 && (
         <Card className="status-error">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-[var(--color-accent-red)]" />
               <CardTitle className="text-sm text-[var(--color-accent-red)]">
-                Blocking Issues ({checklist.blocking_items.length})
+                Blocking Issues ({safeChecklist.blocking_items.length})
               </CardTitle>
             </div>
             <CardDescription>
@@ -203,7 +217,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {checklist.blocking_items.map((item) => (
+              {safeChecklist.blocking_items.map((item) => (
                 <div key={item.id} className="p-3 rounded-lg status-error">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
@@ -230,7 +244,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
 
       {/* Categories */}
       <div className="space-y-2">
-        {checklist.categories.map((category) => (
+        {safeChecklist.categories.map((category) => (
           <CategoryCard
             key={category.name}
             category={category}
@@ -260,6 +274,16 @@ function CategoryCard({ category, expanded, onToggle }: CategoryCardProps) {
     return "var(--color-accent-red)";
   };
 
+  // Ensure safe defaults
+  const safeCategory = {
+    ...category,
+    display_name: category.display_name ?? category.name ?? "Unknown",
+    percent: category.percent ?? 0,
+    total_items: category.total_items ?? category.items?.length ?? 0,
+    completed_items: category.completed_items ?? category.items?.filter(i => i.status === "done").length ?? 0,
+    items: category.items ?? [],
+  };
+
   return (
     <Card>
       <CardHeader
@@ -275,10 +299,10 @@ function CategoryCard({ category, expanded, onToggle }: CategoryCardProps) {
             )}
             <div>
               <CardTitle className="text-sm font-medium">
-                {category.display_name}
+                {safeCategory.display_name}
               </CardTitle>
               <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                {category.completed_items}/{category.total_items} items
+                {safeCategory.completed_items}/{safeCategory.total_items} items
               </div>
             </div>
           </div>
@@ -287,16 +311,16 @@ function CategoryCard({ category, expanded, onToggle }: CategoryCardProps) {
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${category.percent}%`,
-                  backgroundColor: getProgressColor(category.percent),
+                  width: `${safeCategory.percent}%`,
+                  backgroundColor: getProgressColor(safeCategory.percent),
                 }}
               />
             </div>
             <span
               className="text-sm font-mono font-medium w-12 text-right"
-              style={{ color: getProgressColor(category.percent) }}
+              style={{ color: getProgressColor(safeCategory.percent) }}
             >
-              {category.percent}%
+              {safeCategory.percent}%
             </span>
           </div>
         </div>
@@ -305,7 +329,7 @@ function CategoryCard({ category, expanded, onToggle }: CategoryCardProps) {
       {expanded && (
         <CardContent className="pt-0 pb-4">
           <div className="space-y-1 mt-2">
-            {category.items.map((item) => (
+            {safeCategory.items.map((item) => (
               <ChecklistItemRow key={item.id} item={item} />
             ))}
           </div>
@@ -322,8 +346,19 @@ interface ChecklistItemRowProps {
 function ChecklistItemRow({ item }: ChecklistItemRowProps) {
   const [expanded, setExpanded] = useState(false);
 
+  // Ensure safe defaults for the item
+  const safeItem = {
+    ...item,
+    id: item.id ?? "unknown",
+    description: item.description ?? "No description",
+    status: item.status ?? "pending",
+    blocking: item.blocking ?? false,
+    notes: item.notes ?? "",
+    verified_date: item.verified_date ?? null,
+  };
+
   const getStatusIcon = () => {
-    switch (item.status) {
+    switch (safeItem.status) {
       case "done":
         return (
           <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
@@ -346,7 +381,7 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
   };
 
   const getStatusBadge = () => {
-    switch (item.status) {
+    switch (safeItem.status) {
       case "done":
         return <Badge variant="success">Done</Badge>;
       case "partial":
@@ -356,11 +391,11 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
       case "n/a":
         return <Badge variant="outline">N/A</Badge>;
       default:
-        return <Badge variant="default">{item.status}</Badge>;
+        return <Badge variant="default">{safeItem.status}</Badge>;
     }
   };
 
-  const hasDetails = item.notes || item.verified_date;
+  const hasDetails = safeItem.notes || safeItem.verified_date;
 
   return (
     <div
@@ -368,7 +403,7 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
         "rounded-lg border border-transparent transition-colors",
         hasDetails &&
           "cursor-pointer hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-tertiary)]",
-        item.blocking && item.status !== "done" && "status-error",
+        safeItem.blocking && safeItem.status !== "done" && "status-error",
       )}
       onClick={() => hasDetails && setExpanded(!expanded)}
     >
@@ -379,22 +414,22 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
             <span
               className={cn(
                 "text-sm",
-                item.status === "done"
+                safeItem.status === "done"
                   ? "text-[var(--color-text-secondary)]"
                   : "text-[var(--color-text-primary)]",
               )}
             >
-              {item.description}
+              {safeItem.description}
             </span>
             <div className="flex items-center gap-2 shrink-0">
-              {item.blocking && item.status !== "done" && (
+              {safeItem.blocking && safeItem.status !== "done" && (
                 <Badge variant="error">Blocking</Badge>
               )}
               {getStatusBadge()}
             </div>
           </div>
           <div className="text-xs text-[var(--color-text-muted)] mt-0.5 font-mono">
-            {item.id}
+            {safeItem.id}
           </div>
         </div>
       </div>
@@ -402,15 +437,15 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
       {expanded && hasDetails && (
         <div className="px-2 pb-2 pt-0 ml-7">
           <div className="p-2 rounded bg-[var(--color-bg-tertiary)] text-xs space-y-1">
-            {item.notes && (
+            {safeItem.notes && (
               <div className="text-[var(--color-text-secondary)]">
                 <span className="text-[var(--color-text-muted)]">Notes: </span>
-                {item.notes}
+                {safeItem.notes}
               </div>
             )}
-            {item.verified_date && (
+            {safeItem.verified_date && (
               <div className="text-[var(--color-text-muted)]">
-                Verified: {item.verified_date}
+                Verified: {safeItem.verified_date}
               </div>
             )}
           </div>
@@ -465,7 +500,7 @@ function VenueCoverageCard() {
             </p>
             <p>
               While deployments now shard by{" "}
-              <span className="font-mono">category × venue × date</span> (one
+              <span className="font-mono">category �� venue × date</span> (one
               shard per venue+date), venue coverage validation reads the{" "}
               <span className="font-mono">venue</span> column from parquet files
               to verify all expected venues are present within each file. This

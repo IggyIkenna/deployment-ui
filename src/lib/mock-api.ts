@@ -538,149 +538,149 @@ const MOCK_CHECKLIST = {
   completed_items: 13,
   partial_items: 1,
   pending_items: 1,
+  not_applicable_items: 0,
+  last_updated: "2026-03-18T09:00:00Z",
+  blocking_items: [] as Array<{ id: string; description: string; category: string; notes?: string }>,
   categories: [
     {
-      name: "Data Coverage",
-      score: 95,
+      name: "data_coverage",
+      display_name: "Data Coverage",
+      percent: 95,
+      total_items: 4,
+      completed_items: 3,
       items: [
         {
           id: "c1",
-          label: "CeFi venue coverage ≥ 95%",
+          description: "CeFi venue coverage ≥ 95%",
           status: "done",
-          detail: "98.2% complete across 10 venues",
           blocking: false,
-          verified_at: "2026-03-18T08:00:00Z",
+          verified_date: "2026-03-18T08:00:00Z",
         },
         {
           id: "c2",
-          label: "TradFi venue coverage ≥ 90%",
+          description: "TradFi venue coverage ≥ 90%",
           status: "done",
-          detail: "94.1% complete across 10 venues",
           blocking: false,
-          verified_at: "2026-03-18T08:00:00Z",
+          verified_date: "2026-03-18T08:00:00Z",
         },
         {
           id: "c3",
-          label: "DeFi protocol coverage ≥ 85%",
+          description: "DeFi protocol coverage ≥ 85%",
           status: "partial",
-          detail: "82.5% complete (3 protocols pending integration)",
           blocking: false,
-          verified_at: "2026-03-17T12:00:00Z",
+          verified_date: "2026-03-17T12:00:00Z",
           notes: "Waiting for Balancer and Rocket Pool integration",
         },
         {
           id: "c4",
-          label: "Historical data backfill complete",
+          description: "Historical data backfill complete",
           status: "done",
-          detail: "All data from 2020-01-01 available",
           blocking: true,
-          verified_at: "2026-03-15T10:00:00Z",
+          verified_date: "2026-03-15T10:00:00Z",
         },
       ],
     },
     {
-      name: "Build Health",
-      score: 100,
+      name: "build_health",
+      display_name: "Build Health",
+      percent: 100,
+      total_items: 4,
+      completed_items: 4,
       items: [
         {
           id: "b1",
-          label: "Latest build passing",
+          description: "Latest build passing",
           status: "done",
-          detail: "Build #1847 — 2026-03-18T08:00Z (185s)",
           blocking: true,
-          verified_at: "2026-03-18T08:03:00Z",
+          verified_date: "2026-03-18T08:03:00Z",
         },
         {
           id: "b2",
-          label: "No critical CVEs",
+          description: "No critical CVEs",
           status: "done",
-          detail: "0 critical, 2 low severity (numpy, requests)",
           blocking: true,
-          verified_at: "2026-03-18T08:03:00Z",
+          verified_date: "2026-03-18T08:03:00Z",
         },
         {
           id: "b3",
-          label: "Test coverage ≥ 80%",
+          description: "Test coverage ≥ 80%",
           status: "done",
-          detail: "Current coverage: 87.3%",
           blocking: false,
-          verified_at: "2026-03-18T08:03:00Z",
+          verified_date: "2026-03-18T08:03:00Z",
         },
         {
           id: "b4",
-          label: "Type checking passes",
+          description: "Type checking passes",
           status: "done",
-          detail: "mypy strict mode: 0 errors",
           blocking: false,
-          verified_at: "2026-03-18T08:03:00Z",
+          verified_date: "2026-03-18T08:03:00Z",
         },
       ],
     },
     {
-      name: "Deployment Readiness",
-      score: 75,
+      name: "deployment_readiness",
+      display_name: "Deployment Readiness",
+      percent: 75,
+      total_items: 4,
+      completed_items: 3,
       items: [
         {
           id: "d1",
-          label: "Canary deployment validated",
+          description: "Canary deployment validated",
           status: "pending",
-          detail: "No canary run in last 7 days",
           blocking: false,
           notes: "Schedule canary for next deployment window",
         },
         {
           id: "d2",
-          label: "Rollback tested",
+          description: "Rollback tested",
           status: "done",
-          detail: "Last rollback test: 2026-03-16T14:00Z",
           blocking: true,
-          verified_at: "2026-03-16T14:00:00Z",
+          verified_date: "2026-03-16T14:00:00Z",
         },
         {
           id: "d3",
-          label: "Alert thresholds configured",
+          description: "Alert thresholds configured",
           status: "done",
-          detail: "P50, P95, P99 latency + error rate alerts active",
           blocking: false,
-          verified_at: "2026-03-17T10:00:00Z",
+          verified_date: "2026-03-17T10:00:00Z",
         },
         {
           id: "d4",
-          label: "Runbook documented",
+          description: "Runbook documented",
           status: "done",
-          detail: "Last updated: 2026-03-15",
           blocking: false,
-          verified_at: "2026-03-15T16:00:00Z",
+          verified_date: "2026-03-15T16:00:00Z",
         },
       ],
     },
     {
-      name: "Dependencies",
-      score: 100,
+      name: "dependencies",
+      display_name: "Dependencies",
+      percent: 100,
+      total_items: 3,
+      completed_items: 3,
       items: [
         {
           id: "dep1",
-          label: "unified-trading-library compatible",
+          description: "unified-trading-library compatible",
           status: "done",
-          detail: "Using v0.8.2 (latest)",
           blocking: true,
-          verified_at: "2026-03-18T07:00:00Z",
+          verified_date: "2026-03-18T07:00:00Z",
         },
         {
           id: "dep2",
-          label: "No breaking changes in upstream services",
+          description: "No breaking changes in upstream services",
           status: "done",
-          detail: "All upstream APIs stable",
           blocking: true,
-          verified_at: "2026-03-18T06:00:00Z",
+          verified_date: "2026-03-18T06:00:00Z",
         },
         {
           id: "dep3",
-          label: "Database migrations applied",
+          description: "Database migrations applied",
           status: "done",
-          detail: "Schema version: 47 (current)",
           blocking: true,
-          verified_at: "2026-03-17T22:00:00Z",
+          verified_date: "2026-03-17T22:00:00Z",
         },
       ],
     },
@@ -847,7 +847,30 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/api\/services\/(.+)\/dependencies$/)) {
-    return json({ upstream: [], downstream: [], dependents: [] });
+    const serviceName = path.match(/^\/api\/services\/(.+)\/dependencies$/)?.[1];
+    return json({
+      service: serviceName,
+      description: MOCK_SERVICES.find((s) => s.name === serviceName)?.description ?? "",
+      upstream: [
+        { service: "instruments-service", description: "Master instrument data", required: true },
+        { service: "corporate-actions", description: "Corporate actions data", required: false },
+      ],
+      downstream_dependents: ["features-delta-one-service", "features-volatility-service", "ml-training-service"],
+      outputs: [
+        { name: "processed_data", bucket_template: "gs://unified-trading-{category}/{venue}/{date}/processed/" },
+        { name: "features", bucket_template: "gs://unified-trading-features/{category}/{venue}/{date}/" },
+      ],
+      dag: {
+        nodes: ["instruments-service", "corporate-actions", serviceName, "features-delta-one-service", "ml-training-service"],
+        edges: [
+          { from: "instruments-service", to: serviceName, required: true },
+          { from: "corporate-actions", to: serviceName, required: false },
+          { from: serviceName, to: "features-delta-one-service", required: true },
+          { from: serviceName, to: "ml-training-service", required: true },
+        ],
+        execution_order: ["instruments-service", "corporate-actions", serviceName, "features-delta-one-service", "ml-training-service"],
+      },
+    });
   }
   if (path.match(/^\/api\/services\/(.+)\/checklist\/validate$/)) {
     return json({
@@ -912,35 +935,79 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const body = init?.body
       ? (JSON.parse(init.body as string) as Record<string, unknown>)
       : {};
-    const newDep = {
-      id: `dep-${Date.now()}`,
-      service: (body.service as string | undefined) ?? "unknown",
-      status: "running",
-      startedAt: new Date().toISOString(),
-      completedAt: null,
-      shards:
-        (body.shards as number | undefined) ??
-        Math.floor(Math.random() * 100) + 20,
-      mode: (body.mode as string | undefined) ?? "batch",
-      cloudProvider: "gcp",
-      region: (body.region as string | undefined) ?? "asia-northeast1-c",
-      createdBy: "mock-user",
-      tag: (body.tag as string | undefined) ?? null,
-    };
+    const serviceName = (body.service as string | undefined) ?? "instruments-service";
+    const isDryRun = (body.dry_run as boolean | undefined) ?? true;
+    const categories = (body.categories as string[] | undefined) ?? ["cefi", "tradfi"];
+    const startDate = (body.start_date as string | undefined) ?? "2026-03-01";
+    const endDate = (body.end_date as string | undefined) ?? "2026-03-17";
+    const computeMode = (body.compute as string | undefined) ?? "cloud_run";
+    
+    // Generate realistic shards based on categories and date range
+    const mockShards: Array<{
+      shard_id: string;
+      dimensions: Record<string, string | number>;
+      cli_args: string[];
+    }> = [];
+    
+    // Generate multiple dates for preview
+    const dates = ["2026-03-15", "2026-03-16", "2026-03-17"];
+    
+    for (const category of categories) {
+      const venues = MOCK_VENUES_BY_CATEGORY[category] ?? [];
+      for (const venue of venues.slice(0, 2)) { // First 2 venues per category for preview
+        for (const date of dates.slice(0, 2)) { // First 2 dates
+          mockShards.push({
+            shard_id: `${category}_${venue}_${date}`,
+            dimensions: {
+              category,
+              venue,
+              date,
+            },
+            cli_args: [
+              `--category=${category}`,
+              `--venue=${venue}`,
+              `--start-date=${date}`,
+              `--end-date=${date}`,
+            ],
+          });
+        }
+      }
+    }
+    
+    const totalShards = categories.reduce((acc, cat) => {
+      return acc + (MOCK_VENUES_BY_CATEGORY[cat]?.length ?? 0) * 17; // 17 days
+    }, 0);
+
+    const deploymentId = `dep-${Date.now()}`;
+    const now = new Date().toISOString();
+
     return json(
       {
-        dry_run: false,
-        deployment_id: newDep.id,
-        shards: Array.from({ length: Math.min(newDep.shards, 10) }, (_, i) => ({
-          shard_id: `shard-${i}`,
-          status: "queued",
-          category: "crypto",
-          date_range: { start: "2026-01-01", end: "2026-03-15" },
-        })),
-        total_shards: newDep.shards,
-        shards_truncated: newDep.shards > 10,
-        deployment: newDep,
-        message: "Deployment started (mock)",
+        dry_run: isDryRun,
+        deployment_id: isDryRun ? null : deploymentId,
+        service: serviceName,
+        compute_mode: computeMode,
+        total_shards: totalShards,
+        shards: mockShards,
+        shards_truncated: totalShards > mockShards.length,
+        message: isDryRun 
+          ? `Dry run complete: ${totalShards} shards would be created`
+          : `Deployment ${deploymentId} started with ${totalShards} shards`,
+        started_at: isDryRun ? null : now,
+        cli_command: `python -m unified_trading_deployment.cli deploy -s ${serviceName} --categories ${categories.join(",")} --start-date ${startDate} --end-date ${endDate} --compute ${computeMode}`,
+        summary: {
+          breakdown: {
+            categories: categories.length,
+            venues: categories.reduce((acc, cat) => acc + (MOCK_VENUES_BY_CATEGORY[cat]?.length ?? 0), 0),
+            dates: 17,
+          },
+          advisor: {
+            recommended_max_concurrent: 50,
+            recommended_date_granularity: "daily",
+            warnings: totalShards > 500 ? ["Large deployment: consider running in batches"] : [],
+            notes: ["Using cloud_run for cost efficiency"],
+          },
+        },
       },
       201,
     );

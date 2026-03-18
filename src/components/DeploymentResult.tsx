@@ -101,10 +101,26 @@ export function DeploymentResult({
   );
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
+  // Ensure safe defaults for result
+  const safeResult = {
+    ...result,
+    dry_run: result.dry_run ?? true,
+    service: result.service ?? "unknown-service",
+    total_shards: result.total_shards ?? 0,
+    message: result.message ?? "Deployment result",
+    cli_command: result.cli_command ?? "# No CLI command available",
+    shards: result.shards ?? [],
+    shards_truncated: result.shards_truncated ?? false,
+    summary: result.summary ?? null,
+    deployment_id: result.deployment_id ?? null,
+    compute_mode: result.compute_mode ?? "cloud_run",
+    started_at: result.started_at ?? null,
+  };
+
   // Group shards by category -> date (use all shards if loaded, otherwise preview shards)
   const groupedShards = useMemo(
-    () => groupShards(allShards ?? result.shards ?? []),
-    [allShards, result.shards],
+    () => groupShards(allShards ?? safeResult.shards ?? []),
+    [allShards, safeResult.shards],
   );
 
   const handleLoadAllShards = async () => {
@@ -145,14 +161,14 @@ export function DeploymentResult({
   };
 
   const handleCopyCommand = async () => {
-    await navigator.clipboard.writeText(result.cli_command);
+    await navigator.clipboard.writeText(safeResult.cli_command);
     setCopiedCommand(true);
     setTimeout(() => setCopiedCommand(false), 2000);
   };
 
   const handleCopyId = async () => {
-    if (result.deployment_id) {
-      await navigator.clipboard.writeText(result.deployment_id);
+    if (safeResult.deployment_id) {
+      await navigator.clipboard.writeText(safeResult.deployment_id);
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2000);
     }
@@ -162,7 +178,7 @@ export function DeploymentResult({
     <Card
       className={cn(
         "border-2",
-        result.dry_run
+        safeResult.dry_run
           ? "border-[var(--color-accent-amber)]/50"
           : "border-[var(--color-accent-green)]/50",
       )}
@@ -170,7 +186,7 @@ export function DeploymentResult({
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            {result.dry_run ? (
+            {safeResult.dry_run ? (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-accent-amber)]/10">
                 <Layers className="h-5 w-5 text-[var(--color-accent-amber)]" />
               </div>
@@ -181,13 +197,13 @@ export function DeploymentResult({
             )}
             <div>
               <CardTitle className="text-lg">
-                {result.dry_run ? "Dry Run Preview" : "Deployment Started"}
+                {safeResult.dry_run ? "Dry Run Preview" : "Deployment Started"}
               </CardTitle>
-              <CardDescription>{result.message}</CardDescription>
+              <CardDescription>{safeResult.message}</CardDescription>
             </div>
           </div>
-          <Badge variant={result.dry_run ? "warning" : "success"}>
-            {result.dry_run ? "Preview" : "Live"}
+          <Badge variant={safeResult.dry_run ? "warning" : "success"}>
+            {safeResult.dry_run ? "Preview" : "Live"}
           </Badge>
         </div>
       </CardHeader>
@@ -197,7 +213,7 @@ export function DeploymentResult({
         <div className="grid grid-cols-3 gap-4">
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-2xl font-mono font-bold text-[var(--color-text-primary)]">
-              {result.total_shards}
+              {safeResult.total_shards}
             </div>
             <div className="text-xs text-[var(--color-text-muted)]">
               Total Shards
@@ -205,7 +221,7 @@ export function DeploymentResult({
           </div>
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-sm font-mono font-medium text-[var(--color-text-primary)]">
-              {result.service}
+              {safeResult.service}
             </div>
             <div className="text-xs text-[var(--color-text-muted)]">
               Service
@@ -213,7 +229,7 @@ export function DeploymentResult({
           </div>
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-sm font-mono font-medium text-[var(--color-text-primary)]">
-              {result.compute_mode || "cloud_run"}
+              {safeResult.compute_mode}
             </div>
             <div className="text-xs text-[var(--color-text-muted)]">
               Compute
@@ -222,7 +238,7 @@ export function DeploymentResult({
         </div>
 
         {/* Deployment ID (for live deployments) */}
-        {result.deployment_id && (
+        {safeResult.deployment_id && (
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="flex items-center justify-between">
               <div>
@@ -230,7 +246,7 @@ export function DeploymentResult({
                   Deployment ID
                 </div>
                 <code className="text-sm font-mono text-[var(--color-accent-cyan)]">
-                  {result.deployment_id}
+                  {safeResult.deployment_id}
                 </code>
               </div>
               <Button
@@ -248,19 +264,19 @@ export function DeploymentResult({
             </div>
             <div className="mt-2 text-xs text-[var(--color-text-muted)]">
               <Clock className="h-3 w-3 inline mr-1" />
-              Started: {result.started_at}
+              Started: {safeResult.started_at}
             </div>
           </div>
         )}
 
         {/* Summary */}
-        {result.summary && (
+        {safeResult.summary && (
           <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
             <div className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
               Dimension Breakdown
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(result.summary.breakdown || {}).map(
+              {Object.entries((safeResult.summary as Record<string, unknown>)?.breakdown || {}).map(
                 ([dim, values]) => (
                   <div key={dim} className="text-xs">
                     <span className="text-[var(--color-text-muted)]">
@@ -288,7 +304,7 @@ export function DeploymentResult({
             recommended_date_granularity?: string;
             recommended_max_concurrent?: number;
           }
-          const advisor = (result.summary as { advisor?: DryRunAdvisor })
+          const advisor = (safeResult.summary as { advisor?: DryRunAdvisor })
             ?.advisor;
           if (!advisor) return null;
           const warnings: string[] = Array.isArray(advisor.warnings)
@@ -359,7 +375,7 @@ export function DeploymentResult({
         })()}
 
         {/* Shard List (expandable, grouped by category -> date) */}
-        {result.shards && result.shards.length > 0 && (
+        {safeResult.shards && safeResult.shards.length > 0 && (
           <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
             <Button
               variant="ghost"
@@ -369,8 +385,8 @@ export function DeploymentResult({
               <span className="text-sm font-medium text-[var(--color-text-secondary)] flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
                 View Shards (
-                {allShards ? allShards.length : result.shards.length}
-                {!allShards && result.shards_truncated ? "+" : ""})
+                {allShards ? allShards.length : safeResult.shards.length}
+                {!allShards && safeResult.shards_truncated ? "+" : ""})
               </span>
               {showShards ? (
                 <ChevronUp className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -381,7 +397,7 @@ export function DeploymentResult({
             {showShards && (
               <div className="max-h-96 overflow-y-auto">
                 {/* Load All button if truncated */}
-                {result.shards_truncated && !allShards && onLoadAllShards && (
+                {safeResult.shards_truncated && !allShards && onLoadAllShards && (
                   <div className="p-3 bg-[var(--color-bg-tertiary)] border-b border-[var(--color-border-subtle)]">
                     <Button
                       variant="outline"
@@ -393,10 +409,10 @@ export function DeploymentResult({
                       {loadingAllShards ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading all {result.total_shards} shards...
+                          Loading all {safeResult.total_shards} shards...
                         </>
                       ) : (
-                        <>Load All {result.total_shards} Shards</>
+                        <>Load All {safeResult.total_shards} Shards</>
                       )}
                     </Button>
                   </div>
@@ -497,10 +513,10 @@ export function DeploymentResult({
                   ))}
 
                 {/* Show truncation notice if still showing preview */}
-                {result.shards_truncated && !allShards && (
+                {safeResult.shards_truncated && !allShards && (
                   <div className="p-3 bg-[var(--color-bg-tertiary)] text-center border-t border-[var(--color-border-subtle)]">
                     <span className="text-xs text-[var(--color-text-muted)]">
-                      Showing first 50 of {result.total_shards} shards
+                      Showing first 50 of {safeResult.total_shards} shards
                     </span>
                   </div>
                 )}
@@ -538,14 +554,14 @@ export function DeploymentResult({
           <div className="bg-[var(--color-bg-primary)] rounded-lg p-3 border border-[var(--color-border-default)]">
             <pre className="text-xs font-mono text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">
               <span className="text-[var(--color-accent-green)]">$</span>{" "}
-              {result.cli_command}
+              {safeResult.cli_command}
             </pre>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border-default)]">
-          {result.dry_run && onDeployLive ? (
+          {safeResult.dry_run && onDeployLive ? (
             <>
               <Button variant="outline" onClick={onClose}>
                 Close
@@ -555,7 +571,7 @@ export function DeploymentResult({
           ) : (
             <>
               <div className="text-xs text-[var(--color-text-muted)]">
-                {result.dry_run
+                {safeResult.dry_run
                   ? "This was a preview. No jobs were started."
                   : "Jobs are running in the background."}
               </div>
