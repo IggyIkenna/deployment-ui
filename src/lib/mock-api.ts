@@ -1501,14 +1501,54 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Deployment quota-info
-  if (path === "/api/deployments/quota-info") {
+  if (path === "/api/deployments/quota-info" && method === "POST") {
+    const body = init?.body
+      ? (JSON.parse(init.body as string) as Record<string, unknown>)
+      : {};
+    const serviceName = (body.service as string) ?? "instruments-service";
+    const computeMode = (body.compute as string) ?? "cloud_run";
+    const region = (body.region as string) ?? "asia-northeast1-c";
+    const startDate = (body.start_date as string) ?? "2026-03-01";
+    const endDate = (body.end_date as string) ?? "2026-03-17";
+    
     return json({
-      max_concurrent: 2000,
-      current_running: 0,
-      available: 2000,
-      estimated_cost_per_shard: 0.18,
-      daily_budget: 500.0,
-      daily_spent: 0,
+      service: serviceName,
+      compute: computeMode,
+      region: region,
+      date_range: { start: startDate, end: endDate },
+      total_shards: 48,
+      effective_settings: {
+        max_concurrent: 50,
+        date_granularity: "daily",
+        skip_dimensions: [],
+      },
+      required_quota: {
+        worst_case: {
+          per_shard: {
+            cpu_vcpu: 4,
+            memory_gb: 16,
+            disk_gb: 100,
+          },
+          totals_at_max_concurrent: {
+            cpu_vcpu: 200,
+            memory_gb: 800,
+            disk_gb: 5000,
+          },
+        },
+      },
+      live_quota: {
+        regions: {
+          [region]: {
+            metrics: {
+              CPUS: { limit: 2500, usage: 120, available: 2380 },
+              IN_USE_ADDRESSES: { limit: 1000, usage: 50, available: 950 },
+              SSD_TOTAL_GB: { limit: 50000, usage: 2400, available: 47600 },
+            },
+          },
+        },
+      },
+      live_quota_error: null,
+      recommended_max_concurrent: 50,
     });
   }
 
