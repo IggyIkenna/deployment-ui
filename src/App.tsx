@@ -1,8 +1,9 @@
-import { ErrorBoundary, Button, ConfigLink } from "@unified-trading/ui-kit";
 import { useState } from "react";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
-import type { AuthProviderConfig } from "@unified-trading/ui-auth";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AuthProvider, RequireAuth, type AuthProviderConfig } from "./components/AuthProvider";
+import { ConfigLink } from "./components/ConfigLink";
+import { Button } from "./components/ui/button";
 import { MockModeBanner } from "./components/MockModeBanner";
 import { Header } from "./components/Header";
 import { ServiceList } from "./components/ServiceList";

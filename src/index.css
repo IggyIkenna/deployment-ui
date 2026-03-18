@@ -1,247 +1,128 @@
-/* SSOT: theme tokens + base styles from ui-kit */
-@import "@unified-trading/ui-kit/globals.css";
+@import "tailwindcss";
 
-/* Deployment-UI specific overrides */
-
+/* Root Layout */
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* Semantic status colors with alpha (for borders/bg in components) */
+/* Theme tokens - replacing ui-kit globals.css */
 :root {
-  --color-status-error-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-red) 5%,
-    transparent
-  );
-  --color-status-warning-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-amber) 5%,
-    transparent
-  );
-  --color-status-error-bg: color-mix(
-    in srgb,
-    var(--color-accent-red) 10%,
-    transparent
-  );
-  --color-status-error-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-red) 15%,
-    transparent
-  );
-  --color-status-error-border: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-status-error-border-strong: color-mix(
-    in srgb,
-    var(--color-accent-red) 30%,
-    transparent
-  );
-  --color-status-success-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-green) 5%,
-    transparent
-  );
-  --color-status-success-bg: color-mix(
-    in srgb,
-    var(--color-accent-green) 10%,
-    transparent
-  );
-  --color-status-success-border: color-mix(
-    in srgb,
-    var(--color-accent-green) 20%,
-    transparent
-  );
-  --color-status-success-border-strong: color-mix(
-    in srgb,
-    var(--color-accent-green) 30%,
-    transparent
-  );
-  --color-status-running-bg: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 10%,
-    transparent
-  );
-  --color-status-running-border: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 30%,
-    transparent
-  );
-  --color-status-warning-bg: color-mix(
-    in srgb,
-    var(--color-accent-amber) 10%,
-    transparent
-  );
-  --color-status-warning-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-amber) 15%,
-    transparent
-  );
-  --color-status-warning-border: color-mix(
-    in srgb,
-    var(--color-accent-amber) 30%,
-    transparent
-  );
-  --color-status-warning-border-alt: color-mix(
-    in srgb,
-    var(--color-accent-amber) 40%,
-    transparent
-  );
-  --color-status-success-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-green) 15%,
-    transparent
-  );
-  --color-status-success-border-alt: color-mix(
-    in srgb,
-    var(--color-accent-green) 40%,
-    transparent
-  );
-  --color-status-pending-bg: color-mix(
-    in srgb,
-    var(--color-text-secondary) 10%,
-    transparent
-  );
-  --color-status-pending-border: color-mix(
-    in srgb,
-    var(--color-text-secondary) 30%,
-    transparent
-  );
-  --color-status-info-bg: color-mix(
-    in srgb,
-    var(--color-accent-blue) 10%,
-    transparent
-  );
-  --color-status-info-border: color-mix(
-    in srgb,
-    var(--color-accent-blue) 30%,
-    transparent
-  );
-  --color-status-tradfi-bg: color-mix(
-    in srgb,
-    var(--color-accent-purple) 10%,
-    transparent
-  );
-  --color-status-tradfi-border: color-mix(
-    in srgb,
-    var(--color-accent-purple) 30%,
-    transparent
-  );
-  /* Tag/chip backgrounds (20% opacity) */
-  --color-status-success-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-green) 20%,
-    transparent
-  );
-  --color-status-error-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-status-warning-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-amber) 20%,
-    transparent
-  );
-  --color-status-running-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 20%,
-    transparent
-  );
-  --color-status-muted-bg-tag: color-mix(
-    in srgb,
-    var(--color-text-muted) 20%,
-    transparent
-  );
-  --color-status-purple-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-purple) 20%,
-    transparent
-  );
-  --color-status-running-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 15%,
-    transparent
-  );
-  /* VM event badge (orange/amber/red/gray) */
-  --color-event-amber-bg: color-mix(
-    in srgb,
-    var(--color-accent-amber) 20%,
-    transparent
-  );
-  --color-event-red-bg: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-event-gray-bg: color-mix(
-    in srgb,
-    var(--color-text-muted) 20%,
-    transparent
-  );
-  /* Classification badge colors */
-  --color-class-verified: var(--color-accent-green);
-  --color-class-verified-bg: var(--color-status-success-bg-tag);
-  --color-class-expected-skip: var(--color-accent-cyan);
-  --color-class-expected-skip-bg: var(--color-status-running-bg-tag);
-  --color-class-data-stale: var(--color-accent-amber);
-  --color-class-data-stale-bg: var(--color-status-warning-bg-tag);
-  --color-class-data-missing: var(--color-accent-red);
-  --color-class-data-missing-bg: var(--color-status-error-bg-tag);
-  --color-class-unverified: var(--color-text-muted);
-  --color-class-unverified-bg: var(--color-status-muted-bg-tag);
-  --color-class-error: var(--color-accent-red);
-  --color-class-error-bg: var(--color-status-error-bg-tag);
-  --color-class-warning: var(--color-accent-amber);
-  --color-class-warning-bg: var(--color-status-warning-bg-tag);
+  /* Primary colors */
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #12121a;
+  --color-bg-tertiary: #1a1a24;
+  --color-bg-elevated: #1e1e28;
+  
+  /* Text colors */
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  --color-text-muted: #52525b;
+  
+  /* Accent colors */
+  --color-accent-blue: #3b82f6;
+  --color-accent-green: #22c55e;
+  --color-accent-red: #ef4444;
+  --color-accent-amber: #f59e0b;
+  --color-accent-purple: #a78bfa;
+  --color-accent-cyan: #06b6d4;
+  
+  /* Semantic colors */
+  --color-success: var(--color-accent-green);
+  --color-warning: var(--color-accent-amber);
+  --color-error: var(--color-accent-red);
+  --color-info: var(--color-accent-blue);
+  
+  /* Border colors */
+  --color-border: #27272a;
+  --color-border-subtle: #1f1f23;
+  
+  /* Status colors with alpha */
+  --color-status-error-bg-subtle: color-mix(in srgb, var(--color-accent-red) 5%, transparent);
+  --color-status-warning-bg-subtle: color-mix(in srgb, var(--color-accent-amber) 5%, transparent);
+  --color-status-error-bg: color-mix(in srgb, var(--color-accent-red) 10%, transparent);
+  --color-status-error-bg-alt: color-mix(in srgb, var(--color-accent-red) 15%, transparent);
+  --color-status-error-border: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+  --color-status-warning-bg: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
+  --color-status-warning-border: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+  --color-status-success-bg: color-mix(in srgb, var(--color-accent-green) 10%, transparent);
+  --color-status-success-border: color-mix(in srgb, var(--color-accent-green) 20%, transparent);
+  --color-status-info-bg: color-mix(in srgb, var(--color-accent-blue) 10%, transparent);
+  --color-status-info-border: color-mix(in srgb, var(--color-accent-blue) 20%, transparent);
 }
 
-/* Status badge colors (deployment-specific legacy classes) */
-.status-running {
-  color: var(--color-accent-cyan);
-  background-color: rgba(34, 211, 238, 0.1);
-  border-color: rgba(34, 211, 238, 0.3);
+/* Base styles */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.status-success {
-  color: var(--color-accent-green);
-  background-color: rgba(74, 222, 128, 0.1);
-  border-color: rgba(74, 222, 128, 0.3);
+/* Status utility classes */
+.status-error {
+  background-color: var(--color-status-error-bg);
+  border: 1px solid var(--color-status-error-border);
 }
 
 .status-warning {
-  color: var(--color-accent-amber);
-  background-color: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.3);
+  background-color: var(--color-status-warning-bg);
+  border: 1px solid var(--color-status-warning-border);
 }
 
-.status-error {
-  color: var(--color-accent-red);
-  background-color: rgba(248, 113, 113, 0.1);
-  border-color: rgba(248, 113, 113, 0.3);
+.status-success {
+  background-color: var(--color-status-success-bg);
+  border: 1px solid var(--color-status-success-border);
 }
 
-.status-pending {
-  color: var(--color-text-secondary);
-  background-color: rgba(161, 161, 170, 0.1);
-  border-color: rgba(161, 161, 170, 0.3);
+.status-info {
+  background-color: var(--color-status-info-bg);
+  border: 1px solid var(--color-status-info-border);
 }
 
-/* Animations */
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+/* Table styles */
+.table-header-cell {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.animate-slide-in {
-  animation: slide-in 0.2s ease-out;
+.table-row {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color 0.15s ease;
 }
 
-/* Selection */
-::selection {
-  background-color: rgba(34, 211, 238, 0.3);
+.table-row:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.table-cell {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
   color: var(--color-text-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }

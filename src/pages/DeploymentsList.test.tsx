@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { DeploymentsList } from "./DeploymentsList";
 import type { ServiceStatus } from "../types/deploymentTypes";
 
-vi.mock("@unified-trading/ui-kit", () => ({
+vi.mock("../components/ui/card", () => ({
   Card: ({
     children,
     className,
@@ -31,6 +31,8 @@ vi.mock("@unified-trading/ui-kit", () => ({
   CardTitle: ({ children }: { children: React.ReactNode }) => (
     <h3>{children}</h3>
   ),
+}));
+vi.mock("../components/ui/badge", () => ({
   Badge: ({
     children,
     variant,
@@ -38,6 +40,8 @@ vi.mock("@unified-trading/ui-kit", () => ({
     children: React.ReactNode;
     variant?: string;
   }) => <span data-variant={variant}>{children}</span>,
+}));
+vi.mock("../components/ui/button", () => ({
   Button: ({
     children,
     onClick,

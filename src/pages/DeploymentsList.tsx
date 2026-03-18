@@ -7,9 +7,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
-  Button,
-} from "@unified-trading/ui-kit";
+} from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 const HEALTH_VARIANT: Record<
   ServiceHealth,
