@@ -928,7 +928,16 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Venues
   if (path.startsWith("/api/venues")) {
-    return json({ categories: {}, category: "", venues: [], data_types: [] });
+    const cat = url.searchParams.get("category") ?? "cefi";
+    return json({ 
+      categories: MOCK_CATEGORIES.reduce((acc, c) => {
+        acc[c] = MOCK_VENUES_BY_CATEGORY[c] ?? [];
+        return acc;
+      }, {} as Record<string, string[]>),
+      category: cat, 
+      venues: MOCK_VENUES_BY_CATEGORY[cat] ?? [], 
+      data_types: ["ohlcv", "trades", "orderbook", "funding", "liquidations"] 
+    });
   }
 
   // Deployments
@@ -1067,7 +1076,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.match(/^\/api\/deployments\/(.+)\/vm-events$/)) {
     const id = path.split("/")[3];
-    return json({ deployment_id: id, events: [], count: 0 });
+    const now = new Date();
+    const vmEvents = [
+      { event_id: `vm-${id}-001`, timestamp: new Date(now.getTime() - 90000).toISOString(), type: "vm_started", vm_name: "shard-worker-001", message: "VM instance started" },
+      { event_id: `vm-${id}-002`, timestamp: new Date(now.getTime() - 60000).toISOString(), type: "vm_healthy", vm_name: "shard-worker-001", message: "VM passed health check" },
+      { event_id: `vm-${id}-003`, timestamp: new Date(now.getTime() - 30000).toISOString(), type: "task_started", vm_name: "shard-worker-001", message: "Started processing shard batch" },
+    ];
+    return json({ deployment_id: id, events: vmEvents, count: vmEvents.length });
   }
   if (path.match(/^\/api\/deployments\/(.+)$/)) {
     const id = path.split("/").pop();
@@ -1218,7 +1233,29 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/cloud-builds\/history\//)) {
-    return json({ builds: [] });
+    const now = new Date();
+    return json({ 
+      builds: [
+        {
+          id: "build-recent-001",
+          status: "SUCCESS",
+          startTime: new Date(now.getTime() - 3600000).toISOString(),
+          finishTime: new Date(now.getTime() - 3300000).toISOString(),
+          duration_seconds: 300,
+          log_url: "https://console.cloud.google.com/cloud-build/builds/build-recent-001",
+          source: { branch: "main", commit: "abc1234" },
+        },
+        {
+          id: "build-recent-002",
+          status: "SUCCESS",
+          startTime: new Date(now.getTime() - 86400000).toISOString(),
+          finishTime: new Date(now.getTime() - 86100000).toISOString(),
+          duration_seconds: 300,
+          log_url: "https://console.cloud.google.com/cloud-build/builds/build-recent-002",
+          source: { branch: "main", commit: "def5678" },
+        },
+      ] 
+    });
   }
   if (path === "/cloud-builds/trigger" && method === "POST") {
     return json(
@@ -1510,7 +1547,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.startsWith("/api/data-status/list-files")) {
-    return json({ files: [], directories: [], error: null });
+    return json({ 
+      files: [
+        { name: "ohlcv_2026-03-17.parquet", size: 12480000, modified: "2026-03-17T23:59:00Z" },
+        { name: "ohlcv_2026-03-16.parquet", size: 12350000, modified: "2026-03-16T23:59:00Z" },
+        { name: "trades_2026-03-17.parquet", size: 85600000, modified: "2026-03-17T23:59:00Z" },
+      ], 
+      directories: ["archive", "staging", "processed"], 
+      error: null 
+    });
   }
   if (path.startsWith("/api/data-status/instruments")) {
     return json({
@@ -1528,20 +1573,47 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Cloud builds history (fix path to also match /api/ prefix)
   if (path.match(/^\/api\/cloud-builds\/history\/.+/)) {
-    return json({ builds: [] });
+    const now = new Date();
+    return json({ 
+      builds: [
+        {
+          id: "api-build-001",
+          status: "SUCCESS",
+          startTime: new Date(now.getTime() - 7200000).toISOString(),
+          finishTime: new Date(now.getTime() - 6900000).toISOString(),
+          duration_seconds: 300,
+          source: { branch: "main", commit: "xyz9876" },
+        },
+      ] 
+    });
   }
 
   // Config discover/browse
   if (path.match(/^\/api\/services\/(.+)\/discover-configs$/)) {
-    return json({ configs: [], total: 0 });
+    // Extract cloud_path from query string
+    const cloudPath = url.searchParams.get("cloud_path") ?? "";
+    const mockConfigs = [
+      { name: "config_binance.yaml", path: `${cloudPath}config_binance.yaml`, size: 2048, modified: "2026-03-18T08:00:00Z" },
+      { name: "config_coinbase.yaml", path: `${cloudPath}config_coinbase.yaml`, size: 1856, modified: "2026-03-17T12:00:00Z" },
+      { name: "config_kraken.yaml", path: `${cloudPath}config_kraken.yaml`, size: 1920, modified: "2026-03-16T14:00:00Z" },
+    ];
+    return json({ configs: mockConfigs, total_configs: mockConfigs.length, total: mockConfigs.length });
   }
   if (path.match(/^\/api\/services\/(.+)\/list-directories$/)) {
-    return json({ directories: [], total: 0 });
+    const mockDirs = ["cefi", "tradfi", "defi", "onchain", "2026", "archive"];
+    return json({ directories: mockDirs, total: mockDirs.length });
   }
   if (path.match(/^\/api\/services\/(.+)\/config-buckets$/)) {
+    const serviceName = path.match(/^\/api\/services\/(.+)\/config-buckets$/)?.[1] ?? "unknown";
     return json({
-      buckets: ["mock-config-bucket"],
-      project_id: "mock-project",
+      service: serviceName,
+      buckets: [
+        { name: "unified-trading-configs-prod", path: "gs://unified-trading-configs-prod/" },
+        { name: "unified-trading-configs-staging", path: "gs://unified-trading-configs-staging/" },
+        { name: "unified-trading-configs-dev", path: "gs://unified-trading-configs-dev/" },
+      ],
+      default_bucket: "gs://unified-trading-configs-prod/",
+      project_id: "unified-trading-prod",
     });
   }
 
