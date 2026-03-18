@@ -329,15 +329,24 @@ function DependenciesPanel({
     );
   }
 
+  // Ensure all arrays have safe defaults
+  const safeDeps = {
+    ...dependencies,
+    upstream: dependencies.upstream ?? [],
+    downstream_dependents: dependencies.downstream_dependents ?? [],
+    outputs: dependencies.outputs ?? [],
+    dag: dependencies.dag ?? null,
+  };
+
   return (
     <div className="space-y-4">
       {/* DAG Visualization */}
-      {dependencies.dag && (
+      {safeDeps.dag && safeDeps.dag.nodes && safeDeps.dag.edges && (
         <DependencyDag
-          dag={dependencies.dag}
+          dag={safeDeps.dag}
           currentService={currentService}
-          upstream={dependencies.upstream.map((u) => u.service)}
-          downstream={dependencies.downstream_dependents}
+          upstream={safeDeps.upstream.map((u) => u.service)}
+          downstream={safeDeps.downstream_dependents}
         />
       )}
 
@@ -353,13 +362,13 @@ function DependenciesPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dependencies.upstream.length === 0 ? (
+          {safeDeps.upstream.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)]">
               No upstream dependencies (root service)
             </p>
           ) : (
             <div className="space-y-2">
-              {dependencies.upstream.map((dep) => (
+              {safeDeps.upstream.map((dep) => (
                 <div
                   key={dep.service}
                   className={cn(
@@ -400,13 +409,13 @@ function DependenciesPanel({
           <CardDescription>Services that depend on this one</CardDescription>
         </CardHeader>
         <CardContent>
-          {dependencies.downstream_dependents.length === 0 ? (
+          {safeDeps.downstream_dependents.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)]">
               No downstream dependents (end of pipeline)
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {dependencies.downstream_dependents.map((service) => (
+              {safeDeps.downstream_dependents.map((service) => (
                 <span
                   key={service}
                   className="px-2.5 py-1 text-sm font-mono bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] rounded border border-[var(--color-border-subtle)]"
@@ -420,7 +429,7 @@ function DependenciesPanel({
       </Card>
 
       {/* Outputs */}
-      {dependencies.outputs.length > 0 && (
+      {safeDeps.outputs.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Outputs</CardTitle>
@@ -428,7 +437,7 @@ function DependenciesPanel({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {dependencies.outputs.map((output) => (
+              {safeDeps.outputs.map((output) => (
                 <div
                   key={output.name}
                   className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]"
@@ -464,6 +473,10 @@ function DependencyDag({
   upstream,
   downstream,
 }: DependencyDagProps) {
+  // Ensure safe access to dag properties
+  const safeNodes = dag?.nodes ?? [];
+  const safeEdges = dag?.edges ?? [];
+  
   const dagLayout = useMemo(() => {
     // Group nodes into layers
     const layers: string[][] = [];
@@ -471,7 +484,7 @@ function DependencyDag({
 
     // Use predefined layer order for consistent layout
     for (let i = 0; i < LAYER_ORDER.length; i++) {
-      const layerNodes = LAYER_ORDER[i].filter((n) => dag.nodes.includes(n));
+      const layerNodes = LAYER_ORDER[i].filter((n) => safeNodes.includes(n));
       if (layerNodes.length > 0) {
         layers.push(layerNodes);
         layerNodes.forEach((n) => {
@@ -481,7 +494,7 @@ function DependencyDag({
     }
 
     // Add any nodes not in LAYER_ORDER
-    const unmapped = dag.nodes.filter((n) => !(n in nodeToLayer));
+    const unmapped = safeNodes.filter((n) => !(n in nodeToLayer));
     if (unmapped.length > 0) {
       layers.push(unmapped);
       unmapped.forEach((n) => {
@@ -528,7 +541,7 @@ function DependencyDag({
       layers.length * (nodeHeight + layerGapY) - layerGapY + paddingY * 2;
 
     return { positions, svgWidth, svgHeight, nodeWidth, nodeHeight };
-  }, [dag]);
+  }, [safeNodes]);
 
   const { positions, svgWidth, svgHeight, nodeWidth, nodeHeight } = dagLayout;
 
@@ -613,7 +626,7 @@ function DependencyDag({
             </defs>
 
             {/* Edges */}
-            {dag.edges.map((edge, i) => {
+            {(dag.edges ?? []).map((edge, i) => {
               const from = positions[edge.from];
               const to = positions[edge.to];
               if (!from || !to) return null;
@@ -651,7 +664,7 @@ function DependencyDag({
             })}
 
             {/* Nodes */}
-            {dag.nodes.map((node) => {
+            {(dag.nodes ?? []).map((node) => {
               const pos = positions[node];
               if (!pos) return null;
 

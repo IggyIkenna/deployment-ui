@@ -66,14 +66,22 @@ export function CloudConfigBrowser({
   useEffect(() => {
     async function loadBuckets() {
       setLoadingBuckets(true);
+      setError(null);
       try {
         const result = await getConfigBuckets(serviceName);
-        setBuckets(result.buckets || []);
-        if (result.default_bucket) {
+        console.log("[v0] Config buckets result:", result);
+        // Ensure buckets is always an array
+        const safeBuckets = Array.isArray(result?.buckets) ? result.buckets : [];
+        setBuckets(safeBuckets);
+        if (result?.default_bucket) {
           setSelectedBucket(result.default_bucket);
+        } else if (safeBuckets.length > 0) {
+          setSelectedBucket(safeBuckets[0].path);
         }
       } catch (err) {
+        console.error("[v0] Failed to load config buckets:", err);
         setError(err instanceof Error ? err.message : "Failed to load buckets");
+        setBuckets([]);
       } finally {
         setLoadingBuckets(false);
       }
@@ -175,7 +183,13 @@ export function CloudConfigBrowser({
       </Label>
 
       {/* Bucket Selection */}
-      {buckets.length > 0 && (
+      {loadingBuckets && (
+        <div className="flex items-center gap-2 p-2 text-sm text-[var(--color-text-muted)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading config buckets...
+        </div>
+      )}
+      {!loadingBuckets && buckets.length > 0 && (
         <div className="space-y-2">
           <Select
             value={selectedBucket}
@@ -187,12 +201,17 @@ export function CloudConfigBrowser({
             </SelectTrigger>
             <SelectContent>
               {buckets.map((bucket) => (
-                <SelectItem key={bucket.path} value={bucket.path}>
-                  <span className="font-mono text-sm">{bucket.name}</span>
+                <SelectItem key={bucket?.path ?? bucket?.name ?? Math.random()} value={bucket?.path ?? ""}>
+                  <span className="font-mono text-sm">{bucket?.name ?? "Unknown bucket"}</span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+      )}
+      {!loadingBuckets && buckets.length === 0 && !error && (
+        <div className="text-sm text-[var(--color-text-muted)] p-2 bg-[var(--color-bg-tertiary)] rounded">
+          No config buckets available for this service
         </div>
       )}
 

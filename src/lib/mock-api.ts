@@ -1589,7 +1589,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Config discover/browse
-  if (path.match(/^\/api\/services\/(.+)\/discover-configs$/)) {
+  if (path.match(/^\/api\/services\/([^/]+)\/discover-configs$/)) {
     // Extract cloud_path from query string
     const cloudPath = url.searchParams.get("cloud_path") ?? "";
     const mockConfigs = [
@@ -1599,12 +1599,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     ];
     return json({ configs: mockConfigs, total_configs: mockConfigs.length, total: mockConfigs.length });
   }
-  if (path.match(/^\/api\/services\/(.+)\/list-directories$/)) {
+  if (path.match(/^\/api\/services\/([^/]+)\/list-directories$/)) {
     const mockDirs = ["cefi", "tradfi", "defi", "onchain", "2026", "archive"];
     return json({ directories: mockDirs, total: mockDirs.length });
   }
-  if (path.match(/^\/api\/services\/(.+)\/config-buckets$/)) {
-    const serviceName = path.match(/^\/api\/services\/(.+)\/config-buckets$/)?.[1] ?? "unknown";
+  if (path.match(/^\/api\/services\/([^/]+)\/config-buckets$/)) {
+    const serviceName = path.match(/^\/api\/services\/([^/]+)\/config-buckets$/)?.[1] ?? "unknown";
+    console.log("[v0] Mock: config-buckets for service:", serviceName);
     return json({
       service: serviceName,
       buckets: [
