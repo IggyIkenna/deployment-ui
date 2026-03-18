@@ -15,7 +15,8 @@
  * - VITE_MOCK_DELAY_MS: artificial delay in ms for all mock responses
  */
 
-export const MOCK_MODE = import.meta.env.VITE_MOCK_API === "true";
+// Default to mock mode unless explicitly disabled
+export const MOCK_MODE = import.meta.env.VITE_MOCK_API !== "false";
 const STRESS_SCENARIO = import.meta.env.VITE_STRESS_SCENARIO || "";
 const MOCK_DELAY_MS = parseInt(import.meta.env.VITE_MOCK_DELAY_MS || "60", 10);
 
@@ -1031,7 +1032,38 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.match(/^\/api\/deployments\/(.+)\/events$/)) {
     const id = path.split("/")[3];
-    return json({ deployment_id: id, events: [], count: 0 });
+    const now = new Date();
+    const events = [
+      {
+        event_id: `evt-${id}-001`,
+        timestamp: new Date(now.getTime() - 120000).toISOString(),
+        type: "deployment_started",
+        message: "Deployment initiated",
+        metadata: { shards: 48, compute: "cloud_run" },
+      },
+      {
+        event_id: `evt-${id}-002`,
+        timestamp: new Date(now.getTime() - 90000).toISOString(),
+        type: "shard_started",
+        message: "Started 24 shards in batch 1",
+        metadata: { batch: 1, shards_started: 24 },
+      },
+      {
+        event_id: `evt-${id}-003`,
+        timestamp: new Date(now.getTime() - 60000).toISOString(),
+        type: "shard_completed",
+        message: "Completed 20 shards in batch 1",
+        metadata: { batch: 1, shards_completed: 20, shards_remaining: 4 },
+      },
+      {
+        event_id: `evt-${id}-004`,
+        timestamp: new Date(now.getTime() - 30000).toISOString(),
+        type: "shard_started",
+        message: "Started 24 shards in batch 2",
+        metadata: { batch: 2, shards_started: 24 },
+      },
+    ];
+    return json({ deployment_id: id, events, count: events.length });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/vm-events$/)) {
     const id = path.split("/")[3];
