@@ -486,9 +486,9 @@ export function DeployForm({
   const hasChecklistWarnings =
     safeChecklistValidation && !safeChecklistValidation.ready && !dryRun;
   const needsAcknowledgment =
-    hasChecklistWarnings && safeChecklistValidation.can_proceed_with_acknowledgment;
+    hasChecklistWarnings && safeChecklistValidation?.can_proceed_with_acknowledgment;
   const cannotProceed =
-    hasChecklistWarnings && safeChecklistValidation.blocking_items.length > 0;
+    hasChecklistWarnings && (safeChecklistValidation?.blocking_items?.length ?? 0) > 0;
 
   // Validate max_concurrent (hard limit: 2500)
   const maxConcurrentValue = maxConcurrent ? parseInt(maxConcurrent, 10) : 0;
@@ -545,7 +545,7 @@ export function DeployForm({
           <div
             className={cn(
               "p-4 rounded-lg border",
-            safeChecklistValidation?.blocking_items?.length ?? 0 > 0
+            (safeChecklistValidation?.blocking_items?.length ?? 0) > 0
               ? "status-error"
               : "status-warning",
             )}
@@ -649,7 +649,7 @@ export function DeployForm({
                   )}
 
                 {/* Cannot proceed message */}
-                {checklistValidation.blocking_items.length > 0 && (
+                {(safeChecklistValidation?.blocking_items?.length ?? 0) > 0 && (
                   <p className="mt-3 text-sm text-[var(--color-accent-red)]">
                     Deployment blocked. Resolve blocking issues in the Readiness
                     tab first.
