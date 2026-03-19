@@ -475,12 +475,20 @@ export function DeployForm({
   };
 
   // Determine if checklist warnings need acknowledgment (only for live deployments)
+  // Add safe defaults for all checklistValidation properties
+  const safeChecklistValidation = checklistValidation ? {
+    ...checklistValidation,
+    blocking_items: checklistValidation.blocking_items ?? [],
+    warnings: checklistValidation.warnings ?? [],
+    can_proceed_with_acknowledgment: checklistValidation.can_proceed_with_acknowledgment ?? false,
+  } : null;
+  
   const hasChecklistWarnings =
-    checklistValidation && !checklistValidation.ready && !dryRun;
+    safeChecklistValidation && !safeChecklistValidation.ready && !dryRun;
   const needsAcknowledgment =
-    hasChecklistWarnings && checklistValidation.can_proceed_with_acknowledgment;
+    hasChecklistWarnings && safeChecklistValidation.can_proceed_with_acknowledgment;
   const cannotProceed =
-    hasChecklistWarnings && checklistValidation.blocking_items.length > 0;
+    hasChecklistWarnings && safeChecklistValidation.blocking_items.length > 0;
 
   // Validate max_concurrent (hard limit: 2500)
   const maxConcurrentValue = maxConcurrent ? parseInt(maxConcurrent, 10) : 0;
@@ -532,21 +540,21 @@ export function DeployForm({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Checklist Validation Warning */}
-        {!dryRun && checklistValidation && !checklistValidation.ready && (
+      {/* Checklist Validation Warning */}
+      {!dryRun && safeChecklistValidation && !safeChecklistValidation.ready && (
           <div
             className={cn(
               "p-4 rounded-lg border",
-              checklistValidation.blocking_items.length > 0
-                ? "status-error"
-                : "status-warning",
+            safeChecklistValidation?.blocking_items?.length ?? 0 > 0
+              ? "status-error"
+              : "status-warning",
             )}
           >
             <div className="flex items-start gap-3">
               <ShieldAlert
                 className={cn(
                   "h-5 w-5 shrink-0 mt-0.5",
-                  checklistValidation.blocking_items.length > 0
+                  (safeChecklistValidation?.blocking_items?.length ?? 0) > 0
                     ? "text-[var(--color-accent-red)]"
                     : "text-[var(--color-accent-amber)]",
                 )}
@@ -555,7 +563,7 @@ export function DeployForm({
                 <h3
                   className={cn(
                     "text-sm font-medium",
-                    checklistValidation.blocking_items.length > 0
+                    (safeChecklistValidation?.blocking_items?.length ?? 0) > 0
                       ? "text-[var(--color-accent-red)]"
                       : "text-[var(--color-accent-amber)]",
                   )}
@@ -564,16 +572,16 @@ export function DeployForm({
                 </h3>
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1">
                   {serviceName} has{" "}
-                  {checklistValidation.blocking_items.length > 0
-                    ? `${checklistValidation.blocking_items.length} blocking issue${checklistValidation.blocking_items.length > 1 ? "s" : ""}`
-                    : "pending readiness items"}
+                    {(safeChecklistValidation?.blocking_items?.length ?? 0) > 0
+                      ? `${safeChecklistValidation?.blocking_items?.length ?? 0} blocking issue${(safeChecklistValidation?.blocking_items?.length ?? 0) > 1 ? "s" : ""}`
+                      : "pending readiness items"}
                   :
                 </p>
 
-                {/* Show blocking items */}
-                {checklistValidation.blocking_items.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {checklistValidation.blocking_items.map((item) => (
+                  {/* Show blocking items */}
+                  {(safeChecklistValidation?.blocking_items?.length ?? 0) > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {(safeChecklistValidation?.blocking_items ?? []).map((item) => (
                       <li
                         key={item.id}
                         className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2"
@@ -587,11 +595,11 @@ export function DeployForm({
                   </ul>
                 )}
 
-                {/* Show warnings (non-blocking) */}
-                {checklistValidation.warnings.length > 0 &&
-                  checklistValidation.blocking_items.length === 0 && (
-                    <ul className="mt-2 space-y-1">
-                      {checklistValidation.warnings
+                  {/* Show warnings (non-blocking) */}
+                  {(safeChecklistValidation?.warnings?.length ?? 0) > 0 &&
+                    (safeChecklistValidation?.blocking_items?.length ?? 0) === 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {(safeChecklistValidation?.warnings ?? [])
                         .slice(0, 5)
                         .map((warning, i) => (
                           <li
@@ -604,25 +612,25 @@ export function DeployForm({
                             {warning}
                           </li>
                         ))}
-                      {checklistValidation.warnings.length > 5 && (
-                        <li className="text-xs text-[var(--color-text-muted)]">
-                          ...and {checklistValidation.warnings.length - 5} more
-                        </li>
-                      )}
+                        {(safeChecklistValidation?.warnings?.length ?? 0) > 5 && (
+                          <li className="text-xs text-[var(--color-text-muted)]">
+                            ...and {(safeChecklistValidation?.warnings?.length ?? 0) - 5} more
+                          </li>
+                        )}
                     </ul>
                   )}
 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm text-[var(--color-text-muted)]">
-                    Readiness: {checklistValidation.readiness_percent}% (
-                    {checklistValidation.completed_items}/
-                    {checklistValidation.total_items} items)
+                    Readiness: {safeChecklistValidation?.readiness_percent ?? 0}% (
+                    {safeChecklistValidation?.completed_items ?? 0}/
+                    {safeChecklistValidation?.total_items ?? 0} items)
                   </span>
                 </div>
 
-                {/* Acknowledgment checkbox (only if can proceed) */}
-                {checklistValidation.can_proceed_with_acknowledgment &&
-                  checklistValidation.blocking_items.length === 0 && (
+                  {/* Acknowledgment checkbox (only if can proceed) */}
+                  {safeChecklistValidation?.can_proceed_with_acknowledgment &&
+                    (safeChecklistValidation?.blocking_items?.length ?? 0) === 0 && (
                     <div className="mt-3 flex items-center gap-2">
                       <Checkbox
                         id="acknowledgeWarnings"
