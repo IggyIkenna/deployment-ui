@@ -25,12 +25,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchServices(): Promise<ServiceStatus[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/v1/services`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/services`);
   return handleResponse<ServiceStatus[]>(response);
 }
 
 export async function triggerDeploy(params: DeployParams): Promise<DeployJob> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/v1/deployments`, {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -42,13 +42,13 @@ export async function fetchDeploymentHistory(
   serviceId?: string,
 ): Promise<DeployJob[]> {
   const query = serviceId ? `?service_id=${serviceId}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/v1/deployments${query}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments${query}`);
   return handleResponse<DeployJob[]>(response);
 }
 
 export async function rollbackDeployment(jobId: string): Promise<DeployJob> {
   const response = await fetch(
-    `${DEPLOYMENT_API}/api/v1/deployments/${jobId}/rollback`,
+    `${DEPLOYMENT_API}/api/deployments/${jobId}/rollback`,
     {
       method: "POST",
     },
