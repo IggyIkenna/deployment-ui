@@ -1,8 +1,9 @@
-import { ErrorBoundary, Button, ConfigLink } from "@unified-trading/ui-kit";
+import { ErrorBoundary, Button } from "@unified-trading/ui-kit";
 import { useState } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
 import type { AuthProviderConfig } from "@unified-trading/ui-auth";
+import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { MockModeBanner } from "./components/MockModeBanner";
 import { Header } from "./components/Header";
 import { ServiceList } from "./components/ServiceList";
@@ -50,6 +51,9 @@ const INFRASTRUCTURE_SERVICES = ["unified-trading-deployment-v2"];
 
 function App() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedOperation, setSelectedOperation] = useState<string | null>(
+    null,
+  );
   const [isDeploying, setIsDeploying] = useState(false);
   const [deploymentResult, setDeploymentResult] =
     useState<CreateDeploymentResponse | null>(null);
@@ -117,27 +121,19 @@ function App() {
     <ErrorBoundary>
       <AuthProvider config={authConfig}>
         <BrowserRouter>
+          <CloudProviderProvider>
           <RequireAuth>
             <div className="min-h-screen bg-[var(--color-bg-primary)]">
               <MockModeBanner />
               <Header />
-              <div className="container mx-auto px-6 pt-2 max-w-[1600px] flex justify-end">
-                <ConfigLink
-                  label="Venue Connections"
-                  path="/venue-connections"
-                  onboardingBaseUrl={
-                    import.meta.env.VITE_ONBOARDING_URL ??
-                    "http://localhost:5173"
-                  }
-                />
-              </div>
-              <main className="container mx-auto px-6 py-6 max-w-[1600px]">
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-12 lg:col-span-4 xl:col-span-3">
+              <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px]">
+                <div className="grid grid-cols-12 gap-4 lg:gap-6">
+                  <div className="col-span-12 lg:col-span-3 xl:col-span-2 2xl:col-span-2">
                     <ServiceList
                       selectedService={selectedService}
-                      onSelectService={(service) => {
+                      onSelectService={(service, operation) => {
                         setSelectedService(service);
+                        setSelectedOperation(operation ?? null);
                         if (
                           INFRASTRUCTURE_SERVICES.includes(service) &&
                           !["builds", "service-status", "config"].includes(
@@ -152,7 +148,7 @@ function App() {
                       }}
                     />
                   </div>
-                  <div className="col-span-12 lg:col-span-8 xl:col-span-9">
+                  <div className="col-span-12 lg:col-span-9 xl:col-span-10 2xl:col-span-10">
                     {selectedService ? (
                       (() => {
                         const isInfra =
@@ -290,6 +286,7 @@ function App() {
                                 <TabsContent value="deploy">
                                   <DeployForm
                                     serviceName={selectedService}
+                                    selectedOperation={selectedOperation}
                                     onDeploy={handleDeploy}
                                     isDeploying={isDeploying}
                                   />
@@ -388,6 +385,7 @@ function App() {
               </main>
             </div>
           </RequireAuth>
+          </CloudProviderProvider>
         </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>

@@ -87,6 +87,11 @@ function buildCLICommand(
   args.push("python -m unified_trading_deployment.cli deploy");
   args.push(`--service ${serviceName}`);
 
+  // Operation (CLI --operation axis)
+  if (formValues.operation) {
+    args.push(`--operation ${formValues.operation}`);
+  }
+
   // Compute target
   if (formValues.compute) {
     args.push(`--compute ${formValues.compute}`);

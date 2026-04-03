@@ -46,16 +46,19 @@ import { CLIPreview } from "./CLIPreview";
 import { BuildSelector } from "./BuildSelector";
 import { cn } from "../lib/utils";
 import { getDeploymentQuotaInfo, type QuotaInfoResponse } from "../api/client";
+import { useCloudProvider } from "../contexts/CloudProviderContext";
 import type { DeploymentRequest, ServiceDimension } from "../types";
 
 interface DeployFormProps {
   serviceName: string;
+  selectedOperation?: string | null;
   onDeploy: (request: DeploymentRequest) => void;
   isDeploying?: boolean;
 }
 
 export function DeployForm({
   serviceName,
+  selectedOperation,
   onDeploy,
   isDeploying,
 }: DeployFormProps) {
@@ -117,8 +120,8 @@ export function DeployForm({
   >("default");
   const [maxConcurrent, setMaxConcurrent] = useState<string>(""); // Optional; empty = backend default (2000)
 
-  // Cloud provider
-  const [cloudProvider, setCloudProvider] = useState<"gcp" | "aws">("gcp");
+  // Cloud provider — from global context (header toggle)
+  const { target: cloudProvider } = useCloudProvider();
 
   // Live mode fields
   const [imageTag, setImageTag] = useState<string>("latest");
@@ -382,6 +385,7 @@ export function DeployForm({
   const buildRequest = (): DeploymentRequest => {
     const request: DeploymentRequest = {
       service: serviceName,
+      ...(selectedOperation ? { operation: selectedOperation } : {}),
       mode,
       compute,
       cloud_provider: cloudProvider,
@@ -677,42 +681,7 @@ export function DeployForm({
           </div>
         </div>
 
-        {/* Cloud Provider (GCP | AWS) */}
-        <div className="space-y-2">
-          <Label>Cloud Provider</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={cloudProvider === "gcp" ? "default" : "outline"}
-              onClick={() => setCloudProvider("gcp")}
-              className="flex-1"
-            >
-              <Server className="h-4 w-4 mr-2" />
-              GCP
-            </Button>
-            <Button
-              type="button"
-              variant={cloudProvider === "aws" ? "default" : "outline"}
-              onClick={() => setCloudProvider("aws")}
-              className="flex-1"
-            >
-              <Server className="h-4 w-4 mr-2" />
-              AWS
-            </Button>
-          </div>
-          {cloudProvider === "aws" && (
-            <div className="flex items-start gap-2 p-3 rounded-md status-warning mt-2">
-              <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-300">
-                <span className="font-semibold">
-                  AWS configured but unauthenticated
-                </span>{" "}
-                — dry-run validation available; live deployment requires AWS
-                credentials (IRSA / service account) in the environment.
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Cloud provider is now controlled by the global header toggle */}
 
         {/* Live mode fields — shown only when mode === "live" */}
         {mode === "live" && (

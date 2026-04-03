@@ -231,6 +231,7 @@ export interface CreateDeploymentResponse {
 
 export interface DeploymentRequest {
   service: string;
+  operation?: string; // CLI --operation axis (e.g. download, compute, train)
   mode?: "batch" | "live";
   compute?: "cloud_run" | "vm";
   start_date?: string; // Optional for 'none' granularity (defaults to 2020-01-01)

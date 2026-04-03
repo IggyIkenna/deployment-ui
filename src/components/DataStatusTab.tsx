@@ -91,6 +91,40 @@ function getTodayAt8am(): string {
   return `${y}-${m}-${day}T08:00:00`;
 }
 
+// Sub-dimension label mapping — keyed by the response key from manifest_reader
+const SUB_DIMENSION_LABELS: Record<string, string> = {
+  venues: "Venues",
+  data_types: "Data Types",
+  feature_groups: "Feature Groups",
+  strategies: "Strategies",
+  models: "Models",
+  modes: "Modes",
+  domains: "Domains",
+  clients: "Clients",
+  alert_types: "Alert Types",
+};
+
+// Response keys that carry sub-dimension data (order matters for fallback chain)
+const SUB_DIMENSION_KEYS = Object.keys(SUB_DIMENSION_LABELS);
+
+/** Extract sub-dimension data from a category result, regardless of which key it's under. */
+function getSubDimensionData(catData: Record<string, unknown>): {
+  data: Record<string, unknown> | null;
+  key: string | null;
+  label: string;
+} {
+  for (const key of SUB_DIMENSION_KEYS) {
+    if (catData[key] && typeof catData[key] === "object") {
+      return {
+        data: catData[key] as Record<string, unknown>,
+        key,
+        label: SUB_DIMENSION_LABELS[key] || key,
+      };
+    }
+  }
+  return { data: null, key: null, label: "" };
+}
+
 // Internal component for non-execution-services
 function DataStatusTabInternal({
   serviceName,
@@ -156,14 +190,44 @@ function DataStatusTabInternal({
   const [dataTypeCheckData, setDataTypeCheckData] =
     useState<DataTypeCheckResponse | null>(null);
 
+  // Venue detail drill-down state
+  const [venueDetailKey, setVenueDetailKey] = useState<string | null>(null); // "CEFI:BINANCE-SPOT"
+  const [venueDetailData, setVenueDetailData] =
+    useState<api.VenueDetailResult | null>(null);
+  const [venueDetailLoading, setVenueDetailLoading] = useState(false);
+
+  const handleVenueClick = async (category: string, venue: string) => {
+    const key = `${category}:${venue}`;
+    if (venueDetailKey === key) {
+      setVenueDetailKey(null); // toggle off
+      return;
+    }
+    setVenueDetailKey(key);
+    setVenueDetailLoading(true);
+    setVenueDetailData(null);
+    try {
+      const result = await api.fetchVenueDetail(serviceName, category, venue);
+      setVenueDetailData(result);
+    } catch {
+      setVenueDetailData(null);
+    } finally {
+      setVenueDetailLoading(false);
+    }
+  };
+
   // Check venues disabled - turbo mode handles venue breakdown automatically
   const checkVenues = false; // Removed toggle, turbo mode always gives venue breakdown
   // Check data types disabled - turbo mode shows data_types by default in breakdown
   const checkDataTypes = false;
 
-  // Use turbo mode for all supported services (much faster)
-  // Turbo mode now supports venue/data_type breakdown via directory structure
+  // Use manifest mode (fastest — reads parquet index) for services with ManifestWriter
+  const useManifestMode =
+    api.MANIFEST_MODE_SERVICES.includes(serviceName) &&
+    !checkVenues &&
+    !checkDataTypes;
+  // Fallback to turbo mode (blob listing) for services without manifests
   const useTurboMode =
+    !useManifestMode &&
     api.TURBO_MODE_SERVICES.includes(serviceName) &&
     !checkVenues &&
     !checkDataTypes;
@@ -321,6 +385,21 @@ function DataStatusTabInternal({
           // Skip if a newer request has started
           if (thisRequestId !== requestIdRef.current) return;
           setDataTypeCheckData(result);
+        } else if (useManifestMode) {
+          // MANIFEST MODE: Reads consolidated parquet index (fastest path)
+          // Works with both GCS and S3 (cloud-agnostic)
+          const result = await api.getDataStatusManifest({
+            service: serviceName,
+            start_date: fetchStart,
+            end_date: fetchEnd,
+            category:
+              selectedCategories.length > 0 ? selectedCategories : undefined,
+            signal: abortController.signal,
+          });
+
+          // Skip if a newer request has started
+          if (thisRequestId !== requestIdRef.current) return;
+          setTurboData(result); // Same shape as turbo response
         } else if (useTurboMode) {
           // TURBO MODE: Uses month-prefix queries (5s instead of 60s+)
           const includeSubDims = !!turboSubDimension;
@@ -430,6 +509,7 @@ function DataStatusTabInternal({
       supportsVenueCheck,
       checkDataTypes,
       supportsDataTypeCheck,
+      useManifestMode,
       useTurboMode,
       turboSubDimension,
       firstDayOfMonthOnly,
@@ -1208,10 +1288,10 @@ function DataStatusTabInternal({
           </div>
         </CardHeader>
         <CardContent>
-          {useTurboMode && (
+          {(useManifestMode || useTurboMode) && (
             <div className="mb-4">
               <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Mode
+                Mode{useManifestMode ? " (Manifest — fastest)" : " (Turbo)"}
               </Label>
               <div className="flex gap-2">
                 <Button
@@ -1983,7 +2063,7 @@ function DataStatusTabInternal({
                                   stats.dates_found_list.length > 0 && (
                                     <details className="w-full">
                                       <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
-                                        ▸ {stats.dates_found} available days
+                                        ▸ {stats.dates_found} available shards
                                         (click to expand)
                                       </summary>
                                       <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
@@ -2008,7 +2088,7 @@ function DataStatusTabInternal({
                                   stats.dates_missing_list.length > 0 && (
                                     <details className="w-full">
                                       <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
-                                        ▸ {stats.dates_missing} missing days
+                                        ▸ {stats.dates_missing} missing shards
                                         (click to expand)
                                       </summary>
                                       <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
@@ -2108,9 +2188,11 @@ function DataStatusTabInternal({
                   ? "Deep scanning parquet files for venue coverage..."
                   : checkDataTypes
                     ? "Validating per data_type completion..."
-                    : useTurboMode
-                      ? `TURBO mode: Scanning ${serviceName} data...`
-                      : `Checking ${serviceName} data status...`}
+                    : useManifestMode
+                      ? `MANIFEST mode: Reading index for ${serviceName}...`
+                      : useTurboMode
+                        ? `TURBO mode: Scanning ${serviceName} data...`
+                        : `Checking ${serviceName} data status...`}
               </p>
               {checkVenues && (
                 <p className="text-xs text-[var(--color-text-muted)]">
@@ -2125,7 +2207,7 @@ function DataStatusTabInternal({
               {!checkVenues && !checkDataTypes && (
                 <p className="text-xs text-[var(--color-text-muted)]">
                   {startDate} to {endDate}
-                  {useTurboMode &&
+                  {(useManifestMode || useTurboMode) &&
                     (() => {
                       // Calculate months for ETA estimate
                       // Local: ~1.2s per month, Cloud Run: ~0.5s per month
@@ -2624,7 +2706,7 @@ function DataStatusTabInternal({
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
                     {turboData.overall_dates_found} /{" "}
-                    {turboData.overall_dates_expected} venue-days
+                    {turboData.overall_dates_expected} shards
                   </div>
                   {turboData.overall_dates_found_category !== undefined && (
                     <div className="text-xs text-[var(--color-text-muted)] opacity-70">
@@ -2655,7 +2737,7 @@ function DataStatusTabInternal({
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
-                      <strong>{totalMissing}</strong> missing venue-days
+                      <strong>{totalMissing}</strong> missing shards
                     </span>
                   </div>
                   <Button
@@ -2718,9 +2800,7 @@ function DataStatusTabInternal({
                                   /{" "}
                                   {catData.venue_dates_expected ??
                                     catData.dates_expected}{" "}
-                                  {catData.venue_weighted
-                                    ? "venue-days"
-                                    : "dates"}
+                                  shards
                                 </span>
                                 <span
                                   className="text-sm font-mono font-medium"
@@ -2780,9 +2860,7 @@ function DataStatusTabInternal({
                         )}
 
                         {/* Category-level date dropdowns (for services without sub-dimensions) */}
-                        {!catData.venues &&
-                          !catData.data_types &&
-                          !catData.feature_groups &&
+                        {!getSubDimensionData(catData).data &&
                           !catData.error && (
                             <div className="flex gap-4 mt-2">
                               {/* Available dates dropdown (green) */}
@@ -2790,7 +2868,7 @@ function DataStatusTabInternal({
                                 catData.dates_found_count > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                      {catData.dates_found_count} available days
+                                      {catData.dates_found_count} available shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
@@ -2830,7 +2908,7 @@ function DataStatusTabInternal({
                                 catData.dates_missing_count > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                      {catData.dates_missing_count} missing days
+                                      {catData.dates_missing_count} missing shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
@@ -2868,10 +2946,8 @@ function DataStatusTabInternal({
                             </div>
                           )}
 
-                        {/* Sub-dimension breakdown (venues, data_types, feature_groups) */}
-                        {(catData.venues ||
-                          catData.data_types ||
-                          catData.feature_groups) && (
+                        {/* Sub-dimension breakdown (venues, data_types, feature_groups, strategies, models, etc.) */}
+                        {getSubDimensionData(catData).data && (
                           <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
                             {/* Folders/Instrument Types section - own bordered container */}
                             {catData.folders &&
@@ -2922,7 +2998,7 @@ function DataStatusTabInternal({
                                           </div>
                                           <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
                                             {folderData.dates_found}/
-                                            {folderData.dates_expected} days
+                                            {folderData.dates_expected} shards
                                           </div>
                                         </div>
                                       ),
@@ -2931,17 +3007,11 @@ function DataStatusTabInternal({
                                 </div>
                               )}
 
-                            {/* Venues / Data Types / Feature Groups section - own bordered container */}
+                            {/* Sub-dimension section - own bordered container */}
                             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
-                                  {catData.venues
-                                    ? catData.folders
-                                      ? "Venues"
-                                      : "Venues"
-                                    : catData.data_types
-                                      ? "Data Types"
-                                      : "Feature Groups"}
+                                  {getSubDimensionData(catData).label}
                                 </p>
                                 {/* Venue Summary Badges */}
                                 {catData.venue_summary && (
@@ -3011,10 +3081,7 @@ function DataStatusTabInternal({
 
                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                 {Object.entries(
-                                  catData.venues ||
-                                    catData.data_types ||
-                                    catData.feature_groups ||
-                                    {},
+                                  getSubDimensionData(catData).data || {},
                                 ).map(([name, subData]) => {
                                   // Use dimension-weighted counts when available (accounts for
                                   // multiple expected data_types/folders per venue). Falls back
@@ -3038,10 +3105,13 @@ function DataStatusTabInternal({
                                     <div
                                       key={name}
                                       className={cn(
-                                        "bg-[var(--color-bg-tertiary)] rounded p-2",
+                                        "bg-[var(--color-bg-tertiary)] rounded p-2 cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors",
                                         subData.status === "bonus" &&
                                           "opacity-60 border border-dashed border-[var(--color-border)]",
+                                        venueDetailKey === `${catName}:${name}` &&
+                                          "ring-1 ring-[var(--color-accent-cyan)]",
                                       )}
+                                      onClick={() => handleVenueClick(catName, name)}
                                     >
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1 min-w-0">
@@ -3085,7 +3155,7 @@ function DataStatusTabInternal({
                                         <span className="text-[10px] text-[var(--color-text-muted)]">
                                           {hasDimWeighting
                                             ? `${effectiveFound}/${effectiveExpected} across ${Math.round((effectiveExpected || 0) / (expectedDates || 1))} types`
-                                            : `${subData.dates_found}/${expectedDates} days`}
+                                            : `${subData.dates_found}/${expectedDates} shards`}
                                         </span>
                                         {venueStartDate && (
                                           <span
@@ -3097,6 +3167,55 @@ function DataStatusTabInternal({
                                           </span>
                                         )}
                                       </div>
+                                      {/* Venue detail drill-down */}
+                                      {venueDetailKey === `${catName}:${name}` && (
+                                        <div
+                                          className="mt-1.5 p-1.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {venueDetailLoading ? (
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">Loading...</span>
+                                          ) : venueDetailData ? (
+                                            <div className="space-y-1">
+                                              <div className="text-[9px] text-[var(--color-text-muted)]">
+                                                {venueDetailData.total_instruments} instruments (as of {venueDetailData.date})
+                                              </div>
+                                              {venueDetailData.instrument_types && (
+                                                <div className="space-y-0.5">
+                                                  <span className="text-[9px] font-medium text-[var(--color-accent-cyan)]">Instrument Types</span>
+                                                  {Object.entries(venueDetailData.instrument_types).map(([type, count]) => (
+                                                    <div key={type} className="flex justify-between text-[9px]">
+                                                      <span className="text-[var(--color-text-secondary)] font-mono">{type}</span>
+                                                      <span className="text-[var(--color-text-muted)] font-mono">{count}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {venueDetailData.top_instruments && venueDetailData.top_instruments.length > 0 && (
+                                                <details className="mt-0.5">
+                                                  <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
+                                                    Top {venueDetailData.top_instruments.length} instruments
+                                                  </summary>
+                                                  <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
+                                                    {venueDetailData.top_instruments.map((inst) => (
+                                                      <div key={inst.key} className="flex justify-between text-[8px] font-mono">
+                                                        <span className="text-[var(--color-text-secondary)] truncate mr-2" title={inst.key}>
+                                                          {inst.key}
+                                                        </span>
+                                                        <span className="text-[var(--color-text-muted)] shrink-0">
+                                                          {inst.type}
+                                                        </span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </details>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <span className="text-[9px] text-[var(--color-accent-red)]">Failed to load</span>
+                                          )}
+                                        </div>
+                                      )}
                                       {/* Data types breakdown if available */}
                                       {subData.data_types &&
                                         Object.keys(subData.data_types).length >
@@ -3160,7 +3279,7 @@ function DataStatusTabInternal({
                                           <details className="mt-1">
                                             <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                               {subData.dates_found_count}{" "}
-                                              available days
+                                              available shards
                                             </summary>
                                             <div className="mt-1 pl-1 border-l border-[var(--color-status-success-border-strong)]">
                                               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
@@ -3201,7 +3320,7 @@ function DataStatusTabInternal({
                                           <details className="mt-1">
                                             <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                               {subData.dates_missing_count}{" "}
-                                              missing days
+                                              missing shards
                                             </summary>
                                             <div className="mt-1 pl-1 border-l border-[var(--color-status-error-border-strong)]">
                                               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
@@ -3408,7 +3527,7 @@ function DataStatusTabInternal({
                             )}
                             <span className="font-medium">{catName}</span>
                             <span className="text-xs text-[var(--color-text-muted)]">
-                              ({Object.keys(catData.venues).length} venues)
+                              ({Object.keys(catData.venues || {}).length} venues)
                             </span>
                           </div>
                           <div className="flex items-center gap-4">

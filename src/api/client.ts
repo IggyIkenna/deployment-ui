@@ -31,9 +31,20 @@ import type {
   EpicDetail,
 } from "../types";
 
-const API_BASE = "/api";
+/**
+ * Dynamic API base URL — updated when the cloud provider toggle switches.
+ * Default: "/api" (proxied by Vite to localhost:8004 in dev).
+ * When explicitly set: "http://localhost:8004/api" or "http://localhost:8005/api".
+ */
+let API_BASE = "/api";
+let apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
 
-const apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
+/** Switch the API backend URL. Called by CloudProviderContext on toggle. */
+export function setApiBaseUrl(baseUrl: string) {
+  if (baseUrl === API_BASE) return;
+  API_BASE = baseUrl;
+  apiClient = createApiClient(createClientConfig(API_BASE));
+}
 
 /**
  * Backward-compatible ApiError class.
@@ -710,6 +721,31 @@ export async function getDataStatusTurbo(params: {
   });
 }
 
+/**
+ * Get data status from manifest availability indices (fastest path).
+ * Reads consolidated parquet index files instead of listing blobs.
+ * Works with both GCS and S3 (cloud-agnostic).
+ * Returns the same shape as turbo for UI compatibility.
+ */
+export async function getDataStatusManifest(params: {
+  service: string;
+  start_date: string;
+  end_date: string;
+  category?: string[];
+  signal?: AbortSignal;
+}): Promise<TurboDataStatusResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("service", params.service);
+  searchParams.set("start_date", params.start_date);
+  searchParams.set("end_date", params.end_date);
+  if (params.category) {
+    params.category.forEach((c) => searchParams.append("category", c));
+  }
+  return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
+    signal: params.signal,
+  });
+}
+
 // Get available filters for a specific venue
 export interface VenueFiltersResponse {
   category: string;
@@ -729,6 +765,32 @@ export async function getVenueFilters(
   searchParams.set("category", category);
   searchParams.set("venue", venue);
   return fetchJson(`/data-status/venue-filters?${searchParams.toString()}`);
+}
+
+// Venue detail drill-down — reads a parquet file and returns instrument breakdown
+export interface VenueDetailResult {
+  venue: string;
+  category: string;
+  date: string;
+  total_instruments: number;
+  columns: string[];
+  instrument_types?: Record<string, number>;
+  statuses?: Record<string, number>;
+  top_instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
+}
+
+export async function fetchVenueDetail(
+  service: string,
+  category: string,
+  venue: string,
+  date?: string,
+): Promise<VenueDetailResult> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("service", service);
+  searchParams.set("category", category);
+  searchParams.set("venue", venue);
+  if (date) searchParams.set("date", date);
+  return fetchJson(`/data-status/venue-detail?${searchParams.toString()}`);
 }
 
 // List actual files in cloud storage (GCS or S3) for a fully-specified path
@@ -811,7 +873,7 @@ export const UPSTREAM_CHECK_SERVICES = [
   "features-delta-one-service", // Depends on market-data-processing-service (processed_candles)
 ];
 
-// Services that support turbo mode (all services now supported)
+// Services that support turbo mode (GCS/S3 blob listing — L1-L3 dimension-based)
 export const TURBO_MODE_SERVICES = [
   "instruments-service",
   "market-tick-data-handler",
@@ -820,17 +882,68 @@ export const TURBO_MODE_SERVICES = [
   "features-calendar-service",
   "features-onchain-service",
   "features-volatility-service",
+  "features-sports-service",
+  "features-multi-timeframe-service",
+  "features-cross-instrument-service",
+  "features-commodity-service",
 ];
+
+// Services that support manifest mode (fast parquet index reads — any service with ManifestWriter)
+export const MANIFEST_MODE_SERVICES = [
+  "instruments-service",
+  "market-tick-data-service",
+  "market-data-processing-service",
+  "features-onchain-service",
+  "features-delta-one-service",
+  "features-volatility-service",
+  "features-calendar-service",
+  "features-sports-service",
+  "features-multi-timeframe-service",
+  "features-cross-instrument-service",
+  "features-commodity-service",
+  // L4-L6: Rich services (config/strategy-based sharding)
+  "strategy-service",
+  "execution-service",
+  "ml-training-service",
+  "ml-inference-service",
+  "risk-and-exposure-service",
+  "pnl-attribution-service",
+  "alerting-service",
+];
+
+// Config-based services (L4-L5) — sharding from GCS configs, not fixed dimensions
+export const CONFIG_BASED_SERVICES = [
+  "strategy-service",
+  "execution-service",
+  "ml-training-service",
+  "ml-inference-service",
+];
+
+// Services with no date dimension (use "none" date granularity)
+export const NO_DATE_SERVICES = ["ml-training-service"];
 
 // Services with sub-dimension breakdown support
 export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "instruments-service": "venue",
   "market-tick-data-handler": "data_type",
+  "market-tick-data-service": "data_type",
   "market-data-processing-service": "data_type",
   "features-delta-one-service": "feature_group",
   "features-calendar-service": "feature_group",
   "features-volatility-service": "feature_group",
   "features-onchain-service": "feature_group",
+  "features-sports-service": "feature_group",
+  "features-multi-timeframe-service": "feature_group",
+  "features-cross-instrument-service": "feature_group",
+  "features-commodity-service": "feature_group",
+  // L4-L6 config-based services
+  "strategy-service": "strategy_id",
+  "execution-service": "domain",
+  "ml-training-service": "model_id",
+  "ml-inference-service": "mode",
+  "risk-and-exposure-service": "client_id",
+  "pnl-attribution-service": "strategy_id",
+  "alerting-service": "alert_type",
 };
 
 // Venue Check Response type (when check_venues=true)
@@ -1168,6 +1281,18 @@ export async function getCloudBuildHistory(
   limit: number = 10,
 ): Promise<BuildHistoryResponse> {
   return fetchJson(`/cloud-builds/history/${service}?limit=${limit}`);
+}
+
+export interface AwsStatusResponse {
+  authenticated: boolean;
+  account_id?: string;
+  user_arn?: string;
+  region?: string;
+  error?: string;
+}
+
+export async function getAwsStatus(): Promise<AwsStatusResponse> {
+  return fetchJson("/cloud-builds/aws-status");
 }
 
 // Instrument Search and Availability
