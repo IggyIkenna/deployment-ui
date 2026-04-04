@@ -1,34 +1,34 @@
+import type { ApiClient } from "@unified-admin/core";
 import {
+  ApiClientError,
   createApiClient,
   createClientConfig,
-  ApiClientError,
 } from "@unified-admin/core";
-import type { ApiClient } from "@unified-admin/core";
 import type {
-  Service,
-  ServiceDimensionsResponse,
-  VenuesResponse,
   CategoryVenuesResponse,
-  StartDatesResponse,
+  ChecklistResponse,
+  ChecklistSummary,
+  ChecklistValidateResponse,
+  CreateDeploymentResponse,
+  DataStatusResponse,
   DependenciesResponse,
   Deployment,
-  DeploymentRequest,
-  CreateDeploymentResponse,
-  HealthResponse,
-  ChecklistResponse,
-  ChecklistValidateResponse,
-  ChecklistSummary,
-  DataStatusResponse,
-  MissingShardsResponse,
-  ServiceStatus,
-  ServicesOverview,
-  DiscoverConfigsResponse,
   DeploymentEventStream,
+  DeploymentRequest,
+  DiscoverConfigsResponse,
+  EpicDetail,
+  EpicSummary,
+  HealthResponse,
+  LiveHealthStatus,
+  MissingShardsResponse,
   RollbackRequest,
   RollbackResponse,
-  LiveHealthStatus,
-  EpicSummary,
-  EpicDetail,
+  Service,
+  ServiceDimensionsResponse,
+  ServiceStatus,
+  ServicesOverview,
+  StartDatesResponse,
+  VenuesResponse,
 } from "../types";
 
 /**
@@ -571,6 +571,8 @@ export interface TurboDataTypeStatus {
 export interface TurboSubDimension {
   dates_found: number;
   dates_expected: number; // Legacy: category-level expected
+  dates_missing?: number;
+  missing_dates?: string[];
   dates_expected_venue?: number; // NEW: venue-specific expected based on venue start
   dates_expected_category?: number; // NEW: category-level expected for reference
   venue_start_date?: string | null; // NEW: when venue data starts
@@ -743,6 +745,44 @@ export async function getDataStatusManifest(params: {
   }
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,
+  });
+}
+
+// Coverage summary — manifest totals + latest-day unique instrument counts
+export interface CoverageCategorySummary {
+  total_shards: number;
+  total_instrument_rows: number;
+  unique_dates: number;
+  unique_venues: number;
+  date_range: { start: string; end: string } | null;
+  latest_day: string | null;
+  latest_day_instruments: Record<string, number>;
+  latest_day_total: number;
+}
+
+export interface CoverageSummaryResponse {
+  service: string;
+  categories: Record<string, CoverageCategorySummary>;
+  totals: {
+    shards: number;
+    instrument_rows: number;
+    dates_across_categories: number;
+    latest_day_instruments: number;
+  };
+  mock?: boolean;
+}
+
+export async function getDataCoverageSummary(params?: {
+  service?: string;
+  categories?: string;
+  signal?: AbortSignal;
+}): Promise<CoverageSummaryResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.service) searchParams.set("service", params.service);
+  if (params?.categories) searchParams.set("categories", params.categories);
+  const qs = searchParams.toString();
+  return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
+    signal: params?.signal,
   });
 }
 

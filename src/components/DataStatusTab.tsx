@@ -1,45 +1,51 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  Database,
-  RefreshCw,
   AlertCircle,
   AlertTriangle,
+  Building2,
+  Calendar,
+  CalendarDays,
   CheckCircle,
   CheckCircle2,
-  XCircle,
-  Calendar,
   ChevronDown,
   ChevronRight,
-  Rocket,
-  Loader2,
-  Filter,
+  Database,
   Eye,
-  Table2,
-  CalendarDays,
-  Building2,
-  Trash2,
   FileText,
+  Filter,
+  Loader2,
+  RefreshCw,
+  Rocket,
+  Table2,
+  Trash2,
+  XCircle,
 } from "lucide-react";
-import * as api from "../api/client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  VenueCheckResponse,
   DataTypeCheckResponse,
+  TurboCategoryStatus,
   TurboDataStatusResponse,
+  TurboSubDimension,
+  VenueCheckResponse,
 } from "../api/client";
-import type { CategoryVenuesResponse } from "../types";
+import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES } from "../api/client";
+import { cn } from "../lib/utils";
+import type { CategoryStatus, CategoryVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import { ExecutionDataStatus } from "./ExecutionDataStatus";
+import { HeatmapCalendar } from "./HeatmapCalendar";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { Dialog, DialogHeader, DialogTitle, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -47,15 +53,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Label } from "./ui/label";
-import { cn } from "../lib/utils";
-import { HeatmapCalendar } from "./HeatmapCalendar";
-import { ExecutionDataStatus } from "./ExecutionDataStatus";
-import type {
-  DataStatusResponse,
-  CategoryStatus,
-  CreateDeploymentResponse,
-} from "../types";
 
 interface DataStatusTabProps {
   serviceName: string;
@@ -108,15 +105,16 @@ const SUB_DIMENSION_LABELS: Record<string, string> = {
 const SUB_DIMENSION_KEYS = Object.keys(SUB_DIMENSION_LABELS);
 
 /** Extract sub-dimension data from a category result, regardless of which key it's under. */
-function getSubDimensionData(catData: Record<string, unknown>): {
-  data: Record<string, unknown> | null;
+function getSubDimensionData(catData: TurboCategoryStatus): {
+  data: Record<string, TurboSubDimension> | null;
   key: string | null;
   label: string;
 } {
   for (const key of SUB_DIMENSION_KEYS) {
-    if (catData[key] && typeof catData[key] === "object") {
+    const subDimension = catData[key as keyof TurboCategoryStatus];
+    if (subDimension && typeof subDimension === "object") {
       return {
-        data: catData[key] as Record<string, unknown>,
+        data: subDimension as Record<string, TurboSubDimension>,
         key,
         label: SUB_DIMENSION_LABELS[key] || key,
       };
@@ -268,12 +266,25 @@ function DataStatusTabInternal({
         setBackendRegion(region);
         setDeployMissingRegion(region);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
     setShowDeployMissingRegionWarning(deployMissingRegion !== backendRegion);
   }, [deployMissingRegion, backendRegion]);
+
+  // Auto-fetch coverage summary on mount (fast — reads manifest parquets only)
+  useEffect(() => {
+    if (!api.MANIFEST_MODE_SERVICES.includes(serviceName)) return;
+    const controller = new AbortController();
+    setCoverageSummaryLoading(true);
+    api
+      .getDataCoverageSummary({ service: serviceName, signal: controller.signal })
+      .then((result) => setCoverageSummary(result))
+      .catch(() => setCoverageSummary(null))
+      .finally(() => setCoverageSummaryLoading(false));
+    return () => controller.abort();
+  }, [serviceName]);
 
   // First day of month filter - useful for TARDIS free tier (no API key needed)
   const [firstDayOfMonthOnly, setFirstDayOfMonthOnly] = useState(false);
@@ -298,6 +309,11 @@ function DataStatusTabInternal({
   const [instrumentAvailabilityError, setInstrumentAvailabilityError] =
     useState<string | null>(null);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
+
+  // Coverage summary state — auto-fetched on mount for instruments-service
+  const [coverageSummary, setCoverageSummary] =
+    useState<api.CoverageSummaryResponse | null>(null);
+  const [coverageSummaryLoading, setCoverageSummaryLoading] = useState(false);
 
   // Venue toggle removed - turbo mode handles venue breakdown automatically
   // instruments-service uses sub_dimension: "venue" which gives venue breakdown in turbo mode
@@ -902,7 +918,7 @@ function DataStatusTabInternal({
   // Get categories with missing data for deploy missing
   // IMPORTANT: Check both category-level AND venue-level missing data
   const categoriesWithMissing = useMemo(() => {
-    if (turboData) {
+    if (turboData && turboData.categories) {
       return Object.entries(turboData.categories)
         .filter(([_, catData]) => {
           // Check category-level missing
@@ -1248,6 +1264,86 @@ function DataStatusTabInternal({
 
   return (
     <div className="space-y-4">
+      {/* Coverage Summary Card — auto-loaded from manifest */}
+      {(coverageSummary || coverageSummaryLoading) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                <CardTitle className="text-base">Instrument Coverage Summary</CardTitle>
+                <Badge variant="outline" className="text-[10px]">MANIFEST</Badge>
+              </div>
+              {coverageSummary?.totals && (
+                <div className="text-right">
+                  <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
+                    {coverageSummary.totals.latest_day_instruments.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-[var(--color-text-muted)]">unique instruments (latest day)</div>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {coverageSummaryLoading ? (
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading coverage summary...
+              </div>
+            ) : coverageSummary ? (
+              <div className="space-y-3">
+                {/* Grand totals row */}
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                    <div className="text-lg font-mono font-bold">{coverageSummary.totals.shards.toLocaleString()}</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Total Shards</div>
+                  </div>
+                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.instrument_rows / 1_000_000).toFixed(1)}M</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Instrument Rows</div>
+                  </div>
+                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                    <div className="text-lg font-mono font-bold">{coverageSummary.totals.dates_across_categories.toLocaleString()}</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all cats)</div>
+                  </div>
+                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.categories).length}</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Categories</div>
+                  </div>
+                </div>
+
+                {/* Per-category breakdown */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {Object.entries(coverageSummary.categories).map(([cat, catData]) => (
+                    <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
+                        <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} venues</span>
+                      </div>
+                      <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments</div>
+                      <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                        {catData.unique_dates.toLocaleString()} dates &middot; {catData.total_shards.toLocaleString()} shards
+                        {catData.date_range && (
+                          <> &middot; {catData.date_range.start} to {catData.date_range.end}</>
+                        )}
+                      </div>
+                      {/* Instrument type pills */}
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(catData.latest_day_instruments).map(([itype, count]) => (
+                          <span key={itype} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
+                            {itype} <strong>{count.toLocaleString()}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters Card */}
       <Card>
         <CardHeader className="pb-3">
@@ -1826,23 +1922,23 @@ function DataStatusTabInternal({
                             {/* Instrument Availability Window */}
                             {(selectedInstrument.available_from_datetime ||
                               selectedInstrument.available_to_datetime) && (
-                              <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                                <span className="text-[var(--color-accent-amber)]">
-                                  Available:{" "}
-                                </span>
-                                {selectedInstrument.available_from_datetime
-                                  ? selectedInstrument.available_from_datetime.split(
+                                <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                  <span className="text-[var(--color-accent-amber)]">
+                                    Available:{" "}
+                                  </span>
+                                  {selectedInstrument.available_from_datetime
+                                    ? selectedInstrument.available_from_datetime.split(
                                       "T",
                                     )[0]
-                                  : "..."}
-                                {" → "}
-                                {selectedInstrument.available_to_datetime
-                                  ? selectedInstrument.available_to_datetime.split(
+                                    : "..."}
+                                  {" → "}
+                                  {selectedInstrument.available_to_datetime
+                                    ? selectedInstrument.available_to_datetime.split(
                                       "T",
                                     )[0]
-                                  : "ongoing"}
-                              </div>
-                            )}
+                                    : "ongoing"}
+                                </div>
+                              )}
                           </div>
                           <Button
                             size="sm"
@@ -1946,24 +2042,24 @@ function DataStatusTabInternal({
                                 dates
                                 {instrumentAvailability.availability_window
                                   .instrument_from && (
-                                  <span className="block mt-1">
-                                    <span className="text-[var(--color-text-muted)]">
-                                      Instrument available:{" "}
-                                    </span>
-                                    {
-                                      instrumentAvailability.availability_window.instrument_from.split(
-                                        "T",
-                                      )[0]
-                                    }
-                                    {" → "}
-                                    {instrumentAvailability.availability_window
-                                      .instrument_to
-                                      ? instrumentAvailability.availability_window.instrument_to.split(
+                                    <span className="block mt-1">
+                                      <span className="text-[var(--color-text-muted)]">
+                                        Instrument available:{" "}
+                                      </span>
+                                      {
+                                        instrumentAvailability.availability_window.instrument_from.split(
                                           "T",
                                         )[0]
-                                      : "ongoing"}
-                                  </span>
-                                )}
+                                      }
+                                      {" → "}
+                                      {instrumentAvailability.availability_window
+                                        .instrument_to
+                                        ? instrumentAvailability.availability_window.instrument_to.split(
+                                          "T",
+                                        )[0]
+                                        : "ongoing"}
+                                    </span>
+                                  )}
                               </>
                             ) : (
                               <>
@@ -1978,11 +2074,11 @@ function DataStatusTabInternal({
                             )}
                             {instrumentAvailability.date_range
                               .first_day_of_month_only && (
-                              <span className="text-[var(--color-accent-cyan)]">
-                                {" "}
-                                (first day of month only)
-                              </span>
-                            )}
+                                <span className="text-[var(--color-accent-cyan)]">
+                                  {" "}
+                                  (first day of month only)
+                                </span>
+                              )}
                           </div>
                         </div>
 
@@ -2215,7 +2311,7 @@ function DataStatusTabInternal({
                       const end = new Date(endDate);
                       const months = Math.ceil(
                         (end.getTime() - start.getTime()) /
-                          (1000 * 60 * 60 * 24 * 30),
+                        (1000 * 60 * 60 * 24 * 30),
                       );
                       const etaSeconds =
                         months > 6
@@ -2471,14 +2567,14 @@ function DataStatusTabInternal({
                       </div>
                       {heatmapData.find((d) => d.date === selectedCalendarDate)
                         ?.tooltip && (
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                          {
-                            heatmapData.find(
-                              (d) => d.date === selectedCalendarDate,
-                            )?.tooltip
-                          }
-                        </p>
-                      )}
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {
+                              heatmapData.find(
+                                (d) => d.date === selectedCalendarDate,
+                              )?.tooltip
+                            }
+                          </p>
+                        )}
                     </div>
                   )}
                 </CardContent>
@@ -2671,7 +2767,7 @@ function DataStatusTabInternal({
         )}
 
       {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
-      {turboData && !checkVenues && !checkDataTypes && (
+      {turboData && turboData.date_range && !checkVenues && !checkDataTypes && (
         <>
           {/* Summary Card */}
           <Card>
@@ -2690,7 +2786,7 @@ function DataStatusTabInternal({
                   </CardTitle>
                   <CardDescription className="mt-1">
                     {turboData.date_range.start} to {turboData.date_range.end} (
-                    {turboData.date_range.days} days)
+                    {turboData.date_range.days || "?"} days)
                   </CardDescription>
                 </div>
                 <div className="text-right">
@@ -2770,7 +2866,7 @@ function DataStatusTabInternal({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Object.entries(turboData.categories).map(
+                {Object.entries(turboData.categories || {}).map(
                   ([catName, catData]) => {
                     const isComplete = catData.completion_pct >= 100;
 
@@ -3043,18 +3139,18 @@ function DataStatusTabInternal({
                                     )}
                                     {catData.venue_summary.unexpected_but_found
                                       .length > 0 && (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
-                                      >
-                                        +
-                                        {
-                                          catData.venue_summary
-                                            .unexpected_but_found.length
-                                        }{" "}
-                                        bonus
-                                      </Badge>
-                                    )}
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                        >
+                                          +
+                                          {
+                                            catData.venue_summary
+                                              .unexpected_but_found.length
+                                          }{" "}
+                                          bonus
+                                        </Badge>
+                                      )}
                                   </div>
                                 )}
                               </div>
@@ -3094,12 +3190,22 @@ function DataStatusTabInternal({
                                   const effectiveExpected = hasDimWeighting
                                     ? subData._dim_weighted_expected
                                     : subData.dates_expected_venue ||
-                                      subData.dates_expected;
+                                    subData.dates_expected;
                                   const expectedDates =
                                     subData.dates_expected_venue ||
                                     subData.dates_expected;
                                   const venueStartDate =
                                     subData.venue_start_date;
+                                  const foundList =
+                                    subData.dates_found_list ?? [];
+                                  const missingList =
+                                    subData.missing_dates ??
+                                    subData.dates_missing_list ??
+                                    [];
+                                  const missingCount =
+                                    subData.dates_missing ??
+                                    subData.dates_missing_count ??
+                                    missingList.length;
 
                                   return (
                                     <div
@@ -3107,9 +3213,9 @@ function DataStatusTabInternal({
                                       className={cn(
                                         "bg-[var(--color-bg-tertiary)] rounded p-2 cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors",
                                         subData.status === "bonus" &&
-                                          "opacity-60 border border-dashed border-[var(--color-border)]",
+                                        "opacity-60 border border-dashed border-[var(--color-border)]",
                                         venueDetailKey === `${catName}:${name}` &&
-                                          "ring-1 ring-[var(--color-accent-cyan)]",
+                                        "ring-1 ring-[var(--color-accent-cyan)]",
                                       )}
                                       onClick={() => handleVenueClick(catName, name)}
                                     >
@@ -3167,7 +3273,51 @@ function DataStatusTabInternal({
                                           </span>
                                         )}
                                       </div>
-                                      {/* Venue detail drill-down */}
+                                      {/* Per-venue missing/found date dropdowns */}
+                                      {(missingList.length > 0 ||
+                                        foundList.length > 0) && (
+                                          <div className="flex gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
+                                            {foundList.length > 0 && (
+                                              <details className="flex-1">
+                                                <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                  {subData.dates_found} available
+                                                </summary>
+                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                  {foundList.map((date: string) => (
+                                                    <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                      {date}
+                                                    </span>
+                                                  ))}
+                                                  {subData.dates_found > foundList.length && (
+                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                      +{subData.dates_found - foundList.length} more
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </details>
+                                            )}
+                                            {missingList.length > 0 && (
+                                              <details className="flex-1">
+                                                <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                  {missingCount} missing
+                                                </summary>
+                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                  {missingList.map((date: string) => (
+                                                    <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                      {date}
+                                                    </span>
+                                                  ))}
+                                                  {missingCount > missingList.length && (
+                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                      +{missingCount - missingList.length} more
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </details>
+                                            )}
+                                          </div>
+                                        )}
+                                      {/* Venue detail drill-down (instrument breakdown) */}
                                       {venueDetailKey === `${catName}:${name}` && (
                                         <div
                                           className="mt-1.5 p-1.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
@@ -3186,7 +3336,7 @@ function DataStatusTabInternal({
                                                   {Object.entries(venueDetailData.instrument_types).map(([type, count]) => (
                                                     <div key={type} className="flex justify-between text-[9px]">
                                                       <span className="text-[var(--color-text-secondary)] font-mono">{type}</span>
-                                                      <span className="text-[var(--color-text-muted)] font-mono">{count}</span>
+                                                      <span className="text-[var(--color-text-muted)] font-mono">{count as number}</span>
                                                     </div>
                                                   ))}
                                                 </div>
@@ -3197,7 +3347,7 @@ function DataStatusTabInternal({
                                                     Top {venueDetailData.top_instruments.length} instruments
                                                   </summary>
                                                   <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
-                                                    {venueDetailData.top_instruments.map((inst) => (
+                                                    {venueDetailData.top_instruments.map((inst: { key: string; type: string }) => (
                                                       <div key={inst.key} className="flex justify-between text-[8px] font-mono">
                                                         <span className="text-[var(--color-text-secondary)] truncate mr-2" title={inst.key}>
                                                           {inst.key}
@@ -3219,7 +3369,7 @@ function DataStatusTabInternal({
                                       {/* Data types breakdown if available */}
                                       {subData.data_types &&
                                         Object.keys(subData.data_types).length >
-                                          0 && (
+                                        0 && (
                                           <details className="mt-1">
                                             <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
                                               {
@@ -3240,14 +3390,14 @@ function DataStatusTabInternal({
                                                     className={cn(
                                                       "truncate",
                                                       dtData.status ===
-                                                        "missing" &&
-                                                        "text-[var(--color-accent-red)]",
+                                                      "missing" &&
+                                                      "text-[var(--color-accent-red)]",
                                                       dtData.status ===
-                                                        "partial" &&
-                                                        "text-[var(--color-accent-amber)]",
+                                                      "partial" &&
+                                                      "text-[var(--color-accent-amber)]",
                                                       dtData.status ===
-                                                        "complete" &&
-                                                        "text-[var(--color-accent-green)]",
+                                                      "complete" &&
+                                                      "text-[var(--color-accent-green)]",
                                                     )}
                                                   >
                                                     {dtName}
@@ -3256,14 +3406,14 @@ function DataStatusTabInternal({
                                                     className={cn(
                                                       "ml-1 font-mono",
                                                       dtData.status ===
-                                                        "missing" &&
-                                                        "text-[var(--color-accent-red)]",
+                                                      "missing" &&
+                                                      "text-[var(--color-accent-red)]",
                                                       dtData.status ===
-                                                        "partial" &&
-                                                        "text-[var(--color-accent-amber)]",
+                                                      "partial" &&
+                                                      "text-[var(--color-accent-amber)]",
                                                       dtData.status ===
-                                                        "complete" &&
-                                                        "text-[var(--color-accent-green)]",
+                                                      "complete" &&
+                                                      "text-[var(--color-accent-green)]",
                                                     )}
                                                   >
                                                     {dtData.completion_pct}%
@@ -3484,14 +3634,14 @@ function DataStatusTabInternal({
                     </div>
                     {heatmapData.find((d) => d.date === selectedCalendarDate)
                       ?.tooltip && (
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        {
-                          heatmapData.find(
-                            (d) => d.date === selectedCalendarDate,
-                          )?.tooltip
-                        }
-                      </p>
-                    )}
+                        <p className="text-sm text-[var(--color-text-secondary)]">
+                          {
+                            heatmapData.find(
+                              (d) => d.date === selectedCalendarDate,
+                            )?.tooltip
+                          }
+                        </p>
+                      )}
                   </div>
                 )}
               </CardContent>
@@ -4045,7 +4195,7 @@ function DataStatusTabInternal({
                             className={cn(
                               "border-t border-[var(--color-border-subtle)]",
                               dayResult.file_count === 0 &&
-                                "bg-[var(--color-accent-red)]/5",
+                              "bg-[var(--color-accent-red)]/5",
                             )}
                           >
                             <td className="px-3 py-2 font-mono">
@@ -4057,19 +4207,19 @@ function DataStatusTabInternal({
                             <td className="px-3 py-2 text-right font-mono text-[var(--color-text-muted)]">
                               {dayResult.total_size_bytes > 0
                                 ? (
-                                    dayResult.total_size_bytes /
-                                    (1024 * 1024)
-                                  ).toFixed(1) + " MB"
+                                  dayResult.total_size_bytes /
+                                  (1024 * 1024)
+                                ).toFixed(1) + " MB"
                                 : "-"}
                             </td>
                             <td className="px-3 py-2 font-mono text-[var(--color-text-muted)] text-xs">
                               {dayResult.last_modified
                                 ? new Date(
-                                    dayResult.last_modified,
-                                  ).toLocaleString(undefined, {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  })
+                                  dayResult.last_modified,
+                                ).toLocaleString(undefined, {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })
                                 : "-"}
                             </td>
                             <td className="px-3 py-2">
