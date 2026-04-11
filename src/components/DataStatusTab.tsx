@@ -123,6 +123,48 @@ function getSubDimensionData(catData: TurboCategoryStatus): {
   return { data: null, key: null, label: "" };
 }
 
+// Venue pill list with search and capped display
+function VenuePillList({ venues }: { venues: Record<string, number> }) {
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const entries = Object.entries(venues);
+  const filtered = search
+    ? entries.filter(([v]) => v.toLowerCase().includes(search.toLowerCase()))
+    : entries;
+  const MAX_VISIBLE = 8;
+  const visible = expanded ? filtered : filtered.slice(0, MAX_VISIBLE);
+  const hiddenCount = filtered.length - visible.length;
+
+  return (
+    <div className="space-y-1">
+      {entries.length > MAX_VISIBLE && (
+        <input
+          type="text"
+          placeholder="Search venues..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setExpanded(false); }}
+          className="w-full px-2 py-1 rounded text-[10px] bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
+        />
+      )}
+      <div className="flex flex-wrap gap-1">
+        {visible.map(([venue, count]) => (
+          <span key={venue} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
+            {venue} <strong>{count.toLocaleString()}</strong>
+          </span>
+        ))}
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-accent-cyan)] hover:underline cursor-pointer border-none"
+          >
+            +{hiddenCount} more
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Internal component for non-execution-services
 function DataStatusTabInternal({
   serviceName,
@@ -157,6 +199,8 @@ function DataStatusTabInternal({
     "CEFI",
     "DEFI",
     "TRADFI",
+    "SPORTS",
+    "PREDICTION",
   ]); // Default to all
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
@@ -733,12 +777,12 @@ function DataStatusTabInternal({
         } else {
           // Service has no category dimension (e.g., features-calendar-service)
           // Default to all categories for backward compatibility
-          setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
+          setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
         }
       })
       .catch(() => {
         // On error, default to all categories
-        setAvailableCategories(["CEFI", "DEFI", "TRADFI"]);
+        setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
       })
       .finally(() => {
         setCategoriesLoading(false);
@@ -902,9 +946,15 @@ function DataStatusTabInternal({
   // For turbo mode, use total_missing which is venue-weighted (consistent with overall_completion_pct)
   const totalMissing = useMemo(() => {
     if (turboData) {
-      // Use venue-weighted total_missing for consistency with overall_completion_pct
-      // This ensures "All expected data present" only shows when completion is truly 100%
-      return turboData.total_missing || 0;
+      // Derive missing from completion_pct — total_missing may be absent from API response
+      if (turboData.total_missing != null && turboData.total_missing > 0) {
+        return turboData.total_missing;
+      }
+      // Fallback: if overall_completion_pct < 100, there IS missing data
+      if ((turboData.overall_completion_pct ?? 0) < 99.99) {
+        return Math.max(1, (turboData.overall_dates_expected ?? 0) - (turboData.overall_dates_found ?? 0));
+      }
+      return 0;
     }
     if (data) {
       return Object.values(data.categories).reduce(
@@ -1279,7 +1329,7 @@ function DataStatusTabInternal({
                   <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
                     {coverageSummary.totals.latest_day_instruments.toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">unique instruments (latest day)</div>
+                  <div className="text-[10px] text-[var(--color-text-muted)]">unique venues (latest day)</div>
                 </div>
               )}
             </div>
@@ -1290,51 +1340,45 @@ function DataStatusTabInternal({
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading coverage summary...
               </div>
-            ) : coverageSummary ? (
+            ) : coverageSummary?.totals ? (
               <div className="space-y-3">
                 {/* Grand totals row */}
                 <div className="grid grid-cols-4 gap-3 text-center">
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{coverageSummary.totals.shards.toLocaleString()}</div>
+                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.shards ?? 0).toLocaleString()}</div>
                     <div className="text-[10px] text-[var(--color-text-muted)]">Total Shards</div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.instrument_rows / 1_000_000).toFixed(1)}M</div>
+                    <div className="text-lg font-mono font-bold">{((coverageSummary.totals.instrument_rows ?? 0) / 1_000_000).toFixed(1)}M</div>
                     <div className="text-[10px] text-[var(--color-text-muted)]">Instrument Rows</div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{coverageSummary.totals.dates_across_categories.toLocaleString()}</div>
+                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.dates_across_categories ?? 0).toLocaleString()}</div>
                     <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all cats)</div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.categories).length}</div>
+                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.categories ?? {}).length}</div>
                     <div className="text-[10px] text-[var(--color-text-muted)]">Categories</div>
                   </div>
                 </div>
 
                 {/* Per-category breakdown */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {Object.entries(coverageSummary.categories).map(([cat, catData]) => (
+                  {Object.entries(coverageSummary.categories ?? {}).map(([cat, catData]) => (
                     <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
-                        <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} venues</span>
+                        <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} {catData.sub_dimension_label ?? "venues"}</span>
                       </div>
-                      <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments</div>
+                      <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments (latest day)</div>
                       <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
                         {catData.unique_dates.toLocaleString()} dates &middot; {catData.total_shards.toLocaleString()} shards
                         {catData.date_range && (
                           <> &middot; {catData.date_range.start} to {catData.date_range.end}</>
                         )}
                       </div>
-                      {/* Instrument type pills */}
-                      <div className="flex flex-wrap gap-1">
-                        {Object.entries(catData.latest_day_instruments).map(([itype, count]) => (
-                          <span key={itype} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
-                            {itype} <strong>{count.toLocaleString()}</strong>
-                          </span>
-                        ))}
-                      </div>
+                      {/* Instrument type pills — show first 8 with expandable overflow */}
+                      <VenuePillList venues={catData.latest_day_instruments} />
                     </div>
                   ))}
                 </div>

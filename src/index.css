@@ -1,6 +1,9 @@
 /* SSOT: theme tokens + base styles from ui-kit */
 @import "@unified-trading/ui-kit/globals.css";
 
+/* Restrict Tailwind scanning to deployment-ui source only (speeds cold start) */
+@source "../src";
+
 /* Deployment-UI specific overrides */
 
 #root {

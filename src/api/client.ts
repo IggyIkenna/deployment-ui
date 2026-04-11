@@ -754,6 +754,7 @@ export interface CoverageCategorySummary {
   total_instrument_rows: number;
   unique_dates: number;
   unique_venues: number;
+  sub_dimension_label?: string;
   date_range: { start: string; end: string } | null;
   latest_day: string | null;
   latest_day_instruments: Record<string, number>;

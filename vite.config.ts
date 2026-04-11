@@ -28,6 +28,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 5183,
     strictPort: true,
+    hmr: {
+      overlay: true,
+      timeout: 5000,
+    },
+    watch: {
+      usePolling: false,
+      ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:8004",

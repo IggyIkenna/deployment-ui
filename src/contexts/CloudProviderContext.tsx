@@ -32,6 +32,10 @@ const PORT_MAP: Record<CloudTarget, number> = {
 };
 
 function getApiBaseUrl(t: CloudTarget): string {
+  // In dev mode, use the Vite proxy to avoid CORS issues
+  if (import.meta.env.DEV) {
+    return "/api";
+  }
   return `http://localhost:${PORT_MAP[t]}/api`;
 }
 

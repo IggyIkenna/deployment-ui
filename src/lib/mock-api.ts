@@ -813,7 +813,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.match(/^\/api\/capabilities\/service-categories\/.+/)) {
     return json({
-      categories: ["CEFI", "DEFI", "TRADFI"],
+      categories: ["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"],
       service: path.split("/").pop(),
     });
   }
