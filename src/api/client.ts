@@ -568,6 +568,15 @@ export interface TurboDataTypeStatus {
   status?: "complete" | "partial" | "missing";
 }
 
+export interface TurboLeagueStatus {
+  dates_found: number;
+  dates_expected: number;
+  dates_missing: number;
+  missing_dates?: string[];
+  dates_found_list?: string[];
+  completion_pct: number;
+}
+
 export interface TurboSubDimension {
   dates_found: number;
   dates_expected: number; // Legacy: category-level expected
@@ -591,6 +600,22 @@ export interface TurboSubDimension {
   dates_missing_list_tail?: string[]; // Last 25 missing dates (if truncated)
   dates_missing_truncated?: boolean; // True if list was truncated
   data_types?: Record<string, TurboDataTypeStatus>; // NEW: per-data-type breakdown
+  leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
+}
+
+export interface TurboChainStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  venues: string[];
+  venue_count: number;
+}
+
+export interface TurboFeatureGroupStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
 }
 
 export interface TurboVenueSummary {
@@ -637,6 +662,8 @@ export interface TurboCategoryStatus {
   data_types?: { [name: string]: TurboSubDimension };
   feature_groups?: { [name: string]: TurboSubDimension };
   folders?: { [name: string]: TurboSubDimension }; // Instrument type breakdown
+  chains?: { [name: string]: TurboChainStatus }; // DeFi chain breakdown (v4)
+  feature_groups?: { [name: string]: TurboFeatureGroupStatus }; // Feature service breakdown (v4)
   venue_summary?: TurboVenueSummary;
 }
 

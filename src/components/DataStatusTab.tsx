@@ -24,6 +24,7 @@ import type {
   DataTypeCheckResponse,
   TurboCategoryStatus,
   TurboDataStatusResponse,
+  TurboLeagueStatus,
   TurboSubDimension,
   VenueCheckResponse,
 } from "../api/client";
@@ -3004,11 +3005,11 @@ function DataStatusTabInternal({
                           !catData.error && (
                             <div className="flex gap-4 mt-2">
                               {/* Available dates dropdown (green) */}
-                              {catData.dates_found_count &&
-                                catData.dates_found_count > 0 && (
+                              {catData.dates_found_list &&
+                                catData.dates_found_list.length > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                      {catData.dates_found_count} available shards
+                                      {catData.dates_found ?? catData.dates_found_list.length} available shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
@@ -3044,11 +3045,11 @@ function DataStatusTabInternal({
                                   </details>
                                 )}
                               {/* Missing dates dropdown (red) */}
-                              {catData.dates_missing_count &&
-                                catData.dates_missing_count > 0 && (
+                              {catData.dates_missing_list &&
+                                catData.dates_missing_list.length > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                      {catData.dates_missing_count} missing shards
+                                      {catData.dates_missing ?? catData.dates_missing_list.length} missing shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
@@ -3147,6 +3148,93 @@ function DataStatusTabInternal({
                                 </div>
                               )}
 
+                            {/* Chain breakdown for DeFi (v4) */}
+                            {catData.chains && Object.keys(catData.chains).length > 0 && (
+                              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                  Chains
+                                </p>
+                                <div className="space-y-0.5">
+                                  {Object.entries(catData.chains).map(([chainName, chainData]) => {
+                                    const cd = chainData as { dates_found: number; dates_expected: number; completion_pct: number; venues: string[]; venue_count: number };
+                                    return (
+                                      <details key={chainName} className="group/chain">
+                                        <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                          <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/chain:rotate-90" />
+                                          <span className="text-xs font-mono">{chainName}</span>
+                                          <span className="text-[9px] text-[var(--color-text-muted)]">({cd.venue_count} protocols)</span>
+                                          <div className="flex-1" />
+                                          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{cd.dates_found}/{cd.dates_expected}</span>
+                                          <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                            <div className="h-full" style={{ width: `${cd.completion_pct}%`, backgroundColor: getCompletionColor(cd.completion_pct) }} />
+                                          </div>
+                                          <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(cd.completion_pct) }}>
+                                            {cd.completion_pct.toFixed(0)}%
+                                          </span>
+                                        </summary>
+                                        <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1">
+                                          <div className="flex flex-wrap gap-1">
+                                            {cd.venues.map((v: string) => (
+                                              <span key={v} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+                                                {v}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </details>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Feature group breakdown (v4) */}
+                            {catData.feature_groups && Object.keys(catData.feature_groups).length > 0 && (
+                              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                  Feature Groups
+                                </p>
+                                <div className="space-y-0.5">
+                                  {Object.entries(catData.feature_groups).map(([fgName, fgData]) => {
+                                    const fg = fgData as { dates_found: number; dates_expected: number; completion_pct: number; timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> };
+                                    return (
+                                      <details key={fgName} className="group/fg">
+                                        <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                          <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/fg:rotate-90" />
+                                          <span className="text-xs font-mono">{fgName}</span>
+                                          <div className="flex-1" />
+                                          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{fg.dates_found}/{fg.dates_expected}</span>
+                                          <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                            <div className="h-full" style={{ width: `${fg.completion_pct}%`, backgroundColor: getCompletionColor(fg.completion_pct) }} />
+                                          </div>
+                                          <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(fg.completion_pct) }}>
+                                            {fg.completion_pct.toFixed(0)}%
+                                          </span>
+                                        </summary>
+                                        {fg.timeframes && Object.keys(fg.timeframes).length > 0 && (
+                                          <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
+                                            {Object.entries(fg.timeframes).map(([tf, tfData]) => (
+                                              <div key={tf} className="flex items-center gap-2 py-0.5 px-1.5">
+                                                <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">{tf}</span>
+                                                <div className="flex-1" />
+                                                <span className="text-[9px] text-[var(--color-text-muted)] font-mono">{tfData.dates_found}/{tfData.dates_expected}</span>
+                                                <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                  <div className="h-full" style={{ width: `${tfData.completion_pct}%`, backgroundColor: getCompletionColor(tfData.completion_pct) }} />
+                                                </div>
+                                                <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(tfData.completion_pct) }}>
+                                                  {tfData.completion_pct.toFixed(0)}%
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </details>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Sub-dimension section - own bordered container */}
                             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                               <div className="flex items-center justify-between mb-2">
@@ -3219,22 +3307,10 @@ function DataStatusTabInternal({
                                   </div>
                                 )}
 
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                              <div className="space-y-0.5">
                                 {Object.entries(
                                   getSubDimensionData(catData).data || {},
                                 ).map(([name, subData]) => {
-                                  // Use dimension-weighted counts when available (accounts for
-                                  // multiple expected data_types/folders per venue). Falls back
-                                  // to raw venue dates for services without sub-dimensions.
-                                  const hasDimWeighting =
-                                    subData._dim_weighted_found !== undefined;
-                                  const effectiveFound = hasDimWeighting
-                                    ? subData._dim_weighted_found
-                                    : subData.dates_found;
-                                  const effectiveExpected = hasDimWeighting
-                                    ? subData._dim_weighted_expected
-                                    : subData.dates_expected_venue ||
-                                    subData.dates_expected;
                                   const expectedDates =
                                     subData.dates_expected_venue ||
                                     subData.dates_expected;
@@ -3250,81 +3326,139 @@ function DataStatusTabInternal({
                                     subData.dates_missing ??
                                     subData.dates_missing_count ??
                                     missingList.length;
+                                  const hasDataTypes = subData.data_types && Object.keys(subData.data_types).length > 0;
+                                  const hasLeagues = subData.leagues && Object.keys(subData.leagues).length > 0;
 
                                   return (
-                                    <div
-                                      key={name}
-                                      className={cn(
-                                        "bg-[var(--color-bg-tertiary)] rounded p-2 cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors",
-                                        subData.status === "bonus" &&
-                                        "opacity-60 border border-dashed border-[var(--color-border)]",
-                                        venueDetailKey === `${catName}:${name}` &&
-                                        "ring-1 ring-[var(--color-accent-cyan)]",
-                                      )}
-                                      onClick={() => handleVenueClick(catName, name)}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1 min-w-0">
-                                          <span
-                                            className="text-xs font-mono truncate"
-                                            title={name}
-                                          >
-                                            {name}
-                                          </span>
-                                          {subData.status === "bonus" && (
-                                            <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
-                                              +
+                                    <details key={name} className="group/venue rounded bg-[var(--color-bg-tertiary)]">
+                                      <summary
+                                        className={cn(
+                                          "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
+                                          subData.status === "bonus" && "opacity-60 border border-dashed border-[var(--color-border)]",
+                                        )}
+                                      >
+                                        <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
+                                        <span className="text-xs font-mono truncate min-w-0" title={name}>{name}</span>
+                                        {subData.status === "bonus" && (
+                                          <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">bonus</span>
+                                        )}
+                                        <div className="flex-1" />
+                                        <div className="flex items-center gap-2 shrink-0">
+                                          {venueStartDate && (
+                                            <span className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline" title={`Data starts: ${venueStartDate}`}>
+                                              from {venueStartDate.substring(0, 7)}
                                             </span>
                                           )}
-                                        </div>
-                                        <span
-                                          className="text-xs font-mono font-medium ml-1"
-                                          style={{
-                                            color: getCompletionColor(
-                                              subData.completion_pct,
-                                            ),
-                                          }}
-                                        >
-                                          {subData.completion_pct.toFixed(0)}%
-                                        </span>
-                                      </div>
-                                      {/* Progress bar with expected vs actual visualization */}
-                                      <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1 relative">
-                                        <div
-                                          className="h-full absolute left-0 top-0"
-                                          style={{
-                                            width: `${subData.completion_pct}%`,
-                                            backgroundColor: getCompletionColor(
-                                              subData.completion_pct,
-                                            ),
-                                          }}
-                                        />
-                                      </div>
-                                      {/* Show found vs expected counts */}
-                                      <div className="flex justify-between items-center mt-0.5">
-                                        <span className="text-[10px] text-[var(--color-text-muted)]">
-                                          {hasDimWeighting
-                                            ? `${effectiveFound}/${effectiveExpected} across ${Math.round((effectiveExpected || 0) / (expectedDates || 1))} types`
-                                            : `${subData.dates_found}/${expectedDates} shards`}
-                                        </span>
-                                        {venueStartDate && (
-                                          <span
-                                            className="text-[9px] text-[var(--color-text-muted)] opacity-70"
-                                            title={`Data starts: ${venueStartDate}`}
-                                          >
-                                            from{" "}
-                                            {venueStartDate.substring(0, 7)}
+                                          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                            {subData.dates_found}/{expectedDates}
                                           </span>
+                                          <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                            <div className="h-full" style={{ width: `${subData.completion_pct}%`, backgroundColor: getCompletionColor(subData.completion_pct) }} />
+                                          </div>
+                                          <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(subData.completion_pct) }}>
+                                            {subData.completion_pct.toFixed(0)}%
+                                          </span>
+                                        </div>
+                                      </summary>
+
+                                      {/* Expanded: hierarchical sub-breakdown */}
+                                      <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
+                                        {/* Data types breakdown (DEFI / CEFI / TRADFI) */}
+                                        {hasDataTypes && (
+                                          <div className="space-y-0.5 pt-1">
+                                            <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                              Data Types
+                                            </span>
+                                            {Object.entries(subData.data_types!).map(([dtName, dtData]) => (
+                                              <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5 rounded hover:bg-[var(--color-bg-hover)]">
+                                                <span className="text-[10px] font-mono truncate min-w-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
+                                                  {dtName}
+                                                </span>
+                                                <div className="flex-1" />
+                                                <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                  {dtData.dates_found}/{dtData.dates_expected}
+                                                </span>
+                                                <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                  <div className="h-full" style={{ width: `${dtData.completion_pct}%`, backgroundColor: getCompletionColor(dtData.completion_pct) }} />
+                                                </div>
+                                                <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
+                                                  {dtData.completion_pct.toFixed(0)}%
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
                                         )}
-                                      </div>
-                                      {/* Per-venue missing/found date dropdowns */}
-                                      {(missingList.length > 0 ||
-                                        foundList.length > 0) && (
-                                          <div className="flex gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
+
+                                        {/* Leagues breakdown (SPORTS / PREDICTION) */}
+                                        {hasLeagues && (
+                                          <div className="space-y-0.5 pt-1">
+                                            <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                              {catName === "PREDICTION" ? "Markets" : "Leagues"}
+                                            </span>
+                                            {Object.entries(subData.leagues!).map(([leagueName, leagueData]) => {
+                                              const ld = leagueData as TurboLeagueStatus;
+                                              return (
+                                                <details key={leagueName} className="group/league">
+                                                  <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                    <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
+                                                    <span className="text-[10px] font-mono truncate min-w-0" title={leagueName}>{leagueName}</span>
+                                                    <div className="flex-1" />
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                      {ld.dates_found}/{ld.dates_expected}
+                                                    </span>
+                                                    <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                      <div className="h-full" style={{ width: `${ld.completion_pct}%`, backgroundColor: getCompletionColor(ld.completion_pct) }} />
+                                                    </div>
+                                                    <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(ld.completion_pct) }}>
+                                                      {ld.completion_pct.toFixed(0)}%
+                                                    </span>
+                                                  </summary>
+                                                  {/* League date details */}
+                                                  <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                    <div className="flex gap-3">
+                                                      {ld.dates_found_list && ld.dates_found_list.length > 0 && (
+                                                        <details>
+                                                          <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                            {ld.dates_found} available
+                                                          </summary>
+                                                          <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                            {ld.dates_found_list.map((date: string) => (
+                                                              <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                {date}
+                                                              </span>
+                                                            ))}
+                                                          </div>
+                                                        </details>
+                                                      )}
+                                                      {ld.missing_dates && ld.missing_dates.length > 0 && (
+                                                        <details>
+                                                          <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                            {ld.dates_missing} missing
+                                                          </summary>
+                                                          <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                            {ld.missing_dates.map((date: string) => (
+                                                              <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                {date}
+                                                              </span>
+                                                            ))}
+                                                          </div>
+                                                        </details>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </details>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {/* Venue-level available/missing dates */}
+                                        {(missingList.length > 0 || foundList.length > 0) && (
+                                          <div className={cn("flex gap-3 pt-0.5", (hasDataTypes || hasLeagues) && "mt-1 border-t border-[var(--color-border-subtle)]")}>
                                             {foundList.length > 0 && (
-                                              <details className="flex-1">
+                                              <details>
                                                 <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                  {subData.dates_found} available
+                                                  {subData.dates_found} available dates
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                   {foundList.map((date: string) => (
@@ -3341,9 +3475,9 @@ function DataStatusTabInternal({
                                               </details>
                                             )}
                                             {missingList.length > 0 && (
-                                              <details className="flex-1">
+                                              <details>
                                                 <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                  {missingCount} missing
+                                                  {missingCount} missing dates
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                   {missingList.map((date: string) => (
@@ -3361,195 +3495,63 @@ function DataStatusTabInternal({
                                             )}
                                           </div>
                                         )}
-                                      {/* Venue detail drill-down (instrument breakdown) */}
-                                      {venueDetailKey === `${catName}:${name}` && (
-                                        <div
-                                          className="mt-1.5 p-1.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          {venueDetailLoading ? (
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">Loading...</span>
-                                          ) : venueDetailData ? (
-                                            <div className="space-y-1">
-                                              <div className="text-[9px] text-[var(--color-text-muted)]">
-                                                {venueDetailData.total_instruments} instruments (as of {venueDetailData.date})
-                                              </div>
-                                              {venueDetailData.instrument_types && (
-                                                <div className="space-y-0.5">
-                                                  <span className="text-[9px] font-medium text-[var(--color-accent-cyan)]">Instrument Types</span>
-                                                  {Object.entries(venueDetailData.instrument_types).map(([type, count]) => (
-                                                    <div key={type} className="flex justify-between text-[9px]">
-                                                      <span className="text-[var(--color-text-secondary)] font-mono">{type}</span>
-                                                      <span className="text-[var(--color-text-muted)] font-mono">{count as number}</span>
-                                                    </div>
-                                                  ))}
+
+                                        {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
+                                        <div className="pt-0.5">
+                                          <span
+                                            className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                            onClick={() => handleVenueClick(catName, name)}
+                                          >
+                                            Instrument breakdown
+                                          </span>
+                                        </div>
+                                        {venueDetailKey === `${catName}:${name}` && (
+                                          <div className="p-1.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
+                                            {venueDetailLoading ? (
+                                              <span className="text-[9px] text-[var(--color-text-muted)]">Loading...</span>
+                                            ) : venueDetailData ? (
+                                              <div className="space-y-1">
+                                                <div className="text-[9px] text-[var(--color-text-muted)]">
+                                                  {venueDetailData.total_instruments} instruments (as of {venueDetailData.date})
                                                 </div>
-                                              )}
-                                              {venueDetailData.top_instruments && venueDetailData.top_instruments.length > 0 && (
-                                                <details className="mt-0.5">
-                                                  <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
-                                                    Top {venueDetailData.top_instruments.length} instruments
-                                                  </summary>
-                                                  <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
-                                                    {venueDetailData.top_instruments.map((inst: { key: string; type: string }) => (
-                                                      <div key={inst.key} className="flex justify-between text-[8px] font-mono">
-                                                        <span className="text-[var(--color-text-secondary)] truncate mr-2" title={inst.key}>
-                                                          {inst.key}
-                                                        </span>
-                                                        <span className="text-[var(--color-text-muted)] shrink-0">
-                                                          {inst.type}
-                                                        </span>
+                                                {venueDetailData.instrument_types && (
+                                                  <div className="space-y-0.5">
+                                                    <span className="text-[9px] font-medium text-[var(--color-accent-cyan)]">Instrument Types</span>
+                                                    {Object.entries(venueDetailData.instrument_types).map(([type, count]) => (
+                                                      <div key={type} className="flex justify-between text-[9px]">
+                                                        <span className="text-[var(--color-text-secondary)] font-mono">{type}</span>
+                                                        <span className="text-[var(--color-text-muted)] font-mono">{count as number}</span>
                                                       </div>
                                                     ))}
                                                   </div>
-                                                </details>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <span className="text-[9px] text-[var(--color-accent-red)]">Failed to load</span>
-                                          )}
-                                        </div>
-                                      )}
-                                      {/* Data types breakdown if available */}
-                                      {subData.data_types &&
-                                        Object.keys(subData.data_types).length >
-                                        0 && (
-                                          <details className="mt-1">
-                                            <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
-                                              {
-                                                Object.keys(subData.data_types)
-                                                  .length
-                                              }{" "}
-                                              data types
-                                            </summary>
-                                            <div className="mt-1 space-y-0.5 pl-1 border-l border-[var(--color-border-subtle)]">
-                                              {Object.entries(
-                                                subData.data_types,
-                                              ).map(([dtName, dtData]) => (
-                                                <div
-                                                  key={dtName}
-                                                  className="flex items-center justify-between text-[9px]"
-                                                >
-                                                  <span
-                                                    className={cn(
-                                                      "truncate",
-                                                      dtData.status ===
-                                                      "missing" &&
-                                                      "text-[var(--color-accent-red)]",
-                                                      dtData.status ===
-                                                      "partial" &&
-                                                      "text-[var(--color-accent-amber)]",
-                                                      dtData.status ===
-                                                      "complete" &&
-                                                      "text-[var(--color-accent-green)]",
-                                                    )}
-                                                  >
-                                                    {dtName}
-                                                  </span>
-                                                  <span
-                                                    className={cn(
-                                                      "ml-1 font-mono",
-                                                      dtData.status ===
-                                                      "missing" &&
-                                                      "text-[var(--color-accent-red)]",
-                                                      dtData.status ===
-                                                      "partial" &&
-                                                      "text-[var(--color-accent-amber)]",
-                                                      dtData.status ===
-                                                      "complete" &&
-                                                      "text-[var(--color-accent-green)]",
-                                                    )}
-                                                  >
-                                                    {dtData.completion_pct}%
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </details>
-                                        )}
-                                      {/* Available dates breakdown if available (green) */}
-                                      {subData.dates_found_count &&
-                                        subData.dates_found_count > 0 && (
-                                          <details className="mt-1">
-                                            <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                              {subData.dates_found_count}{" "}
-                                              available shards
-                                            </summary>
-                                            <div className="mt-1 pl-1 border-l border-[var(--color-status-success-border-strong)]">
-                                              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                                                {subData.dates_found_list?.map(
-                                                  (date: string) => (
-                                                    <span
-                                                      key={date}
-                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                                    >
-                                                      {date}
-                                                    </span>
-                                                  ),
                                                 )}
-                                                {subData.dates_found_truncated && (
-                                                  <>
-                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
-                                                      ...
-                                                    </span>
-                                                    {subData.dates_found_list_tail?.map(
-                                                      (date: string) => (
-                                                        <span
-                                                          key={date}
-                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                                        >
-                                                          {date}
-                                                        </span>
-                                                      ),
-                                                    )}
-                                                  </>
+                                                {venueDetailData.top_instruments && venueDetailData.top_instruments.length > 0 && (
+                                                  <details className="mt-0.5">
+                                                    <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
+                                                      Top {venueDetailData.top_instruments.length} instruments
+                                                    </summary>
+                                                    <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
+                                                      {venueDetailData.top_instruments.map((inst: { key: string; type: string }) => (
+                                                        <div key={inst.key} className="flex justify-between text-[8px] font-mono">
+                                                          <span className="text-[var(--color-text-secondary)] truncate mr-2" title={inst.key}>
+                                                            {inst.key}
+                                                          </span>
+                                                          <span className="text-[var(--color-text-muted)] shrink-0">
+                                                            {inst.type}
+                                                          </span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </details>
                                                 )}
                                               </div>
-                                            </div>
-                                          </details>
+                                            ) : (
+                                              <span className="text-[9px] text-[var(--color-accent-red)]">Failed to load</span>
+                                            )}
+                                          </div>
                                         )}
-                                      {/* Missing dates breakdown if available (red) */}
-                                      {subData.dates_missing_count &&
-                                        subData.dates_missing_count > 0 && (
-                                          <details className="mt-1">
-                                            <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                              {subData.dates_missing_count}{" "}
-                                              missing shards
-                                            </summary>
-                                            <div className="mt-1 pl-1 border-l border-[var(--color-status-error-border-strong)]">
-                                              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                                                {subData.dates_missing_list?.map(
-                                                  (date: string) => (
-                                                    <span
-                                                      key={date}
-                                                      className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                                    >
-                                                      {date}
-                                                    </span>
-                                                  ),
-                                                )}
-                                                {subData.dates_missing_truncated && (
-                                                  <>
-                                                    <span className="text-[8px] text-[var(--color-text-muted)]">
-                                                      ...
-                                                    </span>
-                                                    {subData.dates_missing_list_tail?.map(
-                                                      (date: string) => (
-                                                        <span
-                                                          key={date}
-                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                                        >
-                                                          {date}
-                                                        </span>
-                                                      ),
-                                                    )}
-                                                  </>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </details>
-                                        )}
-                                    </div>
+                                      </div>
+                                    </details>
                                   );
                                 })}
                               </div>
