@@ -3443,7 +3443,7 @@ function DataStatusTabInternal({
                                         {hasDataTypes && !hasInstrumentTypes && (
                                           <div className="space-y-0.5 pt-1">
                                             <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                              Data Types
+                                              {catName === "PREDICTION" ? "Markets" : "Data Types"}
                                             </span>
                                             {Object.entries(subData.data_types!).map(([dtName, dtData]) => (
                                               <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5 rounded hover:bg-[var(--color-bg-hover)]">
