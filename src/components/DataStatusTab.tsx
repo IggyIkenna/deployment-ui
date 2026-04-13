@@ -3148,7 +3148,7 @@ function DataStatusTabInternal({
                                 </div>
                               )}
 
-                            {/* Chain breakdown for DeFi (v4) */}
+                            {/* Chain breakdown for DeFi (v4) — replaces flat venue list */}
                             {catData.chains && Object.keys(catData.chains).length > 0 && (
                               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                                 <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
@@ -3157,11 +3157,13 @@ function DataStatusTabInternal({
                                 <div className="space-y-0.5">
                                   {Object.entries(catData.chains).map(([chainName, chainData]) => {
                                     const cd = chainData as { dates_found: number; dates_expected: number; completion_pct: number; venues: string[]; venue_count: number };
+                                    // Get per-venue data for venues in this chain
+                                    const venueData = getSubDimensionData(catData).data || {};
                                     return (
                                       <details key={chainName} className="group/chain">
-                                        <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                        <summary className="flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                           <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/chain:rotate-90" />
-                                          <span className="text-xs font-mono">{chainName}</span>
+                                          <span className="text-xs font-mono font-medium">{chainName}</span>
                                           <span className="text-[9px] text-[var(--color-text-muted)]">({cd.venue_count} protocols)</span>
                                           <div className="flex-1" />
                                           <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{cd.dates_found}/{cd.dates_expected}</span>
@@ -3172,14 +3174,46 @@ function DataStatusTabInternal({
                                             {cd.completion_pct.toFixed(0)}%
                                           </span>
                                         </summary>
-                                        <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1">
-                                          <div className="flex flex-wrap gap-1">
-                                            {cd.venues.map((v: string) => (
-                                              <span key={v} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
-                                                {v}
-                                              </span>
-                                            ))}
-                                          </div>
+                                        <div className="ml-5 pl-3 border-l-2 border-[var(--color-border-subtle)] py-1 space-y-0.5">
+                                          {cd.venues.map((v: string) => {
+                                            const vd = venueData[v];
+                                            if (!vd) {
+                                              return (
+                                                <div key={v} className="flex items-center gap-2 py-0.5 px-1.5">
+                                                  <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">{v}</span>
+                                                </div>
+                                              );
+                                            }
+                                            const vdTyped = vd as TurboSubDimension;
+                                            return (
+                                              <details key={v} className="group/cv">
+                                                <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                  <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
+                                                  <span className="text-[10px] font-mono">{v}</span>
+                                                  <div className="flex-1" />
+                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono">{vdTyped.dates_found}/{vdTyped.dates_expected_venue || vdTyped.dates_expected}</span>
+                                                  <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                                                    <div className="h-full" style={{ width: `${vdTyped.completion_pct}%`, backgroundColor: getCompletionColor(vdTyped.completion_pct) }} />
+                                                  </div>
+                                                  <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(vdTyped.completion_pct) }}>
+                                                    {vdTyped.completion_pct.toFixed(0)}%
+                                                  </span>
+                                                </summary>
+                                                {vdTyped.data_types && Object.keys(vdTyped.data_types).length > 0 && (
+                                                  <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                    {Object.entries(vdTyped.data_types).map(([dtName, dtData]) => (
+                                                      <div key={dtName} className="flex items-center gap-2 py-0.5 px-1">
+                                                        <span className="text-[9px] font-mono" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
+                                                        <div className="flex-1" />
+                                                        <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
+                                                        <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtData.completion_pct.toFixed(0)}%</span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </details>
+                                            );
+                                          })}
                                         </div>
                                       </details>
                                     );
@@ -3235,7 +3269,8 @@ function DataStatusTabInternal({
                               </div>
                             )}
 
-                            {/* Sub-dimension section - own bordered container */}
+                            {/* Sub-dimension section - own bordered container (hidden when chains present — chain view replaces it) */}
+                            {!(catData.chains && Object.keys(catData.chains).length > 0) && (
                             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
@@ -3597,7 +3632,7 @@ function DataStatusTabInternal({
                                 })}
                               </div>
                             </div>
-                            {/* Close venues/data_types/feature_groups bordered container */}
+                            )}
                           </div>
                         )}
                       </div>
