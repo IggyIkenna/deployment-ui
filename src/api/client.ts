@@ -600,7 +600,15 @@ export interface TurboSubDimension {
   dates_missing_list_tail?: string[]; // Last 25 missing dates (if truncated)
   dates_missing_truncated?: boolean; // True if list was truncated
   data_types?: Record<string, TurboDataTypeStatus>; // NEW: per-data-type breakdown
+  instrument_types?: Record<string, TurboInstrumentTypeStatus>; // v4: per-instrument-type (spot, perpetuals, etc.)
   leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
+}
+
+export interface TurboInstrumentTypeStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  data_types?: Record<string, TurboDataTypeStatus>;
 }
 
 export interface TurboChainStatus {

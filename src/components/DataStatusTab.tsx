@@ -3327,6 +3327,7 @@ function DataStatusTabInternal({
                                     subData.dates_missing_count ??
                                     missingList.length;
                                   const hasDataTypes = subData.data_types && Object.keys(subData.data_types).length > 0;
+                                  const hasInstrumentTypes = subData.instrument_types && Object.keys(subData.instrument_types).length > 0;
                                   const hasLeagues = subData.leagues && Object.keys(subData.leagues).length > 0;
 
                                   return (
@@ -3363,8 +3364,48 @@ function DataStatusTabInternal({
 
                                       {/* Expanded: hierarchical sub-breakdown */}
                                       <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
-                                        {/* Data types breakdown (DEFI / CEFI / TRADFI) */}
-                                        {hasDataTypes && (
+                                        {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
+                                        {hasInstrumentTypes && (
+                                          <div className="space-y-0.5 pt-1">
+                                            <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                              Instrument Types
+                                            </span>
+                                            {Object.entries(subData.instrument_types!).map(([itName, itData]) => {
+                                              const it = itData as { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> };
+                                              return (
+                                                <details key={itName} className="group/itype">
+                                                  <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                    <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
+                                                    <span className="text-[10px] font-mono truncate">{itName}</span>
+                                                    <div className="flex-1" />
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">{it.dates_found}/{it.dates_expected}</span>
+                                                    <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                      <div className="h-full" style={{ width: `${it.completion_pct}%`, backgroundColor: getCompletionColor(it.completion_pct) }} />
+                                                    </div>
+                                                    <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(it.completion_pct) }}>
+                                                      {it.completion_pct.toFixed(0)}%
+                                                    </span>
+                                                  </summary>
+                                                  {it.data_types && Object.keys(it.data_types).length > 0 && (
+                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                      {Object.entries(it.data_types).map(([dtName, dtData]) => (
+                                                        <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5">
+                                                          <span className="text-[9px] font-mono text-[var(--color-text-secondary)]" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
+                                                          <div className="flex-1" />
+                                                          <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
+                                                          <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtData.completion_pct.toFixed(0)}%</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </details>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {/* Data types breakdown (DEFI / when no instrument_types) */}
+                                        {hasDataTypes && !hasInstrumentTypes && (
                                           <div className="space-y-0.5 pt-1">
                                             <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                               Data Types
