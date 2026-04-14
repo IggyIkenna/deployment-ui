@@ -1288,7 +1288,7 @@ export async function clearDataStatusCache(): Promise<{
   status: string;
   entries_cleared: number;
 }> {
-  return fetchJson("/data-status/turbo/cache/clear", { method: "POST" });
+  return fetchJson("/data-status/turbo/clear", { method: "POST" });
 }
 
 // Cloud Builds

@@ -915,6 +915,13 @@ function DataStatusTabInternal({
     return "var(--color-accent-red)";
   };
 
+  /** Format completion %. Shows 1 decimal when 99–99.99% to avoid false 100%. */
+  const formatPct = (pct: number): string => {
+    if (pct >= 100) return "100";
+    if (pct >= 99) return pct.toFixed(1);
+    return pct.toFixed(0);
+  };
+
   const getCompletionBadgeClass = (percent: number) => {
     if (percent >= 100)
       return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]";
@@ -3171,7 +3178,7 @@ function DataStatusTabInternal({
                                             <div className="h-full" style={{ width: `${cd.completion_pct}%`, backgroundColor: getCompletionColor(cd.completion_pct) }} />
                                           </div>
                                           <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(cd.completion_pct) }}>
-                                            {cd.completion_pct.toFixed(0)}%
+                                            {formatPct(cd.completion_pct)}%
                                           </span>
                                         </summary>
                                         <div className="ml-5 pl-3 border-l-2 border-[var(--color-border-subtle)] py-1 space-y-0.5">
@@ -3190,27 +3197,93 @@ function DataStatusTabInternal({
                                                 <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                   <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
                                                   <span className="text-[10px] font-mono">{v}</span>
+                                                  {vdTyped.venue_start_date && (
+                                                    <span className="text-[8px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline" title={`Data starts: ${vdTyped.venue_start_date}`}>
+                                                      from {String(vdTyped.venue_start_date).substring(0, 7)}
+                                                    </span>
+                                                  )}
                                                   <div className="flex-1" />
                                                   <span className="text-[9px] text-[var(--color-text-muted)] font-mono">{vdTyped.dates_found}/{vdTyped.dates_expected_venue || vdTyped.dates_expected}</span>
                                                   <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
                                                     <div className="h-full" style={{ width: `${vdTyped.completion_pct}%`, backgroundColor: getCompletionColor(vdTyped.completion_pct) }} />
                                                   </div>
                                                   <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(vdTyped.completion_pct) }}>
-                                                    {vdTyped.completion_pct.toFixed(0)}%
+                                                    {formatPct(vdTyped.completion_pct)}%
                                                   </span>
                                                 </summary>
-                                                {vdTyped.data_types && Object.keys(vdTyped.data_types).length > 0 && (
-                                                  <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                    {Object.entries(vdTyped.data_types).map(([dtName, dtData]) => (
-                                                      <div key={dtName} className="flex items-center gap-2 py-0.5 px-1">
-                                                        <span className="text-[9px] font-mono" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
-                                                        <div className="flex-1" />
-                                                        <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
-                                                        <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtData.completion_pct.toFixed(0)}%</span>
+                                                <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
+                                                  {/* Data types breakdown */}
+                                                  {vdTyped.data_types && Object.keys(vdTyped.data_types).length > 0 && (
+                                                    <div className="space-y-0.5">
+                                                      {Object.entries(vdTyped.data_types).map(([dtName, dtData]) => (
+                                                        <div key={dtName} className="flex items-center gap-2 py-0.5 px-1">
+                                                          <span className="text-[9px] font-mono" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
+                                                          <div className="flex-1" />
+                                                          <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
+                                                          <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                  {/* Available / missing dates */}
+                                                  {(() => {
+                                                    const cvFoundList: string[] = vdTyped.dates_found_list ?? [];
+                                                    const cvMissingList: string[] = vdTyped.missing_dates ?? vdTyped.dates_missing_list ?? [];
+                                                    const cvMissingCount = vdTyped.dates_missing ?? cvMissingList.length;
+                                                    if (cvFoundList.length === 0 && cvMissingList.length === 0) return null;
+                                                    return (
+                                                      <div className="flex gap-3 pt-0.5 border-t border-[var(--color-border-subtle)]">
+                                                        {cvFoundList.length > 0 && (
+                                                          <details>
+                                                            <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                              {vdTyped.dates_found} available dates
+                                                            </summary>
+                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                              {cvFoundList.map((date: string) => (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                  {date}
+                                                                </span>
+                                                              ))}
+                                                              {vdTyped.dates_found > cvFoundList.length && (
+                                                                <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                  +{vdTyped.dates_found - cvFoundList.length} more
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                          </details>
+                                                        )}
+                                                        {cvMissingList.length > 0 && (
+                                                          <details>
+                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                              {cvMissingCount} missing dates
+                                                            </summary>
+                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                              {cvMissingList.map((date: string) => (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                  {date}
+                                                                </span>
+                                                              ))}
+                                                              {cvMissingCount > cvMissingList.length && (
+                                                                <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                  +{cvMissingCount - cvMissingList.length} more
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                          </details>
+                                                        )}
                                                       </div>
-                                                    ))}
+                                                    );
+                                                  })()}
+                                                  {/* Instrument breakdown link */}
+                                                  <div className="pt-0.5">
+                                                    <span
+                                                      className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                                      onClick={() => handleVenueClick(catName, v)}
+                                                    >
+                                                      Instrument breakdown
+                                                    </span>
                                                   </div>
-                                                )}
+                                                </div>
                                               </details>
                                             );
                                           })}
@@ -3242,7 +3315,7 @@ function DataStatusTabInternal({
                                             <div className="h-full" style={{ width: `${fg.completion_pct}%`, backgroundColor: getCompletionColor(fg.completion_pct) }} />
                                           </div>
                                           <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(fg.completion_pct) }}>
-                                            {fg.completion_pct.toFixed(0)}%
+                                            {formatPct(fg.completion_pct)}%
                                           </span>
                                         </summary>
                                         {fg.timeframes && Object.keys(fg.timeframes).length > 0 && (
@@ -3256,7 +3329,7 @@ function DataStatusTabInternal({
                                                   <div className="h-full" style={{ width: `${tfData.completion_pct}%`, backgroundColor: getCompletionColor(tfData.completion_pct) }} />
                                                 </div>
                                                 <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(tfData.completion_pct) }}>
-                                                  {tfData.completion_pct.toFixed(0)}%
+                                                  {formatPct(tfData.completion_pct)}%
                                                 </span>
                                               </div>
                                             ))}
@@ -3392,7 +3465,7 @@ function DataStatusTabInternal({
                                             <div className="h-full" style={{ width: `${subData.completion_pct}%`, backgroundColor: getCompletionColor(subData.completion_pct) }} />
                                           </div>
                                           <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(subData.completion_pct) }}>
-                                            {subData.completion_pct.toFixed(0)}%
+                                            {formatPct(subData.completion_pct)}%
                                           </span>
                                         </div>
                                       </summary>
@@ -3418,7 +3491,7 @@ function DataStatusTabInternal({
                                                       <div className="h-full" style={{ width: `${it.completion_pct}%`, backgroundColor: getCompletionColor(it.completion_pct) }} />
                                                     </div>
                                                     <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(it.completion_pct) }}>
-                                                      {it.completion_pct.toFixed(0)}%
+                                                      {formatPct(it.completion_pct)}%
                                                     </span>
                                                   </summary>
                                                   {it.data_types && Object.keys(it.data_types).length > 0 && (
@@ -3428,7 +3501,7 @@ function DataStatusTabInternal({
                                                           <span className="text-[9px] font-mono text-[var(--color-text-secondary)]" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
                                                           <div className="flex-1" />
                                                           <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
-                                                          <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtData.completion_pct.toFixed(0)}%</span>
+                                                          <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
                                                         </div>
                                                       ))}
                                                     </div>
@@ -3439,29 +3512,77 @@ function DataStatusTabInternal({
                                           </div>
                                         )}
 
-                                        {/* Data types breakdown (DEFI / when no instrument_types) */}
+                                        {/* Data types / Markets breakdown — expandable with date lists */}
                                         {hasDataTypes && !hasInstrumentTypes && (
                                           <div className="space-y-0.5 pt-1">
                                             <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                               {catName === "PREDICTION" ? "Markets" : "Data Types"}
                                             </span>
-                                            {Object.entries(subData.data_types!).map(([dtName, dtData]) => (
-                                              <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5 rounded hover:bg-[var(--color-bg-hover)]">
-                                                <span className="text-[10px] font-mono truncate min-w-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
-                                                  {dtName}
-                                                </span>
-                                                <div className="flex-1" />
-                                                <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                  {dtData.dates_found}/{dtData.dates_expected}
-                                                </span>
-                                                <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                  <div className="h-full" style={{ width: `${dtData.completion_pct}%`, backgroundColor: getCompletionColor(dtData.completion_pct) }} />
-                                                </div>
-                                                <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
-                                                  {dtData.completion_pct.toFixed(0)}%
-                                                </span>
-                                              </div>
-                                            ))}
+                                            {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
+                                              const dtFoundList: string[] = (dtData as Record<string, unknown>).dates_found_list as string[] ?? [];
+                                              const dtMissingList: string[] = (dtData as Record<string, unknown>).missing_dates as string[] ?? [];
+                                              const hasDates = dtFoundList.length > 0 || dtMissingList.length > 0;
+                                              return (
+                                                <details key={dtName} className="group/dt">
+                                                  <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                    <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
+                                                    <span className="text-[10px] font-mono truncate min-w-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
+                                                      {dtName}
+                                                    </span>
+                                                    <div className="flex-1" />
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                      {dtData.dates_found}/{dtData.dates_expected}
+                                                    </span>
+                                                    <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                      <div className="h-full" style={{ width: `${dtData.completion_pct}%`, backgroundColor: getCompletionColor(dtData.completion_pct) }} />
+                                                    </div>
+                                                    <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
+                                                      {formatPct(dtData.completion_pct)}%
+                                                    </span>
+                                                  </summary>
+                                                  {hasDates && (
+                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                      <div className="flex gap-3">
+                                                        {dtFoundList.length > 0 && (
+                                                          <details>
+                                                            <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                              {dtData.dates_found} available
+                                                            </summary>
+                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                              {dtFoundList.slice(0, 60).map((date: string) => (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                  {date}
+                                                                </span>
+                                                              ))}
+                                                              {dtFoundList.length > 60 && (
+                                                                <span className="text-[7px] text-[var(--color-text-muted)]">+{dtFoundList.length - 60} more</span>
+                                                              )}
+                                                            </div>
+                                                          </details>
+                                                        )}
+                                                        {dtMissingList.length > 0 && (
+                                                          <details>
+                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                              {dtData.dates_missing} missing
+                                                            </summary>
+                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                              {dtMissingList.slice(0, 60).map((date: string) => (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                  {date}
+                                                                </span>
+                                                              ))}
+                                                              {dtMissingList.length > 60 && (
+                                                                <span className="text-[7px] text-[var(--color-text-muted)]">+{dtMissingList.length - 60} more</span>
+                                                              )}
+                                                            </div>
+                                                          </details>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </details>
+                                              );
+                                            })}
                                           </div>
                                         )}
 
@@ -3486,7 +3607,7 @@ function DataStatusTabInternal({
                                                       <div className="h-full" style={{ width: `${ld.completion_pct}%`, backgroundColor: getCompletionColor(ld.completion_pct) }} />
                                                     </div>
                                                     <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(ld.completion_pct) }}>
-                                                      {ld.completion_pct.toFixed(0)}%
+                                                      {formatPct(ld.completion_pct)}%
                                                     </span>
                                                   </summary>
                                                   {/* League date details */}
