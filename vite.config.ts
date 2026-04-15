@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8004",  // SSOT: ui-api-mapping.json — deployment-api port
         changeOrigin: true,
       },
     },
