@@ -604,11 +604,19 @@ export interface TurboSubDimension {
   leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
 }
 
+export interface TurboUnderlyingStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  data_types?: Record<string, TurboDataTypeStatus>;
+}
+
 export interface TurboInstrumentTypeStatus {
   dates_found: number;
   dates_expected: number;
   completion_pct: number;
   data_types?: Record<string, TurboDataTypeStatus>;
+  underlyings?: Record<string, TurboUnderlyingStatus>;
 }
 
 export interface TurboChainStatus {

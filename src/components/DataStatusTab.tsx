@@ -3479,7 +3479,7 @@ function DataStatusTabInternal({
                                               Instrument Types
                                             </span>
                                             {Object.entries(subData.instrument_types!).map(([itName, itData]) => {
-                                              const it = itData as { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> };
+                                              const it = itData as { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>; underlyings?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> }> };
                                               return (
                                                 <details key={itName} className="group/itype">
                                                   <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
@@ -3494,7 +3494,44 @@ function DataStatusTabInternal({
                                                       {formatPct(it.completion_pct)}%
                                                     </span>
                                                   </summary>
-                                                  {it.data_types && Object.keys(it.data_types).length > 0 && (
+                                                  {/* Per-underlying breakdown (options_chain / futures_chain) */}
+                                                  {it.underlyings && Object.keys(it.underlyings).length > 0 && (
+                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                        Underlyings
+                                                      </span>
+                                                      {Object.entries(it.underlyings).map(([ulName, ulData]) => (
+                                                        <details key={ulName} className="group/ul">
+                                                          <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                            <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
+                                                            <span className="text-[10px] font-mono truncate">{ulName}</span>
+                                                            <div className="flex-1" />
+                                                            <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">{ulData.dates_found}/{ulData.dates_expected}</span>
+                                                            <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                              <div className="h-full" style={{ width: `${ulData.completion_pct}%`, backgroundColor: getCompletionColor(ulData.completion_pct) }} />
+                                                            </div>
+                                                            <span className="text-[9px] font-mono w-8 text-right shrink-0" style={{ color: getCompletionColor(ulData.completion_pct) }}>
+                                                              {formatPct(ulData.completion_pct)}%
+                                                            </span>
+                                                          </summary>
+                                                          {ulData.data_types && Object.keys(ulData.data_types).length > 0 && (
+                                                            <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                              {Object.entries(ulData.data_types).map(([dtName, dtData]) => (
+                                                                <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5">
+                                                                  <span className="text-[9px] font-mono text-[var(--color-text-secondary)]" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
+                                                                  <div className="flex-1" />
+                                                                  <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
+                                                                  <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
+                                                                </div>
+                                                              ))}
+                                                            </div>
+                                                          )}
+                                                        </details>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                  {/* Direct data_types (when no underlyings) */}
+                                                  {it.data_types && Object.keys(it.data_types).length > 0 && !(it.underlyings && Object.keys(it.underlyings).length > 0) && (
                                                     <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
                                                       {Object.entries(it.data_types).map(([dtName, dtData]) => (
                                                         <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5">
