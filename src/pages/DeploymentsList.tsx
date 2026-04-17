@@ -2,14 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchServices } from "../api/deploymentApi";
 import type { ServiceStatus, ServiceHealth } from "../types/deploymentTypes";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-} from "@unified-trading/ui-kit";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 
 const HEALTH_VARIANT: Record<
   ServiceHealth,

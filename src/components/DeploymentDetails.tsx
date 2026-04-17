@@ -26,7 +26,10 @@ import {
   GitCommit,
   FileText,
   Search,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
+import { useDeployEventStream } from "../hooks/useDeployEventStream";
 import {
   Card,
   CardContent,
@@ -270,6 +273,14 @@ export function DeploymentDetails({
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const refetchStatusRef = useRef<(() => Promise<void>) | null>(null);
   const autoShardsRequestedRef = useRef(false);
+
+  // SSE: deploy event stream for real-time status updates
+  const { isConnected: sseConnected } = useDeployEventStream(deploymentId, {
+    onEvent: () => {
+      // When SSE delivers an event, immediately refetch the latest status
+      refetchStatusRef.current?.();
+    },
+  });
 
   useEffect(() => {
     // Reset shard state when switching deployments
@@ -953,13 +964,17 @@ export function DeploymentDetails({
     let mounted = true;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let pollCount = 0;
-    const maxFastPolls = 6; // Fast poll for first 18 seconds (6 polls * 3 sec)
+    // When SSE is connected, skip fast-poll phase entirely and use 30s fallback polling.
+    // When SSE is disconnected, use fast (3s) for first 18s then slow (15s).
+    const maxFastPolls = sseConnected ? 0 : 6;
+    const slowPollMs = sseConnected ? 30_000 : 15_000;
+    const fastPollMs = 3_000;
 
     const poll = async () => {
       if (!mounted) return;
 
       pollCount++;
-      const isFastPolling = pollCount <= maxFastPolls;
+      const isFastPolling = !sseConnected && pollCount <= maxFastPolls;
 
       try {
         // Always skip log analysis for fast response - logs tab fetches separately
@@ -1035,23 +1050,25 @@ export function DeploymentDetails({
         }
       }
 
-      // Adjust polling interval: fast (3s) for first 18s, then slow (15s)
-      if (isFastPolling && pollCount === maxFastPolls && pollInterval) {
+      // Adjust polling interval: fast phase -> slow phase
+      if (
+        !sseConnected &&
+        isFastPolling &&
+        pollCount === maxFastPolls &&
+        pollInterval
+      ) {
         clearInterval(pollInterval);
-        pollInterval = setInterval(poll, 15000); // Switch to 15s polling
+        pollInterval = setInterval(poll, slowPollMs);
       }
     };
 
     refetchStatusRef.current = poll;
     // Initial fetch
     poll();
-    // Don't auto-fetch logs on mount; fetch when user opens Logs tab
 
-    // Start fast polling (every 3 seconds) for status only
-    pollInterval = setInterval(poll, 3000);
-
-    // Don't auto-poll logs - user can manually refresh via button
-    // This dramatically reduces API load
+    // Start polling: fast (3s) when no SSE, slow (30s) when SSE is connected
+    const initialInterval = sseConnected ? slowPollMs : fastPollMs;
+    pollInterval = setInterval(poll, initialInterval);
 
     return () => {
       mounted = false;
@@ -1060,24 +1077,7 @@ export function DeploymentDetails({
         pollInterval = null;
       }
     };
-  }, [deploymentId]);
-
-  // SSE: refetch status when backend notifies state change (low-latency updates)
-  useEffect(() => {
-    const url = `${window.location.origin}/api/deployments/${deploymentId}/events`;
-    const es = new EventSource(url);
-    const onUpdate = () => {
-      refetchStatusRef.current?.();
-    };
-    es.addEventListener("updated", onUpdate);
-    es.onmessage = onUpdate;
-    es.onerror = () => {
-      es.close();
-    };
-    return () => {
-      es.close();
-    };
-  }, [deploymentId]);
+  }, [deploymentId, sseConnected]);
 
   // Auto-refresh shard page when deployment reaches terminal state
   // This ensures shard statuses are updated when deployment completes
@@ -1253,6 +1253,25 @@ export function DeploymentDetails({
                   {status.gcs_fuse_active ? "GCS Fuse" : "GCS API"}
                 </span>
               )}
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  sseConnected
+                    ? "bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)]"
+                    : "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]"
+                }`}
+                title={
+                  sseConnected
+                    ? "Live event stream connected -- updates arrive in real-time"
+                    : "Event stream disconnected -- using polling fallback"
+                }
+              >
+                {sseConnected ? (
+                  <Wifi className="h-3 w-3" />
+                ) : (
+                  <WifiOff className="h-3 w-3" />
+                )}
+                {sseConnected ? "Live" : "Polling"}
+              </span>
             </div>
             <CardDescription>
               {status.service} • {status.compute_type}

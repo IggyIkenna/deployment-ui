@@ -1,9 +1,90 @@
-import type { ApiClient } from "@unified-admin/core";
-import {
-  ApiClientError,
-  createApiClient,
-  createClientConfig,
-} from "@unified-admin/core";
+// ---------------------------------------------------------------------------
+// Local API client (replaces @unified-admin/core dependency)
+// ---------------------------------------------------------------------------
+
+interface ApiClientOptions {
+  timeoutMs?: number;
+}
+
+class ApiClientError extends Error {
+  status: number;
+  code: string;
+  constructor(opts: { status: number; code: string; message: string }) {
+    super(opts.message);
+    this.name = "ApiClientError";
+    this.status = opts.status;
+    this.code = opts.code;
+  }
+}
+
+interface ApiClient {
+  get<T>(url: string, opts?: RequestInit): Promise<T>;
+  post<T>(url: string, body?: unknown, opts?: RequestInit): Promise<T>;
+  put<T>(url: string, body?: unknown, opts?: RequestInit): Promise<T>;
+  delete<T>(url: string, opts?: RequestInit): Promise<T>;
+}
+
+function createClientConfig(
+  baseUrl: string,
+  options?: ApiClientOptions,
+): { baseUrl: string; timeoutMs: number } {
+  return { baseUrl, timeoutMs: options?.timeoutMs ?? 30_000 };
+}
+
+function createApiClient(config: {
+  baseUrl: string;
+  timeoutMs: number;
+}): ApiClient {
+  async function request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    opts?: RequestInit,
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      const response = await fetch(`${config.baseUrl}${url}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: opts?.signal ?? controller.signal,
+      });
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Unknown error" }));
+        throw new ApiClientError({
+          status: response.status,
+          code: `HTTP_${response.status}`,
+          message: error.detail || `HTTP ${response.status}`,
+        });
+      }
+      if (response.status === 204) return undefined as T;
+      return response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return {
+    get: <T>(url: string, opts?: RequestInit) =>
+      request<T>("GET", url, undefined, opts),
+    post: <T>(url: string, body?: unknown, opts?: RequestInit) =>
+      request<T>("POST", url, body, opts),
+    put: <T>(url: string, body?: unknown, opts?: RequestInit) =>
+      request<T>("PUT", url, body, opts),
+    delete: <T>(url: string, opts?: RequestInit) =>
+      request<T>("DELETE", url, undefined, opts),
+  };
+}
+
+// ---------------------------------------------------------------------------
+
 import type {
   CategoryVenuesResponse,
   ChecklistResponse,
@@ -575,6 +656,8 @@ export interface TurboLeagueStatus {
   missing_dates?: string[];
   dates_found_list?: string[];
   completion_pct: number;
+  unit?: string;
+  not_applicable?: boolean;
 }
 
 export interface TurboSubDimension {

@@ -67,4 +67,19 @@ bash scripts/quickmerge.sh "message" # merge after gates pass
 
 ## Tech stack
 
-React 18 · TypeScript · Vite · Tailwind CSS · React Router v6 · `@unified-trading/ui-kit` · `@unified-trading/ui-auth`
+React 18 · TypeScript · Vite · Tailwind CSS · React Router v6 · Radix UI · class-variance-authority
+
+## Dependency migration (2026-04-16)
+
+This repo previously depended on three external sibling packages:
+
+- `@unified-trading/ui-kit` — shared shadcn components
+- `@unified-trading/ui-auth` — OAuth 2.0 PKCE / Cognito / Google adapters
+- `@unified-admin/core` — API client and auth helpers
+
+All three repos have been **archived on GitHub** (read-only). Their functionality is now
+inlined in this repo:
+
+- UI components → `src/components/ui/` (standard shadcn/Radix implementations)
+- Auth adapters → `src/auth/` (Cognito + Google OAuth, inline)
+- API client → `src/api/client.ts` (fetch-based, no external dependency)

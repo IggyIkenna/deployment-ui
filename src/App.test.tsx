@@ -2,19 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "./App";
 
-vi.mock("@unified-trading/ui-auth", () => ({
-  AuthProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+vi.mock("./auth/RequireAuth", () => ({
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useAuth: () => ({
-    isAuthenticated: true,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-    token: "test_token",
-    user: null,
-  }),
 }));
 vi.mock("./components/Header", () => ({ Header: () => <div>Header</div> }));
 vi.mock("./components/ServiceList", () => ({

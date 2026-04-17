@@ -1,8 +1,7 @@
-import { ErrorBoundary, Button } from "@unified-trading/ui-kit";
-import { useState } from "react";
+import { Component, type ReactNode, useState } from "react";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider, RequireAuth } from "@unified-trading/ui-auth";
-import type { AuthProviderConfig } from "@unified-trading/ui-auth";
+import { RequireAuth } from "./auth/RequireAuth";
+import { Button } from "./components/ui/button";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { MockModeBanner } from "./components/MockModeBanner";
 import { Header } from "./components/Header";
@@ -34,18 +33,54 @@ import {
 import { createDeployment } from "./api/client";
 import type { DeploymentRequest, CreateDeploymentResponse } from "./types";
 
-const SKIP_AUTH =
-  import.meta.env.VITE_SKIP_AUTH === "true" ||
-  import.meta.env.VITE_MOCK_API === "true";
+// ---------------------------------------------------------------------------
+// Local ErrorBoundary (replaces @unified-trading/ui-kit ErrorBoundary)
+// ---------------------------------------------------------------------------
 
-const authConfig: AuthProviderConfig = {
-  provider: "google",
-  clientId: import.meta.env.VITE_OAUTH_CLIENT_ID ?? "",
-  redirectUri: window.location.origin + "/auth/callback",
-  scopes: ["openid", "email", "profile"],
-  skipAuth: SKIP_AUTH,
-  serviceName: "deployment-ui",
-};
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] p-8">
+          <div className="max-w-lg text-center">
+            <h1 className="text-xl font-semibold text-[var(--color-accent-red)] mb-2">
+              Something went wrong
+            </h1>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+              {this.state.error?.message ?? "An unexpected error occurred."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-sm rounded-md bg-[var(--color-accent-blue)] text-white hover:opacity-90"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const INFRASTRUCTURE_SERVICES = ["unified-trading-deployment-v2"];
 
@@ -119,7 +154,6 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider config={authConfig}>
         <BrowserRouter>
           <CloudProviderProvider>
           <RequireAuth>
@@ -387,7 +421,6 @@ function App() {
           </RequireAuth>
           </CloudProviderProvider>
         </BrowserRouter>
-      </AuthProvider>
     </ErrorBoundary>
   );
 }
