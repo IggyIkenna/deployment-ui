@@ -3631,6 +3631,17 @@ function DataStatusTabInternal({
                                             </span>
                                             {Object.entries(subData.leagues!).map(([leagueName, leagueData]) => {
                                               const ld = leagueData as TurboLeagueStatus;
+                                              const unitLabel = ld.unit === "fixtures" ? "fixtures" : "dates";
+                                              if (ld.not_applicable) {
+                                                return (
+                                                  <div key={leagueName} className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50">
+                                                    <span className="h-2.5 w-2.5 shrink-0" />
+                                                    <span className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]" title={leagueName}>{leagueName}</span>
+                                                    <div className="flex-1" />
+                                                    <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">N/A</span>
+                                                  </div>
+                                                );
+                                              }
                                               return (
                                                 <details key={leagueName} className="group/league">
                                                   <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
@@ -3638,7 +3649,7 @@ function DataStatusTabInternal({
                                                     <span className="text-[10px] font-mono truncate min-w-0" title={leagueName}>{leagueName}</span>
                                                     <div className="flex-1" />
                                                     <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                      {ld.dates_found}/{ld.dates_expected}
+                                                      {ld.dates_found}/{ld.dates_expected} {unitLabel}
                                                     </span>
                                                     <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
                                                       <div className="h-full" style={{ width: `${ld.completion_pct}%`, backgroundColor: getCompletionColor(ld.completion_pct) }} />
@@ -3692,7 +3703,7 @@ function DataStatusTabInternal({
                                             {foundList.length > 0 && (
                                               <details>
                                                 <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                  {subData.dates_found} available dates
+                                                  {subData.dates_found} available {catName === "SPORTS" ? "fixtures" : "dates"}
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                   {foundList.map((date: string) => (
@@ -3711,7 +3722,7 @@ function DataStatusTabInternal({
                                             {missingList.length > 0 && (
                                               <details>
                                                 <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                  {missingCount} missing dates
+                                                  {missingCount} missing {catName === "SPORTS" ? "fixtures" : "dates"}
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                   {missingList.map((date: string) => (
