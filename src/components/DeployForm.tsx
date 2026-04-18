@@ -90,6 +90,13 @@ export function DeployForm({
   // Form state
   const [compute, setCompute] = useState<"cloud_run" | "vm">("vm"); // VM is default
   const [mode, setMode] = useState<"batch" | "live">("batch");
+  // v7 runtime_profile — single axis that collapses 5 legacy mode env vars
+  // (CLOUD_MOCK_MODE, MOCK_STATE_MODE, DISABLE_AUTH, VITE_MOCK_API,
+  // VITE_SKIP_AUTH) at VM/pod boot via deployment-api fan-out.
+  const [runtimeProfile, setRuntimeProfile] = useState<
+    "backtest" | "paper" | "mock-live" | "staging" | "prod" | ""
+  >("");
+  const [clientId, setClientId] = useState<string>("");
   const [region, setRegion] = useState<string>("asia-northeast1");
   const [vmZone, setVmZone] = useState<string>("asia-northeast1-b");
   const [startDate, setStartDate] = useState("");
@@ -389,6 +396,9 @@ export function DeployForm({
       mode,
       compute,
       cloud_provider: cloudProvider,
+      // v7 runtime profile — deployment-api fans out to 5 legacy env vars on boot
+      ...(runtimeProfile ? { runtime_profile: runtimeProfile } : {}),
+      ...(clientId.trim() ? { client_id: clientId.trim() } : {}),
       // Dates are optional - backend defaults to expected_start_dates.yaml / yesterday
       ...(startDate ? { start_date: startDate } : {}),
       ...(endDate ? { end_date: endDate } : {}),
@@ -679,6 +689,58 @@ export function DeployForm({
               Live
             </Button>
           </div>
+        </div>
+
+        {/* Runtime profile (v7 — collapses 5 legacy mode env vars at pod boot) */}
+        <div className="space-y-2">
+          <Label htmlFor="runtime-profile">Runtime profile</Label>
+          <Select
+            value={runtimeProfile || "__none__"}
+            onValueChange={(v) =>
+              setRuntimeProfile(
+                v === "__none__"
+                  ? ""
+                  : (v as
+                      | "backtest"
+                      | "paper"
+                      | "mock-live"
+                      | "staging"
+                      | "prod"),
+              )
+            }
+          >
+            <SelectTrigger id="runtime-profile">
+              <SelectValue placeholder="default (inherit from env)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">default</SelectItem>
+              <SelectItem value="backtest">backtest</SelectItem>
+              <SelectItem value="paper">paper</SelectItem>
+              <SelectItem value="mock-live">mock-live</SelectItem>
+              <SelectItem value="staging">staging</SelectItem>
+              <SelectItem value="prod">prod</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Selecting a profile fans out to CLOUD_MOCK_MODE, MOCK_STATE_MODE,
+            DISABLE_AUTH, VITE_MOCK_API, VITE_SKIP_AUTH at VM/pod boot. Chaos
+            is forbidden when runtime_profile=prod.
+          </p>
+        </div>
+
+        {/* Client ID — per-client isolated deployments (Phase 6 bus gating) */}
+        <div className="space-y-2">
+          <Label htmlFor="client-id">Client ID (optional)</Label>
+          <Input
+            id="client-id"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            placeholder="leave blank for shared pool"
+          />
+          <p className="text-xs text-muted-foreground">
+            Set only when materialising an isolated instance for a specific
+            client. Execution-service is ALWAYS isolated and REQUIRES this.
+          </p>
         </div>
 
         {/* Cloud provider is now controlled by the global header toggle */}

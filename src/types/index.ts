@@ -270,6 +270,62 @@ export interface DeploymentRequest {
   traffic_split_pct?: number; // Canary traffic split (0–100, default 10)
   health_gate_timeout_s?: number; // Health poll timeout before rollback (default 300)
   rollback_on_fail?: boolean; // Auto-rollback if health gate fails (default true)
+  // v7 — runtime profile axis (collapses 5 legacy mode env vars at VM/pod boot)
+  runtime_profile?: "backtest" | "paper" | "mock-live" | "staging" | "prod";
+  client_id?: string; // Client identifier for per-client isolated services (Phase 6 bus gating)
+}
+
+// v7 — Client isolation + SLA tiers + chaos injections (paired with
+// unified-api-contracts/internal/domain/deployment_service/isolation.py).
+
+export type IsolationPolicy = "shared" | "isolated";
+export type SLATier = "basic" | "standard" | "premium";
+export type RuntimeProfile =
+  | "backtest"
+  | "paper"
+  | "mock-live"
+  | "staging"
+  | "prod";
+export type ChaosInjectionPoint =
+  | "venue_latency"
+  | "rpc_timeout"
+  | "recon_mismatch"
+  | "price_shock"
+  | "instrument_delist"
+  | "config_flip"
+  | "kill_switch_fire"
+  | "component_failure";
+
+export interface ServiceIsolationSpec {
+  service: string;
+  default: IsolationPolicy;
+  allowed: IsolationPolicy[];
+  reason: string;
+}
+
+export interface ClientServiceOverride {
+  service_name: string;
+  isolation: IsolationPolicy;
+}
+
+export interface ClientSubscription {
+  client_id: string;
+  sla_tier: SLATier;
+  service_overrides: ClientServiceOverride[];
+  active_from: string; // ISO 8601
+  active_until?: string | null;
+  note?: string;
+}
+
+export interface ChaosInjectionSpec {
+  injection_id: string;
+  point: ChaosInjectionPoint;
+  target_service: string;
+  parameters: Record<string, string>;
+  active_from: string;
+  active_until?: string | null;
+  created_by: string;
+  runtime_profile: RuntimeProfile;
 }
 
 // Cloud config discovery response

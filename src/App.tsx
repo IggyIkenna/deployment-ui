@@ -1,5 +1,9 @@
 import { Component, type ReactNode, useState } from "react";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { VmDeployments } from "./pages/VmDeployments";
+import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
+import { ClientSubscriptions } from "./pages/ClientSubscriptions";
+import { Chaos } from "./pages/Chaos";
 import { RequireAuth } from "./auth/RequireAuth";
 import { Button } from "./components/ui/button";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
@@ -160,6 +164,20 @@ function App() {
             <div className="min-h-screen bg-[var(--color-bg-primary)]">
               <MockModeBanner />
               <Header />
+              <Routes>
+                <Route path="/vm-deployments" element={<VmDeployments />} />
+                <Route
+                  path="/vm-deployments/:deploymentId"
+                  element={<VmDeploymentDetails />}
+                />
+                <Route
+                  path="/client-subscriptions"
+                  element={<ClientSubscriptions />}
+                />
+                <Route path="/chaos" element={<Chaos />} />
+                <Route
+                  path="*"
+                  element={(
               <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px]">
                 <div className="grid grid-cols-12 gap-4 lg:gap-6">
                   <div className="col-span-12 lg:col-span-3 xl:col-span-2 2xl:col-span-2">
@@ -417,6 +435,9 @@ function App() {
                   </div>
                 </div>
               </main>
+                  )}
+                />
+              </Routes>
             </div>
           </RequireAuth>
           </CloudProviderProvider>

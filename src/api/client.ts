@@ -1633,4 +1633,75 @@ export async function getLiveDeploymentHealth(
   );
 }
 
+// ---------------------------------------------------------------------------
+// v7 — Client subscriptions + chaos injections (Phase 4b)
+// ---------------------------------------------------------------------------
+
+import type {
+  ChaosInjectionSpec,
+  ClientSubscription,
+  RuntimeProfile,
+} from "../types";
+
+export async function listClientSubscriptions(): Promise<ClientSubscription[]> {
+  return fetchJson<ClientSubscription[]>("/subscriptions/");
+}
+
+export async function getClientSubscription(
+  clientId: string,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>(
+    `/subscriptions/${encodeURIComponent(clientId)}`,
+  );
+}
+
+export async function createClientSubscription(
+  sub: ClientSubscription,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>("/subscriptions/", {
+    method: "POST",
+    body: JSON.stringify(sub),
+  });
+}
+
+export async function updateClientSubscription(
+  clientId: string,
+  patch: Partial<ClientSubscription>,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>(
+    `/subscriptions/${encodeURIComponent(clientId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    },
+  );
+}
+
+export async function listActiveChaosInjections(
+  runtimeProfile?: RuntimeProfile,
+): Promise<ChaosInjectionSpec[]> {
+  const qs = runtimeProfile
+    ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}`
+    : "";
+  return fetchJson<ChaosInjectionSpec[]>(`/chaos/injections/${qs}`);
+}
+
+export async function createChaosInjection(
+  spec: ChaosInjectionSpec,
+): Promise<ChaosInjectionSpec> {
+  return fetchJson<ChaosInjectionSpec>("/chaos/injections/", {
+    method: "POST",
+    body: JSON.stringify(spec),
+  });
+}
+
+export async function deleteChaosInjection(injectionId: string): Promise<void> {
+  await fetchJson<void>(
+    `/chaos/injections/${encodeURIComponent(injectionId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export { ApiError };
