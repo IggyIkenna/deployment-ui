@@ -47,7 +47,7 @@ function formatTimestamp(value: string | null): string {
   }
 }
 
-export function VmDeployments(): JSX.Element {
+export function VmDeployments() {
   const [active, setActive] = useState<VmDeploymentEntry[]>([]);
   const [recent, setRecent] = useState<VmDeploymentEntry[]>([]);
   const [days, setDays] = useState(7);

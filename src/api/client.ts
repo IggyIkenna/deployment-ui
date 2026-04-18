@@ -759,7 +759,6 @@ export interface TurboCategoryStatus {
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
-  feature_groups?: { [name: string]: TurboSubDimension };
   folders?: { [name: string]: TurboSubDimension }; // Instrument type breakdown
   chains?: { [name: string]: TurboChainStatus }; // DeFi chain breakdown (v4)
   feature_groups?: { [name: string]: TurboFeatureGroupStatus }; // Feature service breakdown (v4)

@@ -3556,8 +3556,8 @@ function DataStatusTabInternal({
                                               {catName === "PREDICTION" ? "Markets" : "Data Types"}
                                             </span>
                                             {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
-                                              const dtFoundList: string[] = (dtData as Record<string, unknown>).dates_found_list as string[] ?? [];
-                                              const dtMissingList: string[] = (dtData as Record<string, unknown>).missing_dates as string[] ?? [];
+                                              const dtFoundList: string[] = (dtData as unknown as Record<string, unknown>).dates_found_list as string[] ?? [];
+                                              const dtMissingList: string[] = (dtData as unknown as Record<string, unknown>).missing_dates as string[] ?? [];
                                               const hasDates = dtFoundList.length > 0 || dtMissingList.length > 0;
                                               return (
                                                 <details key={dtName} className="group/dt">
@@ -3600,7 +3600,7 @@ function DataStatusTabInternal({
                                                         {dtMissingList.length > 0 && (
                                                           <details>
                                                             <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                              {dtData.dates_missing} missing
+                                                              {dtMissingList.length} missing
                                                             </summary>
                                                             <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                               {dtMissingList.slice(0, 60).map((date: string) => (

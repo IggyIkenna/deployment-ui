@@ -35,7 +35,7 @@ function formatValue(v: unknown): string {
   }
 }
 
-export function VmDeploymentDetails(): JSX.Element {
+export function VmDeploymentDetails() {
   const { deploymentId = "" } = useParams<{ deploymentId: string }>();
   const [entry, setEntry] = useState<VmDeploymentEntry | null>(null);
   const [events, setEvents] = useState<DeploymentEventsResponse | null>(null);
