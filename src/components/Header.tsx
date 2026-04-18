@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Activity,
   Server,
@@ -59,6 +60,13 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* VM Deployments nav */}
+          <Link
+            to="/vm-deployments"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            VM Deployments
+          </Link>
           {/* Cloud Provider Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--color-border-default)] overflow-hidden">
             <button

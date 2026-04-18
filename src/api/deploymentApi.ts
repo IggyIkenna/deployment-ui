@@ -66,6 +66,75 @@ export async function fetchBuilds(
   return handleResponse<BuildEntry[]>(response);
 }
 
+// -------------------------------------------------------------------------
+// VM deployments (Gate G1 observability) — active + recent-archive view of
+// batch VMs spawned via vm-exec-with-gcs-tee.sh.
+// -------------------------------------------------------------------------
+
+export interface VmDeploymentEntry {
+  deployment_id: string;
+  vm_name: string;
+  category: string;
+  task: string;
+  mode: string;
+  start_date: string;
+  end_date: string;
+  status: "running" | "completed" | "failed" | string;
+  started_at: string;
+  last_heartbeat_at: string;
+  completed_at: string | null;
+  exit_code: number | null;
+  rows_in: number;
+  rows_out: number;
+  rows_error: number;
+  events_emitted: number;
+  log_uri: string;
+}
+
+export interface VmDeploymentsListResponse {
+  active: VmDeploymentEntry[];
+  recent: VmDeploymentEntry[];
+  archive_days: number;
+}
+
+export async function fetchVmDeployments(
+  days = 7,
+): Promise<VmDeploymentsListResponse> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm-deployments?days=${days}`,
+  );
+  return handleResponse<VmDeploymentsListResponse>(response);
+}
+
+export async function fetchVmDeployment(
+  deploymentId: string,
+): Promise<VmDeploymentEntry> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm-deployments/${encodeURIComponent(deploymentId)}`,
+  );
+  return handleResponse<VmDeploymentEntry>(response);
+}
+
+export interface DeploymentEventsResponse {
+  deployment_id: string;
+  events: Array<{
+    event_type: string;
+    timestamp: string;
+    message?: string;
+    [key: string]: unknown;
+  }>;
+  count: number;
+}
+
+export async function fetchVmDeploymentEvents(
+  deploymentId: string,
+): Promise<DeploymentEventsResponse> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(deploymentId)}/events`,
+  );
+  return handleResponse<DeploymentEventsResponse>(response);
+}
+
 export async function deployBuild(
   service: string,
   imageTag: string,
