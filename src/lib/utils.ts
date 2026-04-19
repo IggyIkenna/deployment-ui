@@ -59,3 +59,44 @@ export function formatRatePerDay(numerator: number, denominator: number): string
   const rate = Math.round(numerator / denominator);
   return `${rate.toLocaleString()}/day`;
 }
+
+export interface EventDrivenCoverageLabel {
+  /** Headline text shown on the row, e.g. "100.0% attempted · 23.4% captured (77% empty)". */
+  text: string;
+  /** Tooltip text explaining why the two numbers differ. */
+  tooltip: string;
+}
+
+/**
+ * Build the label for an event-driven category row (SPORTS / PREDICTION).
+ *
+ * Dense categories (CeFi / TradFi / DeFi) should display the single capture %
+ * unchanged; this helper is only invoked when
+ * `coverage_semantics === "event_driven"`.
+ *
+ * Polymarket conditionIds and sports fixtures only trade on a fraction of
+ * their nominal eligible days — the shards-weighted "capture" ratio therefore
+ * vastly understates real coverage. We show both numbers so operators see
+ * that we attempted every market, then display how sparse the per-day trading
+ * was within those markets.
+ */
+export function formatEventDrivenCoverageLabel(
+  attemptCoveragePct: number | undefined | null,
+  captureCoveragePct: number | undefined | null,
+  emptyRateEstimate: number | null | undefined,
+): EventDrivenCoverageLabel {
+  const attempt = attemptCoveragePct ?? 0;
+  const capture = captureCoveragePct ?? 0;
+  const emptyPctText =
+    typeof emptyRateEstimate === "number"
+      ? ` (${Math.round(emptyRateEstimate * 100)}% empty)`
+      : "";
+  const text = `${attempt.toFixed(1)}% attempted · ${capture.toFixed(1)}% captured${emptyPctText}`;
+  const tooltip =
+    "This is an event-driven category — underlyings only trade on a fraction of days " +
+    "(Polymarket conditionIds come and go, sports fixtures only occur on match days). " +
+    "Attempted = fraction of known underlyings with any observed data. " +
+    "Captured = fraction of (underlying × day) combos that had trades. " +
+    "Empty = approximate fraction of attempted underlying-days with no trades.";
+  return { text, tooltip };
+}

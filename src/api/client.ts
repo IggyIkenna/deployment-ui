@@ -735,6 +735,17 @@ export interface TurboCategoryStatus {
   dates_found: number;
   dates_missing: number;
   completion_pct: number;
+  // Coverage semantics (2026-04-19): distinguishes "dense" categories where
+  // every underlying is expected to produce data every day (CeFi / TradFi /
+  // DeFi) from "event_driven" categories where underlyings only trade on a
+  // fraction of days (sports fixtures, Polymarket conditionIds). For
+  // event_driven categories `completion_pct` is aliased to `attempt_coverage_pct`
+  // so the row header reflects "did we observe every market?" rather than
+  // the misleading "is every market dense every day?".
+  coverage_semantics?: "dense" | "event_driven";
+  attempt_coverage_pct?: number;
+  capture_coverage_pct?: number;
+  empty_rate_estimate?: number | null;
   missing_dates: string[] | string;
   // Category-level dates lists (with truncation for UI display)
   dates_found_count?: number; // Total found count

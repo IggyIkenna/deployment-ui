@@ -30,7 +30,12 @@ import type {
 } from "../api/client";
 import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES } from "../api/client";
-import { cn, formatRatePerDay, isRateMetricRow } from "../lib/utils";
+import {
+  cn,
+  formatEventDrivenCoverageLabel,
+  formatRatePerDay,
+  isRateMetricRow,
+} from "../lib/utils";
 import type { CategoryStatus, CategoryVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import {
   BucketCountsBadge,
@@ -2953,6 +2958,40 @@ function DataStatusTabInternal({
                               <span className="text-sm text-[var(--color-accent-red)]">
                                 {catData.error}
                               </span>
+                            ) : catData.coverage_semantics ===
+                              "event_driven" ? (
+                              (() => {
+                                const eventLabel =
+                                  formatEventDrivenCoverageLabel(
+                                    catData.attempt_coverage_pct,
+                                    catData.capture_coverage_pct,
+                                    catData.empty_rate_estimate ?? null,
+                                  );
+                                return (
+                                  <>
+                                    <span className="text-sm text-[var(--color-text-muted)]">
+                                      {catData.venue_dates_found ??
+                                        catData.dates_found}{" "}
+                                      /{" "}
+                                      {catData.venue_dates_expected ??
+                                        catData.dates_expected}{" "}
+                                      shards
+                                    </span>
+                                    <span
+                                      className="text-sm font-mono font-medium"
+                                      style={{
+                                        color: getCompletionColor(
+                                          catData.completion_pct,
+                                        ),
+                                      }}
+                                      title={eventLabel.tooltip}
+                                      data-testid={`event-driven-label-${catName}`}
+                                    >
+                                      {eventLabel.text}
+                                    </span>
+                                  </>
+                                );
+                              })()
                             ) : (
                               <>
                                 <span className="text-sm text-[var(--color-text-muted)]">
