@@ -3,6 +3,8 @@ import {
   formatDate,
   formatDateTime,
   formatDuration,
+  formatRatePerDay,
+  isRateMetricRow,
 } from "../../src/lib/utils";
 
 describe("formatDate", () => {
@@ -56,5 +58,55 @@ describe("formatDuration", () => {
     expect(formatDuration(3661)).toBe("1h 1m");
     expect(formatDuration(7200)).toBe("2h 0m");
     expect(formatDuration(86400)).toBe("24h 0m");
+  });
+});
+
+describe("isRateMetricRow", () => {
+  it("flags sports FIXTURE_STATS-style rows where num >> denom", () => {
+    // Real examples from the bug report:
+    expect(isRateMetricRow(3311, 1583)).toBe(true); // FIXTURE_STATS
+    expect(isRateMetricRow(71995, 1583)).toBe(true); // MATCHES
+    expect(isRateMetricRow(2116865, 335)).toBe(true); // SFI_PROGRESSIVE_STATS
+  });
+
+  it("accepts normal coverage rows where num <= denom", () => {
+    expect(isRateMetricRow(100, 100)).toBe(false);
+    expect(isRateMetricRow(80, 100)).toBe(false);
+    expect(isRateMetricRow(0, 100)).toBe(false);
+  });
+
+  it("tolerates slight over-100% drift without flipping to rate", () => {
+    // Up to 1.1x ratio = coverage (shard-level noise); above = rate metric.
+    expect(isRateMetricRow(105, 100)).toBe(false);
+    expect(isRateMetricRow(110, 100)).toBe(false);
+    expect(isRateMetricRow(111, 100)).toBe(true);
+  });
+
+  it("handles missing or zero denominators safely", () => {
+    expect(isRateMetricRow(100, 0)).toBe(false);
+    expect(isRateMetricRow(100, null)).toBe(false);
+    expect(isRateMetricRow(100, undefined)).toBe(false);
+    expect(isRateMetricRow(null, 100)).toBe(false);
+    expect(isRateMetricRow(undefined, 100)).toBe(false);
+  });
+});
+
+describe("formatRatePerDay", () => {
+  it("produces `<rate>/day` label from numerator + denominator", () => {
+    // 2116865 rows / 335 days ≈ 6,319/day
+    expect(formatRatePerDay(2116865, 335)).toBe("6,319/day");
+    // 71995 / 1583 ≈ 45/day
+    expect(formatRatePerDay(71995, 1583)).toBe("45/day");
+    // Small values still formatted
+    expect(formatRatePerDay(10, 2)).toBe("5/day");
+  });
+
+  it("falls back gracefully on zero denominator", () => {
+    expect(formatRatePerDay(100, 0)).toBe("100/day");
+  });
+
+  it("rounds to nearest integer", () => {
+    expect(formatRatePerDay(7, 2)).toBe("4/day"); // 3.5 → 4
+    expect(formatRatePerDay(6, 4)).toBe("2/day"); // 1.5 → 2
   });
 });

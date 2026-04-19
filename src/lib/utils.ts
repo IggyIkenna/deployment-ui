@@ -33,3 +33,29 @@ export function formatDuration(seconds: number): string {
   const mins = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${mins}m`;
 }
+
+/**
+ * Detect rate-metric rows where the numerator exceeds the denominator
+ * (e.g. sports FIXTURE_STATS shows `3311/1583` because 3311 events rolled
+ * up across 1583 days — the denominator is DAYS, the numerator is ROWS,
+ * so the ratio is not a percentage but a per-day rate).
+ *
+ * Tolerance of 1.1x covers edge cases where shard-level drift briefly
+ * exceeds 100% without turning a coverage metric into a rate metric.
+ */
+export function isRateMetricRow(
+  numerator: number | undefined | null,
+  denominator: number | undefined | null,
+): boolean {
+  if (numerator == null || denominator == null) return false;
+  if (denominator <= 0) return false;
+  if (numerator <= 0) return false;
+  return numerator / denominator > 1.1;
+}
+
+/** Format a rate-metric row right-column label (e.g. "6,319/day"). */
+export function formatRatePerDay(numerator: number, denominator: number): string {
+  if (denominator <= 0) return `${numerator}/day`;
+  const rate = Math.round(numerator / denominator);
+  return `${rate.toLocaleString()}/day`;
+}

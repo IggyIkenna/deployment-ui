@@ -30,7 +30,7 @@ import type {
 } from "../api/client";
 import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES } from "../api/client";
-import { cn } from "../lib/utils";
+import { cn, formatRatePerDay, isRateMetricRow } from "../lib/utils";
 import type { CategoryStatus, CategoryVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import {
   BucketCountsBadge,
@@ -931,6 +931,9 @@ function DataStatusTabInternal({
     if (pct >= 99) return pct.toFixed(1);
     return pct.toFixed(0);
   };
+
+  /** Neutral color for rate-metric rows — signals "not a coverage %". */
+  const getRateMetricColor = (): string => "var(--color-text-muted)";
 
   const getCompletionBadgeClass = (percent: number) => {
     if (percent >= 100)
@@ -3488,15 +3491,51 @@ function DataStatusTabInternal({
                                               from {venueStartDate.substring(0, 7)}
                                             </span>
                                           )}
-                                          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                                            {subData.dates_found}/{expectedDates}
-                                          </span>
-                                          <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                            <div className="h-full" style={{ width: `${subData.completion_pct}%`, backgroundColor: getCompletionColor(subData.completion_pct) }} />
-                                          </div>
-                                          <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(subData.completion_pct) }}>
-                                            {formatPct(subData.completion_pct)}%
-                                          </span>
+                                          {(() => {
+                                            const isRate = isRateMetricRow(subData.dates_found, expectedDates);
+                                            if (isRate) {
+                                              // Numerator is row count; denominator is day count.
+                                              // Show rate-per-day instead of a bogus 100% bar.
+                                              return (
+                                                <>
+                                                  <span
+                                                    className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                                                    title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
+                                                  >
+                                                    {subData.dates_found.toLocaleString()} rows / {expectedDates} days
+                                                  </span>
+                                                  <div
+                                                    className="w-16 h-1.5 rounded-full overflow-hidden"
+                                                    style={{
+                                                      backgroundImage:
+                                                        "repeating-linear-gradient(45deg, var(--color-bg-secondary) 0 4px, var(--color-border-subtle) 4px 8px)",
+                                                    }}
+                                                    data-rate-metric="true"
+                                                  />
+                                                  <span
+                                                    className="text-xs font-mono font-medium w-14 text-right"
+                                                    style={{ color: getRateMetricColor() }}
+                                                    data-rate-metric="true"
+                                                  >
+                                                    {formatRatePerDay(subData.dates_found, expectedDates)}
+                                                  </span>
+                                                </>
+                                              );
+                                            }
+                                            return (
+                                              <>
+                                                <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                  {subData.dates_found}/{expectedDates}
+                                                </span>
+                                                <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                  <div className="h-full" style={{ width: `${subData.completion_pct}%`, backgroundColor: getCompletionColor(subData.completion_pct) }} />
+                                                </div>
+                                                <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(subData.completion_pct) }}>
+                                                  {formatPct(subData.completion_pct)}%
+                                                </span>
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       </summary>
 
