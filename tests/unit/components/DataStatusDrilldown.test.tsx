@@ -109,7 +109,7 @@ describe("InstrumentsModal", () => {
       category: "prediction",
       venue: "POLYMARKET",
       day: "2025-04-01",
-      data_type: "prediction_trades",
+      data_type: "trades",
       instrument_types: [{ name: "OTHER", bundling: "per_condition_id" }],
       recommended_instrument_type: "OTHER",
     });
@@ -121,7 +121,7 @@ describe("InstrumentsModal", () => {
     venue: "POLYMARKET",
     day: "2025-04-01",
     instrument_type: "OTHER",
-    data_type: "prediction_trades",
+    data_type: "trades",
     bundling: "per_condition_id" as const,
     bucket: "b",
     prefix: "p",
@@ -148,7 +148,7 @@ describe("InstrumentsModal", () => {
           venue: "POLYMARKET",
           day: "2025-04-01",
           instrument_type: "OTHER",
-          data_type: "prediction_trades",
+          data_type: "trades",
         }}
         onClose={vi.fn()}
       />,
@@ -194,7 +194,7 @@ describe("InstrumentsModal", () => {
           venue: "POLYMARKET",
           day: "2025-04-01",
           instrument_type: "OTHER",
-          data_type: "prediction_trades",
+          data_type: "trades",
         }}
         onClose={vi.fn()}
       />,
@@ -225,7 +225,7 @@ describe("InstrumentsModal", () => {
           venue: "POLYMARKET",
           day: "2025-04-01",
           instrument_type: "OTHER",
-          data_type: "prediction_trades",
+          data_type: "trades",
         }}
         onClose={vi.fn()}
       />,
@@ -325,7 +325,7 @@ describe("InstrumentsModal", () => {
           venue: "POLYMARKET",
           day: "2025-04-01",
           instrument_type: "OTHER",
-          data_type: "prediction_trades",
+          data_type: "trades",
         }}
         onClose={vi.fn()}
       />,
@@ -355,7 +355,7 @@ describe("InstrumentsModal", () => {
           venue: "POLYMARKET",
           day: "2025-04-01",
           instrument_type: "OTHER",
-          data_type: "prediction_trades",
+          data_type: "trades",
         }}
         onClose={vi.fn()}
       />,
@@ -386,7 +386,7 @@ describe("BucketCountsBadge", () => {
         category="prediction"
         venue="POLYMARKET"
         day="2025-04-01"
-        data_type="prediction_trades"
+        data_type="trades"
       />,
     );
     await waitFor(() => {
