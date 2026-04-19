@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildCsvDownloadUrl,
   fetchBucketCounts,
+  fetchBundlePreview,
   fetchInstrumentsForShard,
+  fetchShardInfo,
   fetchShardSchema,
   type BucketCountsResponse,
+  type BundlePreviewResponse,
   type InstrumentsForShardResponse,
+  type ShardInfoResponse,
+  type ShardInstrumentEntry,
   type ShardSchemaResponse,
 } from "../api/client";
 
@@ -16,6 +21,21 @@ export interface ShardCoordinate {
   day: string;
   instrument_type: string;
   data_type: string;
+}
+
+// Page size for the InstrumentsModal — matches the backend DEFAULT_INSTRUMENT_LIMIT.
+const PAGE_SIZE = 50;
+
+// Lightweight client-side sanity check mirroring
+// deployment_api.services.data_status_drilldown._is_valid_instrument_id.
+// We only reject obviously malformed blobs so the server can still own the
+// authoritative validation.
+function isPlausibleInstrumentId(candidate: string): boolean {
+  const s = candidate.trim();
+  if (s.length === 0) return false;
+  if (/\s/.test(s)) return false;
+  if (s.includes(",")) return false;
+  return true;
 }
 
 /* =========================================================================
@@ -131,16 +151,150 @@ export function InstrumentsModal({
   coord: ShardCoordinate;
   onClose: () => void;
 }) {
+  // ---------------------------------------------------------------------
+  // instruments-service is a low-cardinality reference data service —
+  // instead of the full list-and-select flow, offer a single "Download day
+  // CSV" button that fetches the whole shard. Early-return with the simple
+  // variant keeps the heavy state machinery out of its render path.
+  // ---------------------------------------------------------------------
+  if (coord.service === "instruments-service") {
+    return <InstrumentsServiceShardModal coord={coord} onClose={onClose} />;
+  }
+
+  // Paginated / searchable state for the normal flow.
   const [listing, setListing] = useState<InstrumentsForShardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [schemaOpen, setSchemaOpen] = useState(false);
 
+  // Search + pagination.
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [offset, setOffset] = useState(0);
+  // Accumulated instruments across "Load more" clicks when search is empty.
+  const [loadedInstruments, setLoadedInstruments] = useState<ShardInstrumentEntry[]>([]);
+
+  // Paste-instrument-id input (skips list flow entirely).
+  const [pasteInput, setPasteInput] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
+
+  // Instrument-type disambiguation. DataStatusTab guesses from data_type,
+  // which misses CeFi venues that partition by instrument_type (perpetual
+  // vs options_chain). We fetch /shard-info once per venue+day and let the
+  // user pick when multiple types exist.
+  const [shardInfo, setShardInfo] = useState<ShardInfoResponse | null>(null);
+  const [activeInstrumentType, setActiveInstrumentType] = useState<string>(
+    coord.instrument_type,
+  );
+
+  // Debounce the search input — only fire when >= 2 chars.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const s = searchInput.trim();
+    if (s.length === 0) {
+      debounceRef.current = setTimeout(() => setDebouncedSearch(""), 100);
+      return;
+    }
+    if (s.length < 2) return; // hold off until the user types enough
+    debounceRef.current = setTimeout(() => setDebouncedSearch(s), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchInput]);
+
+  // Reset pagination whenever the search term changes.
+  useEffect(() => {
+    setOffset(0);
+    setLoadedInstruments([]);
+  }, [debouncedSearch]);
+
+  // Reset everything when the coordinate changes (modal re-open).
+  useEffect(() => {
+    setSelected(new Set());
+    setOffset(0);
+    setLoadedInstruments([]);
+    setSearchInput("");
+    setDebouncedSearch("");
+    setPasteInput("");
+    setPasteError(null);
+    setActiveInstrumentType(coord.instrument_type);
+    setShardInfo(null);
+  }, [
+    coord.service,
+    coord.category,
+    coord.venue,
+    coord.day,
+    coord.instrument_type,
+    coord.data_type,
+  ]);
+
+  // Resolve the actual instrument_types present on this venue+day. If the
+  // caller passed a type that doesn't exist on disk (common: guess fell
+  // back to data_type), switch to the recommended one.
   useEffect(() => {
     let cancelled = false;
-    fetchInstrumentsForShard(coord)
+    fetchShardInfo({
+      service: coord.service,
+      category: coord.category,
+      venue: coord.venue,
+      day: coord.day,
+      data_type: coord.data_type,
+    })
+      .then((info) => {
+        if (cancelled) return;
+        setShardInfo(info);
+        const known = info.instrument_types.map((t) => t.name);
+        if (!known.includes(activeInstrumentType) && info.recommended_instrument_type) {
+          setActiveInstrumentType(info.recommended_instrument_type);
+        }
+      })
+      .catch(() => {
+        // Non-fatal — we fall back to the caller's guess.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    coord.service,
+    coord.category,
+    coord.venue,
+    coord.day,
+    coord.data_type,
+  ]);
+
+  // Fetch the current page.
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    fetchInstrumentsForShard({
+      service: coord.service,
+      category: coord.category,
+      venue: coord.venue,
+      day: coord.day,
+      instrument_type: activeInstrumentType,
+      data_type: coord.data_type,
+      limit: PAGE_SIZE,
+      offset,
+      search: debouncedSearch || undefined,
+    })
       .then((r) => {
-        if (!cancelled) setListing(r);
+        if (cancelled) return;
+        setListing(r);
+        // Append for "Load more" — replace for search or offset=0.
+        if (offset === 0 || debouncedSearch) {
+          setLoadedInstruments(r.instruments);
+        } else {
+          setLoadedInstruments((prev) => {
+            const seen = new Set(prev.map((p) => p.instrument_id));
+            const merged = [...prev];
+            for (const i of r.instruments) {
+              if (!seen.has(i.instrument_id)) merged.push(i);
+            }
+            return merged;
+          });
+        }
       })
       .catch((e: Error) => {
         if (!cancelled) setError(e.message);
@@ -155,7 +309,11 @@ export function InstrumentsModal({
     coord.day,
     coord.instrument_type,
     coord.data_type,
+    offset,
+    debouncedSearch,
   ]);
+
+  const isBundled = listing?.bundling === "per_underlying";
 
   function toggle(id: string) {
     const next = new Set(selected);
@@ -165,12 +323,40 @@ export function InstrumentsModal({
   }
 
   function selectAll() {
-    if (!listing) return;
-    setSelected(new Set(listing.instruments.map((i) => i.instrument_id)));
+    setSelected(new Set(loadedInstruments.map((i) => i.instrument_id)));
   }
 
   function clearAll() {
     setSelected(new Set());
+  }
+
+  function loadMore() {
+    setOffset((prev) => prev + PAGE_SIZE);
+  }
+
+  function submitPaste() {
+    const candidate = pasteInput.trim();
+    if (!isPlausibleInstrumentId(candidate)) {
+      setPasteError("Invalid instrument_id — no spaces, commas, or newlines allowed.");
+      return;
+    }
+    setPasteError(null);
+    const url = buildCsvDownloadUrl({
+      service: coord.service,
+      category: coord.category,
+      venue: coord.venue,
+      day: coord.day,
+      instrument_type: activeInstrumentType,
+      data_type: coord.data_type,
+      instrument_ids: [candidate],
+    });
+    // Trigger download via a hidden link — avoids a navigation away from the UI.
+    const a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   const downloadUrl = listing
@@ -179,22 +365,124 @@ export function InstrumentsModal({
         category: coord.category,
         venue: coord.venue,
         day: coord.day,
-        instrument_type: coord.instrument_type,
+        instrument_type: activeInstrumentType,
         data_type: coord.data_type,
         instrument_ids: Array.from(selected),
       })
     : null;
 
+  // Active coordinate used for downstream children (bundle rows, schema
+  // modal) — reflects the picker choice when the caller's guess was wrong.
+  const effectiveCoord: ShardCoordinate = {
+    ...coord,
+    instrument_type: activeInstrumentType,
+  };
+
+  // Type-picker UI: show whenever we discovered >1 instrument_type on the
+  // shard. For single-type shards the picker is hidden (just informational).
+  const multiType = (shardInfo?.instrument_types.length ?? 0) > 1;
+  const typePicker = multiType ? (
+    <label className="flex items-center gap-2 text-[11px]">
+      <span className="text-[var(--color-text-muted)]">instrument_type:</span>
+      <select
+        value={activeInstrumentType}
+        onChange={(e) => {
+          setActiveInstrumentType(e.target.value);
+          setOffset(0);
+          setLoadedInstruments([]);
+          setSelected(new Set());
+        }}
+        className="px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)] font-mono"
+      >
+        {shardInfo!.instrument_types.map((t) => (
+          <option key={t.name} value={t.name}>
+            {t.name} ({t.bundling})
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : null;
+
   const bundlingHint =
     listing?.bundling === "per_underlying"
-      ? "Selecting an underlying downloads the whole bundle parquet for that root."
+      ? "Bundled by underlying — one file per underlying contains all strikes / expiries / legs."
       : listing?.bundling === "per_condition_id"
         ? "All conditionIds live in one bundle parquet. Each checkbox filters the CSV to that conditionId."
         : "One parquet per symbol — each checkbox downloads that one file.";
 
+  const totalCount = listing?.total_count ?? 0;
+  const rangeStart = loadedInstruments.length === 0 ? 0 : offset === 0 ? 1 : offset + 1;
+  const rangeEnd = offset + loadedInstruments.length;
+
+  // If bundled, render the bundle variant (per-underlying rows with Download buttons + preview).
+  if (isBundled) {
+    return (
+      <ModalShell
+        title={`${coord.venue} · ${coord.day} · ${activeInstrumentType}/${coord.data_type}`}
+        onClose={onClose}
+      >
+        {error && (
+          <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
+        )}
+        {!listing && !error && <div className="text-xs">Loading…</div>}
+        {listing && (
+          <div className="space-y-2">
+            {typePicker}
+            <div className="text-xs text-[var(--color-text-muted)]">
+              Bundling: <span className="font-mono">{listing.bundling}</span> ·{" "}
+              {totalCount} underlying{totalCount === 1 ? "" : "s"}
+            </div>
+            <div className="text-[11px] text-[var(--color-text-muted)]">
+              {bundlingHint}
+            </div>
+            <div className="flex gap-2 text-xs">
+              <button className="underline" onClick={() => setSchemaOpen(true)}>
+                Show schema
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto border border-[var(--color-border-subtle)] rounded p-1">
+              {loadedInstruments.length === 0 && (
+                <div className="text-xs italic text-[var(--color-text-muted)] p-2">
+                  No bundle parquets found for {coord.day}.
+                </div>
+              )}
+              {loadedInstruments.map((i) => (
+                <BundleRow key={i.instrument_id} coord={effectiveCoord} instrument={i} />
+              ))}
+            </div>
+            {listing.has_more && (
+              <div className="flex justify-center">
+                <button
+                  className="text-xs underline"
+                  onClick={loadMore}
+                  type="button"
+                >
+                  Load more ({totalCount - loadedInstruments.length} remaining)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {schemaOpen && listing && (
+          <SchemaModal
+            coord={{
+              service: coord.service,
+              category: coord.category,
+              venue: coord.venue,
+              instrument_type: activeInstrumentType,
+              data_type: coord.data_type,
+            }}
+            onClose={() => setSchemaOpen(false)}
+          />
+        )}
+      </ModalShell>
+    );
+  }
+
+  // Normal (per_symbol / per_condition_id) flow — search + paginate + multi-select CSV.
   return (
     <ModalShell
-      title={`${coord.venue} · ${coord.day} · ${coord.instrument_type}/${coord.data_type}`}
+      title={`${coord.venue} · ${coord.day} · ${activeInstrumentType}/${coord.data_type}`}
       onClose={onClose}
     >
       {error && (
@@ -203,15 +491,72 @@ export function InstrumentsModal({
       {!listing && !error && <div className="text-xs">Loading…</div>}
       {listing && (
         <div className="space-y-2">
-          <div className="text-xs text-[var(--color-text-muted)]">
-            Bundling: <span className="font-mono">{listing.bundling}</span> ·{" "}
-            {listing.instruments.length} instrument
-            {listing.instruments.length === 1 ? "" : "s"}
+          {/* Header: totals + bundling hint */}
+          <div className="text-xs">
+            <span className="font-medium">{totalCount.toLocaleString()}</span>
+            {" market"}
+            {totalCount === 1 ? "" : "s"}
+            {totalCount > loadedInstruments.length && (
+              <>
+                {" — "}
+                <span>
+                  showing {rangeStart}-{rangeEnd} (search to narrow)
+                </span>
+              </>
+            )}
+            {" · "}
+            <span className="text-[var(--color-text-muted)]">
+              bundling: <span className="font-mono">{listing.bundling}</span>
+            </span>
           </div>
+          {typePicker}
           <div className="text-[11px] text-[var(--color-text-muted)]">{bundlingHint}</div>
+
+          {/* Search + paste row */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[var(--color-text-muted)]">Search instrument_id</span>
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="type >= 2 chars"
+                className="px-1.5 py-1 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)] font-mono text-[11px]"
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[var(--color-text-muted)]">Paste instrument_id</span>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={pasteInput}
+                  onChange={(e) => setPasteInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitPaste();
+                  }}
+                  placeholder="paste exact ID then Enter"
+                  className="flex-1 px-1.5 py-1 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)] font-mono text-[11px]"
+                />
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium"
+                  onClick={submitPaste}
+                >
+                  Download
+                </button>
+              </div>
+              {pasteError && (
+                <span className="text-[10px] text-[var(--color-accent-red)]">
+                  {pasteError}
+                </span>
+              )}
+            </label>
+          </div>
+
+          {/* Actions */}
           <div className="flex gap-2 text-xs">
             <button className="underline" onClick={selectAll}>
-              Select all
+              Select visible
             </button>
             <button className="underline" onClick={clearAll}>
               Clear
@@ -220,13 +565,17 @@ export function InstrumentsModal({
               Show schema
             </button>
           </div>
+
+          {/* List */}
           <div className="max-h-64 overflow-y-auto border border-[var(--color-border-subtle)] rounded p-1">
-            {listing.instruments.length === 0 && (
+            {loadedInstruments.length === 0 && (
               <div className="text-xs italic text-[var(--color-text-muted)] p-2">
-                No parquet files found for this shard on {coord.day}.
+                {debouncedSearch
+                  ? `No matches for "${debouncedSearch}".`
+                  : `No parquet files found for this shard on ${coord.day}.`}
               </div>
             )}
-            {listing.instruments.map((i) => (
+            {loadedInstruments.map((i) => (
               <label
                 key={i.instrument_id}
                 className="flex items-center gap-2 text-[11px] font-mono py-0.5 px-1 hover:bg-[var(--color-bg-hover)]"
@@ -245,12 +594,21 @@ export function InstrumentsModal({
               </label>
             ))}
           </div>
+
+          {/* Load more */}
+          {listing.has_more && (
+            <div className="flex justify-center">
+              <button className="text-xs underline" onClick={loadMore} type="button">
+                Load more ({totalCount - loadedInstruments.length} remaining)
+              </button>
+            </div>
+          )}
+
+          {/* Footer: selection + download */}
           <div className="flex justify-between items-center text-xs">
             <span className="text-[var(--color-text-muted)]">
               {selected.size} selected
-              {selected.size === 0 &&
-                listing.instruments.length > 0 &&
-                " (empty = full shard)"}
+              {selected.size === 0 && loadedInstruments.length > 0 && " (empty = full shard)"}
             </span>
             {downloadUrl && (
               <a
@@ -264,6 +622,181 @@ export function InstrumentsModal({
         </div>
       )}
       {schemaOpen && listing && (
+        <SchemaModal
+          coord={{
+            service: coord.service,
+            category: coord.category,
+            venue: coord.venue,
+            instrument_type: activeInstrumentType,
+            data_type: coord.data_type,
+          }}
+          onClose={() => setSchemaOpen(false)}
+        />
+      )}
+    </ModalShell>
+  );
+}
+
+/* =========================================================================
+ * Bundle row — per-underlying entry with a single download button and an
+ * optional "Preview symbols inside" expander. Used for options_chain /
+ * futures_chain / combo shards where each parquet bundles many strikes /
+ * expiries / legs under one underlying root.
+ * ========================================================================= */
+
+function BundleRow({
+  coord,
+  instrument,
+}: {
+  coord: ShardCoordinate;
+  instrument: ShardInstrumentEntry;
+}) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [preview, setPreview] = useState<BundlePreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const downloadUrl = useMemo(
+    () =>
+      buildCsvDownloadUrl({
+        service: coord.service,
+        category: coord.category,
+        venue: coord.venue,
+        day: coord.day,
+        instrument_type: coord.instrument_type,
+        data_type: coord.data_type,
+        // Bundled shards expect the underlying's instrument_id — the
+        // server maps this to the one bundle parquet.
+        instrument_ids: [instrument.instrument_id],
+      }),
+    [coord, instrument.instrument_id],
+  );
+
+  function togglePreview() {
+    if (!previewOpen && !preview && !previewError) {
+      // Lazy fetch on first expand. Note: the backend preview endpoint
+      // always returns the first underlying in the listing — good enough
+      // for single-underlying bundles, and a reasonable sample for the
+      // rest since columns are shared within a bundle.
+      fetchBundlePreview({
+        service: coord.service,
+        category: coord.category,
+        venue: coord.venue,
+        day: coord.day,
+        instrument_type: coord.instrument_type,
+        data_type: coord.data_type,
+        limit: 20,
+      })
+        .then((r) => setPreview(r))
+        .catch((e: Error) => setPreviewError(e.message));
+    }
+    setPreviewOpen((p) => !p);
+  }
+
+  return (
+    <div className="py-1 px-1 border-b border-[var(--color-border-subtle)] last:border-b-0">
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className="font-mono font-medium truncate" title={instrument.instrument_id}>
+          {instrument.instrument_id}
+        </span>
+        <span className="text-[var(--color-text-muted)] text-[10px]">
+          {(instrument.size_bytes / 1024).toFixed(1)} KB
+        </span>
+        <div className="flex-1" />
+        <button
+          type="button"
+          className="text-[10px] underline text-[var(--color-text-muted)]"
+          onClick={togglePreview}
+        >
+          {previewOpen ? "Hide symbols" : "Preview symbols inside"}
+        </button>
+        <a
+          href={downloadUrl}
+          className="px-2 py-0.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium text-[10px]"
+        >
+          Download {instrument.instrument_id} bundle
+        </a>
+      </div>
+      {previewOpen && (
+        <div className="mt-1 ml-2 pl-2 border-l border-[var(--color-border-subtle)]">
+          {previewError && (
+            <div className="text-[10px] text-[var(--color-accent-red)]">
+              Error: {previewError}
+            </div>
+          )}
+          {!preview && !previewError && (
+            <div className="text-[10px] text-[var(--color-text-muted)]">Loading…</div>
+          )}
+          {preview && preview.symbols.length === 0 && (
+            <div className="text-[10px] italic text-[var(--color-text-muted)]">
+              {preview.message ?? "No symbols found."}
+            </div>
+          )}
+          {preview && preview.symbols.length > 0 && (
+            <div className="flex flex-wrap gap-1 text-[10px] font-mono">
+              {preview.symbols.map((s) => (
+                <span
+                  key={s}
+                  className="px-1 py-0.5 rounded bg-[var(--color-bg-secondary)]"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
+ * instruments-service variant — low-cardinality reference data, one CSV per
+ * day. Skip the list-and-select dance entirely.
+ * ========================================================================= */
+
+function InstrumentsServiceShardModal({
+  coord,
+  onClose,
+}: {
+  coord: ShardCoordinate;
+  onClose: () => void;
+}) {
+  const [schemaOpen, setSchemaOpen] = useState(false);
+  const downloadUrl = buildCsvDownloadUrl({
+    service: coord.service,
+    category: coord.category,
+    venue: coord.venue,
+    day: coord.day,
+    instrument_type: coord.instrument_type,
+    data_type: coord.data_type,
+    instrument_ids: [], // empty = full shard
+  });
+  return (
+    <ModalShell
+      title={`${coord.venue} · ${coord.day} · ${coord.instrument_type}/${coord.data_type}`}
+      onClose={onClose}
+    >
+      <div className="space-y-3 text-xs">
+        <div className="text-[var(--color-text-muted)]">
+          Instruments reference data is low-cardinality — one file per day per venue.
+        </div>
+        <div className="flex gap-2">
+          <a
+            href={downloadUrl}
+            className="px-3 py-1.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium"
+          >
+            Download day CSV
+          </a>
+          <button
+            type="button"
+            className="underline"
+            onClick={() => setSchemaOpen(true)}
+          >
+            Show schema
+          </button>
+        </div>
+      </div>
+      {schemaOpen && (
         <SchemaModal
           coord={{
             service: coord.service,

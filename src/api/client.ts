@@ -1440,6 +1440,11 @@ export interface InstrumentsForShardResponse {
   instruments: ShardInstrumentEntry[];
   bucket: string;
   prefix: string;
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  search: string;
 }
 
 export async function fetchInstrumentsForShard(params: {
@@ -1449,10 +1454,77 @@ export async function fetchInstrumentsForShard(params: {
   day: string;
   instrument_type: string;
   data_type: string;
+  limit?: number;
+  offset?: number;
+  search?: string;
 }): Promise<InstrumentsForShardResponse> {
-  const qp = new URLSearchParams(params);
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.limit !== undefined) qp.set("limit", String(params.limit));
+  if (params.offset !== undefined) qp.set("offset", String(params.offset));
+  if (params.search !== undefined && params.search !== "")
+    qp.set("search", params.search);
   return fetchJson<InstrumentsForShardResponse>(
     `/data-status/instruments-for-shard?${qp.toString()}`,
+  );
+}
+
+export interface BundlePreviewResponse {
+  bundling: string;
+  underlying?: string;
+  file_uri?: string;
+  symbol_column?: string;
+  symbols: string[];
+  message?: string;
+}
+
+export interface ShardInfoResponse {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  data_type: string;
+  instrument_types: { name: string; bundling: string }[];
+  recommended_instrument_type: string | null;
+}
+
+export async function fetchShardInfo(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  data_type: string;
+}): Promise<ShardInfoResponse> {
+  const qp = new URLSearchParams(params);
+  return fetchJson<ShardInfoResponse>(`/data-status/shard-info?${qp.toString()}`);
+}
+
+export async function fetchBundlePreview(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  limit?: number;
+}): Promise<BundlePreviewResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.limit !== undefined) qp.set("limit", String(params.limit));
+  return fetchJson<BundlePreviewResponse>(
+    `/data-status/bundle-preview?${qp.toString()}`,
   );
 }
 
