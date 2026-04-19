@@ -33,6 +33,7 @@ import {
   Hammer,
   Trophy,
   LayoutGrid,
+  Info,
 } from "lucide-react";
 import { createDeployment } from "./api/client";
 import type { DeploymentRequest, CreateDeploymentResponse } from "./types";
@@ -362,6 +363,42 @@ function App() {
                               </TabsContent>
                               {!isInfra && (
                                 <TabsContent value="data-status">
+                                  {selectedService ===
+                                    "market-data-processing-service" && (
+                                    <div
+                                      data-testid="mdps-consolidation-banner"
+                                      className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-4 py-3 text-sm text-[var(--color-text-primary)]"
+                                    >
+                                      <Info className="h-5 w-5 shrink-0 text-[var(--color-accent-blue)] mt-0.5" />
+                                      <div className="flex-1 space-y-1">
+                                        <p className="font-medium">
+                                          MDPS processed candles live alongside
+                                          raw ticks under market-tick-data-service&apos;s
+                                          bucket.
+                                        </p>
+                                        <p className="text-xs text-[var(--color-text-secondary)]">
+                                          Showing processed-* data types only
+                                          (prefix{" "}
+                                          <code className="font-mono px-1 rounded bg-[var(--color-bg-tertiary)]">
+                                            processed_candles/
+                                          </code>
+                                          ). Raw ticks are visible under the
+                                          full{" "}
+                                          <button
+                                            onClick={() =>
+                                              setSelectedService(
+                                                "market-tick-data-service",
+                                              )
+                                            }
+                                            className="underline text-[var(--color-accent-blue)] hover:opacity-80"
+                                          >
+                                            market-tick-data-service Data Status
+                                          </button>{" "}
+                                          tab.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
                                   <DataStatusTab
                                     serviceName={selectedService}
                                     deploymentResult={deploymentResult}
