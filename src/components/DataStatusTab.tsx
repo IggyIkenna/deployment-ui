@@ -32,6 +32,12 @@ import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES } from "../api/client";
 import { cn } from "../lib/utils";
 import type { CategoryStatus, CategoryVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import {
+  BucketCountsBadge,
+  InstrumentsModal,
+  SchemaModal,
+  type ShardCoordinate,
+} from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { Badge } from "./ui/badge";
@@ -238,6 +244,10 @@ function DataStatusTabInternal({
   const [venueDetailData, setVenueDetailData] =
     useState<api.VenueDetailResult | null>(null);
   const [venueDetailLoading, setVenueDetailLoading] = useState(false);
+
+  // Schema / per-day instrument drill-down modals
+  const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
+  const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
 
   const handleVenueClick = async (category: string, venue: string) => {
     const key = `${category}:${venue}`;
@@ -3451,6 +3461,26 @@ function DataStatusTabInternal({
                                         {subData.status === "bonus" && (
                                           <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">bonus</span>
                                         )}
+                                        {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
+                                        {(() => {
+                                          const firstDt =
+                                            subData.data_types &&
+                                            Object.keys(subData.data_types)[0];
+                                          const anchorDay =
+                                            (foundList.length > 0
+                                              ? foundList[foundList.length - 1]
+                                              : null) ?? null;
+                                          if (!firstDt || !anchorDay) return null;
+                                          return (
+                                            <BucketCountsBadge
+                                              service={serviceName}
+                                              category={catName}
+                                              venue={name}
+                                              day={anchorDay}
+                                              data_type={firstDt}
+                                            />
+                                          );
+                                        })()}
                                         <div className="flex-1" />
                                         <div className="flex items-center gap-2 shrink-0">
                                           {venueStartDate && (
@@ -3583,13 +3613,36 @@ function DataStatusTabInternal({
                                                         {dtFoundList.length > 0 && (
                                                           <details>
                                                             <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                              {dtData.dates_found} available
+                                                              {dtData.dates_found} available — click a day to drill down
                                                             </summary>
                                                             <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                               {dtFoundList.slice(0, 60).map((date: string) => (
-                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                <button
+                                                                  key={date}
+                                                                  type="button"
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                  title={`Show instruments on ${date}`}
+                                                                  onClick={() => {
+                                                                    // For Polymarket-style OTHER bucket the most interesting drill is
+                                                                    // the bundled parquet (per_condition_id). Fall back to a synthetic
+                                                                    // instrument_type == data_type for venues without an instrument_type
+                                                                    // axis — the backend listing tolerates missing paths and returns [].
+                                                                    const itGuess =
+                                                                      name.toUpperCase() === "POLYMARKET"
+                                                                        ? "OTHER"
+                                                                        : dtName;
+                                                                    setInstrumentsModal({
+                                                                      service: serviceName,
+                                                                      category: catName,
+                                                                      venue: name,
+                                                                      day: date,
+                                                                      instrument_type: itGuess,
+                                                                      data_type: dtName,
+                                                                    });
+                                                                  }}
+                                                                >
                                                                   {date}
-                                                                </span>
+                                                                </button>
                                                               ))}
                                                               {dtFoundList.length > 60 && (
                                                                 <span className="text-[7px] text-[var(--color-text-muted)]">+{dtFoundList.length - 60} more</span>
@@ -4545,6 +4598,17 @@ function DataStatusTabInternal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Drill-down modals — schema / per-day instruments + CSV download */}
+      {instrumentsModal && (
+        <InstrumentsModal
+          coord={instrumentsModal}
+          onClose={() => setInstrumentsModal(null)}
+        />
+      )}
+      {schemaModal && (
+        <SchemaModal coord={schemaModal} onClose={() => setSchemaModal(null)} />
+      )}
     </div>
   );
 }

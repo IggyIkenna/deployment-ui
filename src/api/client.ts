@@ -1381,6 +1381,121 @@ export async function clearDataStatusCache(): Promise<{
   return fetchJson("/data-status/turbo/clear", { method: "POST" });
 }
 
+// ---------------------------------------------------------------------------
+// Drill-down (schema / instruments / bucket counts / CSV download)
+// ---------------------------------------------------------------------------
+
+export interface SchemaColumnSpec {
+  name: string;
+  dtype: string;
+  nullable: boolean;
+  description: string;
+}
+
+export interface ShardSchemaResponse {
+  registered: boolean;
+  category: string;
+  instrument_type: string;
+  data_type: string;
+  venue: string | null;
+  symbol_column: string | null;
+  source: string;
+  columns: SchemaColumnSpec[];
+  required_row_count_min?: number;
+  message?: string;
+}
+
+export async function fetchShardSchema(params: {
+  service: string;
+  category: string;
+  instrument_type: string;
+  data_type: string;
+  venue?: string;
+}): Promise<ShardSchemaResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
+}
+
+export interface ShardInstrumentEntry {
+  instrument_id: string;
+  file_uri: string;
+  size_bytes: number;
+  bundled_under?: string;
+}
+
+export interface InstrumentsForShardResponse {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  bundling: "per_symbol" | "per_underlying" | "per_condition_id";
+  instruments: ShardInstrumentEntry[];
+  bucket: string;
+  prefix: string;
+}
+
+export async function fetchInstrumentsForShard(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+}): Promise<InstrumentsForShardResponse> {
+  const qp = new URLSearchParams(params);
+  return fetchJson<InstrumentsForShardResponse>(
+    `/data-status/instruments-for-shard?${qp.toString()}`,
+  );
+}
+
+export interface BucketCountsResponse {
+  named_market_count: number;
+  other_market_count: number;
+}
+
+export async function fetchBucketCounts(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  data_type: string;
+}): Promise<BucketCountsResponse> {
+  const qp = new URLSearchParams(params);
+  return fetchJson<BucketCountsResponse>(
+    `/data-status/bucket-counts?${qp.toString()}`,
+  );
+}
+
+/** Build the CSV download URL — used in an <a href> so the browser handles the download. */
+export function buildCsvDownloadUrl(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  instrument_ids: string[];
+}): string {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    instrument_ids: params.instrument_ids.join(","),
+  });
+  return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
+}
+
 // Cloud Builds
 export interface BuildInfo {
   build_id: string;
