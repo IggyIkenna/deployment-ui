@@ -318,9 +318,122 @@ function _mkCategory(
     missing_dates: [],
     dates_found_list: [],
     dates_missing_list: [],
+    // Default axis: `venue` for CeFi / TradFi / DeFi / Prediction / legacy
+    // callers. SPORTS gets a dedicated builder below that flips to
+    // `data_type` so consumers exercise the new discriminator path.
+    breakdown_axis: "venue" as const,
     venues: venuesDict,
+    data_types: {} as Record<string, never>,
     failure_rate_by_dimension: failureRateByDim,
   };
+}
+
+/**
+ * SPORTS fixture builder — emits the 2026-04-20 `breakdown_axis: "data_type"`
+ * shape so the mock exercises the UI path that reads `catData.data_types`
+ * instead of `catData.venues`. Numbers are loosely modelled on the real
+ * manifest output (`FIXTURES` heavy, `LEAGUES` near-complete, `FIXTURE_EVENTS`
+ * empty) so coverage bars render visibly.
+ */
+function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
+  const fixturesFound = 2094;
+  const fixturesExpected = 164027;
+  const fixturesMissing = fixturesExpected - fixturesFound;
+  const fixturesPct =
+    Math.round((fixturesFound / fixturesExpected) * 10000) / 100;
+
+  const leaguesFound = 2083;
+  const leaguesExpected = 2088;
+  const leaguesPct = Math.round((leaguesFound / leaguesExpected) * 10000) / 100;
+
+  const totalFound = fixturesFound + leaguesFound;
+  const totalExpected = fixturesExpected + leaguesExpected;
+  const pct = Math.round((totalFound / totalExpected) * 10000) / 100;
+
+  const dataTypesDict: Record<string, ReturnType<typeof _mkVenue>> = {
+    FIXTURES: {
+      ..._mkVenue(fixturesExpected, fixturesFound, 0, 0),
+      dates_missing: fixturesMissing,
+      completion_pct: fixturesPct,
+      found_shards: fixturesFound,
+      expected_shards: fixturesExpected,
+      missing_shards: fixturesMissing,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {
+        EPL: {
+          found_shards: 5,
+          expected_shards: 1783,
+          missing_shards: 1778,
+          completion_pct: 0.28,
+          unit: "fixture_dates",
+        },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    LEAGUES: {
+      ..._mkVenue(leaguesExpected, leaguesFound, 0, 0),
+      completion_pct: leaguesPct,
+      found_shards: leaguesFound,
+      expected_shards: leaguesExpected,
+      missing_shards: leaguesExpected - leaguesFound,
+      unit: "daily_snapshots",
+      axis: "global_periodic",
+      source: "api_football",
+      expected_leagues: [] as string[],
+      leagues: {} as Record<string, never>,
+    } as unknown as ReturnType<typeof _mkVenue>,
+    FIXTURE_EVENTS: {
+      ..._mkVenue(fixturesExpected, 0, 0, 0),
+      completion_pct: 0,
+      found_shards: 0,
+      expected_shards: fixturesExpected,
+      missing_shards: fixturesExpected,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {} as Record<string, never>,
+    } as unknown as ReturnType<typeof _mkVenue>,
+  };
+
+  return {
+    category: "SPORTS",
+    bucket: "mock-bucket-sports",
+    prefixes_queried: 0,
+    dates_found: totalFound,
+    dates_expected: totalExpected,
+    dates_missing: totalExpected - totalFound,
+    shards_found: totalFound,
+    shards_expected: totalExpected,
+    completion_pct: pct,
+    completion_pct_dates: pct,
+    completion_pct_shards_weighted: pct,
+    attempt_coverage_pct: pct,
+    capture_coverage_pct: pct,
+    coverage_semantics: "event_driven",
+    empty_rate_estimate: 0,
+    failure_rate: 0,
+    capture_status_counts: {
+      captured: totalFound,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+    },
+    venue_weighted: true,
+    venue_dates_found: totalFound,
+    venue_dates_expected: totalExpected,
+    unit: "fixtures",
+    effective_start_date: "2024-01-01",
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    // SPORTS flips the axis — drilldown lives under `data_types`, NOT `venues`.
+    breakdown_axis: "data_type" as const,
+    venues: {} as Record<string, never>,
+    data_types: dataTypesDict,
+    failure_rate_by_dimension: {},
+  } as unknown as ReturnType<typeof _mkCategory>;
 }
 
 const _MOCK_CATS = {
@@ -334,11 +447,9 @@ const _MOCK_CATS = {
     "DATABENTO-GLBX",
   ]),
   DEFI: _mkCategory("DEFI", "dense", 110, 102, 5, 3, ["UNISWAP_V3", "AAVE_V3"]),
-  SPORTS: _mkCategory("SPORTS", "event_driven", 300, 260, 30, 10, [
-    "FOOTYSTATS",
-    "SFI",
-    "UNDERSTAT_XG",
-  ]),
+  // SPORTS uses the new `breakdown_axis: "data_type"` shape (2026-04-20).
+  // Drilldown lives under `data_types`, not `venues`.
+  SPORTS: _mkSportsByDataType(),
   PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, [
     "POLYMARKET",
   ]),

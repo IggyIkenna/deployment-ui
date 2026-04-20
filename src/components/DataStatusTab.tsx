@@ -30,6 +30,7 @@ import type {
 } from "../api/client";
 import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES } from "../api/client";
+import { getCategoryBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
   formatEventDrivenCoverageLabel,
@@ -122,9 +123,42 @@ function getSubDimensionData(catData: TurboCategoryStatus): {
   key: string | null;
   label: string;
 } {
+  // Honour the `breakdown_axis` discriminator emitted by deployment-api's
+  // aggregator (2026-04-20). SPORTS uses `data_type` axis; CEFI / TRADFI /
+  // DEFI / PREDICTION use `venue` axis. Consumers MUST branch on this when
+  // the drilldown lives under either key — both are present on the response,
+  // but only one is populated.
+  if (catData.breakdown_axis === "data_type") {
+    const dt = catData.data_types;
+    if (dt && typeof dt === "object") {
+      return {
+        data: dt as Record<string, TurboSubDimension>,
+        key: "data_types",
+        label: SUB_DIMENSION_LABELS["data_types"] || "data_types",
+      };
+    }
+  }
+  if (catData.breakdown_axis === "venue") {
+    const v = catData.venues;
+    if (v && typeof v === "object") {
+      return {
+        data: v as Record<string, TurboSubDimension>,
+        key: "venues",
+        label: SUB_DIMENSION_LABELS["venues"] || "venues",
+      };
+    }
+  }
+  // Legacy fallback: scan the known sub-dimension keys and pick the first
+  // populated one. Skip empty {} so a vestigial `venues: {}` (e.g. on a
+  // SPORTS response where breakdown_axis wasn't emitted) doesn't mask the
+  // real drilldown that lives further down the list.
   for (const key of SUB_DIMENSION_KEYS) {
     const subDimension = catData[key as keyof TurboCategoryStatus];
-    if (subDimension && typeof subDimension === "object") {
+    if (
+      subDimension &&
+      typeof subDimension === "object" &&
+      Object.keys(subDimension as Record<string, unknown>).length > 0
+    ) {
       return {
         data: subDimension as Record<string, TurboSubDimension>,
         key,
@@ -1031,18 +1065,21 @@ function DataStatusTabInternal({
             catData.venue_summary?.expected_but_missing || [];
           if (expectedButMissing.length > 0) return true;
 
-          // Also check if any venues within this category have missing data
-          // Use dimension-weighted values when available for accurate detection
-          if (catData.venues) {
-            for (const [_, venueData] of Object.entries(catData.venues)) {
-              const venueExpected =
-                venueData._dim_weighted_expected ??
-                venueData.dates_expected_venue ??
-                venueData.dates_expected ??
+          // Also check if any sub-dimension rows within this category have
+          // missing data. Sub-dimension may live under `venues` (legacy) or
+          // `data_types` (SPORTS, via `breakdown_axis: "data_type"`).
+          // Use dimension-weighted values when available for accurate detection.
+          const breakdown = getCategoryBreakdown(catData);
+          if (breakdown) {
+            for (const [_, subData] of Object.entries(breakdown)) {
+              const subExpected =
+                subData._dim_weighted_expected ??
+                subData.dates_expected_venue ??
+                subData.dates_expected ??
                 0;
-              const venueFound =
-                venueData._dim_weighted_found ?? venueData.dates_found ?? 0;
-              if (venueFound < venueExpected) return true;
+              const subFound =
+                subData._dim_weighted_found ?? subData.dates_found ?? 0;
+              if (subFound < subExpected) return true;
             }
           }
 

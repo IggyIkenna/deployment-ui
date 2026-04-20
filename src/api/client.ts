@@ -685,6 +685,16 @@ export interface TurboSubDimension {
   data_types?: Record<string, TurboDataTypeStatus>; // NEW: per-data-type breakdown
   instrument_types?: Record<string, TurboInstrumentTypeStatus>; // v4: per-instrument-type (spot, perpetuals, etc.)
   leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
+  // Canonical shard totals (populated for SPORTS data_type entries from the
+  // honest-coverage availability manifest). Consumers should prefer these
+  // over `dates_found` / `dates_expected` / `dates_missing` when present.
+  found_shards?: number;
+  expected_shards?: number;
+  missing_shards?: number;
+  unit?: string; // e.g. "fixture_dates", "daily_snapshots"
+  axis?: string; // e.g. "per_league_per_fixture_date", "global_periodic"
+  source?: string; // e.g. "api_football"
+  expected_leagues?: string[];
 }
 
 export interface TurboUnderlyingStatus {
@@ -735,6 +745,11 @@ export interface TurboCategoryStatus {
   dates_found: number;
   dates_missing: number;
   completion_pct: number;
+  // Axis discriminator added 2026-04-20. Controls whether the sub-dimension
+  // drilldown lives under `venues` ("venue", legacy default used by CEFI /
+  // TRADFI / DEFI / PREDICTION) or under `data_types` ("data_type", used by
+  // SPORTS). Consumers MUST branch on this when reading sub-dimensions.
+  breakdown_axis?: "venue" | "data_type";
   // Coverage semantics (2026-04-19): distinguishes "dense" categories where
   // every underlying is expected to produce data every day (CeFi / TradFi /
   // DeFi) from "event_driven" categories where underlyings only trade on a
