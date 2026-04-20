@@ -8,7 +8,10 @@ import {
   Loader2,
   CheckCircle2,
   Cloud,
+  Database,
+  FlaskConical,
 } from "lucide-react";
+import { MOCK_MODE as FRONTEND_MOCK } from "../lib/mock-api";
 import { useHealth } from "../hooks/useHealth";
 import {
   useCloudProvider,
@@ -60,6 +63,36 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Data-mode chip: surface frontend + backend mock state */}
+          {(() => {
+            const backendMock = Boolean(health?.mock_mode);
+            if (FRONTEND_MOCK && backendMock) {
+              return (
+                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="VITE_MOCK_API=true + backend CLOUD_MOCK_MODE=true">
+                  <FlaskConical className="h-3 w-3" /> MOCK (both)
+                </Badge>
+              );
+            }
+            if (backendMock) {
+              return (
+                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="Backend CLOUD_MOCK_MODE=true — sample data, not live cloud">
+                  <FlaskConical className="h-3 w-3" /> MOCK (API)
+                </Badge>
+              );
+            }
+            if (FRONTEND_MOCK) {
+              return (
+                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="VITE_MOCK_API=true — UI intercepts /api/* locally">
+                  <FlaskConical className="h-3 w-3" /> MOCK (UI)
+                </Badge>
+              );
+            }
+            return (
+              <Badge variant="outline" className="text-xs gap-1 border-green-500/40 text-green-300" title={`Live data from ${health?.cloud_provider ?? "cloud"}`}>
+                <Database className="h-3 w-3" /> LIVE
+              </Badge>
+            );
+          })()}
           {/* VM Deployments nav */}
           <Link
             to="/vm-deployments"
