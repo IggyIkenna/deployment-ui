@@ -436,12 +436,111 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
   } as unknown as ReturnType<typeof _mkCategory>;
 }
 
-const _MOCK_CATS = {
-  CEFI: _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
+/**
+ * Annotate a venue row with MTDS honest-coverage fields
+ * (deployment-api `_apply_mtds_honest_coverage`, commit 9d21ac8). Builds a
+ * realistic per-data-type `honest_data_types` dict so the Phase 6e.3 UI
+ * renders the "Honest coverage (data types)" panel in mock mode. Declared
+ * data types with zero found shards are listed under `missing_data_types`
+ * so the red "N data types missing" badge surfaces on the venue summary
+ * row.
+ */
+function _mkMtdsHonest(
+  expectedDataTypes: string[],
+  missingDataTypes: string[],
+  windowDays: number,
+  honestAxis: string,
+) {
+  const honest: Record<
+    string,
+    {
+      expected_shards: number;
+      found_shards: number;
+      missing_shards: number;
+      completion_pct: number;
+      unit: string;
+      missing_dates: string[];
+      dates_found_list: string[];
+    }
+  > = {};
+  for (const dt of expectedDataTypes) {
+    const expected = windowDays;
+    const found = missingDataTypes.includes(dt)
+      ? 0
+      : Math.max(0, windowDays - 2);
+    const missing = Math.max(0, expected - found);
+    honest[dt] = {
+      expected_shards: expected,
+      found_shards: found,
+      missing_shards: missing,
+      completion_pct:
+        expected === 0
+          ? 0
+          : Math.min(Math.round((found / expected) * 10000) / 100, 100),
+      unit: "shard_days",
+      missing_dates: missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
+      dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
+    };
+  }
+  return {
+    expected_data_types: [...expectedDataTypes].sort(),
+    missing_data_types: [...missingDataTypes].sort(),
+    honest_data_types: honest,
+    honest_axis: honestAxis,
+  };
+}
+
+/**
+ * CEFI fixture with MTDS honest-coverage annotations (Phase 6e.3). Emulates
+ * deployment-api's aggregator output for a MTDS service: BINANCE-SPOT has
+ * every declared data type captured, BINANCE-FUTURES is missing
+ * `futures_chain`, DERIBIT is missing both `derivative_ticker` and
+ * `options_chain`.
+ */
+function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
+  const base = _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
     "BINANCE-SPOT",
-    "OKX-SPOT",
-    "COINBASE-SPOT",
-  ]),
+    "BINANCE-FUTURES",
+    "DERIBIT",
+  ]);
+  const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
+  const HONEST_AXIS = "per_venue_per_data_type_per_day";
+  // BINANCE-SPOT — all declared dts captured (no missing).
+  venuesDict["BINANCE-SPOT"] = {
+    ...venuesDict["BINANCE-SPOT"],
+    ..._mkMtdsHonest(
+      ["trades", "orderbook_snapshot_1s", "ticker"],
+      [],
+      120,
+      HONEST_AXIS,
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  // BINANCE-FUTURES — missing `futures_chain` despite full day coverage on
+  // the shard-aggregated totals.
+  venuesDict["BINANCE-FUTURES"] = {
+    ...venuesDict["BINANCE-FUTURES"],
+    ..._mkMtdsHonest(
+      ["trades", "orderbook_snapshot_1s", "ticker", "futures_chain"],
+      ["futures_chain"],
+      120,
+      HONEST_AXIS,
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  // DERIBIT — missing both derivative_ticker and options_chain.
+  venuesDict["DERIBIT"] = {
+    ...venuesDict["DERIBIT"],
+    ..._mkMtdsHonest(
+      ["trades", "orderbook_snapshot_1s", "derivative_ticker", "options_chain"],
+      ["derivative_ticker", "options_chain"],
+      120,
+      HONEST_AXIS,
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  return base;
+}
+
+const _MOCK_CATS = {
+  CEFI: _mkCefiMtdsHonest(),
   TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, [
     "DATABENTO-DBEQ",
     "DATABENTO-GLBX",

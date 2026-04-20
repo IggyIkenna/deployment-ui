@@ -3631,6 +3631,17 @@ function DataStatusTabInternal({
                                   const hasDataTypes = subData.data_types && Object.keys(subData.data_types).length > 0;
                                   const hasInstrumentTypes = subData.instrument_types && Object.keys(subData.instrument_types).length > 0;
                                   const hasLeagues = subData.leagues && Object.keys(subData.leagues).length > 0;
+                                  // MTDS honest-coverage — deployment-api's `_apply_mtds_honest_coverage`
+                                  // emits `missing_data_types` / `expected_data_types` / `honest_data_types`
+                                  // per venue. These are UAC-declared data types this venue should
+                                  // publish but where we observed zero shards, independent of day-level
+                                  // coverage. Absent for non-MTDS services.
+                                  const missingDataTypes = subData.missing_data_types ?? [];
+                                  const expectedDataTypes = subData.expected_data_types ?? [];
+                                  const honestDataTypes = subData.honest_data_types ?? {};
+                                  const honestDataTypeEntries = Object.entries(honestDataTypes);
+                                  const hasMissingDataTypes = missingDataTypes.length > 0;
+                                  const hasHonestDataTypes = honestDataTypeEntries.length > 0;
 
                                   return (
                                     <details key={name} className="group/venue rounded bg-[var(--color-bg-tertiary)]">
@@ -3644,6 +3655,15 @@ function DataStatusTabInternal({
                                         <span className="text-xs font-mono truncate min-w-0" title={name}>{name}</span>
                                         {subData.status === "bonus" && (
                                           <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">bonus</span>
+                                        )}
+                                        {hasMissingDataTypes && (
+                                          <span
+                                            className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                            title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
+                                            data-testid="missing-data-types-badge"
+                                          >
+                                            {missingDataTypes.length} data {missingDataTypes.length === 1 ? "type" : "types"} missing
+                                          </span>
                                         )}
                                         {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
                                         {(() => {
@@ -3722,6 +3742,101 @@ function DataStatusTabInternal({
 
                                       {/* Expanded: hierarchical sub-breakdown */}
                                       <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
+                                        {/* MTDS honest-coverage per-data-type panel (deployment-api 9d21ac8):
+                                            lists declared data types with zero found shards + a
+                                            per-data-type table showing found/expected shards and
+                                            completion. Additive — does not replace the legacy
+                                            `data_types` block below. */}
+                                        {(hasMissingDataTypes || hasHonestDataTypes) && (
+                                          <div
+                                            className="space-y-1 pt-1 pb-1 border-b border-[var(--color-border-subtle)]"
+                                            data-testid="honest-coverage-panel"
+                                          >
+                                            <div className="flex items-baseline gap-2">
+                                              <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                Honest coverage (data types)
+                                              </span>
+                                              {subData.honest_axis && (
+                                                <span
+                                                  className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
+                                                  title={`Shards are counted along ${subData.honest_axis}`}
+                                                >
+                                                  {subData.honest_axis}
+                                                </span>
+                                              )}
+                                              {expectedDataTypes.length > 0 && (
+                                                <span
+                                                  className="text-[8px] text-[var(--color-text-muted)] opacity-70"
+                                                  title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
+                                                >
+                                                  {expectedDataTypes.length} declared
+                                                </span>
+                                              )}
+                                            </div>
+                                            {hasMissingDataTypes && (
+                                              <div
+                                                className="flex flex-wrap items-center gap-1"
+                                                data-testid="missing-data-types-list"
+                                              >
+                                                <span className="text-[9px] text-[var(--color-accent-red)]">
+                                                  Missing ({missingDataTypes.length}):
+                                                </span>
+                                                {missingDataTypes.map((dt) => (
+                                                  <span
+                                                    key={dt}
+                                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                    title={`UAC-declared data type '${dt}' has zero found shards for ${name}`}
+                                                  >
+                                                    {dt}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {hasHonestDataTypes && (
+                                              <div
+                                                className="space-y-0.5"
+                                                data-testid="honest-data-types-table"
+                                              >
+                                                {honestDataTypeEntries.map(([dtName, dtData]) => {
+                                                  const found = dtData.found_shards;
+                                                  const expected = dtData.expected_shards;
+                                                  const pct = dtData.completion_pct;
+                                                  return (
+                                                    <div
+                                                      key={dtName}
+                                                      className="flex items-center gap-2 py-0.5 px-1.5 rounded"
+                                                    >
+                                                      <span
+                                                        className="text-[10px] font-mono truncate min-w-0"
+                                                        style={{ color: getCompletionColor(pct) }}
+                                                        title={dtName}
+                                                      >
+                                                        {dtName}
+                                                      </span>
+                                                      <div className="flex-1" />
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                        {found}/{expected} {dtData.unit ?? "shard_days"}
+                                                      </span>
+                                                      <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                        <div
+                                                          className="h-full"
+                                                          style={{ width: `${pct}%`, backgroundColor: getCompletionColor(pct) }}
+                                                        />
+                                                      </div>
+                                                      <span
+                                                        className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                        style={{ color: getCompletionColor(pct) }}
+                                                      >
+                                                        {formatPct(pct)}%
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+
                                         {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
                                         {hasInstrumentTypes && (
                                           <div className="space-y-0.5 pt-1">

@@ -695,6 +695,33 @@ export interface TurboSubDimension {
   axis?: string; // e.g. "per_league_per_fixture_date", "global_periodic"
   source?: string; // e.g. "api_football"
   expected_leagues?: string[];
+  // MTDS honest-coverage annotations (2026-04-20 / deployment-api Phase 6c /
+  // deployment-api commit 9d21ac8). Populated on MTDS venue rows inside
+  // CEFI / TRADFI / DEFI / PREDICTION categories only — SPORTS keeps the
+  // data-type-axis drilldown under the category entry itself. Absent for
+  // non-MTDS services (instruments-service / MDPS / features-* / …).
+  expected_data_types?: string[]; // UAC-declared data_types for this venue
+  missing_data_types?: string[]; // declared data_types with zero found shards
+  honest_data_types?: Record<string, TurboHonestDataTypeStatus>; // per-dt honest-coverage drilldown
+  honest_axis?: string; // e.g. "per_venue_per_data_type_per_day"
+}
+
+/**
+ * Per-data-type honest-coverage stats emitted under
+ * `TurboSubDimension.honest_data_types` for MTDS venues
+ * (deployment-api commit 9d21ac8). Shards are
+ * `(venue, data_type, date)` triples over the UAC-declared date window for
+ * this (venue, data_type); missing shards isolate real adapter gaps from
+ * venue-wide day misses.
+ */
+export interface TurboHonestDataTypeStatus {
+  expected_shards: number;
+  found_shards: number;
+  missing_shards: number;
+  completion_pct: number;
+  unit?: string; // e.g. "shard_days"
+  missing_dates?: string[];
+  dates_found_list?: string[];
 }
 
 export interface TurboUnderlyingStatus {
