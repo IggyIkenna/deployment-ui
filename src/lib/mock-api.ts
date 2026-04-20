@@ -186,21 +186,198 @@ const MOCK_QUOTA = {
   },
 };
 
+// Phase-C honest-coverage seed (2026-04-20) — matches the shape the
+// Category Breakdown card + 4-state heatmap + "Show only failures" filter
+// + drill-down retry button expect. Prior seed was a minimal calendar
+// object that carried no `categories`, which meant the full Phase-C UI
+// surface never rendered in local dev / Playwright audits.
+//
+// Seed is deterministic: PREDICTION has high attempt / low capture (event-
+// driven), CEFI/TRADFI/DEFI are dense ~99%, and every category carries
+// at least one attempted_failed row in its first venue so the failures
+// filter + retry affordance are both exercised.
+function _mkVenue(
+  dates_expected: number,
+  captured: number,
+  empty: number,
+  failed: number,
+) {
+  const attempted = captured + empty + failed;
+  const denom = Math.max(1, dates_expected);
+  const attemptedDenom = Math.max(1, attempted);
+  return {
+    dates_found: captured,
+    dates_expected,
+    dates_expected_venue: dates_expected,
+    dates_missing: Math.max(0, dates_expected - captured),
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    completion_pct: Math.min(
+      Math.round((captured / denom) * 10000) / 100,
+      100,
+    ),
+    venue_start_date: "2024-01-01",
+    capture_status_counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+    },
+    attempt_coverage_pct: Math.min(
+      Math.round((attempted / denom) * 10000) / 100,
+      100,
+    ),
+    capture_coverage_pct: Math.min(
+      Math.round((captured / denom) * 10000) / 100,
+      100,
+    ),
+    empty_rate: Math.round((empty / attemptedDenom) * 10000) / 10000,
+    failure_rate: Math.round((failed / attemptedDenom) * 10000) / 10000,
+  };
+}
+
+function _mkCategory(
+  category: string,
+  semantics: "dense" | "event_driven",
+  dates_expected: number,
+  captured: number,
+  empty: number,
+  failed: number,
+  venues: string[],
+) {
+  const attempted = captured + empty + failed;
+  const denom = Math.max(1, dates_expected);
+  const attemptedDenom = Math.max(1, attempted);
+  const capturePct = Math.min(Math.round((captured / denom) * 10000) / 100, 100);
+  const attemptPct = Math.min(
+    Math.round((attempted / denom) * 10000) / 100,
+    100,
+  );
+  const emptyRate =
+    attempted > 0
+      ? Math.round((empty / attemptedDenom) * 10000) / 10000
+      : null;
+  const failureRate = Math.round((failed / attemptedDenom) * 10000) / 10000;
+
+  const perVenueExpected = Math.max(1, Math.floor(dates_expected / venues.length));
+  let remainingFailed = failed;
+  let remainingEmpty = empty;
+  let remainingCaptured = captured;
+  const venuesDict: Record<string, ReturnType<typeof _mkVenue>> = {};
+  const failureRateByDim: Record<
+    string,
+    { failure_rate: number; attempted_failed_count: number }
+  > = {};
+  venues.forEach((v, idx) => {
+    const vFailed = idx === 0 ? remainingFailed : 0;
+    const split = Math.max(1, venues.length - idx);
+    const vEmpty = remainingEmpty > 0 ? Math.floor(remainingEmpty / split) : 0;
+    const vCaptured =
+      remainingCaptured > 0 ? Math.floor(remainingCaptured / split) : 0;
+    remainingFailed -= vFailed;
+    remainingEmpty -= vEmpty;
+    remainingCaptured -= vCaptured;
+    venuesDict[v] = _mkVenue(perVenueExpected, vCaptured, vEmpty, vFailed);
+    if (vFailed > 0) {
+      const vAttempted = vCaptured + vEmpty + vFailed;
+      failureRateByDim[v] = {
+        failure_rate:
+          Math.round((vFailed / Math.max(1, vAttempted)) * 10000) / 10000,
+        attempted_failed_count: vFailed,
+      };
+    }
+  });
+
+  return {
+    category,
+    bucket: `mock-bucket-${category.toLowerCase()}`,
+    prefixes_queried: 0,
+    dates_found: captured,
+    dates_expected,
+    dates_missing: Math.max(0, dates_expected - captured),
+    shards_found: captured,
+    shards_expected: dates_expected,
+    completion_pct: semantics === "event_driven" ? attemptPct : capturePct,
+    completion_pct_dates: capturePct,
+    completion_pct_shards_weighted: capturePct,
+    attempt_coverage_pct: attemptPct,
+    capture_coverage_pct: capturePct,
+    coverage_semantics: semantics,
+    empty_rate_estimate: emptyRate,
+    failure_rate: failureRate,
+    capture_status_counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+    },
+    venue_weighted: true,
+    venue_dates_found: captured,
+    venue_dates_expected: dates_expected,
+    unit: category === "SPORTS" ? "fixtures" : "dates",
+    effective_start_date: "2024-01-01",
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    venues: venuesDict,
+    failure_rate_by_dimension: failureRateByDim,
+  };
+}
+
+const _MOCK_CATS = {
+  CEFI: _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
+    "BINANCE-SPOT",
+    "OKX-SPOT",
+    "COINBASE-SPOT",
+  ]),
+  TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, [
+    "DATABENTO-DBEQ",
+    "DATABENTO-GLBX",
+  ]),
+  DEFI: _mkCategory("DEFI", "dense", 110, 102, 5, 3, ["UNISWAP_V3", "AAVE_V3"]),
+  SPORTS: _mkCategory("SPORTS", "event_driven", 300, 260, 30, 10, [
+    "FOOTYSTATS",
+    "SFI",
+    "UNDERSTAT_XG",
+  ]),
+  PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, [
+    "POLYMARKET",
+  ]),
+};
+
+const _MOCK_TOTAL_EXPECTED = Object.values(_MOCK_CATS).reduce(
+  (acc, c) => acc + c.dates_expected,
+  0,
+);
+const _MOCK_TOTAL_CAPTURED = Object.values(_MOCK_CATS).reduce(
+  (acc, c) => acc + c.dates_found,
+  0,
+);
+
 const MOCK_DATA_STATUS = {
   service: "instruments-service",
-  category: "equity",
-  totalDates: 30,
-  completeDates: 28,
-  missingDates: ["2026-03-05", "2026-03-06"],
-  calendar: Array.from({ length: 30 }, (_, i) => {
-    const d = new Date("2026-02-09");
-    d.setDate(d.getDate() + i);
-    return {
-      date: d.toISOString().split("T")[0],
-      status: i === 24 || i === 25 ? "missing" : "complete",
-      shards: i === 24 || i === 25 ? 0 : Math.floor(Math.random() * 20) + 40,
-    };
-  }),
+  date_range: { start: "2025-01-01", end: "2025-04-30", days: 120 },
+  mode: "turbo" as const,
+  sub_dimension: "venue" as const,
+  overall_completion_pct: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_completion_pct_dates: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_completion_pct_shards_weighted: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_dates_found: _MOCK_TOTAL_CAPTURED,
+  overall_dates_expected: _MOCK_TOTAL_EXPECTED,
+  overall_shards_found: _MOCK_TOTAL_CAPTURED,
+  overall_shards_expected: _MOCK_TOTAL_EXPECTED,
+  total_missing: Math.max(0, _MOCK_TOTAL_EXPECTED - _MOCK_TOTAL_CAPTURED),
+  migration_in_progress: false,
+  categories: _MOCK_CATS,
+  mock: true,
 };
 
 const MOCK_CHECKLIST = {
@@ -469,6 +646,30 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Deployments
+  // Phase-C retry: /deployments/deploy-missing gets POSTed from the
+  // drill-down retry button. Return a deployment-shaped payload so the
+  // UI flips the button to the "Retried ✓" state.
+  if (path === "/api/deployments/deploy-missing" && method === "POST") {
+    const body = init?.body
+      ? (JSON.parse(init.body as string) as Record<string, unknown>)
+      : {};
+    const depId = `dep-retry-${Date.now()}`;
+    return json({
+      missing_analysis: {
+        service: body.service,
+        date_range: { start: body.start_date, end: body.end_date },
+        total_missing: 1,
+      },
+      deployment: {
+        deployment_id: depId,
+        status: "pending",
+        total_shards: 1,
+        cli_command: `mock retry --service ${body.service ?? ""} --day ${body.start_date ?? ""}`,
+      },
+      dry_run: body.dry_run ?? false,
+      message: "Retry queued (mock)",
+    });
+  }
   if (path === "/api/deployments" && method === "POST") {
     const body = init?.body
       ? (JSON.parse(init.body as string) as Record<string, unknown>)
@@ -855,7 +1056,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path.startsWith("/api/data-status/turbo/cache/clear")) {
     return json({ cleared: true });
   }
-  if (path.startsWith("/api/data-status/turbo")) {
+  if (
+    path.startsWith("/api/data-status/turbo") ||
+    path.startsWith("/api/data-status/manifest")
+  ) {
     return json(MOCK_DATA_STATUS);
   }
   if (path.startsWith("/api/data-status/venue-filters")) {
@@ -866,6 +1070,55 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.startsWith("/api/data-status/list-files")) {
     return json({ files: [], directories: [], error: null });
+  }
+  // Phase-C drill-down: three instrument rows, one per capture_status, so
+  // the UI shows every badge colour + exercises the Retry button flow.
+  if (path.startsWith("/api/data-status/instruments-for-shard")) {
+    const venue = new URL(path, "http://x").searchParams.get("venue") ?? "MOCK";
+    const day = new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
+    return json({
+      service: "market-tick-data-service",
+      category: "cefi",
+      venue,
+      day,
+      instrument_type: "perpetuals",
+      data_type: "trades",
+      bundling: "per_symbol",
+      bucket: "mock-bucket-cefi",
+      prefix: `raw_tick_data/by_date/day=${day}/category=cefi/venue=${venue}/`,
+      instruments: [
+        {
+          instrument_id: `${venue}-CAPTURED-1`,
+          file_uri: `gs://mock/${venue}/${day}/CAPTURED-1.parquet`,
+          size_bytes: 1024,
+          capture_status: "captured",
+          error_reason: "",
+          attempted_at: `${day}T00:10:00+00:00`,
+        },
+        {
+          instrument_id: `${venue}-EMPTY-1`,
+          file_uri: `gs://mock/${venue}/${day}/EMPTY-1.parquet`,
+          size_bytes: 0,
+          capture_status: "empty_confirmed",
+          error_reason: "",
+          attempted_at: `${day}T00:12:00+00:00`,
+        },
+        {
+          instrument_id: `${venue}-FAILED-1`,
+          file_uri: `gs://mock/${venue}/${day}/FAILED-1.parquet`,
+          size_bytes: 0,
+          capture_status: "attempted_failed",
+          error_reason: "RATE_LIMIT_HIT",
+          attempted_at: `${day}T00:14:00+00:00`,
+        },
+      ],
+      total_count: 3,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+      search: "",
+      mock: true,
+    });
   }
   if (path.startsWith("/api/data-status/instruments")) {
     return json({
