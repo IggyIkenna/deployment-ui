@@ -349,6 +349,31 @@ function DataStatusTabInternal({
   // First day of month filter - useful for TARDIS free tier (no API key needed)
   const [firstDayOfMonthOnly, setFirstDayOfMonthOnly] = useState(false);
 
+  // Phase C (honest-coverage): "Show only failures" — scopes the category
+  // breakdown to rows with failure_rate > 0 (attempted_failed manifest rows).
+  // Persisted in localStorage so the toggle survives page reloads.
+  const [showOnlyFailures, setShowOnlyFailures] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return (
+        window.localStorage.getItem("deployment-ui/show-only-failures") === "1"
+      );
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        "deployment-ui/show-only-failures",
+        showOnlyFailures ? "1" : "0",
+      );
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, [showOnlyFailures]);
+
   // Freshness mode - only count data as "found" if updated on/after this date
   const [requireFreshness, setRequireFreshness] = useState(false);
   const [freshnessDate, setFreshnessDate] = useState("");
@@ -2932,11 +2957,91 @@ function DataStatusTabInternal({
           {/* Categories Breakdown */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Category Breakdown</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Category Breakdown</CardTitle>
+                {/* Phase C: scope to shards with failure_rate > 0 */}
+                <label
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer"
+                  data-testid="show-only-failures-label"
+                >
+                  <Checkbox
+                    id="show-only-failures"
+                    data-testid="show-only-failures-toggle"
+                    checked={showOnlyFailures}
+                    onCheckedChange={(checked) =>
+                      setShowOnlyFailures(checked === true)
+                    }
+                  />
+                  Show only failures
+                </label>
+              </div>
             </CardHeader>
             <CardContent>
+              {(() => {
+                const allEntries = Object.entries(
+                  turboData.categories || {},
+                );
+                const hasFailureData = allEntries.some(([, c]) => {
+                  const fr = (c as { failure_rate?: number }).failure_rate;
+                  return typeof fr === "number" && fr > 0;
+                });
+                const visibleEntries =
+                  showOnlyFailures && hasFailureData
+                    ? allEntries.filter(([, c]) => {
+                        const fr = (c as { failure_rate?: number })
+                          .failure_rate;
+                        return typeof fr === "number" && fr > 0;
+                      })
+                    : allEntries;
+                if (
+                  showOnlyFailures &&
+                  hasFailureData &&
+                  visibleEntries.length === 0
+                ) {
+                  return (
+                    <p
+                      className="text-sm text-[var(--color-text-muted)] italic"
+                      data-testid="show-only-failures-empty"
+                    >
+                      No shards with failures in the selected range.
+                    </p>
+                  );
+                }
+                if (
+                  showOnlyFailures &&
+                  !hasFailureData
+                ) {
+                  return (
+                    <p
+                      className="text-xs text-[var(--color-text-muted)] italic mb-3"
+                      data-testid="show-only-failures-no-data"
+                    >
+                      No failure_rate data yet — showing all categories. Phase B
+                      adapters emit ADAPTER_FETCH_FAILED rows into the manifest.
+                    </p>
+                  );
+                }
+                return null;
+              })()}
               <div className="space-y-4">
-                {Object.entries(turboData.categories || {}).map(
+                {Object.entries(turboData.categories || {})
+                  .filter(([, catData]) => {
+                    if (!showOnlyFailures) return true;
+                    const fr = (
+                      catData as { failure_rate?: number }
+                    ).failure_rate;
+                    // When no failure data exists anywhere, preserve the full
+                    // list so the user isn't staring at an empty page.
+                    const anyFailures = Object.values(
+                      turboData.categories || {},
+                    ).some((c) => {
+                      const f = (c as { failure_rate?: number }).failure_rate;
+                      return typeof f === "number" && f > 0;
+                    });
+                    if (!anyFailures) return true;
+                    return typeof fr === "number" && fr > 0;
+                  })
+                  .map(
                   ([catName, catData]) => {
                     const isComplete = catData.completion_pct >= 100;
 

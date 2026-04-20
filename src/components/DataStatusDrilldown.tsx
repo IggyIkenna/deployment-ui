@@ -6,6 +6,7 @@ import {
   fetchInstrumentsForShard,
   fetchShardInfo,
   fetchShardSchema,
+  retryFailedShard,
   type BucketCountsResponse,
   type BundlePreviewResponse,
   type InstrumentsForShardResponse,
@@ -13,6 +14,65 @@ import {
   type ShardInstrumentEntry,
   type ShardSchemaResponse,
 } from "../api/client";
+
+// Phase C: visual badge + retry affordance for capture_status rows.
+type CaptureStatusValue = "captured" | "empty_confirmed" | "attempted_failed";
+
+function captureStatusColor(status: CaptureStatusValue | undefined): string {
+  switch (status) {
+    case "empty_confirmed":
+      return "var(--color-text-muted)";
+    case "attempted_failed":
+      return "var(--color-accent-red)";
+    case "captured":
+    default:
+      return "var(--color-accent-green)";
+  }
+}
+
+function captureStatusLabel(status: CaptureStatusValue | undefined): string {
+  switch (status) {
+    case "empty_confirmed":
+      return "empty";
+    case "attempted_failed":
+      return "failed";
+    case "captured":
+    default:
+      return "captured";
+  }
+}
+
+function CaptureStatusBadge({
+  status,
+  errorReason,
+  attemptedAt,
+}: {
+  status: CaptureStatusValue | undefined;
+  errorReason?: string;
+  attemptedAt?: string;
+}) {
+  const tooltip = [
+    `capture_status: ${status ?? "captured"}`,
+    errorReason ? `error: ${errorReason}` : null,
+    attemptedAt ? `attempted_at: ${attemptedAt}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <span
+      className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+      style={{
+        borderColor: captureStatusColor(status),
+        color: captureStatusColor(status),
+      }}
+      title={tooltip}
+      data-testid={`capture-status-badge-${status ?? "captured"}`}
+      data-capture-status={status ?? "captured"}
+    >
+      {captureStatusLabel(status)}
+    </span>
+  );
+}
 
 export interface ShardCoordinate {
   service: string;
@@ -575,24 +635,45 @@ export function InstrumentsModal({
                   : `No parquet files found for this shard on ${coord.day}.`}
               </div>
             )}
-            {loadedInstruments.map((i) => (
-              <label
-                key={i.instrument_id}
-                className="flex items-center gap-2 text-[11px] font-mono py-0.5 px-1 hover:bg-[var(--color-bg-hover)]"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(i.instrument_id)}
-                  onChange={() => toggle(i.instrument_id)}
-                />
-                <span className="truncate" title={i.instrument_id}>
-                  {i.instrument_id}
-                </span>
-                <span className="ml-auto text-[var(--color-text-muted)]">
-                  {(i.size_bytes / 1024).toFixed(1)} KB
-                </span>
-              </label>
-            ))}
+            {loadedInstruments.map((i) => {
+              const status = (i.capture_status ?? "captured") as CaptureStatusValue;
+              return (
+                <div
+                  key={i.instrument_id}
+                  className="flex items-center gap-2 text-[11px] font-mono py-0.5 px-1 hover:bg-[var(--color-bg-hover)]"
+                  data-testid={`shard-row-${i.instrument_id}`}
+                  data-capture-status={status}
+                >
+                  <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(i.instrument_id)}
+                      onChange={() => toggle(i.instrument_id)}
+                    />
+                    <span className="truncate" title={i.instrument_id}>
+                      {i.instrument_id}
+                    </span>
+                  </label>
+                  <CaptureStatusBadge
+                    status={status}
+                    errorReason={i.error_reason}
+                    attemptedAt={i.attempted_at}
+                  />
+                  {status === "attempted_failed" && (
+                    <RetryShardButton
+                      service={effectiveCoord.service}
+                      category={effectiveCoord.category}
+                      venue={effectiveCoord.venue}
+                      day={effectiveCoord.day}
+                      instrument_id={i.instrument_id}
+                    />
+                  )}
+                  <span className="text-[var(--color-text-muted)]">
+                    {(i.size_bytes / 1024).toFixed(1)} KB
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Load more */}
@@ -904,5 +985,67 @@ function ModalShell({
         {children}
       </div>
     </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Phase C retry affordance — "Retry" button per attempted_failed shard row.
+// Wraps a confirm() dialog around the deploy-trigger POST so the user can't
+// accidentally spin up a VM by double-clicking.
+// ---------------------------------------------------------------------------
+
+function RetryShardButton({
+  service,
+  category,
+  venue,
+  day,
+  instrument_id,
+}: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+  instrument_id: string;
+}) {
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<"idle" | "ok" | "err">("idle");
+  const [resultMessage, setResultMessage] = useState<string>("");
+
+  async function onRetry() {
+    const confirmed = window.confirm(
+      `Retry ${instrument_id} on ${day} (${service} / ${venue})?\n\n` +
+        "This re-triggers the adapter with force=true and can spin up a VM.",
+    );
+    if (!confirmed) return;
+    setPending(true);
+    setResult("idle");
+    try {
+      const resp = await retryFailedShard({ service, category, venue, day });
+      const depId = resp.deployment?.deployment_id ?? "";
+      setResult("ok");
+      setResultMessage(
+        depId ? `queued (deployment_id=${depId})` : resp.message ?? "queued",
+      );
+    } catch (err) {
+      setResult("err");
+      setResultMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onRetry}
+      disabled={pending}
+      data-testid={`retry-shard-button-${instrument_id}`}
+      data-retry-status={result}
+      title={resultMessage || "Retry this failed shard"}
+      className="text-[9px] px-1.5 py-0.5 rounded border border-[var(--color-accent-red)] text-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)] hover:text-[var(--color-bg-primary)] disabled:opacity-50"
+    >
+      {pending ? "…" : result === "ok" ? "Retried ✓" : result === "err" ? "Retry failed" : "Retry"}
+    </button>
   );
 }

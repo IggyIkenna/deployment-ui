@@ -2,11 +2,21 @@ import { useMemo } from "react";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 
+export type HeatmapStatus =
+  | "complete"
+  | "partial"
+  | "missing"
+  | "future"
+  | "no_expectation"
+  | "empty_confirmed"
+  | "attempted_failed";
+
 interface DayData {
   date: string;
-  status: "complete" | "partial" | "missing" | "future" | "no_expectation";
+  status: HeatmapStatus;
   coverage?: number; // 0-100 percentage
   tooltip?: string;
+  errorReason?: string;
 }
 
 interface HeatmapCalendarProps {
@@ -48,6 +58,15 @@ function getStatusColor(status: DayData["status"], coverage?: number): string {
       return "var(--color-accent-amber)";
     case "missing":
       return "var(--color-accent-red)";
+    case "empty_confirmed":
+      // Honest-coverage Phase C: attempted, zero rows returned legitimately.
+      // Distinct from "missing" (no attempt recorded) — renders as a muted grey
+      // with a hatched overlay (see getStatusBackgroundImage).
+      return "var(--color-bg-tertiary)";
+    case "attempted_failed":
+      // Honest-coverage Phase C: attempted, adapter raised. Solid red base
+      // with diagonal hatch overlay distinguishes from "missing" (no attempt).
+      return "var(--color-accent-red)";
     case "future":
       return "var(--color-bg-tertiary)";
     case "no_expectation":
@@ -64,11 +83,53 @@ function getStatusOpacity(status: DayData["status"]): number {
       return 0.7;
     case "missing":
       return 0.8;
+    case "empty_confirmed":
+      return 0.65;
+    case "attempted_failed":
+      return 0.95;
     case "future":
     case "no_expectation":
     default:
       return 0.3;
   }
+}
+
+// Diagonal-hash / cross-hatch overlays — makes the two "attempted" states
+// (empty_confirmed + attempted_failed) visually distinct from plain fills
+// even in monochrome / high-contrast modes, satisfying WCAG shape-not-colour.
+function getStatusBackgroundImage(status: DayData["status"]): string | undefined {
+  switch (status) {
+    case "empty_confirmed":
+      // Grey cross-hatch: attempted, confirmed empty.
+      return (
+        "repeating-linear-gradient(135deg, " +
+        "rgba(255,255,255,0.35) 0 2px, transparent 2px 5px)"
+      );
+    case "attempted_failed":
+      // Red diagonal hash: attempted, raised.
+      return (
+        "repeating-linear-gradient(45deg, " +
+        "rgba(0,0,0,0.5) 0 2px, transparent 2px 5px)"
+      );
+    default:
+      return undefined;
+  }
+}
+
+function getStatusAriaLabel(day: DayData): string {
+  const pct =
+    day.coverage !== undefined ? ` (${day.coverage}%)` : "";
+  const err = day.errorReason ? ` — error: ${day.errorReason}` : "";
+  const statusHuman: Record<DayData["status"], string> = {
+    complete: "captured",
+    partial: "partial coverage",
+    missing: "missing — not attempted",
+    empty_confirmed: "attempted, confirmed empty",
+    attempted_failed: "attempted, failed",
+    future: "future (not yet expected)",
+    no_expectation: "no shard expected",
+  };
+  return `${day.date}: ${statusHuman[day.status]}${pct}${err}`;
 }
 
 export function HeatmapCalendar({
@@ -177,10 +238,13 @@ export function HeatmapCalendar({
 
   return (
     <div className="space-y-6">
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
+      {/* Legend — 4-state honest-coverage (Phase C) */}
+      <div
+        className="flex flex-wrap items-center gap-4 text-xs text-[var(--color-text-muted)]"
+        data-testid="heatmap-legend"
+      >
         <span>Coverage:</span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" data-legend-state="captured">
           <div
             className="w-3 h-3 rounded-sm"
             style={{
@@ -188,9 +252,44 @@ export function HeatmapCalendar({
               opacity: 0.9,
             }}
           />
-          <span>Complete</span>
+          <span>Captured</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div
+          className="flex items-center gap-1"
+          data-legend-state="empty_confirmed"
+        >
+          <div
+            className="w-3 h-3 rounded-sm"
+            style={{
+              backgroundColor: "var(--color-bg-tertiary)",
+              backgroundImage: getStatusBackgroundImage("empty_confirmed"),
+              opacity: 0.65,
+            }}
+          />
+          <span>Empty (attempted, 0 rows)</span>
+        </div>
+        <div
+          className="flex items-center gap-1"
+          data-legend-state="attempted_failed"
+        >
+          <div
+            className="w-3 h-3 rounded-sm"
+            style={{
+              backgroundColor: "var(--color-accent-red)",
+              backgroundImage: getStatusBackgroundImage("attempted_failed"),
+              opacity: 0.95,
+            }}
+          />
+          <span>Failed (attempted, error)</span>
+        </div>
+        <div className="flex items-center gap-1" data-legend-state="missing">
+          <div
+            className="w-3 h-3 rounded-sm"
+            style={{ backgroundColor: "var(--color-accent-red)", opacity: 0.8 }}
+          />
+          <span>Missing (not attempted)</span>
+        </div>
+        <div className="flex items-center gap-1" data-legend-state="partial">
           <div
             className="w-3 h-3 rounded-sm"
             style={{
@@ -200,14 +299,7 @@ export function HeatmapCalendar({
           />
           <span>Partial</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div
-            className="w-3 h-3 rounded-sm"
-            style={{ backgroundColor: "var(--color-accent-red)", opacity: 0.8 }}
-          />
-          <span>Missing</span>
-        </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" data-legend-state="future">
           <div
             className="w-3 h-3 rounded-sm"
             style={{
@@ -215,7 +307,7 @@ export function HeatmapCalendar({
               opacity: 0.3,
             }}
           />
-          <span>Future</span>
+          <span>Future / N/A</span>
         </div>
       </div>
 
@@ -261,10 +353,14 @@ export function HeatmapCalendar({
                         const isSelected = selectedDate === day.date;
                         const dayNum = new Date(day.date).getDate();
 
+                        const bgImage = getStatusBackgroundImage(day.status);
                         return (
                           <Button
                             key={day.date}
                             variant="ghost"
+                            data-testid={`heatmap-day-${day.date}`}
+                            data-status={day.status}
+                            aria-label={getStatusAriaLabel(day)}
                             onClick={() => onDateClick?.(day.date)}
                             className={cn(
                               "w-6 h-6 rounded-sm text-[10px] font-mono relative p-0",
@@ -277,11 +373,11 @@ export function HeatmapCalendar({
                                 day.status,
                                 day.coverage,
                               ),
+                              backgroundImage: bgImage,
                               opacity: getStatusOpacity(day.status),
                             }}
                             title={
-                              day.tooltip ||
-                              `${day.date}: ${day.status}${day.coverage !== undefined ? ` (${day.coverage}%)` : ""}`
+                              day.tooltip || getStatusAriaLabel(day)
                             }
                           >
                             <span className="absolute inset-0 flex items-center justify-center text-white mix-blend-difference">
@@ -299,16 +395,34 @@ export function HeatmapCalendar({
         )}
       </div>
 
-      {/* Summary Stats */}
-      <div className="flex items-center gap-4 text-xs border-t border-[var(--color-border-subtle)] pt-4">
+      {/* Summary Stats (4-state) */}
+      <div
+        className="flex flex-wrap items-center gap-4 text-xs border-t border-[var(--color-border-subtle)] pt-4"
+        data-testid="heatmap-summary"
+      >
         <div className="flex items-center gap-2">
           <span className="text-[var(--color-text-muted)]">Total days:</span>
           <span className="font-mono font-medium">{data.length}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[var(--color-text-muted)]">Complete:</span>
+          <span className="text-[var(--color-text-muted)]">Captured:</span>
           <span className="font-mono font-medium text-[var(--color-accent-green)]">
             {data.filter((d) => d.status === "complete").length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[var(--color-text-muted)]">Empty:</span>
+          <span className="font-mono font-medium">
+            {data.filter((d) => d.status === "empty_confirmed").length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[var(--color-text-muted)]">Failed:</span>
+          <span
+            className="font-mono font-medium text-[var(--color-accent-red)]"
+            data-testid="heatmap-failed-count"
+          >
+            {data.filter((d) => d.status === "attempted_failed").length}
           </span>
         </div>
         <div className="flex items-center gap-2">

@@ -1438,6 +1438,11 @@ export interface ShardInstrumentEntry {
   file_uri: string;
   size_bytes: number;
   bundled_under?: string;
+  // Phase-C honest-coverage: manifest capture metadata surfaced per
+  // instrument so the drill-down can badge + retry failed shards.
+  capture_status?: "captured" | "empty_confirmed" | "attempted_failed";
+  error_reason?: string;
+  attempted_at?: string;
 }
 
 export interface InstrumentsForShardResponse {
@@ -1456,6 +1461,39 @@ export interface InstrumentsForShardResponse {
   offset: number;
   has_more: boolean;
   search: string;
+}
+
+// Phase C (honest-coverage): retry a single failed shard day by triggering
+// deploy-missing for the (service, date, venue, category) tuple with force=true.
+// The server already owns the scheduling + VM spawn — we just re-enqueue the
+// single shard. ``dry_run: false`` so it actually runs.
+export async function retryFailedShard(params: {
+  service: string;
+  category: string;
+  venue: string;
+  day: string;
+}): Promise<{
+  deployment?: { deployment_id?: string } | null;
+  message?: string;
+}> {
+  return fetchJson<{
+    deployment?: { deployment_id?: string } | null;
+    message?: string;
+  }>("/deployments/deploy-missing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service: params.service,
+      category: params.category.toLowerCase(),
+      venue: params.venue,
+      start_date: params.day,
+      end_date: params.day,
+      force: true,
+      dry_run: false,
+      deploy_missing_only: false,
+      mode: "batch",
+    }),
+  });
 }
 
 export async function fetchInstrumentsForShard(params: {
