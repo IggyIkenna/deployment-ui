@@ -30,6 +30,7 @@ import type {
 } from "../api/client";
 import * as api from "../api/client";
 import { UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl } from "../api/client";
+import { FixtureBreakdown } from "./FixtureBreakdown";
 import { getCategoryBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
@@ -288,6 +289,19 @@ function DataStatusTabInternal({
   // Schema / per-day instrument drill-down modals
   const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
   const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
+
+  // SPORTS fixture-level breakdown — toggled per (league, day, readOnly) key.
+  // readOnly flag disables per-fixture download buttons for red (missing) dates.
+  const [fixtureBreakdownKey, setFixtureBreakdownKey] = useState<
+    { day: string; league_id: string; readOnly: boolean } | null
+  >(null);
+  const toggleFixtureBreakdown = (day: string, league_id: string, readOnly: boolean) => {
+    setFixtureBreakdownKey((prev) =>
+      prev && prev.day === day && prev.league_id === league_id && prev.readOnly === readOnly
+        ? null
+        : { day, league_id, readOnly },
+    );
+  };
 
   const handleVenueClick = async (category: string, venue: string) => {
     const key = `${category}:${venue}`;
@@ -4245,21 +4259,31 @@ function DataStatusTabInternal({
                                                           <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                             {ld.dates_found} available
                                                             {catName === "SPORTS" && name === "FIXTURES" && (
-                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click date to download CSV</span>
+                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click date to expand fixtures · CSV icon downloads league-day CSV</span>
                                                             )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                             {ld.dates_found_list.map((date: string) =>
                                                               catName === "SPORTS" && name === "FIXTURES" ? (
-                                                                <a
-                                                                  key={date}
-                                                                  href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
-                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
-                                                                  title={`Download fixtures CSV for ${leagueName} on ${date}`}
-                                                                  download
-                                                                >
-                                                                  {date}
-                                                                </a>
+                                                                <span key={date} className="inline-flex items-center gap-0.5">
+                                                                  <button
+                                                                    type="button"
+                                                                    onClick={() => toggleFixtureBreakdown(date, leagueName, false)}
+                                                                    className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                    title={`Expand per-fixture breakdown for ${leagueName} on ${date}`}
+                                                                    data-testid={`fixture-date-toggle-${leagueName}-${date}`}
+                                                                  >
+                                                                    {date}
+                                                                  </button>
+                                                                  <a
+                                                                    href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
+                                                                    className="text-[6px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
+                                                                    title={`Download league-day FIXTURES CSV for ${leagueName} on ${date}`}
+                                                                    download
+                                                                  >
+                                                                    ⬇
+                                                                  </a>
+                                                                </span>
                                                               ) : (
                                                                 <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
                                                                   {date}
@@ -4274,21 +4298,22 @@ function DataStatusTabInternal({
                                                           <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                             {ld.dates_missing} missing
                                                             {catName === "SPORTS" && name === "FIXTURES" && (
-                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click to attempt CSV fetch</span>
+                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click to see expected fixtures (read-only)</span>
                                                             )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                             {ld.missing_dates.map((date: string) =>
                                                               catName === "SPORTS" && name === "FIXTURES" ? (
-                                                                <a
+                                                                <button
                                                                   key={date}
-                                                                  href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
+                                                                  type="button"
+                                                                  onClick={() => toggleFixtureBreakdown(date, leagueName, true)}
                                                                   className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
-                                                                  title={`Attempt CSV download for ${leagueName} on ${date} — returns empty if adapter never ran or API returned zero`}
-                                                                  download
+                                                                  title={`Expand expected fixtures for ${leagueName} on ${date} — read-only (no data to download)`}
+                                                                  data-testid={`fixture-date-toggle-missing-${leagueName}-${date}`}
                                                                 >
                                                                   {date}
-                                                                </a>
+                                                                </button>
                                                               ) : (
                                                                 <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
                                                                   {date}
@@ -4298,6 +4323,15 @@ function DataStatusTabInternal({
                                                           </div>
                                                         </details>
                                                       )}
+                                                      {catName === "SPORTS" && name === "FIXTURES" &&
+                                                        fixtureBreakdownKey &&
+                                                        fixtureBreakdownKey.league_id === leagueName && (
+                                                          <FixtureBreakdown
+                                                            day={fixtureBreakdownKey.day}
+                                                            league_id={fixtureBreakdownKey.league_id}
+                                                            readOnly={fixtureBreakdownKey.readOnly}
+                                                          />
+                                                        )}
                                                     </div>
                                                   </div>
                                                 </details>

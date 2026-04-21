@@ -1735,6 +1735,86 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
   return `${API_BASE}/data-status/download-fixtures-csv?${qp.toString()}`;
 }
 
+/**
+ * Per-fixture coverage for one (day, league) slice.
+ *
+ * ``capture_status`` values per entity match the v5 honest-coverage manifest:
+ * ``captured`` / ``empty_confirmed`` / ``missing`` / ``attempted_failed``.
+ */
+export type FixtureCoverageStatus =
+  | "captured"
+  | "empty_confirmed"
+  | "missing"
+  | "attempted_failed";
+
+export interface FixtureCoverageSummary {
+  captured: number;
+  empty_confirmed: number;
+  missing: number;
+  failed: number;
+}
+
+export interface FixtureBreakdownEntry {
+  fixture_id: string;
+  kickoff_utc: string;
+  home_team_name: string;
+  away_team_name: string;
+  status: string;
+  venue_id: string;
+  coverage: Record<string, FixtureCoverageStatus>;
+  coverage_summary: FixtureCoverageSummary;
+}
+
+export interface FixtureBreakdownResponse {
+  day: string;
+  league_id: string;
+  af_league_id: number | null;
+  fixtures_expected: number;
+  fixtures: FixtureBreakdownEntry[];
+  // "resolved" = master fixtures parquet present (may still be empty).
+  // "no_schedule" = master fixtures parquet absent for this day.
+  status: "resolved" | "no_schedule";
+}
+
+/**
+ * Fetch per-fixture coverage for one (day, league_id) — powers the SPORTS
+ * fixture-leaf drilldown below the existing per-league date badges.
+ */
+export async function fetchFixtureBreakdown(params: {
+  day: string;
+  league_id: string;
+}): Promise<FixtureBreakdownResponse> {
+  const qp = new URLSearchParams({
+    day: params.day,
+    league_id: params.league_id,
+  });
+  const res = await fetch(`${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`fetchFixtureBreakdown ${res.status}: ${await res.text()}`);
+  }
+  return (await res.json()) as FixtureBreakdownResponse;
+}
+
+/**
+ * Build the per-fixture download URL. ``format='csv'`` returns a
+ * denormalised union CSV (one leading ``entity`` column); ``format='json'``
+ * returns structured JSON keyed by entity with ``capture_status`` sentinels.
+ */
+export function buildFixtureDownloadUrl(params: {
+  fixture_id: string;
+  day: string;
+  format: "csv" | "json";
+}): string {
+  const qp = new URLSearchParams({
+    fixture_id: params.fixture_id,
+    day: params.day,
+    format: params.format,
+  });
+  return `${API_BASE}/data-status/fixtures/download?${qp.toString()}`;
+}
+
 // Cloud Builds
 export interface BuildInfo {
   build_id: string;
