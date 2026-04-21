@@ -3801,11 +3801,38 @@ function DataStatusTabInternal({
                                                   const found = dtData.found_shards;
                                                   const expected = dtData.expected_shards;
                                                   const pct = dtData.completion_pct;
-                                                  return (
-                                                    <div
-                                                      key={dtName}
-                                                      className="flex items-center gap-2 py-0.5 px-1.5 rounded"
-                                                    >
+                                                  // Phase 8H: unit discriminator — distinguishes
+                                                  // per-instrument Tier-3 shards from venue-level
+                                                  // shards and legacy pre-Phase-8C denominators.
+                                                  const rawUnit = dtData.unit ?? "shard_days";
+                                                  const isPerInstrument = rawUnit === "shard_instrument_days";
+                                                  const isLegacy = rawUnit === "shard_days_legacy";
+                                                  const unitLabel = isPerInstrument
+                                                    ? "per-instrument"
+                                                    : isLegacy
+                                                      ? "legacy"
+                                                      : "venue-level";
+                                                  const unitBadgeClass = isPerInstrument
+                                                    ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                                    : isLegacy
+                                                      ? "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                                      : "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
+                                                  const unitBadgeTitle = isLegacy
+                                                    ? "pre-Phase-8C manifest — migration in progress (denominator degraded to venue-level shard_days until ManifestWriter backfills instrument_id)"
+                                                    : isPerInstrument
+                                                      ? `Tier-3 per-instrument data_type — shards counted per (venue, instrument, date)${typeof dtData.legacy_row_count === "number" ? ` (legacy_row_count=${dtData.legacy_row_count})` : ""}`
+                                                      : "Venue-level data_type — shards counted per (venue, date)";
+                                                  const missingInstruments = dtData.missing_instruments ?? [];
+                                                  const expectedInstruments = dtData.expected_instruments ?? [];
+                                                  const perInstrument = dtData.per_instrument;
+                                                  const perInstrumentEntries = perInstrument
+                                                    ? Object.entries(perInstrument)
+                                                    : [];
+                                                  const hasMissingInstruments = missingInstruments.length > 0;
+                                                  const hasPerInstrument = perInstrumentEntries.length > 0;
+                                                  const hasPhase8Detail = hasMissingInstruments || hasPerInstrument;
+                                                  const dtRowCore = (
+                                                    <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
                                                       <span
                                                         className="text-[10px] font-mono truncate min-w-0"
                                                         style={{ color: getCompletionColor(pct) }}
@@ -3813,9 +3840,36 @@ function DataStatusTabInternal({
                                                       >
                                                         {dtName}
                                                       </span>
+                                                      <span
+                                                        className={cn(
+                                                          "text-[8px] font-mono px-1 py-px rounded border shrink-0",
+                                                          unitBadgeClass,
+                                                        )}
+                                                        title={unitBadgeTitle}
+                                                        data-testid="honest-dt-unit-badge"
+                                                        data-unit={rawUnit}
+                                                      >
+                                                        {unitLabel}
+                                                      </span>
+                                                      {hasMissingInstruments && (
+                                                        <span
+                                                          className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)] shrink-0"
+                                                          title={`Instruments with zero captured shards: ${missingInstruments.join(", ")}`}
+                                                          data-testid="honest-dt-missing-instruments-badge"
+                                                        >
+                                                          {missingInstruments.length} {missingInstruments.length === 1 ? "instrument" : "instruments"} missing
+                                                        </span>
+                                                      )}
                                                       <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                        {found}/{expected} {dtData.unit ?? "shard_days"}
+                                                      <span
+                                                        className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0"
+                                                        title={
+                                                          expectedInstruments.length > 0
+                                                            ? `Denominator: ${expectedInstruments.length} instrument(s) × window`
+                                                            : undefined
+                                                        }
+                                                      >
+                                                        {found}/{expected} {rawUnit}
                                                       </span>
                                                       <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
                                                         <div
@@ -3830,6 +3884,92 @@ function DataStatusTabInternal({
                                                         {formatPct(pct)}%
                                                       </span>
                                                     </div>
+                                                  );
+                                                  if (!hasPhase8Detail) {
+                                                    return (
+                                                      <div
+                                                        key={dtName}
+                                                        data-testid="honest-dt-row"
+                                                        data-dt={dtName}
+                                                      >
+                                                        {dtRowCore}
+                                                      </div>
+                                                    );
+                                                  }
+                                                  return (
+                                                    <details
+                                                      key={dtName}
+                                                      className="group/dt"
+                                                      data-testid="honest-dt-row"
+                                                      data-dt={dtName}
+                                                    >
+                                                      <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                                        {dtRowCore}
+                                                      </summary>
+                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                        {hasMissingInstruments && (
+                                                          <div
+                                                            className="flex flex-wrap items-center gap-1 py-0.5 px-1"
+                                                            data-testid="honest-dt-missing-instruments-list"
+                                                          >
+                                                            <span className="text-[9px] text-[var(--color-accent-red)] shrink-0">
+                                                              Missing ({missingInstruments.length}):
+                                                            </span>
+                                                            {missingInstruments.map((iid) => (
+                                                              <span
+                                                                key={iid}
+                                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                                title={`Instrument '${iid}' has zero captured shards in window`}
+                                                              >
+                                                                {iid}
+                                                              </span>
+                                                            ))}
+                                                          </div>
+                                                        )}
+                                                        {hasPerInstrument && (
+                                                          <div
+                                                            className="space-y-0.5"
+                                                            data-testid="honest-dt-per-instrument-table"
+                                                          >
+                                                            {perInstrumentEntries.map(([iid, idata]) => (
+                                                              <div
+                                                                key={iid}
+                                                                className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                data-testid="honest-dt-per-instrument-row"
+                                                                data-instrument={iid}
+                                                              >
+                                                                <span
+                                                                  className="text-[9px] font-mono truncate min-w-0"
+                                                                  style={{ color: getCompletionColor(idata.completion_pct) }}
+                                                                  title={iid}
+                                                                >
+                                                                  {iid}
+                                                                </span>
+                                                                <div className="flex-1" />
+                                                                <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                  {idata.found_shards}/{idata.expected_shards}
+                                                                </span>
+                                                                <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                  <div
+                                                                    className="h-full"
+                                                                    style={{
+                                                                      width: `${idata.completion_pct}%`,
+                                                                      backgroundColor: getCompletionColor(idata.completion_pct),
+                                                                    }}
+                                                                  />
+                                                                </div>
+                                                                <span
+                                                                  className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
+                                                                  style={{ color: getCompletionColor(idata.completion_pct) }}
+                                                                >
+                                                                  {formatPct(idata.completion_pct)}%
+                                                                </span>
+                                                              </div>
+                                                            ))}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </details>
                                                   );
                                                 })}
                                               </div>

@@ -713,15 +713,42 @@ export interface TurboSubDimension {
  * `(venue, data_type, date)` triples over the UAC-declared date window for
  * this (venue, data_type); missing shards isolate real adapter gaps from
  * venue-wide day misses.
+ *
+ * Phase 8 extensions (deployment-api commit c059e6f, 2026-04-20): adds per-
+ * instrument shard-unit discrimination. `unit` now signals whether the
+ * denominator is venue-level (`shard_days`), per-instrument
+ * (`shard_instrument_days`, Tier-3 dt such as trades/book_snapshot_5), or
+ * the degraded pre-Phase-8C fallback (`shard_days_legacy`). When
+ * per-instrument, `expected_instruments` / `missing_instruments` / optional
+ * `per_instrument` detail the instrument universe behind the shard count.
  */
 export interface TurboHonestDataTypeStatus {
   expected_shards: number;
   found_shards: number;
   missing_shards: number;
   completion_pct: number;
-  unit?: string; // e.g. "shard_days"
+  unit?: "shard_days" | "shard_instrument_days" | "shard_days_legacy" | string;
   missing_dates?: string[];
   dates_found_list?: string[];
+  axis?: string; // Phase 6c: e.g. "per_venue_per_data_type_per_day"
+  // Phase 8 per-instrument shard fields
+  expected_instruments?: string[]; // instrument_ids in the denominator
+  missing_instruments?: string[]; // instruments with zero captured shards
+  per_instrument?: Record<string, TurboHonestInstrumentStatus>; // populated when instrument universe < 20
+  legacy_row_count?: number; // count of pre-Phase-8C rows counted via Tier-2 fallback
+}
+
+/**
+ * Per-instrument honest-coverage stats inside
+ * `TurboHonestDataTypeStatus.per_instrument`. Only emitted when the
+ * (venue, data_type) instrument universe is small enough (< 20) to keep
+ * the aggregator response compact.
+ */
+export interface TurboHonestInstrumentStatus {
+  found_shards: number;
+  expected_shards: number;
+  completion_pct: number;
+  missing_dates?: string[];
 }
 
 export interface TurboUnderlyingStatus {

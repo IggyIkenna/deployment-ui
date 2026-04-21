@@ -444,26 +444,158 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
  * data types with zero found shards are listed under `missing_data_types`
  * so the red "N data types missing" badge surfaces on the venue summary
  * row.
+ *
+ * Phase 8H extension (deployment-api commit c059e6f, 2026-04-20): each
+ * dt can now opt into `shard_instrument_days` / `shard_days_legacy` units
+ * via `perInstrumentDataTypes` / `legacyDataTypes` — emitting the
+ * `expected_instruments` / `missing_instruments` / `per_instrument` /
+ * `legacy_row_count` fields the Phase 8H UI renders.
  */
+interface MtdsHonestPhase8Opts {
+  /**
+   * Map of per-instrument (Tier-3) data_types to their instrument universe.
+   * Each dt emits `unit="shard_instrument_days"`, `expected_instruments`,
+   * `missing_instruments`, and (when universe size < 20) a
+   * `per_instrument` dict.
+   */
+  perInstrumentDataTypes?: Record<
+    string,
+    {
+      expected_instruments: string[];
+      /** Instruments with zero captured shards in the window. */
+      missing_instruments: string[];
+    }
+  >;
+  /**
+   * Data types whose manifest pre-dates Phase 8C (no `instrument_id`
+   * column). Emits `unit="shard_days_legacy"` + `legacy_row_count`. The
+   * expected instrument universe is listed under `expected_instruments`
+   * so the UI can badge them as "all missing" under the degraded
+   * denominator.
+   */
+  legacyDataTypes?: Record<
+    string,
+    {
+      expected_instruments: string[];
+      legacy_row_count: number;
+    }
+  >;
+}
+
+interface MtdsHonestDtShape {
+  expected_shards: number;
+  found_shards: number;
+  missing_shards: number;
+  completion_pct: number;
+  unit: "shard_days" | "shard_instrument_days" | "shard_days_legacy";
+  missing_dates: string[];
+  dates_found_list: string[];
+  expected_instruments?: string[];
+  missing_instruments?: string[];
+  per_instrument?: Record<
+    string,
+    {
+      found_shards: number;
+      expected_shards: number;
+      completion_pct: number;
+      missing_dates?: string[];
+    }
+  >;
+  legacy_row_count?: number;
+}
+
 function _mkMtdsHonest(
   expectedDataTypes: string[],
   missingDataTypes: string[],
   windowDays: number,
   honestAxis: string,
+  opts: MtdsHonestPhase8Opts = {},
 ) {
-  const honest: Record<
-    string,
-    {
-      expected_shards: number;
-      found_shards: number;
-      missing_shards: number;
-      completion_pct: number;
-      unit: string;
-      missing_dates: string[];
-      dates_found_list: string[];
-    }
-  > = {};
+  const honest: Record<string, MtdsHonestDtShape> = {};
+  const perInstrumentDts = opts.perInstrumentDataTypes ?? {};
+  const legacyDts = opts.legacyDataTypes ?? {};
   for (const dt of expectedDataTypes) {
+    const isPerInstrument = Object.prototype.hasOwnProperty.call(perInstrumentDts, dt);
+    const isLegacy = Object.prototype.hasOwnProperty.call(legacyDts, dt);
+    if (isPerInstrument) {
+      const { expected_instruments, missing_instruments } = perInstrumentDts[dt];
+      const universe = expected_instruments.length;
+      const expected = windowDays * universe;
+      // One captured instrument gets (windowDays - 2) shards per instrument;
+      // missing instruments contribute 0. This mirrors the aggregator's
+      // per-(venue, dt, instrument, date) shard counting.
+      const capturedInstruments = expected_instruments.filter(
+        (iid) => !missing_instruments.includes(iid),
+      );
+      const perInstrumentFound = Math.max(0, windowDays - 2);
+      const found = capturedInstruments.length * perInstrumentFound;
+      const missing = Math.max(0, expected - found);
+      const pct =
+        expected === 0
+          ? 0
+          : Math.min(Math.round((found / expected) * 10000) / 100, 100);
+      const shape: MtdsHonestDtShape = {
+        expected_shards: expected,
+        found_shards: found,
+        missing_shards: missing,
+        completion_pct: pct,
+        unit: "shard_instrument_days",
+        missing_dates: [],
+        dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
+        expected_instruments: [...expected_instruments],
+        missing_instruments: [...missing_instruments],
+      };
+      // Only populate per_instrument when the universe is small enough
+      // (aggregator budget — avoids response bloat for 100+ symbols).
+      if (universe < 20) {
+        const perInstrument: Record<
+          string,
+          { found_shards: number; expected_shards: number; completion_pct: number; missing_dates?: string[] }
+        > = {};
+        for (const iid of expected_instruments) {
+          const iFound = missing_instruments.includes(iid) ? 0 : perInstrumentFound;
+          const iPct =
+            windowDays === 0
+              ? 0
+              : Math.min(Math.round((iFound / windowDays) * 10000) / 100, 100);
+          perInstrument[iid] = {
+            found_shards: iFound,
+            expected_shards: windowDays,
+            completion_pct: iPct,
+            missing_dates:
+              iFound > 0 && iFound < windowDays
+                ? ["2025-04-29", "2025-04-30"].slice(0, windowDays - iFound)
+                : undefined,
+          };
+        }
+        shape.per_instrument = perInstrument;
+      }
+      honest[dt] = shape;
+      continue;
+    }
+    if (isLegacy) {
+      const { expected_instruments, legacy_row_count } = legacyDts[dt];
+      // Legacy denominator is degraded to venue-level shard_days — same as
+      // the Phase 6e.3 shape, but flagged via `unit=shard_days_legacy` so
+      // the UI can amber-badge it as migration-in-progress.
+      const expected = windowDays;
+      const found = 0; // legacy rows were counted via Tier-2 fallback, not shards
+      const missing = expected - found;
+      honest[dt] = {
+        expected_shards: expected,
+        found_shards: found,
+        missing_shards: missing,
+        completion_pct: 0,
+        unit: "shard_days_legacy",
+        missing_dates: ["2025-04-29", "2025-04-30"],
+        dates_found_list: [],
+        expected_instruments: [...expected_instruments],
+        missing_instruments: [...expected_instruments],
+        legacy_row_count,
+      };
+      continue;
+    }
+    // Default venue-level shard_days path (unchanged from Phase 6e.3).
     const expected = windowDays;
     const found = missingDataTypes.includes(dt)
       ? 0
@@ -491,11 +623,20 @@ function _mkMtdsHonest(
 }
 
 /**
- * CEFI fixture with MTDS honest-coverage annotations (Phase 6e.3). Emulates
- * deployment-api's aggregator output for a MTDS service: BINANCE-SPOT has
- * every declared data type captured, BINANCE-FUTURES is missing
- * `futures_chain`, DERIBIT is missing both `derivative_ticker` and
- * `options_chain`.
+ * CEFI fixture with MTDS honest-coverage annotations (Phase 6e.3 +
+ * Phase 8H). Emulates deployment-api's aggregator output for a MTDS
+ * service:
+ *
+ * - BINANCE-SPOT: every declared dt captured at venue-level (baseline).
+ * - BINANCE-FUTURES: mixes the three Phase 8 unit axes —
+ *     • `liquidations` → venue-level (`shard_days`)
+ *     • `trades` → pre-Phase-8C manifest (`shard_days_legacy`, amber
+ *       migration badge, 10 expected instruments all missing,
+ *       `legacy_row_count=486`)
+ *     • `derivative_ticker` → Tier-3 per-instrument
+ *       (`shard_instrument_days`, 3 expected instruments with 1 captured
+ *       + 2 missing, `per_instrument` dict populated).
+ * - DERIBIT: missing both derivative_ticker and options_chain (venue-level).
  */
 function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
   const base = _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
@@ -515,15 +656,40 @@ function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
       HONEST_AXIS,
     ),
   } as ReturnType<typeof _mkVenue>;
-  // BINANCE-FUTURES — missing `futures_chain` despite full day coverage on
-  // the shard-aggregated totals.
+  // BINANCE-FUTURES — mixes all three Phase 8 unit axes.
+  const binFutPerps = [
+    "BTC-USDT",
+    "ETH-USDT",
+    "SOL-USDT",
+    "XRP-USDT",
+    "BNB-USDT",
+    "ADA-USDT",
+    "DOGE-USDT",
+    "AVAX-USDT",
+    "MATIC-USDT",
+    "LINK-USDT",
+  ];
   venuesDict["BINANCE-FUTURES"] = {
     ...venuesDict["BINANCE-FUTURES"],
     ..._mkMtdsHonest(
-      ["trades", "orderbook_snapshot_1s", "ticker", "futures_chain"],
+      ["trades", "liquidations", "derivative_ticker", "futures_chain"],
       ["futures_chain"],
       120,
       HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          derivative_ticker: {
+            expected_instruments: ["BTC-USDT", "ETH-USDT", "SOL-USDT"],
+            missing_instruments: ["SOL-USDT"],
+          },
+        },
+        legacyDataTypes: {
+          trades: {
+            expected_instruments: binFutPerps,
+            legacy_row_count: 486,
+          },
+        },
+      },
     ),
   } as ReturnType<typeof _mkVenue>;
   // DERIBIT — missing both derivative_ticker and options_chain.
@@ -539,13 +705,72 @@ function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
   return base;
 }
 
+/**
+ * DEFI fixture with Phase 8H per-instrument honest-coverage. Wave 8G
+ * seeded UAC instrument-ref for DEFI protocols, so UNISWAPV3-ETHEREUM now
+ * declares 20 dex_pools and AAVEV3-ETHEREUM declares 10 lending_indices
+ * instruments.  The 20-pool universe sits exactly at the aggregator's
+ * `per_instrument` budget threshold (< 20) so it is intentionally
+ * emitted WITHOUT a `per_instrument` dict — mirroring the live aggregator
+ * behaviour and letting the UI exercise the "large universe" branch.
+ */
+function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
+  const base = _mkCategory("DEFI", "dense", 110, 102, 5, 3, [
+    "UNISWAPV3-ETHEREUM",
+    "AAVEV3-ETHEREUM",
+  ]);
+  const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
+  const HONEST_AXIS = "per_venue_per_data_type_per_day";
+  const uniPools = Array.from({ length: 20 }, (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`);
+  const aaveIndices = Array.from({ length: 10 }, (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`);
+  venuesDict["UNISWAPV3-ETHEREUM"] = {
+    ...venuesDict["UNISWAPV3-ETHEREUM"],
+    ..._mkMtdsHonest(
+      ["dex_pools"],
+      [],
+      90,
+      HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          // 20-element universe — hits the aggregator's "<20" gate, so
+          // per_instrument is intentionally omitted to mirror live shape.
+          dex_pools: {
+            expected_instruments: uniPools,
+            missing_instruments: uniPools.slice(17), // last 3 missing
+          },
+        },
+      },
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  venuesDict["AAVEV3-ETHEREUM"] = {
+    ...venuesDict["AAVEV3-ETHEREUM"],
+    ..._mkMtdsHonest(
+      ["lending_indices"],
+      [],
+      90,
+      HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          // 10-element universe — under the <20 budget, so per_instrument
+          // detail is populated.
+          lending_indices: {
+            expected_instruments: aaveIndices,
+            missing_instruments: [aaveIndices[3], aaveIndices[7]],
+          },
+        },
+      },
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  return base;
+}
+
 const _MOCK_CATS = {
   CEFI: _mkCefiMtdsHonest(),
   TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, [
     "DATABENTO-DBEQ",
     "DATABENTO-GLBX",
   ]),
-  DEFI: _mkCategory("DEFI", "dense", 110, 102, 5, 3, ["UNISWAP_V3", "AAVE_V3"]),
+  DEFI: _mkDefiMtdsHonest(),
   // SPORTS uses the new `breakdown_axis: "data_type"` shape (2026-04-20).
   // Drilldown lives under `data_types`, not `venues`.
   SPORTS: _mkSportsByDataType(),
