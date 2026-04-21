@@ -1557,6 +1557,34 @@ function DataStatusTabInternal({
                 }}
                 className="h-9"
               />
+              <div className="flex gap-1 mt-1">
+                {[
+                  { label: "30d", days: 30 },
+                  { label: "90d", days: 90 },
+                  { label: "1y", days: 365 },
+                  { label: "All", days: null },
+                ].map((p) => (
+                  <Button
+                    key={p.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => {
+                      if (p.days === null) {
+                        // Full history — API-Football fixtures go back to 2018-01-01.
+                        setStartDate("2018-01-01");
+                      } else {
+                        const d = new Date();
+                        d.setDate(d.getDate() - p.days);
+                        setStartDate(d.toISOString().split("T")[0]);
+                      }
+                    }}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div>
               <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
@@ -4154,9 +4182,29 @@ function DataStatusTabInternal({
                                         {/* Leagues breakdown (SPORTS / PREDICTION) */}
                                         {hasLeagues && (
                                           <div className="space-y-0.5 pt-1">
-                                            <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                              {catName === "PREDICTION" ? "Markets" : "Leagues"}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                {catName === "PREDICTION" ? "Markets" : "Leagues"}
+                                              </span>
+                                              {catName === "SPORTS" && name === "FIXTURES" && (
+                                                <button
+                                                  type="button"
+                                                  className="text-[9px] text-[var(--color-accent-cyan)] hover:underline"
+                                                  title="View the FIXTURES parquet schema from unified-api-contracts — date-independent"
+                                                  onClick={() =>
+                                                    setSchemaModal({
+                                                      service: "instruments-service",
+                                                      category: "SPORTS",
+                                                      venue: "",
+                                                      instrument_type: "",
+                                                      data_type: "FIXTURES",
+                                                    })
+                                                  }
+                                                >
+                                                  View schema
+                                                </button>
+                                              )}
+                                            </div>
                                             {Object.entries(subData.leagues!).map(([leagueName, leagueData]) => {
                                               const ld = leagueData as TurboLeagueStatus;
                                               const unitLabel = ld.unit === "fixtures" ? "fixtures" : "dates";
@@ -4222,13 +4270,28 @@ function DataStatusTabInternal({
                                                         <details>
                                                           <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                             {ld.dates_missing} missing
+                                                            {catName === "SPORTS" && name === "FIXTURES" && (
+                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click to attempt CSV fetch</span>
+                                                            )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                            {ld.missing_dates.map((date: string) => (
-                                                              <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
-                                                                {date}
-                                                              </span>
-                                                            ))}
+                                                            {ld.missing_dates.map((date: string) =>
+                                                              catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                <a
+                                                                  key={date}
+                                                                  href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
+                                                                  title={`Attempt CSV download for ${leagueName} on ${date} — returns empty if adapter never ran or API returned zero`}
+                                                                  download
+                                                                >
+                                                                  {date}
+                                                                </a>
+                                                              ) : (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                  {date}
+                                                                </span>
+                                                              ),
+                                                            )}
                                                           </div>
                                                         </details>
                                                       )}
