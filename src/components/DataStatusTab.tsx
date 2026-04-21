@@ -46,6 +46,7 @@ import {
 } from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { HeatmapCalendar } from "./HeatmapCalendar";
+import { UpcomingFixtures } from "./UpcomingFixtures";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -1402,6 +1403,8 @@ function DataStatusTabInternal({
 
   return (
     <div className="space-y-4">
+      {serviceName === "instruments-service" && <UpcomingFixtures />}
+
       {/* Coverage Summary Card — auto-loaded from manifest */}
       {(coverageSummary || coverageSummaryLoading) && (
         <Card>

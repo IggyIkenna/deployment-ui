@@ -639,6 +639,42 @@ export async function getDataStatus(params: {
   return fetchJson(`/data-status?${searchParams.toString()}`);
 }
 
+/** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
+export interface UpcomingFixture {
+  fixture_id: string;
+  kickoff_utc: string;
+  league_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  home_team_name: string;
+  away_team_name: string;
+  venue_id: string;
+  venue_name: string;
+  status: string;
+  round: string;
+}
+
+export async function fetchUpcomingFixtures(opts?: {
+  days?: number;
+  league_id?: string;
+  signal?: AbortSignal;
+}): Promise<UpcomingFixture[]> {
+  const searchParams = new URLSearchParams();
+  if (opts?.days != null) {
+    searchParams.set("days", String(opts.days));
+  }
+  if (opts?.league_id) {
+    searchParams.set("league_id", opts.league_id);
+  }
+  const q = searchParams.toString();
+  const path = `/fixtures/upcoming${q ? `?${q}` : ""}`;
+  const res = await fetchJson<{ fixtures: UpcomingFixture[]; mock?: boolean }>(
+    path,
+    { signal: opts?.signal },
+  );
+  return res.fixtures ?? [];
+}
+
 // Turbo Data Status - much faster for large services (uses month-prefix queries)
 
 // Data type completion status (nested within venue)
