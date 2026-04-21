@@ -1686,6 +1686,19 @@ export function buildCsvDownloadUrl(params: {
   return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
 }
 
+/**
+ * Build the sports-FIXTURES CSV download URL for one (day, league) slice.
+ * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
+ * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
+ */
+export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
+  const qp = new URLSearchParams({
+    day: params.day,
+    league_id: params.league_id,
+  });
+  return `${API_BASE}/data-status/download-fixtures-csv?${qp.toString()}`;
+}
+
 // Cloud Builds
 export interface BuildInfo {
   build_id: string;

@@ -29,7 +29,7 @@ import type {
   VenueCheckResponse,
 } from "../api/client";
 import * as api from "../api/client";
-import { UPSTREAM_CHECK_SERVICES } from "../api/client";
+import { UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl } from "../api/client";
 import { getCategoryBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
@@ -4193,13 +4193,28 @@ function DataStatusTabInternal({
                                                         <details>
                                                           <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                             {ld.dates_found} available
+                                                            {catName === "SPORTS" && name === "FIXTURES" && (
+                                                              <span className="ml-1 text-[var(--color-text-muted)]">· click date to download CSV</span>
+                                                            )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                            {ld.dates_found_list.map((date: string) => (
-                                                              <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
-                                                                {date}
-                                                              </span>
-                                                            ))}
+                                                            {ld.dates_found_list.map((date: string) =>
+                                                              catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                <a
+                                                                  key={date}
+                                                                  href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                  title={`Download fixtures CSV for ${leagueName} on ${date}`}
+                                                                  download
+                                                                >
+                                                                  {date}
+                                                                </a>
+                                                              ) : (
+                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                  {date}
+                                                                </span>
+                                                              ),
+                                                            )}
                                                           </div>
                                                         </details>
                                                       )}
