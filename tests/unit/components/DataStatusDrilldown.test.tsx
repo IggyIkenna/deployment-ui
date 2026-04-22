@@ -23,6 +23,8 @@ vi.mock("../../../src/api/client", () => ({
     }) =>
       `/api/data-status/download-csv?day=${p.day}&venue=${p.venue}&instrument_type=${p.instrument_type}&ids=${p.instrument_ids.join(",")}`,
   ),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

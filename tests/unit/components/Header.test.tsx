@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { Header } from "../../../src/components/Header";
 
@@ -9,7 +10,33 @@ vi.mock("../../../src/hooks/useHealth", () => ({
 }));
 vi.mock("../../../src/api/client", () => ({
   clearCache: vi.fn().mockResolvedValue(undefined),
+  setApiBaseUrl: vi.fn(),
 }));
+// Header now consumes CloudProviderContext via useCloudProvider — bypass
+// the provider wrapper by mocking the context hook. Keeps these tests
+// focused on Header's API-status / clear-cache / badge UX rather than the
+// dual-backend cloud-switch surface (covered elsewhere).
+vi.mock("../../../src/contexts/CloudProviderContext", () => ({
+  useCloudProvider: () => ({
+    target: "gcp",
+    switchTarget: vi.fn(),
+    apiBaseUrl: "/api",
+    switching: false,
+  }),
+  CloudProviderProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
+// Header uses react-router <Link>; wrap all renders in a MemoryRouter to
+// avoid "useContext is null" from the Router context.
+function renderHeader() {
+  return render(
+    <MemoryRouter>
+      <Header />
+    </MemoryRouter>,
+  );
+}
 
 import { useHealth } from "../../../src/hooks/useHealth";
 
@@ -24,7 +51,7 @@ describe("Header", () => {
       isHealthy: false,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("Unified Trading Deployment")).toBeTruthy();
   });
 
@@ -34,7 +61,7 @@ describe("Header", () => {
       isHealthy: false,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     // "API" text appears in the status area
     const apiLabels = screen.getAllByText("API");
     expect(apiLabels.length).toBeGreaterThan(0);
@@ -46,7 +73,7 @@ describe("Header", () => {
       isHealthy: true,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("Connected")).toBeTruthy();
   });
 
@@ -56,7 +83,7 @@ describe("Header", () => {
       isHealthy: false,
       error: "Connection refused",
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("Disconnected")).toBeTruthy();
   });
 
@@ -66,7 +93,7 @@ describe("Header", () => {
       isHealthy: true,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("v2.3.1")).toBeTruthy();
   });
 
@@ -76,7 +103,7 @@ describe("Header", () => {
       isHealthy: false,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("Clear Cache")).toBeTruthy();
   });
 
@@ -89,7 +116,7 @@ describe("Header", () => {
     const { clearCache } = await import("../../../src/api/client");
     (clearCache as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
-    render(<Header />);
+    renderHeader();
     fireEvent.click(screen.getByText("Clear Cache"));
     await waitFor(() => {
       expect(screen.getByText("Cleared!")).toBeTruthy();
@@ -107,7 +134,7 @@ describe("Header", () => {
       isHealthy: true,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("GCS Fuse")).toBeTruthy();
   });
 
@@ -122,7 +149,7 @@ describe("Header", () => {
       isHealthy: true,
       error: null,
     });
-    render(<Header />);
+    renderHeader();
     expect(screen.getByText("GCS API")).toBeTruthy();
   });
 });

@@ -15,6 +15,8 @@ vi.mock("../api/client", () => ({
   listActiveChaosInjections: () => mockList(),
   createChaosInjection: (spec: ChaosInjectionSpec) => mockCreate(spec),
   deleteChaosInjection: (id: string) => mockDelete(id),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../components/ui/card", () => ({

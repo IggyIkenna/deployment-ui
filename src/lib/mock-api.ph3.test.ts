@@ -202,7 +202,7 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
     expect(allStatuses.has("fail") || allStatuses.has("warn")).toBe(true);
   });
 
-  it("returns data status with calendar and missing dates", async () => {
+  it("returns data status with v5 honest-coverage shape", async () => {
     const { installDeploymentMockHandlers } = await import("./mock-api");
     installDeploymentMockHandlers(true);
 
@@ -211,22 +211,29 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
     );
     const data = (await (response as Response).json()) as {
       service: string;
-      category: string;
-      totalDates: number;
-      completeDates: number;
-      missingDates: string[];
-      calendar: Array<{ date: string; status: string }>;
+      mode: "turbo";
+      sub_dimension: string;
+      date_range: { start: string; end: string; days: number };
+      overall_completion_pct: number;
+      overall_dates_found: number;
+      overall_dates_expected: number;
+      overall_shards_found: number;
+      overall_shards_expected: number;
+      total_missing: number;
+      categories: unknown;
+      mock: boolean;
     };
 
-    expect(data.totalDates).toBeGreaterThan(0);
-    expect(data.completeDates).toBeGreaterThan(0);
-    expect(data.missingDates.length).toBeGreaterThan(0);
-    expect(data.calendar.length).toBeGreaterThan(0);
-
-    // Verify calendar has both complete and missing entries
-    const calendarStatuses = new Set(data.calendar.map((c) => c.status));
-    expect(calendarStatuses.has("complete")).toBe(true);
-    expect(calendarStatuses.has("missing")).toBe(true);
+    // v5 aggregator surface (replaces the legacy totalDates/completeDates/
+    // calendar fields that existed before the honest-coverage rollout).
+    expect(data.service).toBe("instruments-service");
+    expect(data.mode).toBe("turbo");
+    expect(data.date_range.days).toBeGreaterThan(0);
+    expect(data.overall_dates_expected).toBeGreaterThan(0);
+    expect(data.overall_dates_found).toBeGreaterThanOrEqual(0);
+    expect(data.overall_shards_expected).toBeGreaterThan(0);
+    expect(data.total_missing).toBeGreaterThanOrEqual(0);
+    expect(data.mock).toBe(true);
   });
 
   it("returns health endpoint", async () => {

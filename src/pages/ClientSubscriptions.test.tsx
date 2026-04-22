@@ -23,6 +23,8 @@ vi.mock("../api/client", () => ({
     clientId: string,
     patch: Partial<ClientSubscription>,
   ) => mockUpdate(clientId, patch),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../components/ui/card", () => ({

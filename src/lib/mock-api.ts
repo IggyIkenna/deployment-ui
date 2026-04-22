@@ -1167,7 +1167,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const id = path.split("/")[3];
     return json({ deployment_id: id, events: [], count: 0 });
   }
-  if (path.match(/^\/api\/deployments\/(.+)$/)) {
+  // GET /api/deployments/<id> — single deployment lookup. Regex excludes
+  // any extra path segments (rollback / deploy / events / vm-events /
+  // quota) which are handled by their own branches below — the previous
+  // `.+` pattern was greedy and would swallow POST routes like
+  // `/api/deployments/<id>/rollback`, returning the wrong payload.
+  if (path.match(/^\/api\/deployments\/[^/]+$/) && method !== "POST") {
     const id = path.split("/").pop();
     const dep =
       MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];

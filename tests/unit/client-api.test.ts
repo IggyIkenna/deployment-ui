@@ -872,12 +872,12 @@ describe("client API functions", () => {
   });
 
   describe("clearDataStatusCache", () => {
-    it("sends POST to /api/data-status/turbo/cache/clear", async () => {
+    it("sends POST to /api/data-status/turbo/clear", async () => {
       mockFetchOk({ status: "ok", entries_cleared: 10 });
       await clearDataStatusCache();
       const url = getFetchUrl();
       const options = getFetchOptions();
-      expect(url).toContain("/api/data-status/turbo/cache/clear");
+      expect(url).toContain("/api/data-status/turbo/clear");
       expect(options.method).toBe("POST");
     });
   });

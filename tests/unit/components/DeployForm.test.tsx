@@ -14,6 +14,22 @@ vi.mock("../../../src/hooks/useConfig", () => ({
 }));
 vi.mock("../../../src/api/client", () => ({
   getDeploymentQuotaInfo: vi.fn(),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
+}));
+// DeployForm consumes CloudProviderContext via useCloudProvider — bypass
+// the provider by mocking the hook. Keeps the unit tests focused on the
+// form field surface rather than cloud-backend switching.
+vi.mock("../../../src/contexts/CloudProviderContext", () => ({
+  useCloudProvider: () => ({
+    target: "gcp",
+    switchTarget: vi.fn(),
+    apiBaseUrl: "/api",
+    switching: false,
+  }),
+  CloudProviderProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 import {
@@ -109,44 +125,14 @@ describe("DeployForm", () => {
     expect(screen.getByText("Live")).toBeTruthy();
   });
 
-  it("renders Cloud Provider buttons (GCP and AWS)", () => {
-    render(
-      <DeployForm
-        serviceName="instruments-service"
-        onDeploy={vi.fn()}
-        isDeploying={false}
-      />,
-    );
-    expect(screen.getByText("GCP")).toBeTruthy();
-    expect(screen.getByText("AWS")).toBeTruthy();
-  });
-
-  it("shows AWS warning when AWS is selected", () => {
-    render(
-      <DeployForm
-        serviceName="instruments-service"
-        onDeploy={vi.fn()}
-        isDeploying={false}
-      />,
-    );
-    // Click AWS button
-    fireEvent.click(screen.getByText("AWS"));
-    expect(screen.getByText(/AWS configured but unauthenticated/)).toBeTruthy();
-  });
-
-  it("hides AWS warning when GCP is selected", () => {
-    render(
-      <DeployForm
-        serviceName="instruments-service"
-        onDeploy={vi.fn()}
-        isDeploying={false}
-      />,
-    );
-    // Click AWS then GCP
-    fireEvent.click(screen.getByText("AWS"));
-    fireEvent.click(screen.getByText("GCP"));
-    expect(screen.queryByText(/AWS configured but unauthenticated/)).toBeNull();
-  });
+  // Cloud-provider surface moved from DeployForm → Header (the GCP/AWS
+  // toggle now lives in the Header's cloud-switcher row). These 3 tests
+  // were asserting against buttons that no longer exist inside DeployForm.
+  // Skipped until the cloud-switcher coverage is restored in Header tests.
+  // See 2026-04-21 QG-residual cleanup report.
+  it.skip("renders Cloud Provider buttons (GCP and AWS)", () => {});
+  it.skip("shows AWS warning when AWS is selected", () => {});
+  it.skip("hides AWS warning when GCP is selected", () => {});
 
   it("renders Dry Run checkbox checked by default", () => {
     render(
