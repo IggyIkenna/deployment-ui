@@ -93,12 +93,24 @@ export function Header() {
               </Badge>
             );
           })()}
-          {/* VM Deployments nav */}
+          {/* Admin nav */}
           <Link
             to="/vm-deployments"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             VM Deployments
+          </Link>
+          <Link
+            to="/client-subscriptions"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Subscriptions
+          </Link>
+          <Link
+            to="/chaos"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Chaos
           </Link>
           {/* Cloud Provider Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--color-border-default)] overflow-hidden">
