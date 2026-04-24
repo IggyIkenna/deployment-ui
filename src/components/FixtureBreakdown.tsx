@@ -54,7 +54,7 @@ function rollupStatus(entry: FixtureBreakdownEntry): FixtureRollup {
 function rollupColor(r: FixtureRollup): string {
   if (r === "green") return "var(--color-accent-green)";
   if (r === "red") return "var(--color-accent-red)";
-  return "var(--color-accent-amber, #d97706)";
+  return "var(--color-accent-amber)";
 }
 
 export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBreakdownProps) {

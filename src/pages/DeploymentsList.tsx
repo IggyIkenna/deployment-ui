@@ -123,28 +123,28 @@ export function DeploymentsList() {
           {
             label: "Total Services",
             value: String(total),
-            accent: "var(--color-accent-blue, #3b82f6)",
+            accent: "var(--color-accent-blue)",
           },
           {
             label: "Healthy",
             value: `${healthy}/${total}`,
             accent:
               healthy === total
-                ? "var(--color-success, #22c55e)"
-                : "var(--color-warning, #f59e0b)",
+                ? "var(--color-accent-green)"
+                : "var(--color-accent-amber)",
           },
           {
             label: "Degraded",
             value: String(degraded),
             accent:
               degraded > 0
-                ? "var(--color-error, #ef4444)"
-                : "var(--color-success, #22c55e)",
+                ? "var(--color-accent-red)"
+                : "var(--color-accent-green)",
           },
           {
             label: "Last Deploy",
             value: lastDeploy,
-            accent: "var(--color-accent-purple, #a78bfa)",
+            accent: "var(--color-accent-purple)",
           },
         ].map(({ label, value, accent }) => (
           <Card

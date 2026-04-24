@@ -29,7 +29,7 @@ import type {
   VenueCheckResponse,
 } from "../api/client";
 import * as api from "../api/client";
-import { UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl } from "../api/client";
+import { UPSTREAM_CHECK_SERVICES, SHARD_CSV_DOWNLOAD_SERVICES, buildFixturesCsvDownloadUrl, buildShardDownloadUrl } from "../api/client";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { getCategoryBreakdown } from "../lib/data-status-helpers";
 import {
@@ -45,6 +45,11 @@ import {
   SchemaModal,
   type ShardCoordinate,
 } from "./DataStatusDrilldown";
+import {
+  ShardDetailModal,
+  type ShardDetailCoordInput,
+} from "./ShardDetailModal";
+import { VenueDetailPanel } from "./VenueDetailPanel";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { UpcomingFixtures } from "./UpcomingFixtures";
@@ -280,15 +285,29 @@ function DataStatusTabInternal({
   const [dataTypeCheckData, setDataTypeCheckData] =
     useState<DataTypeCheckResponse | null>(null);
 
-  // Venue detail drill-down state
-  const [venueDetailKey, setVenueDetailKey] = useState<string | null>(null); // "CEFI:BINANCE-SPOT"
-  const [venueDetailData, setVenueDetailData] =
-    useState<api.VenueDetailResult | null>(null);
+  // Venue detail drill-down state.
+  //
+  // - ``venueDetailKey`` toggles visibility of the inline panel.  Shape:
+  //   "<CATEGORY>:<VENUE>".  For DeFi the "venue" is either a chain name
+  //   (``ETHEREUM``) or a composite protocol-chain (``AAVE_V3-ETHEREUM``).
+  // - ``venueDetailData`` holds the response.  We accept either the CeFi v1
+  //   shape (``VenueDetailResult``) or the v2 shape (``VenueDetailV2Response``)
+  //   returned by the DeFi-aware ``/api/data-status/venue-detail`` endpoint.
+  const [venueDetailKey, setVenueDetailKey] = useState<string | null>(null);
+  const [venueDetailData, setVenueDetailData] = useState<
+    api.VenueDetailResult | api.VenueDetailV2Response | null
+  >(null);
   const [venueDetailLoading, setVenueDetailLoading] = useState(false);
 
   // Schema / per-day instrument drill-down modals
   const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
   const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
+  // Unified shard-detail modal (4 tabs: schema / sample / payload / download)
+  const [shardDetailCoord, setShardDetailCoord] =
+    useState<ShardDetailCoordInput | null>(null);
+  const openShardDetail = useCallback((c: ShardDetailCoordInput) => {
+    setShardDetailCoord(c);
+  }, []);
 
   // SPORTS fixture-level breakdown — toggled per (league, day, readOnly) key.
   // readOnly flag disables per-fixture download buttons for red (missing) dates.
@@ -313,7 +332,17 @@ function DataStatusTabInternal({
     setVenueDetailLoading(true);
     setVenueDetailData(null);
     try {
-      const result = await api.fetchVenueDetail(serviceName, category, venue);
+      // DeFi uses the v2 endpoint that returns chain-level protocols or
+      // composite-level pools.  CeFi / SPORTS / TRADFI / PREDICTION keep the
+      // legacy v1 shape (instrument_types + top_instruments) for now.
+      const result =
+        category === "DEFI"
+          ? await api.fetchVenueDetailV2({
+              service: serviceName,
+              category,
+              venue,
+            })
+          : await api.fetchVenueDetail(serviceName, category, venue);
       setVenueDetailData(result);
     } catch {
       setVenueDetailData(null);
@@ -1009,6 +1038,33 @@ function DataStatusTabInternal({
     if (pct >= 100) return "100";
     if (pct >= 99) return pct.toFixed(1);
     return pct.toFixed(0);
+  };
+
+  /**
+   * Human-readable label for honest-coverage `unit` strings emitted by
+   * deployment-api. Maps the canonical v5 vocabulary (see
+   * `data_status_service.py` `SPORTS_ENTITY_META` + MTDS `_*_shards` builders)
+   * plus the legacy `"fixtures"` emitter. Unknown units fall back to `shards`.
+   */
+  const formatUnitLabel = (unit: string | undefined): string => {
+    switch (unit) {
+      case "fixture_dates":
+      case "bookmaker_fixture_dates":
+      case "fixtures":
+        return "fixture-days";
+      case "daily_snapshots":
+      case "shard_days":
+      case "shard_days_legacy":
+        return "days";
+      case "cadence_refreshes":
+        return "refreshes";
+      case "season_snapshots":
+        return "seasons";
+      case "shard_instrument_days":
+        return "instrument-days";
+      default:
+        return "shards";
+    }
   };
 
   /** Neutral color for rate-metric rows — signals "not a coverage %". */
@@ -3464,12 +3520,30 @@ function DataStatusTabInternal({
                                                       ))}
                                                     </div>
                                                   )}
-                                                  {/* Available / missing dates */}
+                                                  {/* Available / missing dates — clickable for DeFi chain→protocol. */}
                                                   {(() => {
                                                     const cvFoundList: string[] = vdTyped.dates_found_list ?? [];
                                                     const cvMissingList: string[] = vdTyped.missing_dates ?? vdTyped.dates_missing_list ?? [];
                                                     const cvMissingCount = vdTyped.dates_missing ?? cvMissingList.length;
                                                     if (cvFoundList.length === 0 && cvMissingList.length === 0) return null;
+                                                    // For DeFi the composite venue is "<PROTOCOL>-<CHAIN>" (e.g. AAVE_V3-ETHEREUM).
+                                                    // We reach this branch under catData.chains → protocol tree so ``v`` is the
+                                                    // composite. Pick the first known data_type as a navigation hint for the
+                                                    // modal; the user can still switch via URL if a ``data_type`` is ambiguous.
+                                                    const firstDt = vdTyped.data_types
+                                                      ? Object.keys(vdTyped.data_types)[0]
+                                                      : undefined;
+                                                    const instrumentTypeHint = firstDt ?? "UNKNOWN";
+                                                    const dataTypeHint = firstDt ?? "UNKNOWN";
+                                                    const makeOnClick = (date: string) => () =>
+                                                      openShardDetail({
+                                                        service: serviceName,
+                                                        category: catName,
+                                                        instrument_type: instrumentTypeHint,
+                                                        data_type: dataTypeHint,
+                                                        day: date,
+                                                        venue: v,
+                                                      });
                                                     return (
                                                       <div className="flex gap-3 pt-0.5 border-t border-[var(--color-border-subtle)]">
                                                         {cvFoundList.length > 0 && (
@@ -3479,9 +3553,16 @@ function DataStatusTabInternal({
                                                             </summary>
                                                             <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                               {cvFoundList.map((date: string) => (
-                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                                <button
+                                                                  key={date}
+                                                                  type="button"
+                                                                  onClick={makeOnClick(date)}
+                                                                  title={`Show shard details for ${date}`}
+                                                                  data-testid={`defi-date-found-${v}-${date}`}
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                >
                                                                   {date}
-                                                                </span>
+                                                                </button>
                                                               ))}
                                                               {vdTyped.dates_found > cvFoundList.length && (
                                                                 <span className="text-[7px] text-[var(--color-text-muted)]">
@@ -3498,9 +3579,16 @@ function DataStatusTabInternal({
                                                             </summary>
                                                             <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                               {cvMissingList.map((date: string) => (
-                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                <button
+                                                                  key={date}
+                                                                  type="button"
+                                                                  onClick={makeOnClick(date)}
+                                                                  title={`Show shard details (missing) for ${date}`}
+                                                                  data-testid={`defi-date-missing-${v}-${date}`}
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                >
                                                                   {date}
-                                                                </span>
+                                                                </button>
                                                               ))}
                                                               {cvMissingCount > cvMissingList.length && (
                                                                 <span className="text-[7px] text-[var(--color-text-muted)]">
@@ -3513,15 +3601,24 @@ function DataStatusTabInternal({
                                                       </div>
                                                     );
                                                   })()}
-                                                  {/* Instrument breakdown link */}
+                                                  {/* Instrument breakdown link — renders inline under this protocol */}
                                                   <div className="pt-0.5">
                                                     <span
                                                       className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
                                                       onClick={() => handleVenueClick(catName, v)}
+                                                      data-testid={`defi-instrument-breakdown-toggle-${v}`}
                                                     >
                                                       Instrument breakdown
                                                     </span>
                                                   </div>
+                                                  {venueDetailKey === `${catName}:${v}` && (
+                                                    <div className="mt-1">
+                                                      <VenueDetailPanel
+                                                        loading={venueDetailLoading}
+                                                        data={venueDetailData}
+                                                      />
+                                                    </div>
+                                                  )}
                                                 </div>
                                               </details>
                                             );
@@ -4141,7 +4238,8 @@ function DataStatusTabInternal({
                                                                   key={date}
                                                                   type="button"
                                                                   className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                  title={`Show instruments on ${date}`}
+                                                                  title={`Show shard details for ${date}`}
+                                                                  data-testid={`cefi-date-found-${name}-${dtName}-${date}`}
                                                                   onClick={() => {
                                                                     // For Polymarket-style OTHER bucket the most interesting drill is
                                                                     // the bundled parquet (per_condition_id). Fall back to a synthetic
@@ -4151,7 +4249,7 @@ function DataStatusTabInternal({
                                                                       name.toUpperCase() === "POLYMARKET"
                                                                         ? "OTHER"
                                                                         : dtName;
-                                                                    setInstrumentsModal({
+                                                                    openShardDetail({
                                                                       service: serviceName,
                                                                       category: catName,
                                                                       venue: name,
@@ -4177,9 +4275,29 @@ function DataStatusTabInternal({
                                                             </summary>
                                                             <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                               {dtMissingList.slice(0, 60).map((date: string) => (
-                                                                <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                                <button
+                                                                  key={date}
+                                                                  type="button"
+                                                                  className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                  title={`Show shard details (missing) for ${date}`}
+                                                                  data-testid={`cefi-date-missing-${name}-${dtName}-${date}`}
+                                                                  onClick={() => {
+                                                                    const itGuess =
+                                                                      name.toUpperCase() === "POLYMARKET"
+                                                                        ? "OTHER"
+                                                                        : dtName;
+                                                                    openShardDetail({
+                                                                      service: serviceName,
+                                                                      category: catName,
+                                                                      venue: name,
+                                                                      day: date,
+                                                                      instrument_type: itGuess,
+                                                                      data_type: dtName,
+                                                                    });
+                                                                  }}
+                                                                >
                                                                   {date}
-                                                                </span>
+                                                                </button>
                                                               ))}
                                                               {dtMissingList.length > 60 && (
                                                                 <span className="text-[7px] text-[var(--color-text-muted)]">+{dtMissingList.length - 60} more</span>
@@ -4224,7 +4342,18 @@ function DataStatusTabInternal({
                                             </div>
                                             {Object.entries(subData.leagues!).map(([leagueName, leagueData]) => {
                                               const ld = leagueData as TurboLeagueStatus;
-                                              const unitLabel = ld.unit === "fixtures" ? "fixtures" : "dates";
+                                              // v5 honest-coverage fields are canonical; legacy `dates_*` kept as fallback.
+                                              const foundCount = ld.found_shards ?? ld.dates_found;
+                                              const expectedCount = ld.expected_shards ?? ld.dates_expected;
+                                              const missingCount =
+                                                ld.missing_shards ?? ld.dates_missing ?? ld.missing_dates?.length;
+                                              const foundDatesList = ld.found_dates_list ?? ld.dates_found_list ?? [];
+                                              const missingDatesList = ld.missing_dates ?? [];
+                                              const unitLabel = formatUnitLabel(ld.unit);
+                                              const countDisplay =
+                                                foundCount === undefined || expectedCount === undefined
+                                                  ? "—"
+                                                  : `${foundCount}/${expectedCount} ${unitLabel}`;
                                               if (ld.not_applicable) {
                                                 return (
                                                   <div key={leagueName} className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50">
@@ -4242,7 +4371,7 @@ function DataStatusTabInternal({
                                                     <span className="text-[10px] font-mono truncate min-w-0" title={leagueName}>{leagueName}</span>
                                                     <div className="flex-1" />
                                                     <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                      {ld.dates_found}/{ld.dates_expected} {unitLabel}
+                                                      {countDisplay}
                                                     </span>
                                                     <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
                                                       <div className="h-full" style={{ width: `${ld.completion_pct}%`, backgroundColor: getCompletionColor(ld.completion_pct) }} />
@@ -4254,16 +4383,16 @@ function DataStatusTabInternal({
                                                   {/* League date details */}
                                                   <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
                                                     <div className="flex gap-3">
-                                                      {ld.dates_found_list && ld.dates_found_list.length > 0 && (
+                                                      {foundDatesList.length > 0 && (
                                                         <details>
                                                           <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                            {ld.dates_found} available
+                                                            {foundCount ?? foundDatesList.length} available
                                                             {catName === "SPORTS" && name === "FIXTURES" && (
                                                               <span className="ml-1 text-[var(--color-text-muted)]">· click date to expand fixtures · CSV icon downloads league-day CSV</span>
                                                             )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                            {ld.dates_found_list.map((date: string) =>
+                                                            {foundDatesList.map((date: string) =>
                                                               catName === "SPORTS" && name === "FIXTURES" ? (
                                                                 <span key={date} className="inline-flex items-center gap-0.5">
                                                                   <button
@@ -4293,16 +4422,16 @@ function DataStatusTabInternal({
                                                           </div>
                                                         </details>
                                                       )}
-                                                      {ld.missing_dates && ld.missing_dates.length > 0 && (
+                                                      {missingDatesList.length > 0 && (
                                                         <details>
                                                           <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                            {ld.dates_missing} missing
+                                                            {missingCount ?? missingDatesList.length} missing
                                                             {catName === "SPORTS" && name === "FIXTURES" && (
                                                               <span className="ml-1 text-[var(--color-text-muted)]">· click to see expected fixtures (read-only)</span>
                                                             )}
                                                           </summary>
                                                           <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                            {ld.missing_dates.map((date: string) =>
+                                                            {missingDatesList.map((date: string) =>
                                                               catName === "SPORTS" && name === "FIXTURES" ? (
                                                                 <button
                                                                   key={date}
@@ -4347,13 +4476,38 @@ function DataStatusTabInternal({
                                               <details>
                                                 <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                   {subData.dates_found} available {catName === "SPORTS" ? "fixtures" : "dates"}
+                                                  {SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" && (
+                                                    <span className="ml-1 text-[var(--color-text-muted)]">
+                                                      {(serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
+                                                        ? "· ⬇ downloads availability catalog CSV"
+                                                        : "· ⬇ downloads shard CSV"}
+                                                    </span>
+                                                  )}
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                  {foundList.map((date: string) => (
-                                                    <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
-                                                      {date}
-                                                    </span>
-                                                  ))}
+                                                  {foundList.map((date: string) =>
+                                                    SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" ? (
+                                                      <span key={date} className="inline-flex items-center gap-0.5">
+                                                        <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                          {date}
+                                                        </span>
+                                                        <a
+                                                          href={buildShardDownloadUrl({ service: serviceName, category: catName, venue: name, date })}
+                                                          className="text-[7px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
+                                                          title={(serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
+                                                            ? `Download availability catalog CSV for ${name} on ${date}`
+                                                            : `Download shard CSV for ${name} on ${date}`}
+                                                          download
+                                                        >
+                                                          ⬇
+                                                        </a>
+                                                      </span>
+                                                    ) : (
+                                                      <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                        {date}
+                                                      </span>
+                                                    ),
+                                                  )}
                                                   {subData.dates_found > foundList.length && (
                                                     <span className="text-[8px] text-[var(--color-text-muted)]">
                                                       +{subData.dates_found - foundList.length} more
@@ -4394,49 +4548,10 @@ function DataStatusTabInternal({
                                           </span>
                                         </div>
                                         {venueDetailKey === `${catName}:${name}` && (
-                                          <div className="p-1.5 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
-                                            {venueDetailLoading ? (
-                                              <span className="text-[9px] text-[var(--color-text-muted)]">Loading...</span>
-                                            ) : venueDetailData ? (
-                                              <div className="space-y-1">
-                                                <div className="text-[9px] text-[var(--color-text-muted)]">
-                                                  {venueDetailData.total_instruments} instruments (as of {venueDetailData.date})
-                                                </div>
-                                                {venueDetailData.instrument_types && (
-                                                  <div className="space-y-0.5">
-                                                    <span className="text-[9px] font-medium text-[var(--color-accent-cyan)]">Instrument Types</span>
-                                                    {Object.entries(venueDetailData.instrument_types).map(([type, count]) => (
-                                                      <div key={type} className="flex justify-between text-[9px]">
-                                                        <span className="text-[var(--color-text-secondary)] font-mono">{type}</span>
-                                                        <span className="text-[var(--color-text-muted)] font-mono">{count as number}</span>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                )}
-                                                {venueDetailData.top_instruments && venueDetailData.top_instruments.length > 0 && (
-                                                  <details className="mt-0.5">
-                                                    <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
-                                                      Top {venueDetailData.top_instruments.length} instruments
-                                                    </summary>
-                                                    <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
-                                                      {venueDetailData.top_instruments.map((inst: { key: string; type: string }) => (
-                                                        <div key={inst.key} className="flex justify-between text-[8px] font-mono">
-                                                          <span className="text-[var(--color-text-secondary)] truncate mr-2" title={inst.key}>
-                                                            {inst.key}
-                                                          </span>
-                                                          <span className="text-[var(--color-text-muted)] shrink-0">
-                                                            {inst.type}
-                                                          </span>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </details>
-                                                )}
-                                              </div>
-                                            ) : (
-                                              <span className="text-[9px] text-[var(--color-accent-red)]">Failed to load</span>
-                                            )}
-                                          </div>
+                                          <VenueDetailPanel
+                                            loading={venueDetailLoading}
+                                            data={venueDetailData}
+                                          />
                                         )}
                                       </div>
                                     </details>
@@ -5198,6 +5313,12 @@ function DataStatusTabInternal({
       )}
       {schemaModal && (
         <SchemaModal coord={schemaModal} onClose={() => setSchemaModal(null)} />
+      )}
+      {shardDetailCoord && (
+        <ShardDetailModal
+          coord={shardDetailCoord}
+          onClose={() => setShardDetailCoord(null)}
+        />
       )}
     </div>
   );

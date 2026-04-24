@@ -114,8 +114,9 @@ import type {
 
 /**
  * Dynamic API base URL — updated when the cloud provider toggle switches.
- * Default: "/api" (proxied by Vite to localhost:8004 in dev).
- * When explicitly set: "http://localhost:8004/api" or "http://localhost:8005/api".
+ * Default: "/api" (proxied by Vite to the deployment-api dev port).
+ * When explicitly set via ``setApiBaseUrl``: an absolute URL read from
+ * ``import.meta.env.VITE_API_BASE_URL`` (or the cloud-provider toggle).
  */
 let API_BASE = "/api";
 let apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
@@ -686,11 +687,18 @@ export interface TurboDataTypeStatus {
 }
 
 export interface TurboLeagueStatus {
-  dates_found: number;
-  dates_expected: number;
-  dates_missing: number;
-  missing_dates?: string[];
+  // Legacy v3/v4 fields (kept for forward/back-compat; may be absent on v5 responses).
+  dates_found?: number;
+  dates_expected?: number;
+  dates_missing?: number;
   dates_found_list?: string[];
+  // v5 honest-coverage canonical fields (per codex/02-data/availability-manifest-and-data-status.md).
+  // SPORTS per-league entries emit these; the UI prefers them when present.
+  found_shards?: number;
+  expected_shards?: number;
+  missing_shards?: number;
+  found_dates_list?: string[];
+  missing_dates?: string[];
   completion_pct: number;
   unit?: string;
   not_applicable?: boolean;
@@ -1538,6 +1546,153 @@ export async function fetchShardSchema(params: {
   return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
 }
 
+// ---------------------------------------------------------------------------
+// ShardDetail / VenueDetail v2 — unified shard drilldown contract.
+// Upstream: deployment-api types/shard_detail.py (commit 9d93236).
+// ---------------------------------------------------------------------------
+
+export type ShardClassLiteral =
+  | "grouped"
+  | "per_symbol"
+  | "reference"
+  | "fixtures";
+
+export type CaptureStatusLiteral =
+  | "captured"
+  | "empty_confirmed"
+  | "attempted_failed"
+  | "missing";
+
+export interface ShardDetailCoord {
+  service: string;
+  category: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue: string | null;
+  underlying: string | null;
+  instrument_id: string | null;
+}
+
+export interface ShardDetailColumn {
+  name: string;
+  dtype: string;
+  nullable: boolean;
+  required: boolean;
+  provided_by_venues: string[] | null;
+  description: string;
+}
+
+export interface ShardDetailSchema {
+  registered: boolean;
+  source: "CONTRACT_REGISTRY" | "VENUE_CONTRACT_OVERRIDES" | "none";
+  symbol_column: string | null;
+  columns: ShardDetailColumn[];
+  message: string;
+}
+
+export interface ShardDetailGcs {
+  path: string | null;
+  file_size_bytes: number | null;
+  row_count: number | null;
+  captured_at: string | null;
+  capture_status: CaptureStatusLiteral;
+  error_reason: string | null;
+}
+
+export interface ShardDetailDownloadUrls {
+  parquet_signed_url: string | null;
+  csv_projected: string | null;
+}
+
+export interface ShardDetailPayloadGrouped {
+  instrument_list: Record<string, string>[];
+}
+
+export interface ShardDetailPayloadPerSymbol {
+  instrument_list: Record<string, string>[];
+}
+
+export interface ShardDetailPayloadReference {
+  instrument_definitions: Record<string, unknown>[];
+}
+
+export interface ShardDetailPayloadFixtures {
+  fixtures: Record<string, unknown>[];
+}
+
+export interface ShardDetailResponse {
+  coord: ShardDetailCoord;
+  shard_class: ShardClassLiteral;
+  schema: ShardDetailSchema;
+  gcs: ShardDetailGcs;
+  download_urls: ShardDetailDownloadUrls;
+  sample_rows: Record<string, unknown>[];
+  payload_grouped: ShardDetailPayloadGrouped | null;
+  payload_per_symbol: ShardDetailPayloadPerSymbol | null;
+  payload_reference: ShardDetailPayloadReference | null;
+  payload_fixtures: ShardDetailPayloadFixtures | null;
+}
+
+export async function fetchShardDetail(params: {
+  service: string;
+  category: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue?: string | null;
+  underlying?: string | null;
+  instrument_id?: string | null;
+}): Promise<ShardDetailResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    day: params.day,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.underlying) qp.set("underlying", params.underlying);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  return fetchJson<ShardDetailResponse>(
+    `/data-status/shard-detail?${qp.toString()}`,
+  );
+}
+
+// VenueDetail v2 — DeFi-aware.  Composite (PROTOCOL-CHAIN) vs chain-only
+// paths are disambiguated via ``chain`` / ``protocol`` / ``pools`` /
+// ``protocols`` being populated.  CeFi branches populate ``instruments`` +
+// ``total_instruments``.
+export interface VenueDetailV2Response {
+  category: string;
+  venue: string;
+  chain: string | null;
+  protocol: string | null;
+  total_instruments: number;
+  total_pools: number;
+  total_tokens: number;
+  instruments: Record<string, unknown>[];
+  protocols: Record<string, unknown>[];
+  pools: Record<string, unknown>[];
+  tokens: Record<string, unknown>[];
+  day: string | null;
+}
+
+export async function fetchVenueDetailV2(params: {
+  service: string;
+  category: string;
+  venue: string;
+}): Promise<VenueDetailV2Response> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    venue: params.venue,
+  });
+  return fetchJson<VenueDetailV2Response>(
+    `/data-status/venue-detail?${qp.toString()}`,
+  );
+}
+
 export interface ShardInstrumentEntry {
   instrument_id: string;
   file_uri: string;
@@ -1720,6 +1875,40 @@ export function buildCsvDownloadUrl(params: {
     instrument_ids: params.instrument_ids.join(","),
   });
   return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
+}
+
+// Services that write per-venue-day-bundle parquets and support shard CSV download.
+export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
+  "instruments-service",
+  "corporate-actions",
+  "market-tick-data-service",
+  "market-data-processing-service",
+]);
+
+/**
+ * Build the shard CSV download URL for one (service, category, venue, date).
+ *
+ * Routing on the server side:
+ * - instruments-service / corporate-actions: reads the per-(venue, day) bundle
+ *   parquet and returns its instrument rows as CSV.
+ * - market-tick-data-service / market-data-processing-service: returns the
+ *   availability-manifest catalog for (venue, date) as CSV — shows which
+ *   instruments were captured, their data_type / instrument_type, capture_status,
+ *   and any error_reason. Tick data itself is too large to download directly.
+ */
+export function buildShardDownloadUrl(params: {
+  service: string;
+  category: string;
+  venue: string;
+  date: string;
+}): string {
+  const qp = new URLSearchParams({
+    service: params.service,
+    category: params.category,
+    venue: params.venue,
+    date: params.date,
+  });
+  return `${API_BASE}/data-status/download-shard-csv?${qp.toString()}`;
 }
 
 /**

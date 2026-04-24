@@ -197,6 +197,13 @@ export function SchemaModal({
 }
 
 /* =========================================================================
+ * ShardDetailModal has moved to `./ShardDetailModal.tsx` so it can be
+ * unit-tested in isolation (coverage thresholds exclude this drilldown
+ * file by policy — see vitest.config.ts).
+ * ========================================================================= */
+
+
+/* =========================================================================
  * Instruments modal (per-day, per-shard drill-down)
  * -------------------------------------------------------------------------
  * For a selected (day, venue, instrument_type, data_type) shard, show the
@@ -204,23 +211,13 @@ export function SchemaModal({
  * button. A "Show schema" link opens the SchemaModal.
  * ========================================================================= */
 
-export function InstrumentsModal({
+function InstrumentsModalStandard({
   coord,
   onClose,
 }: {
   coord: ShardCoordinate;
   onClose: () => void;
 }) {
-  // ---------------------------------------------------------------------
-  // instruments-service is a low-cardinality reference data service —
-  // instead of the full list-and-select flow, offer a single "Download day
-  // CSV" button that fetches the whole shard. Early-return with the simple
-  // variant keeps the heavy state machinery out of its render path.
-  // ---------------------------------------------------------------------
-  if (coord.service === "instruments-service") {
-    return <InstrumentsServiceShardModal coord={coord} onClose={onClose} />;
-  }
-
   // Paginated / searchable state for the normal flow.
   const [listing, setListing] = useState<InstrumentsForShardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -421,14 +418,14 @@ export function InstrumentsModal({
 
   const downloadUrl = listing
     ? buildCsvDownloadUrl({
-        service: coord.service,
-        category: coord.category,
-        venue: coord.venue,
-        day: coord.day,
-        instrument_type: activeInstrumentType,
-        data_type: coord.data_type,
-        instrument_ids: Array.from(selected),
-      })
+      service: coord.service,
+      category: coord.category,
+      venue: coord.venue,
+      day: coord.day,
+      instrument_type: activeInstrumentType,
+      data_type: coord.data_type,
+      instrument_ids: Array.from(selected),
+    })
     : null;
 
   // Active coordinate used for downstream children (bundle rows, schema
@@ -718,6 +715,20 @@ export function InstrumentsModal({
   );
 }
 
+/** Delegates instruments-service to {@link InstrumentsServiceShardModal} so hooks in the default path are never skipped. */
+export function InstrumentsModal({
+  coord,
+  onClose,
+}: {
+  coord: ShardCoordinate;
+  onClose: () => void;
+}) {
+  if (coord.service === "instruments-service") {
+    return <InstrumentsServiceShardModal coord={coord} onClose={onClose} />;
+  }
+  return <InstrumentsModalStandard coord={coord} onClose={onClose} />;
+}
+
 /* =========================================================================
  * Bundle row — per-underlying entry with a single download button and an
  * optional "Preview symbols inside" expander. Used for options_chain /
@@ -955,7 +966,7 @@ export function BucketCountsBadge({
  * match the existing data-status tab dark theme.
  * ========================================================================= */
 
-function ModalShell({
+export function ModalShell({
   title,
   onClose,
   children,
@@ -1015,7 +1026,7 @@ function RetryShardButton({
   async function onRetry() {
     const confirmed = window.confirm(
       `Retry ${instrument_id} on ${day} (${service} / ${venue})?\n\n` +
-        "This re-triggers the adapter with force=true and can spin up a VM.",
+      "This re-triggers the adapter with force=true and can spin up a VM.",
     );
     if (!confirmed) return;
     setPending(true);

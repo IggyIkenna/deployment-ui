@@ -28,9 +28,9 @@ const MOCK_DEPLOYMENT_FREQUENCY: DeploymentDayDatum[] = [
 ];
 
 const COLORS = {
-  successful: "var(--color-accent-green, #22c55e)",
-  failed: "var(--color-accent-red, #ef4444)",
-  rolled_back: "var(--color-accent-amber, #f59e0b)",
+  successful: "var(--color-accent-green)",
+  failed: "var(--color-accent-red)",
+  rolled_back: "var(--color-accent-amber)",
 };
 
 export function DeploymentFrequencyChart() {
@@ -59,7 +59,7 @@ export function DeploymentFrequencyChart() {
             gap: 24,
             marginBottom: 16,
             fontSize: 12,
-            color: "var(--color-text-muted, #71717a)",
+            color: "var(--color-text-muted)",
           }}
         >
           <span>
@@ -67,7 +67,7 @@ export function DeploymentFrequencyChart() {
             <span
               style={{
                 fontFamily: "monospace",
-                color: "var(--color-text-primary, #fafafa)",
+                color: "var(--color-text-primary)",
               }}
             >
               {totalDeploys}
@@ -78,7 +78,7 @@ export function DeploymentFrequencyChart() {
             <span
               style={{
                 fontFamily: "monospace",
-                color: "var(--color-accent-green, #22c55e)",
+                color: "var(--color-accent-green)",
               }}
             >
               {successRate}%
@@ -96,25 +96,25 @@ export function DeploymentFrequencyChart() {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="var(--color-border, #27272a)"
+                stroke="var(--color-border)"
               />
               <XAxis
                 dataKey="date"
                 tick={{
                   fontSize: 11,
-                  fill: "var(--color-text-muted, #71717a)",
+                  fill: "var(--color-text-muted)",
                 }}
               />
               <YAxis
                 tick={{
                   fontSize: 11,
-                  fill: "var(--color-text-muted, #71717a)",
+                  fill: "var(--color-text-muted)",
                 }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--color-surface, #18181b)",
-                  border: "1px solid var(--color-border, #27272a)",
+                  backgroundColor: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "6px",
                   fontSize: 12,
                 }}

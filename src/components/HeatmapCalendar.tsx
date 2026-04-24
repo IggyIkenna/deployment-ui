@@ -103,13 +103,13 @@ function getStatusBackgroundImage(status: DayData["status"]): string | undefined
       // Grey cross-hatch: attempted, confirmed empty.
       return (
         "repeating-linear-gradient(135deg, " +
-        "rgba(255,255,255,0.35) 0 2px, transparent 2px 5px)"
+        "var(--color-stripe-light) 0 2px, transparent 2px 5px)"
       );
     case "attempted_failed":
       // Red diagonal hash: attempted, raised.
       return (
         "repeating-linear-gradient(45deg, " +
-        "rgba(0,0,0,0.5) 0 2px, transparent 2px 5px)"
+        "var(--color-stripe-dark) 0 2px, transparent 2px 5px)"
       );
     default:
       return undefined;
