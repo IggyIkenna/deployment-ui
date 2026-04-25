@@ -1589,6 +1589,12 @@ export interface ShardDetailSchema {
   symbol_column: string | null;
   columns: ShardDetailColumn[];
   message: string;
+  // ``explicit`` — caller passed a concrete instrument_type;
+  // ``auto`` — caller passed ``"AUTO"``/``"UNKNOWN"`` and the backend
+  //   resolved it from the UAC SchemaContract registry;
+  // ``none`` — auto resolution was requested but no contract matched.
+  // Optional for backwards compatibility with older API responses.
+  instrument_type_resolved_via?: "explicit" | "auto" | "none";
 }
 
 export interface ShardDetailGcs {

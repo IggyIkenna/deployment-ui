@@ -3528,18 +3528,19 @@ function DataStatusTabInternal({
                                                     if (cvFoundList.length === 0 && cvMissingList.length === 0) return null;
                                                     // For DeFi the composite venue is "<PROTOCOL>-<CHAIN>" (e.g. AAVE_V3-ETHEREUM).
                                                     // We reach this branch under catData.chains → protocol tree so ``v`` is the
-                                                    // composite. Pick the first known data_type as a navigation hint for the
-                                                    // modal; the user can still switch via URL if a ``data_type`` is ambiguous.
+                                                    // composite. ``data_type`` is the first known data_type for this protocol;
+                                                    // ``instrument_type`` is left as ``"AUTO"`` so the deployment-api resolves
+                                                    // it from the UAC SchemaContract registry (the click site doesn't have
+                                                    // ``instrument_type`` in scope, only ``data_type``).
                                                     const firstDt = vdTyped.data_types
                                                       ? Object.keys(vdTyped.data_types)[0]
                                                       : undefined;
-                                                    const instrumentTypeHint = firstDt ?? "UNKNOWN";
-                                                    const dataTypeHint = firstDt ?? "UNKNOWN";
+                                                    const dataTypeHint = firstDt ?? "AUTO_DETECT_FAIL";
                                                     const makeOnClick = (date: string) => () =>
                                                       openShardDetail({
                                                         service: serviceName,
                                                         category: catName,
-                                                        instrument_type: instrumentTypeHint,
+                                                        instrument_type: "AUTO",
                                                         data_type: dataTypeHint,
                                                         day: date,
                                                         venue: v,
@@ -4242,13 +4243,15 @@ function DataStatusTabInternal({
                                                                   data-testid={`cefi-date-found-${name}-${dtName}-${date}`}
                                                                   onClick={() => {
                                                                     // For Polymarket-style OTHER bucket the most interesting drill is
-                                                                    // the bundled parquet (per_condition_id). Fall back to a synthetic
-                                                                    // instrument_type == data_type for venues without an instrument_type
-                                                                    // axis — the backend listing tolerates missing paths and returns [].
+                                                                    // the bundled parquet (per_condition_id). For other venues we
+                                                                    // pass ``"AUTO"`` so the backend resolves ``instrument_type``
+                                                                    // from the UAC SchemaContract registry — the click site only
+                                                                    // has ``data_type`` (``dtName``) in scope, not the actual
+                                                                    // instrument_type axis.
                                                                     const itGuess =
                                                                       name.toUpperCase() === "POLYMARKET"
                                                                         ? "OTHER"
-                                                                        : dtName;
+                                                                        : "AUTO";
                                                                     openShardDetail({
                                                                       service: serviceName,
                                                                       category: catName,
@@ -4285,7 +4288,7 @@ function DataStatusTabInternal({
                                                                     const itGuess =
                                                                       name.toUpperCase() === "POLYMARKET"
                                                                         ? "OTHER"
-                                                                        : dtName;
+                                                                        : "AUTO";
                                                                     openShardDetail({
                                                                       service: serviceName,
                                                                       category: catName,
