@@ -2210,6 +2210,54 @@ export async function searchInstruments(params: {
   );
 }
 
+/**
+ * Per-pool DeFi drilldown — backed by ``/api/data-status/pools/breakdown``.
+ * Chain-native equivalent of the sports per-fixture breakdown. Returns one
+ * row per pool ID surfaced under the (day, venue, chain) shard with a
+ * coverage map showing which data_types captured each pool.
+ */
+export type PoolCoverageState =
+  | "captured"
+  | "empty_confirmed"
+  | "missing"
+  | "failed";
+
+export interface PoolCoverageRow {
+  pool_id: string;
+  coverage: Record<string, PoolCoverageState>;
+  coverage_summary: {
+    captured: number;
+    empty_confirmed: number;
+    missing: number;
+    failed: number;
+  };
+}
+
+export interface PoolBreakdownResponse {
+  day: string;
+  venue: string;
+  chain: string;
+  venue_chain: string;
+  data_types_expected: string[];
+  pools_expected: number;
+  pools: PoolCoverageRow[];
+  status: "resolved" | "no_data";
+}
+
+export async function getPoolBreakdown(params: {
+  day: string;
+  venue: string;
+  chain: string;
+}): Promise<PoolBreakdownResponse> {
+  const qp = new URLSearchParams();
+  qp.set("day", params.day);
+  qp.set("venue", params.venue);
+  qp.set("chain", params.chain);
+  return fetchJson<PoolBreakdownResponse>(
+    `/data-status/pools/breakdown?${qp.toString()}`,
+  );
+}
+
 export async function getInstrumentAvailability(params: {
   instrument_key: string;
   start_date: string;
