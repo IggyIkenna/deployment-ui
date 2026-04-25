@@ -4224,6 +4224,26 @@ function DataStatusTabInternal({
                                                     <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
                                                       {formatPct(dtData.completion_pct)}%
                                                     </span>
+                                                    {catName === "SPORTS" && (
+                                                      <button
+                                                        type="button"
+                                                        className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                        title={`View the ${dtName} parquet schema from unified-api-contracts — date-independent`}
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          setSchemaModal({
+                                                            service: "instruments-service",
+                                                            category: "SPORTS",
+                                                            venue: "",
+                                                            instrument_type: "",
+                                                            data_type: dtName,
+                                                          });
+                                                        }}
+                                                      >
+                                                        schema
+                                                      </button>
+                                                    )}
                                                   </summary>
                                                   {hasDates && (
                                                     <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
