@@ -2171,6 +2171,45 @@ export async function getInstrumentsList(params: {
   return fetchJson(`/data-status/instruments?${searchParams.toString()}`);
 }
 
+/**
+ * Cross-category canonical-symbol search — backed by
+ * ``/api/data-status/instruments/search``. Walks one or all five categories
+ * (cefi/tradfi/defi/sports/prediction) and returns canonical IDs whose
+ * substrings (whitespace-tokenised, AND-matched) contain the query.
+ *
+ * Sports returns ``league_id`` matches (EPL, BUNDESLIGA, …); other categories
+ * return ``instrument_key`` matches like ``BINANCE-FUTURES:PERPETUAL:BTC-USDT``.
+ */
+export interface InstrumentSearchMatch {
+  canonical_id: string;
+  category: string;
+  venue: string;
+  instrument_type: string;
+}
+
+export interface InstrumentSearchResponse {
+  query: string;
+  category: string | null;
+  matches: InstrumentSearchMatch[];
+  total_matches: number;
+  truncated: boolean;
+  categories_searched: string[];
+}
+
+export async function searchInstruments(params: {
+  query: string;
+  category?: string;
+  limit?: number;
+}): Promise<InstrumentSearchResponse> {
+  const qp = new URLSearchParams();
+  qp.set("query", params.query);
+  if (params.category) qp.set("category", params.category);
+  if (params.limit !== undefined) qp.set("limit", params.limit.toString());
+  return fetchJson<InstrumentSearchResponse>(
+    `/data-status/instruments/search?${qp.toString()}`,
+  );
+}
+
 export async function getInstrumentAvailability(params: {
   instrument_key: string;
   start_date: string;
