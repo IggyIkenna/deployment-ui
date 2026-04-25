@@ -4511,9 +4511,24 @@ function DataStatusTabInternal({
                                                   {foundList.map((date: string) =>
                                                     SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" ? (
                                                       <span key={date} className="inline-flex items-center gap-0.5">
-                                                        <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
+                                                        {/* Click date → ShardDetailModal (schema + sample + instruments + download).
+                                                            For shard-csv services we still keep the ⬇ as a 1-click shortcut. */}
+                                                        <button
+                                                          type="button"
+                                                          className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                          title={`Show shard details for ${date}`}
+                                                          data-testid={`shard-csv-date-found-${name}-${date}`}
+                                                          onClick={() => openShardDetail({
+                                                            service: serviceName,
+                                                            category: catName,
+                                                            instrument_type: "AUTO",
+                                                            data_type: "AUTO",
+                                                            day: date,
+                                                            venue: name,
+                                                          })}
+                                                        >
                                                           {date}
-                                                        </span>
+                                                        </button>
                                                         <a
                                                           href={buildShardDownloadUrl({ service: serviceName, category: catName, venue: name, date })}
                                                           className="text-[7px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
@@ -4545,11 +4560,33 @@ function DataStatusTabInternal({
                                                   {missingCount} missing {catName === "SPORTS" ? "fixtures" : "dates"}
                                                 </summary>
                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                  {missingList.map((date: string) => (
-                                                    <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
-                                                      {date}
-                                                    </span>
-                                                  ))}
+                                                  {missingList.map((date: string) =>
+                                                    /* Missing dates are clickable too — modal opens with capture_status=missing
+                                                       so the user can see the expected schema and a "shard not present" panel. */
+                                                    SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" ? (
+                                                      <button
+                                                        key={date}
+                                                        type="button"
+                                                        className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                        title={`Show shard details (missing) for ${date}`}
+                                                        data-testid={`shard-csv-date-missing-${name}-${date}`}
+                                                        onClick={() => openShardDetail({
+                                                          service: serviceName,
+                                                          category: catName,
+                                                          instrument_type: "AUTO",
+                                                          data_type: "AUTO",
+                                                          day: date,
+                                                          venue: name,
+                                                        })}
+                                                      >
+                                                        {date}
+                                                      </button>
+                                                    ) : (
+                                                      <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
+                                                        {date}
+                                                      </span>
+                                                    ),
+                                                  )}
                                                   {missingCount > missingList.length && (
                                                     <span className="text-[8px] text-[var(--color-text-muted)]">
                                                       +{missingCount - missingList.length} more
