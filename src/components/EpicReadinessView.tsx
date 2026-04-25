@@ -1,22 +1,22 @@
-import { useState } from "react";
 import {
-  CheckCircle2,
   AlertCircle,
+  Archive,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  RefreshCw,
-  GitMerge,
   Database,
   FlaskConical,
+  GitMerge,
+  RefreshCw,
   Wifi,
-  Archive,
 } from "lucide-react";
-import { useEpics, useEpicDetail } from "../hooks/useEpics";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { useState } from "react";
+import { useEpicDetail, useEpics } from "../hooks/useEpics";
+import { cn } from "../lib/utils";
+import type { EpicRepoStatus, EpicSummary } from "../types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { cn } from "../lib/utils";
-import type { EpicSummary, EpicRepoStatus } from "../types";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 // ---------------------------------------------------------------------------
 // Circular progress ring
@@ -236,7 +236,7 @@ function RepoRow({
         </div>
       </td>
       <td className="py-2 px-3 text-xs text-[var(--color-text-muted)]">
-        {repo.asset_class}
+        {repo.asset_group}
       </td>
       <td
         className={cn(
@@ -355,7 +355,7 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
               <tbody>
                 {epic.blocking_repos.map((r) => (
                   <RepoRow
-                    key={`${r.repo}-${r.asset_class}`}
+                    key={`${r.repo}-${r.asset_group}`}
                     repo={r}
                     blocking={true}
                   />
@@ -393,7 +393,7 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
           <div className="flex flex-wrap gap-1.5 px-1">
             {epic.optional_repos_status.map((r) => (
               <span
-                key={`${r.repo}-${r.asset_class}`}
+                key={`${r.repo}-${r.asset_group}`}
                 className={cn(
                   "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-mono border",
                   r.yaml_present
@@ -404,7 +404,7 @@ function EpicDetailPanel({ epicId }: EpicDetailPanelProps) {
               >
                 {r.repo}
                 <span className="text-[var(--color-text-muted)]">
-                  ·{r.asset_class}
+                  ·{r.asset_group}
                 </span>
               </span>
             ))}

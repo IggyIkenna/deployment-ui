@@ -10,11 +10,11 @@ export interface Service {
 export interface ServiceDimension {
   name: string;
   type:
-    | "fixed"
-    | "hierarchical"
-    | "date_range"
-    | "gcs_dynamic"
-    | "monthly_rolling";
+  | "fixed"
+  | "hierarchical"
+  | "date_range"
+  | "gcs_dynamic"
+  | "monthly_rolling";
   description: string;
   values?: string[];
   values_by_parent?: Record<string, string[]>;
@@ -681,7 +681,7 @@ export interface EpicAssetClassData {
 export interface EpicRepoStatus {
   repo: string;
   arch_tier: string | null;
-  asset_class: string;
+  asset_group: string;
   cr_current: string | null;
   cr_required: string;
   br_current: string | null;
@@ -697,7 +697,7 @@ export interface EpicRepoStatus {
 
 export interface EpicOptionalRepo {
   repo: string;
-  asset_class: string;
+  asset_group: string;
   note: string;
   yaml_present: boolean;
 }
