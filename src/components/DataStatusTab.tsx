@@ -49,6 +49,7 @@ import {
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
+import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import {
   ShardDetailModal,
   type ShardDetailCoordInput,
@@ -304,6 +305,10 @@ function DataStatusTabInternal({
   // Schema / per-day instrument drill-down modals
   const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
   const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
+  // DEFI per-pool drill-down modal — backed by /api/data-status/pools/breakdown.
+  const [poolBreakdownModal, setPoolBreakdownModal] = useState<
+    { venue: string; chain: string; day: string } | null
+  >(null);
   // Unified shard-detail modal (4 tabs: schema / sample / payload / download)
   const [shardDetailCoord, setShardDetailCoord] =
     useState<ShardDetailCoordInput | null>(null);
@@ -3610,6 +3615,26 @@ function DataStatusTabInternal({
                                                 );
                                               }
                                               const vdTyped = vd as TurboSubDimension;
+                                              // ``v`` is the composite "<PROTOCOL>-<CHAIN>" (e.g.
+                                              // ``EIGENLAYER-ETHEREUM``). We strip the trailing
+                                              // ``-{chainName}`` to recover the protocol — the
+                                              // /api/data-status/pools/breakdown endpoint expects
+                                              // ``venue`` (protocol) + ``chain`` separately.
+                                              const defiProtocol = v.endsWith(`-${chainName}`)
+                                                ? v.slice(0, v.length - chainName.length - 1)
+                                                : v;
+                                              // Pick the most-recent day with data — last entry of
+                                              // ``dates_found_list_tail`` (most-recent slice) or
+                                              // ``dates_found_list``. Falls back to undefined when
+                                              // the venue has zero captured days; the button is
+                                              // hidden in that case.
+                                              const defiPoolsDay =
+                                                vdTyped.dates_found_list_tail?.[
+                                                  (vdTyped.dates_found_list_tail?.length ?? 0) - 1
+                                                ] ??
+                                                vdTyped.dates_found_list?.[
+                                                  (vdTyped.dates_found_list?.length ?? 0) - 1
+                                                ];
                                               return (
                                                 <details key={v} className="group/cv">
                                                   <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
@@ -3628,6 +3653,25 @@ function DataStatusTabInternal({
                                                     <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(vdTyped.completion_pct) }}>
                                                       {formatPct(vdTyped.completion_pct)}%
                                                     </span>
+                                                    {defiPoolsDay && (
+                                                      <button
+                                                        type="button"
+                                                        className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                        title={`View per-pool coverage breakdown for ${v} on ${defiPoolsDay}`}
+                                                        data-testid={`defi-pools-button-${v}`}
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          setPoolBreakdownModal({
+                                                            venue: defiProtocol,
+                                                            chain: chainName,
+                                                            day: defiPoolsDay,
+                                                          });
+                                                        }}
+                                                      >
+                                                        pools
+                                                      </button>
+                                                    )}
                                                   </summary>
                                                   <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
                                                     {/* Data types breakdown */}
@@ -5496,6 +5540,14 @@ function DataStatusTabInternal({
       )}
       {schemaModal && (
         <SchemaModal coord={schemaModal} onClose={() => setSchemaModal(null)} />
+      )}
+      {poolBreakdownModal && (
+        <PoolBreakdownModal
+          venue={poolBreakdownModal.venue}
+          chain={poolBreakdownModal.chain}
+          day={poolBreakdownModal.day}
+          onClose={() => setPoolBreakdownModal(null)}
+        />
       )}
       {shardDetailCoord && (
         <ShardDetailModal
