@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { VenueDetailPanel } from "./VenueDetailPanel";
+import { describe, expect, it } from "vitest";
 import type {
   VenueDetailResult,
   VenueDetailV2Response,
 } from "../api/client";
+import { VenueDetailPanel } from "./VenueDetailPanel";
 
 describe("VenueDetailPanel", () => {
   it("loading state", () => {
@@ -20,7 +20,7 @@ describe("VenueDetailPanel", () => {
   it("renders CeFi v1 payload with instrument_types + top_instruments", () => {
     const data: VenueDetailResult = {
       venue: "BINANCE-SPOT",
-      category: "CEFI",
+      asset_group: "CEFI",
       date: "2026-04-18",
       total_instruments: 120,
       columns: ["symbol", "base", "quote"],
@@ -39,7 +39,7 @@ describe("VenueDetailPanel", () => {
 
   it("renders DeFi chain-only branch with protocols list", () => {
     const data: VenueDetailV2Response = {
-      category: "DEFI",
+      asset_group: "DEFI",
       venue: "ETHEREUM",
       chain: "ETHEREUM",
       protocol: null,
@@ -63,7 +63,7 @@ describe("VenueDetailPanel", () => {
 
   it("renders DeFi composite branch with pools list", () => {
     const data: VenueDetailV2Response = {
-      category: "DEFI",
+      asset_group: "DEFI",
       venue: "UNISWAP_V3-ETHEREUM",
       chain: "ETHEREUM",
       protocol: "UNISWAP_V3",

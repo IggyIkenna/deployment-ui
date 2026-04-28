@@ -26,7 +26,7 @@ const MOCK_SERVICES = [
     name: "instruments-service",
     layer: 1,
     category: "data",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T14:00:00Z",
   },
@@ -34,7 +34,7 @@ const MOCK_SERVICES = [
     name: "corporate-actions",
     layer: 1,
     category: "data",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-08T10:00:00Z",
   },
@@ -42,7 +42,7 @@ const MOCK_SERVICES = [
     name: "market-tick-data-service",
     layer: 2,
     category: "ingestion",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T16:00:00Z",
   },
@@ -50,7 +50,7 @@ const MOCK_SERVICES = [
     name: "market-data-processing-service",
     layer: 2,
     category: "ingestion",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     status: "warning",
     lastDeployed: "2026-03-07T12:00:00Z",
   },
@@ -58,7 +58,7 @@ const MOCK_SERVICES = [
     name: "features-calendar-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:00:00Z",
   },
@@ -66,7 +66,7 @@ const MOCK_SERVICES = [
     name: "features-delta-one-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:30:00Z",
   },
@@ -74,7 +74,7 @@ const MOCK_SERVICES = [
     name: "features-volatility-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:45:00Z",
   },
@@ -82,7 +82,7 @@ const MOCK_SERVICES = [
     name: "features-onchain-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-10T09:00:00Z",
   },
@@ -164,9 +164,9 @@ const MOCK_CATEGORIES = [
   "sports",
 ];
 
-const MOCK_VENUES_BY_CATEGORY: Record<string, string[]> = {
+const MOCK_VENUES_BY_TRADING_CLASS: Record<string, string[]> = {
   equity: ["NYSE", "NASDAQ", "LSE", "TSE", "HKEX"],
-  crypto: ["Binance", "OKX", "Bybit", "Kraken", "Coinbase"],
+  crypto: ["Binance", "OKX", "Bybit", "Coinbase"],
   fx: ["Reuters", "Bloomberg", "EBS"],
   rates: ["CME", "EUREX", "ICE"],
   commodity: ["NYMEX", "LME", "ICE"],
@@ -189,7 +189,7 @@ const MOCK_QUOTA = {
 // Phase-C honest-coverage seed (2026-04-20) — matches the shape the
 // Category Breakdown card + 4-state heatmap + "Show only failures" filter
 // + drill-down retry button expect. Prior seed was a minimal calendar
-// object that carried no `categories`, which meant the full Phase-C UI
+// object that carried no `asset_groups`, which meant the full Phase-C UI
 // surface never rendered in local dev / Playwright audits.
 //
 // Seed is deterministic: PREDICTION has high attempt / low capture (event-
@@ -811,7 +811,7 @@ const MOCK_DATA_STATUS = {
   overall_shards_expected: _MOCK_TOTAL_EXPECTED,
   total_missing: Math.max(0, _MOCK_TOTAL_EXPECTED - _MOCK_TOTAL_CAPTURED),
   migration_in_progress: false,
-  categories: _MOCK_CATS,
+  asset_groups: _MOCK_CATS,
   mock: true,
 };
 
@@ -936,7 +936,7 @@ function getStressServices(): typeof MOCK_SERVICES {
         "execution",
         "monitoring",
       ][i % 6],
-      dimensions: ["category", "date"],
+      dimensions: ["asset_group", "date"],
       status: i % 10 === 0 ? "warning" : "healthy",
       lastDeployed: new Date(Date.now() - i * 86400000).toISOString(),
     }));
@@ -997,11 +997,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           granularity: "daily",
         };
       }
-      if (name === "category") {
+      if (name === "asset_group") {
         return {
-          name: "category",
+          name: "asset_group",
           type: "fixed",
-          description: "Market category",
+          description: "Asset group (CEFI, TRADFI, DEFI, …)",
           values: ["cefi", "tradfi", "defi"],
         };
       }
@@ -1059,9 +1059,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Config
   if (path.match(/^\/api\/config\/venues/)) {
-    const cat =
-      new URL(url, "http://x").searchParams.get("category") ?? "equity";
-    return json({ venues: MOCK_VENUES_BY_CATEGORY[cat] ?? [] });
+    const params = new URL(url, "http://x").searchParams;
+    const ag =
+      params.get("asset_group") ?? params.get("category") ?? "equity";
+    return json({ venues: MOCK_VENUES_BY_TRADING_CLASS[ag] ?? [] });
   }
   if (path.match(/^\/api\/config\/start-dates/)) {
     return json({ dates: { equity: "2020-01-02", crypto: "2019-01-01" } });
@@ -1077,7 +1078,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Venues
   if (path.startsWith("/api/venues")) {
-    return json({ categories: {}, category: "", venues: [], data_types: [] });
+    return json({
+      asset_groups: {},
+      asset_group: "",
+      venues: [],
+      data_types: [],
+    });
   }
 
   // Deployments
@@ -1452,9 +1458,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       version: "0.3.0",
     });
   }
-  if (path.match(/^\/api\/capabilities\/service-categories\/.+/)) {
+  if (
+    path.match(/^\/api\/capabilities\/service-asset-groups\/.+/) ||
+    path.match(/^\/api\/capabilities\/service-categories\/.+/)
+  ) {
     return json({
-      categories: ["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"],
+      asset_groups: ["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"],
       service: path.split("/").pop(),
     });
   }
@@ -1504,8 +1513,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path.startsWith("/api/data-status/venue-filters")) {
     return json({
-      venues: ["Binance", "OKX", "Bybit", "Coinbase"],
-      categories: ["crypto", "equity", "fx"],
+      service: "instruments-service",
+      asset_groups: {
+        cefi: { venues: ["Binance", "OKX"], count: 2 },
+        tradfi: { venues: ["CME"], count: 1 },
+      },
     });
   }
   if (path.startsWith("/api/data-status/list-files")) {

@@ -18,7 +18,7 @@ import { ModalShell } from "./DataStatusDrilldown";
 
 export interface ShardDetailCoordInput {
   service: string;
-  category: string;
+  asset_group: string;
   instrument_type: string;
   data_type: string;
   day: string;
@@ -176,7 +176,7 @@ export function ShardDetailModal({
     setError(null);
     fetchShardDetail({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       instrument_type: coord.instrument_type,
       data_type: coord.data_type,
       day: coord.day,
@@ -195,7 +195,7 @@ export function ShardDetailModal({
     };
   }, [
     coord.service,
-    coord.category,
+    coord.asset_group,
     coord.instrument_type,
     coord.data_type,
     coord.day,

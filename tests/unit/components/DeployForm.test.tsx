@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock all hooks and API before importing the component
 vi.mock("../../../src/hooks/useServices", () => ({
@@ -8,8 +8,8 @@ vi.mock("../../../src/hooks/useServices", () => ({
   useChecklistValidation: vi.fn(),
 }));
 vi.mock("../../../src/hooks/useConfig", () => ({
-  useVenuesByCategory: vi.fn(),
-  useVenueCountByCategories: vi.fn(),
+  useVenuesByAssetGroup: vi.fn(),
+  useVenueCountByAssetGroups: vi.fn(),
   useStartDates: vi.fn(),
 }));
 vi.mock("../../../src/api/client", () => ({
@@ -33,14 +33,14 @@ vi.mock("../../../src/contexts/CloudProviderContext", () => ({
 }));
 
 import {
-  useServiceDimensions,
-  useChecklistValidation,
-} from "../../../src/hooks/useServices";
-import {
-  useVenuesByCategory,
-  useVenueCountByCategories,
   useStartDates,
+  useVenueCountByAssetGroups,
+  useVenuesByAssetGroup,
 } from "../../../src/hooks/useConfig";
+import {
+  useChecklistValidation,
+  useServiceDimensions,
+} from "../../../src/hooks/useServices";
 
 import { DeployForm } from "../../../src/components/DeployForm";
 
@@ -49,9 +49,9 @@ const mockDimensions = {
   service: "instruments-service",
   dimensions: [
     {
-      name: "category",
+      name: "asset_group",
       type: "fixed",
-      description: "Category",
+      description: "Asset group",
       values: ["cefi", "tradfi"],
     },
   ],
@@ -68,12 +68,13 @@ function setupDefaultMocks() {
     validation: null,
     loading: false,
   });
-  (useVenuesByCategory as ReturnType<typeof vi.fn>).mockReturnValue({
+  (useVenuesByAssetGroup as ReturnType<typeof vi.fn>).mockReturnValue({
     venues: [],
     loading: false,
   });
-  (useVenueCountByCategories as ReturnType<typeof vi.fn>).mockReturnValue({
+  (useVenueCountByAssetGroups as ReturnType<typeof vi.fn>).mockReturnValue({
     totalVenueCount: 0,
+    venuesByAssetGroup: {},
     loading: false,
   });
   (useStartDates as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -130,9 +131,9 @@ describe("DeployForm", () => {
   // were asserting against buttons that no longer exist inside DeployForm.
   // Skipped until the cloud-switcher coverage is restored in Header tests.
   // See 2026-04-21 QG-residual cleanup report.
-  it.skip("renders Cloud Provider buttons (GCP and AWS)", () => {});
-  it.skip("shows AWS warning when AWS is selected", () => {});
-  it.skip("hides AWS warning when GCP is selected", () => {});
+  it.skip("renders Cloud Provider buttons (GCP and AWS)", () => { });
+  it.skip("shows AWS warning when AWS is selected", () => { });
+  it.skip("hides AWS warning when GCP is selected", () => { });
 
   it("renders Dry Run checkbox checked by default", () => {
     render(

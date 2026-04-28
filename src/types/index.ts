@@ -28,8 +28,8 @@ export interface ServiceDimensionsResponse {
   cli_args: Record<string, string | null>;
 }
 
-// Venue types
-export interface VenueCategory {
+// Venue types (CEFI / DEFI / TRADFI / … — trading venue axis)
+export interface VenueAssetGroupConfig {
   description: string;
   venues: string[];
   data_types: string[];
@@ -39,25 +39,25 @@ export interface VenueCategory {
 }
 
 export interface VenuesResponse {
-  categories: Record<string, VenueCategory>;
+  asset_groups: Record<string, VenueAssetGroupConfig>;
 }
 
-export interface CategoryVenuesResponse {
-  category: string;
+export interface AssetGroupVenuesResponse {
+  asset_group: string;
   venues: string[];
   data_types: string[];
 }
 
 // Start dates
-export interface CategoryStartDates {
-  category_start: string;
+export interface AssetGroupStartDates {
+  asset_group_start: string;
   venues?: Record<string, string>;
   data_type_start_dates?: Record<string, Record<string, string | null>>;
 }
 
 export interface StartDatesResponse {
   service: string;
-  start_dates: Record<string, CategoryStartDates>;
+  start_dates: Record<string, AssetGroupStartDates>;
 }
 
 // Dependencies
@@ -181,7 +181,7 @@ export interface DeploymentStatusResponse {
   completed?: number | null;
 
   shards?: DeploymentShardDetail[];
-  shards_by_category?: Record<string, DeploymentShardDetail[]>;
+  shards_by_asset_group?: Record<string, DeploymentShardDetail[]>;
 
   region?: string;
   zone?: string;
@@ -207,7 +207,7 @@ export interface ShardPreviewInfo {
 
 // Grouped shards for display
 export interface GroupedShards {
-  [category: string]: {
+  [asset_group: string]: {
     [date: string]: ShardPreviewInfo[];
   };
 }
@@ -236,7 +236,8 @@ export interface DeploymentRequest {
   compute?: "cloud_run" | "vm";
   start_date?: string; // Optional for 'none' granularity (defaults to 2020-01-01)
   end_date?: string; // Optional for 'none' granularity (defaults to yesterday)
-  category?: string[];
+  /** Trading venue axis (CEFI, DEFI, …). */
+  asset_group?: string[];
   venue?: string[];
   folder?: string[]; // Filter by folder/instrument type (spot, perpetuals, etc.)
   data_type?: string[]; // Filter by data type (trades, book_snapshot_5, etc.)
@@ -261,7 +262,7 @@ export interface DeploymentRequest {
   skip_feature_group_sharding?: boolean; // Skip feature_group as sharding dimension
   date_granularity?: "daily" | "weekly" | "monthly" | "none"; // Override date granularity (runtime override)
   max_concurrent?: number; // Max simultaneously running jobs/VMs (rolling concurrency, default 2000, max 2500)
-  exclude_dates?: Record<string, string[] | Record<string, string[]>>; // Dates to exclude: category-level {cat: [dates]} or venue-level {cat: {venue: [dates]}}
+  exclude_dates?: Record<string, string[] | Record<string, string[]>>; // Dates to exclude: asset-group-level {ag: [dates]} or venue-level {ag: {venue: [dates]}}
   include_all_shards?: boolean; // Include all shards in dry run response (not just first 50)
   deploy_missing_only?: boolean; // Use backend to calculate missing shards (more accurate than exclude_dates)
   first_day_of_month_only?: boolean; // Only deploy first day of each month (TARDIS free tier)
@@ -443,7 +444,7 @@ export interface DataTypeStatus {
 export interface TurboVenueStatus {
   dates_found: number;
   dates_expected_venue: number; // venue-specific expected based on venue start date
-  dates_expected_category: number; // category-level expected for reference
+  dates_expected_asset_group: number; // asset-group-level expected for reference
   venue_start_date: string | null; // when venue data starts
   completion_pct: number;
   is_expected: boolean;
@@ -451,7 +452,7 @@ export interface TurboVenueStatus {
   data_types?: Record<string, DataTypeStatus>; // per-data-type breakdown
 }
 
-export interface CategoryStatus {
+export interface AssetGroupStatus {
   expected_start: string | null;
   excluded_days: number;
   venues: Record<string, VenueStatus>;
@@ -465,11 +466,11 @@ export interface DataStatusResponse {
   overall_complete: number;
   overall_total: number;
   overall_excluded: number;
-  categories: Record<string, CategoryStatus>;
+  asset_groups: Record<string, AssetGroupStatus>;
 }
 
 export interface MissingShard {
-  category: string;
+  asset_group: string;
   venue: string;
   missing_count: number;
   completion_percent: number;
@@ -492,7 +493,7 @@ export interface ServiceStatusAnomaly {
 }
 
 export interface ServiceStatusDataDetail {
-  by_category?: Record<string, { timestamp?: string }>;
+  by_asset_group?: Record<string, { timestamp?: string }>;
   [key: string]: unknown;
 }
 

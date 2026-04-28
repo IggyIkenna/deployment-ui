@@ -13,7 +13,7 @@
  * Test level: mock-api fixture + TypeScript shape — exercises the same code
  * path the UI reads via `fetch('/api/data-status/turbo')`.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { TurboDataStatusResponse, TurboHonestDataTypeStatus } from "../../../src/api/client";
 import { installDeploymentMockHandlers } from "../../../src/lib/mock-api";
 
@@ -32,7 +32,7 @@ function getVenueHonest(
   categoryName: string,
   venueName: string,
 ): Record<string, TurboHonestDataTypeStatus> {
-  const category = status.categories?.[categoryName];
+  const category = status.asset_groups?.[categoryName];
   expect(category, `category ${categoryName} missing from fixture`).toBeTruthy();
   const venues = (category as { venues?: Record<string, { honest_data_types?: Record<string, TurboHonestDataTypeStatus> }> }).venues ?? {};
   const venue = venues[venueName];

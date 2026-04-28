@@ -86,14 +86,14 @@ interface DataStatusTabProps {
     start_date: string;
     end_date: string;
     region?: string; // GCP region (default: backend GCS_REGION)
-    categories?: string[];
+    asset_groups?: string[];
     venues?: string[]; // Filter deployment to specific venues
     folders?: string[]; // Filter by folder/instrument type (spot, perpetuals, etc.)
     data_types?: string[]; // Filter by data type (trades, book_snapshot_5, etc.)
     force?: boolean;
     dry_run?: boolean;
     skip_existing?: boolean;
-    exclude_dates?: Record<string, string[] | Record<string, string[]>>; // Dates with existing data: category-level or venue-level
+    exclude_dates?: Record<string, string[] | Record<string, string[]>>; // Dates with existing data: asset_group-level or venue-level
     date_granularity?: "daily" | "weekly" | "monthly" | "none"; // Date batching granularity
     deploy_missing_only?: boolean; // Use backend to calculate missing shards (more accurate)
     first_day_of_month_only?: boolean; // Only deploy first day of each month (TARDIS free tier)
@@ -346,7 +346,7 @@ function DataStatusTabInternal({
         category === "DEFI"
           ? await api.fetchVenueDetailV2({
             service: serviceName,
-            category,
+            asset_group: category,
             venue,
           })
           : await api.fetchVenueDetail(serviceName, category, venue);
@@ -549,7 +549,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            category:
+            asset_group:
               selectedCategories.length > 0 ? selectedCategories : undefined,
             check_venues: true,
             force_refresh: false, // Use cache for speed
@@ -576,7 +576,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            category:
+            asset_group:
               selectedCategories.length > 0 ? selectedCategories : ["TRADFI"], // Default to TRADFI for data type check
             check_data_types: true,
             force_refresh: false, // Use cache for speed
@@ -592,7 +592,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            category:
+            asset_group:
               selectedCategories.length > 0 ? selectedCategories : undefined,
             signal: abortController.signal,
           });
@@ -617,7 +617,7 @@ function DataStatusTabInternal({
             start_date: fetchStart,
             end_date: fetchEnd,
             mode: dataStatusMode,
-            category:
+            asset_group:
               selectedCategories.length > 0 ? selectedCategories : undefined,
             venue: venueFilter, // Filter by venue to reduce GCS scan scope
             folder: folderFilter, // Filter by folder/instrument type
@@ -655,7 +655,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            category:
+            asset_group:
               selectedCategories.length > 0 ? selectedCategories : undefined,
             force_refresh: false, // Use cache (5-min TTL) for speed
           })) as DataStatusResponse;
@@ -754,7 +754,7 @@ function DataStatusTabInternal({
     try {
       const result = await api.listFiles({
         service: serviceName,
-        category: selectedCategories[0],
+        asset_group: selectedCategories[0],
         venue: selectedVenues[0],
         folder: selectedFolders[0],
         data_type: selectedDataTypes[0],
@@ -813,7 +813,7 @@ function DataStatusTabInternal({
         setInstrumentSearchLoading(true);
         try {
           const result = await api.getInstrumentsList({
-            category: selectedCategories[0],
+            asset_group: selectedCategories[0],
             search: searchQuery || undefined,
             limit: 50, // Show top 50 matches
           });
@@ -1163,7 +1163,7 @@ function DataStatusTabInternal({
       return 0;
     }
     if (data) {
-      return Object.values(data.categories).reduce(
+      return Object.values(data.asset_groups).reduce(
         (sum, cat) => sum + getMissingCount(cat),
         0,
       );
@@ -1174,8 +1174,8 @@ function DataStatusTabInternal({
   // Get categories with missing data for deploy missing
   // IMPORTANT: Check both category-level AND venue-level missing data
   const categoriesWithMissing = useMemo(() => {
-    if (turboData && turboData.categories) {
-      return Object.entries(turboData.categories)
+    if (turboData && turboData.asset_groups) {
+      return Object.entries(turboData.asset_groups)
         .filter(([_, catData]) => {
           // Check category-level missing
           if ((catData.dates_missing || 0) > 0) return true;
@@ -1209,7 +1209,7 @@ function DataStatusTabInternal({
         .map(([cat]) => cat);
     }
     if (data) {
-      return Object.entries(data.categories)
+      return Object.entries(data.asset_groups)
         .filter(([_, catData]) => getMissingCount(catData) > 0)
         .map(([cat]) => cat);
     }
@@ -1261,7 +1261,7 @@ function DataStatusTabInternal({
         end_date: endDate,
         mode: dataStatusMode,
         region: deployMissingRegion,
-        categories: effectiveDeployCategories, // ALWAYS pass explicit categories, never undefined
+        asset_groups: effectiveDeployCategories, // ALWAYS pass explicit asset groups, never undefined
         venues: selectedVenues.length > 0 ? selectedVenues : undefined, // Pass venue filter if selected
         folders: selectedFolders.length > 0 ? selectedFolders : undefined, // Pass folder/instrument type filter
         data_types:
@@ -1352,7 +1352,7 @@ function DataStatusTabInternal({
       end_date: effectiveEnd,
       mode: dataStatusMode,
       region: deployMissingRegion,
-      categories: selectedCategories, // Use current category filter
+      asset_groups: selectedCategories, // Use current asset_group filter
       venues: [venue], // Single venue from instrument
       folders: [folder], // Single folder/instrument_type from instrument
       data_types: dataTypesWithMissing, // Only data types with missing data
@@ -1401,7 +1401,7 @@ function DataStatusTabInternal({
         const datesWithIssues = new Set<string>();
         const dateDetails = new Map<string, string[]>(); // date -> [category: X venues missing]
 
-        Object.entries(venueCheckData.categories).forEach(
+        Object.entries(venueCheckData.asset_groups).forEach(
           ([catName, catData]) => {
             if (!catData.dates_with_missing_venues) return;
 
@@ -1449,7 +1449,7 @@ function DataStatusTabInternal({
       }
 
       // STANDARD MODE: Calculate per-day coverage properly
-      if (!data || !data.categories) return [];
+      if (!data || !data.asset_groups) return [];
 
       // For each date, calculate how many venue-days have data
       const currentDate = new Date(start);
@@ -1465,7 +1465,7 @@ function DataStatusTabInternal({
           let totalVenues = 0;
           const missingVenues: string[] = [];
 
-          Object.entries(data.categories).forEach(([catName, catData]) => {
+          Object.entries(data.asset_groups).forEach(([catName, catData]) => {
             if (!catData || !catData.venues) return;
 
             Object.entries(catData.venues).forEach(([venueName, venueData]) => {
@@ -1564,18 +1564,18 @@ function DataStatusTabInternal({
                     <div className="text-[10px] text-[var(--color-text-muted)]">Instrument Rows</div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.dates_across_categories ?? 0).toLocaleString()}</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all cats)</div>
+                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.dates_across_asset_groups ?? 0).toLocaleString()}</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all asset groups)</div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.categories ?? {}).length}</div>
+                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.asset_groups ?? {}).length}</div>
                     <div className="text-[10px] text-[var(--color-text-muted)]">Asset Groups</div>
                   </div>
                 </div>
 
                 {/* Per asset group breakdown (CeFi / DeFi / TradFi / …) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {Object.entries(coverageSummary.categories ?? {}).map(([cat, catData]) => (
+                  {Object.entries(coverageSummary.asset_groups ?? {}).map(([cat, catData]) => (
                     <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
@@ -1641,7 +1641,7 @@ function DataStatusTabInternal({
               )}
               {symbolSearchResults.map((m) => (
                 <div
-                  key={`${m.canonical_id}__${m.category}__${m.venue}__${m.instrument_type}`}
+                  key={`${m.canonical_id}__${m.asset_group}__${m.venue}__${m.instrument_type}`}
                   className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--color-border-subtle)] last:border-b-0 hover:bg-[var(--color-bg-hover)] text-xs"
                   data-testid="symbol-search-result"
                 >
@@ -1649,7 +1649,7 @@ function DataStatusTabInternal({
                     variant="outline"
                     className="text-[9px] font-mono shrink-0 w-20 justify-center"
                   >
-                    {m.category}
+                    {m.asset_group}
                   </Badge>
                   <span
                     className="font-mono truncate flex-1 text-[var(--color-text)]"
@@ -2571,7 +2571,7 @@ function DataStatusTabInternal({
 
                         {/* Parsed Instrument Info */}
                         <div className="text-xs text-[var(--color-text-muted)]">
-                          Parsed: {instrumentAvailability.parsed.category} /{" "}
+                          Parsed: {instrumentAvailability.parsed.asset_group} /{" "}
                           {instrumentAvailability.parsed.venue} /
                           {instrumentAvailability.parsed.folder} /{" "}
                           {instrumentAvailability.parsed.instrument_type}
@@ -2731,7 +2731,7 @@ function DataStatusTabInternal({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(venueCheckData.categories).map(
+                  {Object.entries(venueCheckData.asset_groups).map(
                     ([catName, catData]) => {
                       const datesWithIssues =
                         catData.dates_with_missing_venues.length;
@@ -2859,7 +2859,7 @@ function DataStatusTabInternal({
                 </div>
 
                 {/* Deploy Missing from Venue Check */}
-                {Object.values(venueCheckData.categories).some(
+                {Object.values(venueCheckData.asset_groups).some(
                   (c) => c.dates_with_missing_venues.length > 0,
                 ) &&
                   onDeployMissing && (
@@ -3165,10 +3165,10 @@ function DataStatusTabInternal({
                     {turboData.overall_dates_found} /{" "}
                     {turboData.overall_dates_expected} shards
                   </div>
-                  {turboData.overall_dates_found_category !== undefined && (
+                  {turboData.overall_dates_found_asset_group !== undefined && (
                     <div className="text-xs text-[var(--color-text-muted)] opacity-70">
-                      ({turboData.overall_dates_found_category} /{" "}
-                      {turboData.overall_dates_expected_category} dates)
+                      ({turboData.overall_dates_found_asset_group} /{" "}
+                      {turboData.overall_dates_expected_asset_group} dates)
                     </div>
                   )}
                 </div>
@@ -3245,7 +3245,7 @@ function DataStatusTabInternal({
             <CardContent>
               {(() => {
                 const allEntries = Object.entries(
-                  turboData.categories || {},
+                  turboData.asset_groups || {},
                 );
                 const hasFailureData = allEntries.some(([, c]) => {
                   const fr = (c as { failure_rate?: number }).failure_rate;
@@ -3290,7 +3290,7 @@ function DataStatusTabInternal({
                 return null;
               })()}
               <div className="space-y-4">
-                {Object.entries(turboData.categories || {})
+                {Object.entries(turboData.asset_groups || {})
                   .filter(([, catData]) => {
                     if (!showOnlyFailures) return true;
                     const fr = (
@@ -3299,7 +3299,7 @@ function DataStatusTabInternal({
                     // When no failure data exists anywhere, preserve the full
                     // list so the user isn't staring at an empty page.
                     const anyFailures = Object.values(
-                      turboData.categories || {},
+                      turboData.asset_groups || {},
                     ).some((c) => {
                       const f = (c as { failure_rate?: number }).failure_rate;
                       return typeof f === "number" && f > 0;
@@ -3706,7 +3706,7 @@ function DataStatusTabInternal({
                                                       const makeOnClick = (date: string) => () =>
                                                         openShardDetail({
                                                           service: serviceName,
-                                                          category: catName,
+                                                          asset_group: catName,
                                                           instrument_type: "AUTO",
                                                           data_type: dataTypeHint,
                                                           day: date,
@@ -3952,6 +3952,20 @@ function DataStatusTabInternal({
                                       const honestDataTypeEntries = Object.entries(honestDataTypes);
                                       const hasMissingDataTypes = missingDataTypes.length > 0;
                                       const hasHonestDataTypes = honestDataTypeEntries.length > 0;
+                                      // Phase-1 four-state aggregation across this venue's data_types
+                                      // (deployment-api commit c73c732). Blocked-on-raw counts are
+                                      // non-actionable for this row (the fix is upstream raw); the
+                                      // out-of-scope flag lets us gray rows where every dt is
+                                      // EXPECTED_COVERAGE-omitted (e.g. NASDAQ trades on TradFi).
+                                      const dtEntries = Object.entries(subData.data_types ?? {});
+                                      const blockedOnRawTotal = dtEntries.reduce(
+                                        (acc, [, dt]) => acc + (dt.dates_blocked_on_raw ?? 0),
+                                        0,
+                                      );
+                                      const allOutOfScope =
+                                        dtEntries.length > 0 &&
+                                        dtEntries.every(([, dt]) => dt.out_of_scope === true);
+                                      const hasBlockedOnRaw = blockedOnRawTotal > 0;
 
                                       return (
                                         <details key={name} className="group/venue rounded bg-[var(--color-bg-tertiary)]">
@@ -3959,12 +3973,22 @@ function DataStatusTabInternal({
                                             className={cn(
                                               "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
                                               subData.status === "bonus" && "opacity-60 border border-dashed border-[var(--color-border)]",
+                                              allOutOfScope && "opacity-50 grayscale",
                                             )}
                                           >
                                             <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
                                             <span className="text-xs font-mono truncate min-w-0" title={name}>{name}</span>
                                             {subData.status === "bonus" && (
                                               <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">bonus</span>
+                                            )}
+                                            {allOutOfScope && (
+                                              <span
+                                                className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                                title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
+                                                data-testid="out-of-scope-badge"
+                                              >
+                                                out of scope
+                                              </span>
                                             )}
                                             {hasMissingDataTypes && (
                                               <span
@@ -3973,6 +3997,15 @@ function DataStatusTabInternal({
                                                 data-testid="missing-data-types-badge"
                                               >
                                                 {missingDataTypes.length} data {missingDataTypes.length === 1 ? "type" : "types"} missing
+                                              </span>
+                                            )}
+                                            {hasBlockedOnRaw && (
+                                              <span
+                                                className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
+                                                title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
+                                                data-testid="blocked-on-raw-badge"
+                                              >
+                                                {blockedOnRawTotal} blocked on raw
                                               </span>
                                             )}
                                             {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
@@ -3988,7 +4021,7 @@ function DataStatusTabInternal({
                                               return (
                                                 <BucketCountsBadge
                                                   service={serviceName}
-                                                  category={catName}
+                                                  asset_group={catName}
                                                   venue={name}
                                                   day={anchorDay}
                                                   data_type={firstDt}
@@ -4057,7 +4090,7 @@ function DataStatusTabInternal({
                                                     e.stopPropagation();
                                                     setSchemaModal({
                                                       service: "instruments-service",
-                                                      category: "SPORTS",
+                                                      asset_group: "SPORTS",
                                                       venue: "",
                                                       instrument_type: "",
                                                       data_type: name,
@@ -4441,7 +4474,7 @@ function DataStatusTabInternal({
                                                                             : "AUTO";
                                                                         openShardDetail({
                                                                           service: serviceName,
-                                                                          category: catName,
+                                                                          asset_group: catName,
                                                                           venue: name,
                                                                           day: date,
                                                                           instrument_type: itGuess,
@@ -4478,7 +4511,7 @@ function DataStatusTabInternal({
                                                                             : "AUTO";
                                                                         openShardDetail({
                                                                           service: serviceName,
-                                                                          category: catName,
+                                                                          asset_group: catName,
                                                                           venue: name,
                                                                           day: date,
                                                                           instrument_type: itGuess,
@@ -4519,7 +4552,7 @@ function DataStatusTabInternal({
                                                       onClick={() =>
                                                         setSchemaModal({
                                                           service: "instruments-service",
-                                                          category: "SPORTS",
+                                                          asset_group: "SPORTS",
                                                           venue: "",
                                                           instrument_type: "",
                                                           data_type: "FIXTURES",
@@ -4687,7 +4720,7 @@ function DataStatusTabInternal({
                                                               data-testid={`shard-csv-date-found-${name}-${date}`}
                                                               onClick={() => openShardDetail({
                                                                 service: serviceName,
-                                                                category: catName,
+                                                                asset_group: catName,
                                                                 instrument_type: "AUTO",
                                                                 data_type: "AUTO",
                                                                 day: date,
@@ -4697,7 +4730,7 @@ function DataStatusTabInternal({
                                                               {date}
                                                             </button>
                                                             <a
-                                                              href={buildShardDownloadUrl({ service: serviceName, category: catName, venue: name, date })}
+                                                              href={buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date })}
                                                               className="text-[7px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
                                                               title={(serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
                                                                 ? `Download availability catalog CSV for ${name} on ${date}`
@@ -4739,7 +4772,7 @@ function DataStatusTabInternal({
                                                             data-testid={`shard-csv-date-missing-${name}-${date}`}
                                                             onClick={() => openShardDetail({
                                                               service: serviceName,
-                                                              category: catName,
+                                                              asset_group: catName,
                                                               instrument_type: "AUTO",
                                                               data_type: "AUTO",
                                                               day: date,
@@ -4932,7 +4965,7 @@ function DataStatusTabInternal({
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y divide-[var(--color-border-subtle)]">
-                  {Object.entries(data.categories).map(([catName, catData]) => {
+                  {Object.entries(data.asset_groups).map(([catName, catData]) => {
                     const completion = getCategoryCompletion(catData);
                     const missing = getMissingCount(catData);
                     const isExpanded = expandedCategories.has(catName);

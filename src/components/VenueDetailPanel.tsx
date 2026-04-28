@@ -20,7 +20,7 @@ import type {
 type AnyVenueDetail = VenueDetailResult | VenueDetailV2Response;
 
 function isV2(d: AnyVenueDetail): d is VenueDetailV2Response {
-  return (d as VenueDetailV2Response).category !== undefined;
+  return "chain" in d;
 }
 
 function isCompositeDefi(d: VenueDetailV2Response): boolean {
@@ -63,7 +63,7 @@ export function VenueDetailPanel({
   }
 
   // ---------- v2 (DeFi-aware) branch ----------
-  if (isV2(data) && data.category === "DEFI") {
+  if (isV2(data) && data.asset_group === "DEFI") {
     if (isCompositeDefi(data)) {
       return (
         <div

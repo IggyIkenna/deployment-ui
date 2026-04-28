@@ -10,7 +10,7 @@ function baseResponse(
   return {
     coord: {
       service: "market-tick-data-service",
-      category: "CEFI",
+      asset_group: "CEFI",
       instrument_type: "PERPETUAL",
       data_type: "TRADES",
       day: "2026-04-18",
@@ -95,7 +95,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -127,7 +127,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -155,7 +155,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -191,7 +191,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "OPTIONS_CHAIN",
           day: "2026-04-18",
@@ -225,7 +225,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "instruments-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "OPTIONS",
           data_type: "INSTRUMENT_DEFINITIONS",
           day: "2026-04-18",
@@ -264,7 +264,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "sports-fixtures-service",
-          category: "SPORTS",
+          asset_group: "SPORTS",
           instrument_type: "FIXTURES",
           data_type: "FIXTURES",
           day: "2026-04-18",
@@ -293,7 +293,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -342,7 +342,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -389,7 +389,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -439,7 +439,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -474,7 +474,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -516,7 +516,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",
@@ -537,7 +537,7 @@ describe("ShardDetailModal", () => {
       <ShardDetailModal
         coord={{
           service: "market-tick-data-service",
-          category: "CEFI",
+          asset_group: "CEFI",
           instrument_type: "PERPETUAL",
           data_type: "TRADES",
           day: "2026-04-18",

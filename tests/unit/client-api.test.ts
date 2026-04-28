@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as clientModule from "../../src/api/client";
 
 const {
@@ -9,7 +9,7 @@ const {
   listDirectories,
   getConfigBuckets,
   getVenues,
-  getVenuesByCategory,
+  getVenuesByAssetGroup,
   getStartDates,
   getDependencies,
   getDeployments,
@@ -38,7 +38,7 @@ const {
   getServiceStatus,
   getServicesOverview,
   getCapabilities,
-  getServiceCategories,
+  getServiceAssetGroups,
   clearCache,
   clearDataStatusCache,
   getCloudBuildTriggers,
@@ -177,10 +177,10 @@ describe("client API functions", () => {
     });
   });
 
-  describe("getVenuesByCategory", () => {
-    it("calls correct URL with category", async () => {
+  describe("getVenuesByAssetGroup", () => {
+    it("calls correct URL with asset group", async () => {
       mockFetchOk({ venues: [] });
-      await getVenuesByCategory("cefi");
+      await getVenuesByAssetGroup("cefi");
       expect(getFetchUrl()).toContain("/api/config/venues/cefi");
     });
   });
@@ -224,10 +224,10 @@ describe("client API functions", () => {
       expect(getFetchUrl()).toContain("status=COMPLETED");
     });
 
-    it("adds category filter to URL", async () => {
+    it("adds asset_group filter to URL", async () => {
       mockFetchOk({ deployments: [], count: 0 });
-      await getDeployments({ category: "cefi" });
-      expect(getFetchUrl()).toContain("category=cefi");
+      await getDeployments({ asset_group: "cefi" });
+      expect(getFetchUrl()).toContain("asset_group=cefi");
     });
 
     it("adds limit filter to URL", async () => {
@@ -511,7 +511,7 @@ describe("client API functions", () => {
 
   describe("getDataStatus", () => {
     it("calls /api/data-status with required params", async () => {
-      mockFetchOk({ categories: {} });
+      mockFetchOk({ asset_groups: {} });
       await getDataStatus({
         service: "instruments-service",
         start_date: "2026-01-01",
@@ -525,13 +525,13 @@ describe("client API functions", () => {
     });
 
     it("appends optional params when provided", async () => {
-      mockFetchOk({ categories: {} });
+      mockFetchOk({ asset_groups: {} });
       await getDataStatus({
         service: "instruments-service",
         start_date: "2026-01-01",
         end_date: "2026-01-31",
         mode: "batch",
-        category: ["cefi", "defi"],
+        asset_group: ["cefi", "defi"],
         venue: ["binance"],
         show_missing: true,
         check_venues: true,
@@ -540,7 +540,8 @@ describe("client API functions", () => {
       });
       const url = getFetchUrl();
       expect(url).toContain("mode=batch");
-      expect(url).toContain("category=cefi");
+      expect(url).toContain("asset_group=cefi");
+      expect(url).toContain("asset_group=defi");
       expect(url).toContain("venue=binance");
       expect(url).toContain("show_missing=true");
       expect(url).toContain("check_venues=true");
@@ -558,7 +559,7 @@ describe("client API functions", () => {
         overall_completion_pct: 100,
         overall_dates_found: 31,
         overall_dates_expected: 31,
-        categories: {},
+        asset_groups: {},
       });
       await getDataStatusTurbo({
         service: "instruments-service",
@@ -578,7 +579,7 @@ describe("client API functions", () => {
         overall_completion_pct: 100,
         overall_dates_found: 31,
         overall_dates_expected: 31,
-        categories: {},
+        asset_groups: {},
       });
       await getDataStatusTurbo({
         service: "instruments-service",
@@ -591,7 +592,7 @@ describe("client API functions", () => {
         first_day_of_month_only: true,
         freshness_date: "2026-01-01",
         mode: "batch",
-        category: ["cefi"],
+        asset_group: ["cefi"],
         venue: ["binance"],
         folder: ["spot"],
         data_type: ["trades"],
@@ -603,7 +604,7 @@ describe("client API functions", () => {
       expect(url).toContain("check_upstream_availability=true");
       expect(url).toContain("first_day_of_month_only=true");
       expect(url).toContain("freshness_date=2026-01-01");
-      expect(url).toContain("category=cefi");
+      expect(url).toContain("asset_group=cefi");
       expect(url).toContain("venue=binance");
       expect(url).toContain("folder=spot");
       expect(url).toContain("data_type=trades");
@@ -622,7 +623,7 @@ describe("client API functions", () => {
       await getVenueFilters("cefi", "binance");
       const url = getFetchUrl();
       expect(url).toContain("/api/data-status/venue-filters");
-      expect(url).toContain("category=cefi");
+      expect(url).toContain("asset_group=cefi");
       expect(url).toContain("venue=binance");
     });
   });
@@ -707,19 +708,19 @@ describe("client API functions", () => {
       expect(getFetchUrl()).toContain("service=instruments-service");
     });
 
-    it("appends optional mode, category, venue params", async () => {
+    it("appends optional mode, asset_group, venue params", async () => {
       mockFetchOk({ missing_shards: [], total_missing: 0 });
       await getMissingShards({
         service: "instruments-service",
         start_date: "2026-01-01",
         end_date: "2026-01-31",
         mode: "batch",
-        category: ["cefi"],
+        asset_group: ["cefi"],
         venue: ["binance"],
       });
       const url = getFetchUrl();
       expect(url).toContain("mode=batch");
-      expect(url).toContain("category=cefi");
+      expect(url).toContain("asset_group=cefi");
       expect(url).toContain("venue=binance");
     });
   });
@@ -850,12 +851,12 @@ describe("client API functions", () => {
     });
   });
 
-  describe("getServiceCategories", () => {
-    it("calls /api/capabilities/service-categories/:service", async () => {
-      mockFetchOk({ service: "svc", categories: [] });
-      await getServiceCategories("instruments-service");
+  describe("getServiceAssetGroups", () => {
+    it("calls /api/capabilities/service-asset-groups/:service", async () => {
+      mockFetchOk({ service: "svc", asset_groups: [] });
+      await getServiceAssetGroups("instruments-service");
       expect(getFetchUrl()).toContain(
-        "/api/capabilities/service-categories/instruments-service",
+        "/api/capabilities/service-asset-groups/instruments-service",
       );
     });
   });
@@ -951,17 +952,17 @@ describe("client API functions", () => {
   });
 
   describe("getInstrumentsList", () => {
-    it("calls /api/data-status/instruments with category", async () => {
+    it("calls /api/data-status/instruments with asset_group", async () => {
       mockFetchOk({
         category: "cefi",
         total_in_file: 0,
         returned_count: 0,
         instruments: [],
       });
-      await getInstrumentsList({ category: "cefi" });
+      await getInstrumentsList({ asset_group: "cefi" });
       const url = getFetchUrl();
       expect(url).toContain("/api/data-status/instruments");
-      expect(url).toContain("category=cefi");
+      expect(url).toContain("asset_group=cefi");
     });
 
     it("appends search and limit params when provided", async () => {
@@ -971,7 +972,7 @@ describe("client API functions", () => {
         returned_count: 0,
         instruments: [],
       });
-      await getInstrumentsList({ category: "cefi", search: "BTC", limit: 20 });
+      await getInstrumentsList({ asset_group: "cefi", search: "BTC", limit: 20 });
       const url = getFetchUrl();
       expect(url).toContain("search=BTC");
       expect(url).toContain("limit=20");

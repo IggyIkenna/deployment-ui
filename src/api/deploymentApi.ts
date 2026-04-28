@@ -1,7 +1,7 @@
 import type {
-  ServiceStatus,
-  DeployParams,
   DeployJob,
+  DeployParams,
+  ServiceStatus,
 } from "../types/deploymentTypes";
 
 export interface BuildEntry {
@@ -74,7 +74,7 @@ export async function fetchBuilds(
 export interface VmDeploymentEntry {
   deployment_id: string;
   vm_name: string;
-  category: string;
+  asset_group: string;
   task: string;
   mode: string;
   start_date: string;

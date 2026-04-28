@@ -1,29 +1,29 @@
-import { useState } from "react";
 import {
-  ChevronRight,
-  ChevronDown,
-  Database,
-  Cpu,
-  BarChart3,
-  Zap,
-  Brain,
-  TrendingUp,
-  Clock,
-  Package,
-  Layers,
   Activity,
-  Shield,
-  Radio,
+  BarChart3,
   Bot,
-  Network,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  Clock,
   Coins,
+  Cpu,
+  Database,
   Globe,
+  Layers,
   LineChart,
+  Network,
+  Package,
+  Radio,
+  Shield,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { useState } from "react";
+import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { cn } from "../lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 // ── Service operation/mode registry ──────────────────────────────────────────
 // Maps each service to its CLI axes: operations, runtime modes, categories.
@@ -48,7 +48,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   // L1
   "instruments-service": {
     description: "Instrument universe & definitions",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     operations: [{ value: "instruments", label: "Instruments", description: "Fetch & normalise instrument reference data" }],
     modes: ["batch", "live"],
     categories: ["CEFI", "TRADFI", "DEFI"],
@@ -56,7 +56,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   // L2
   "market-tick-data-service": {
     description: "Download & normalise raw tick data",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     operations: [
       { value: "download", label: "Download", description: "Download tick data from venues" },
       { value: "collect-gas-fees", label: "Gas Fees", description: "Collect EVM gas fee data" },
@@ -68,7 +68,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   },
   "market-data-processing-service": {
     description: "Resample ticks into OHLCV candles",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     operations: [{ value: "process", label: "Process", description: "Resample raw ticks into candles" }],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
@@ -76,7 +76,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   // L3
   "features-calendar-service": {
     description: "Calendar, seasonality & corporate actions",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     operations: [
       { value: "calendar", label: "Calendar", description: "Calendar & seasonality features" },
       { value: "corporate_actions", label: "Corporate Actions", description: "Dividends, splits, earnings" },
@@ -86,49 +86,49 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   },
   "features-delta-one-service": {
     description: "Returns, spreads, delta-one signals",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Compute delta-one features" }],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-volatility-service": {
     description: "Realised & implied vol surface",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Compute volatility features" }],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-onchain-service": {
     description: "On-chain DeFi & network metrics",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Compute on-chain features" }],
     modes: ["batch"],
     categories: ["DEFI"],
   },
   "features-sports-service": {
     description: "Sports market event features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Compute sports features" }],
     modes: ["batch"],
     categories: ["SPORTS"],
   },
   "features-multi-timeframe-service": {
     description: "Cross-timeframe feature aggregation",
-    dimensions: ["category", "timeframe", "date"],
+    dimensions: ["asset_group", "timeframe", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Aggregate across timeframes" }],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-cross-instrument-service": {
     description: "Cross-asset correlation features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Cross-instrument correlations" }],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI"],
   },
   "features-commodity-service": {
     description: "Commodity-specific features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     operations: [{ value: "compute", label: "Compute", description: "Commodity features" }],
     modes: ["batch"],
     categories: ["TRADFI"],

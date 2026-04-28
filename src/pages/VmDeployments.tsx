@@ -4,14 +4,14 @@ import {
   fetchVmDeployments,
   type VmDeploymentEntry,
 } from "../api/deploymentApi";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 
 const STATUS_VARIANT: Record<
   string,
@@ -97,7 +97,7 @@ export function VmDeployments() {
               <tr>
                 <th className="table-header-cell">Deployment</th>
                 <th className="table-header-cell">Name</th>
-                <th className="table-header-cell">Category</th>
+                <th className="table-header-cell">Asset group</th>
                 <th className="table-header-cell">Task / Mode</th>
                 <th className="table-header-cell">Status</th>
                 <th className="table-header-cell">Progress</th>
@@ -126,7 +126,7 @@ export function VmDeployments() {
                     <td className="table-cell font-semibold text-xs">
                       {r.vm_name}
                     </td>
-                    <td className="table-cell">{r.category}</td>
+                    <td className="table-cell">{r.asset_group}</td>
                     <td className="table-cell text-xs">
                       {r.task} / {r.mode}
                     </td>

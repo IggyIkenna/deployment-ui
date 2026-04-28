@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("deployment-ui mock-api deployment control (ph3)", () => {
   beforeEach(() => {
@@ -220,7 +220,7 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
       overall_shards_found: number;
       overall_shards_expected: number;
       total_missing: number;
-      categories: unknown;
+      asset_groups: unknown;
       mock: boolean;
     };
 

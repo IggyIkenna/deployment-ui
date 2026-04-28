@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import {
   CLIPreview,
   ContainerCommandPreview,
@@ -80,27 +80,27 @@ describe("CLIPreview", () => {
     expect(screen.getByText(/--end-date 2026-01-31/)).toBeInTheDocument();
   });
 
-  it("includes --category flags for each category", () => {
+  it("includes --asset-group flags for each selected asset group", () => {
     render(
       <CLIPreview
         serviceName="instruments-service"
         dimensions={null}
-        formValues={{ category: ["cefi", "defi"] }}
+        formValues={{ asset_group: ["cefi", "defi"] }}
       />,
     );
-    expect(screen.getByText(/--category cefi/)).toBeInTheDocument();
-    expect(screen.getByText(/--category defi/)).toBeInTheDocument();
+    expect(screen.getByText(/--asset-group cefi/)).toBeInTheDocument();
+    expect(screen.getByText(/--asset-group defi/)).toBeInTheDocument();
   });
 
-  it("does not include --category when category is empty array", () => {
+  it("does not include --asset-group when asset_group is empty array", () => {
     render(
       <CLIPreview
         serviceName="instruments-service"
         dimensions={null}
-        formValues={{ category: [] }}
+        formValues={{ asset_group: [] }}
       />,
     );
-    expect(screen.queryByText(/--category/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/--asset-group/)).not.toBeInTheDocument();
   });
 
   it("includes --venue flags for each venue", () => {
@@ -391,17 +391,17 @@ describe("ContainerCommandPreview", () => {
     expect(pre?.textContent).toContain("--end");
   });
 
-  it("handles category dimension as boolean flag for market-data-processing-service", () => {
+  it("handles asset_group dimension as boolean flag for market-data-processing-service", () => {
     const dimsWithCategory: ServiceDimensionsResponse = {
       ...mockDimensions,
-      dimensions: [{ name: "category", type: "enum", values: ["cefi"] }],
+      dimensions: [{ name: "asset_group", type: "enum", values: ["cefi"] }],
       cli_args: {},
     };
     render(
       <ContainerCommandPreview
         serviceName="market-data-processing-service"
         dimensions={dimsWithCategory}
-        sampleShard={{ category: "cefi" }}
+        sampleShard={{ asset_group: "cefi" }}
       />,
     );
     const pre = screen

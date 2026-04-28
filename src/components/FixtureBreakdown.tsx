@@ -57,10 +57,22 @@ function rollupColor(r: FixtureRollup): string {
   return "var(--color-accent-amber)";
 }
 
+function rollupSummary(entry: FixtureBreakdownEntry): string {
+  const { captured, empty_confirmed, missing, failed } = entry.coverage_summary;
+  const total = captured + empty_confirmed + missing + failed;
+  return `rollup · ${captured}/${total} captured · ${empty_confirmed} empty · ${missing} missing · ${failed} failed`;
+}
+
+interface HoveredDot {
+  fixtureId: string;
+  label: string;
+}
+
 export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBreakdownProps) {
   const [data, setData] = useState<FixtureBreakdownResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<HoveredDot | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,16 +147,23 @@ export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBr
     >
       {data.fixtures.map((fx) => {
         const rollup = rollupStatus(fx);
+        const showHover = hovered?.fixtureId === fx.fixture_id;
         return (
           <div
             key={fx.fixture_id}
             data-testid={`fixture-row-${fx.fixture_id}`}
-            className="flex items-center gap-2 text-[9px] font-mono"
+            className="relative flex items-center gap-2 text-[9px] font-mono"
           >
             <span
-              className="inline-block h-2 w-2 rounded-full shrink-0"
+              className="inline-block h-2 w-2 rounded-full shrink-0 cursor-help"
               style={{ backgroundColor: rollupColor(rollup) }}
               aria-label={`fixture rollup ${rollup}`}
+              title={rollupSummary(fx)}
+              onMouseEnter={() =>
+                setHovered({ fixtureId: fx.fixture_id, label: rollupSummary(fx) })
+              }
+              onMouseLeave={() => setHovered(null)}
+              data-testid={`fixture-rollup-${fx.fixture_id}`}
             />
             <span className="truncate min-w-0" title={`${fx.home_team_name} v ${fx.away_team_name}`}>
               {fx.home_team_name || fx.fixture_id} v {fx.away_team_name || ""}
@@ -153,14 +172,26 @@ export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBr
               {fx.status || "?"}
             </span>
             <div className="flex-1" />
+            {showHover && (
+              <span
+                data-testid={`coverage-hover-${fx.fixture_id}`}
+                className="absolute right-0 -top-3 z-10 px-1.5 py-0.5 text-[9px] font-mono whitespace-nowrap rounded bg-[var(--color-bg-elevated,#111)] text-[var(--color-text-primary,#fff)] border border-[var(--color-border-subtle)] shadow-md pointer-events-none"
+              >
+                {hovered?.label}
+              </span>
+            )}
             <div className="flex gap-0.5 shrink-0">
               {Object.entries(fx.coverage).map(([entity, status]) => (
                 <span
                   key={entity}
                   title={`${entity}: ${status}`}
-                  className="inline-block h-1.5 w-3 rounded-sm"
+                  className="inline-block h-2 w-3 rounded-sm cursor-help hover:ring-1 hover:ring-white/40"
                   style={{ backgroundColor: coverageColor(status) }}
                   data-testid={`coverage-${fx.fixture_id}-${entity}`}
+                  onMouseEnter={() =>
+                    setHovered({ fixtureId: fx.fixture_id, label: `${entity} · ${status}` })
+                  }
+                  onMouseLeave={() => setHovered(null)}
                 />
               ))}
             </div>

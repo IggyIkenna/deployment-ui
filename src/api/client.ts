@@ -86,7 +86,8 @@ function createApiClient(config: {
 // ---------------------------------------------------------------------------
 
 import type {
-  CategoryVenuesResponse,
+  AssetGroupStartDates,
+  AssetGroupVenuesResponse,
   ChecklistResponse,
   ChecklistSummary,
   ChecklistValidateResponse,
@@ -277,19 +278,46 @@ export async function getConfigBuckets(
 
 // Config
 export async function getVenues(): Promise<VenuesResponse> {
-  return fetchJson("/config/venues");
+  const raw = await fetchJson<unknown>("/config/venues");
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("categories" in r && !("asset_groups" in r)) {
+      const { categories, ...rest } = r;
+      return { ...rest, asset_groups: categories ?? {} } as VenuesResponse;
+    }
+  }
+  return raw as VenuesResponse;
 }
 
-export async function getVenuesByCategory(
-  category: string,
-): Promise<CategoryVenuesResponse> {
-  return fetchJson(`/config/venues/${category}`);
+export async function getVenuesByAssetGroup(
+  assetGroup: string,
+): Promise<AssetGroupVenuesResponse> {
+  return fetchJson(`/config/venues/${assetGroup}`);
 }
 
 export async function getStartDates(
   serviceName: string,
 ): Promise<StartDatesResponse> {
-  return fetchJson(`/config/expected-start-dates/${serviceName}`);
+  const raw = await fetchJson<
+    StartDatesResponse & {
+      start_dates?: Record<
+        string,
+        AssetGroupStartDates & { category_start?: string }
+      >;
+    }
+  >(`/config/expected-start-dates/${serviceName}`);
+  if (!raw.start_dates) return raw;
+  const next: StartDatesResponse["start_dates"] = {};
+  for (const [ag, block] of Object.entries(raw.start_dates)) {
+    if (!block || typeof block !== "object") continue;
+    const b = block as AssetGroupStartDates & { category_start?: string };
+    const ags = b.asset_group_start ?? b.category_start;
+    next[ag] = {
+      ...b,
+      asset_group_start: typeof ags === "string" ? ags : String(ags ?? ""),
+    };
+  }
+  return { ...raw, start_dates: next };
 }
 
 export async function getDependencies(
@@ -302,14 +330,14 @@ export async function getDependencies(
 export async function getDeployments(filters?: {
   service?: string;
   status?: string;
-  category?: string;
+  asset_group?: string;
   limit?: number;
   forceRefresh?: boolean;
 }): Promise<{ deployments: Deployment[]; count: number }> {
   const params = new URLSearchParams();
   if (filters?.service) params.set("service", filters.service);
   if (filters?.status) params.set("status", filters.status);
-  if (filters?.category) params.set("category", filters.category);
+  if (filters?.asset_group) params.set("asset_group", filters.asset_group);
   if (filters?.limit) params.set("limit", filters.limit.toString());
   if (filters?.forceRefresh) params.set("force_refresh", "true");
 
@@ -422,10 +450,10 @@ export interface RetryFailedResult {
 
 export async function retryFailedShards(
   id: string,
-  options?: { category?: string; dryRun?: boolean },
+  options?: { asset_group?: string; dryRun?: boolean },
 ): Promise<RetryFailedResult> {
   const params = new URLSearchParams();
-  if (options?.category) params.set("category", options.category);
+  if (options?.asset_group) params.set("asset_group", options.asset_group);
   if (options?.dryRun) params.set("dry_run", "true");
   const query = params.toString();
 
@@ -518,7 +546,7 @@ export interface DeploymentReport {
   failed_shards: Array<{
     shard_id: string;
     error?: string;
-    category?: string;
+    asset_group?: string;
     dimensions?: Record<string, unknown>;
   }>;
   infrastructure_issues: Array<{
@@ -526,7 +554,7 @@ export interface DeploymentReport {
     zone?: string;
     region?: string;
     reason?: string;
-    category?: string;
+    asset_group?: string;
     attempt?: number;
   }>;
   retry_stats: {
@@ -605,7 +633,7 @@ export async function getDataStatus(params: {
   start_date: string;
   end_date: string;
   mode?: string;
-  category?: string[];
+  asset_group?: string[];
   venue?: string[];
   show_missing?: boolean;
   check_venues?: boolean;
@@ -619,8 +647,8 @@ export async function getDataStatus(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -637,7 +665,27 @@ export async function getDataStatus(params: {
   if (params.force_refresh) {
     searchParams.set("force_refresh", "true");
   }
-  return fetchJson(`/data-status?${searchParams.toString()}`);
+  const raw = await fetchJson<
+    DataStatusResponse | VenueCheckResponse | DataTypeCheckResponse
+  >(`/data-status?${searchParams.toString()}`);
+  // Legacy data-status CLI JSON used `categories`; deployment-api and current
+  // CLIs emit `asset_groups`. Accept both for one release. Use
+  // ``overall_excluded`` to disambiguate from ``DataTypeCheckResponse`` (which
+  // also has ``overall_completion`` but no per-asset-group block).
+  if (
+    raw &&
+    typeof raw === "object" &&
+    "overall_excluded" in raw &&
+    "categories" in raw &&
+    !("asset_groups" in raw)
+  ) {
+    const legacy = raw as DataStatusResponse & {
+      categories: DataStatusResponse["asset_groups"];
+    };
+    const { categories, ...rest } = legacy;
+    return { ...rest, asset_groups: categories } as DataStatusResponse;
+  }
+  return raw;
 }
 
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
@@ -735,11 +783,11 @@ export interface TurboLeagueStatus {
 
 export interface TurboSubDimension {
   dates_found: number;
-  dates_expected: number; // Legacy: category-level expected
+  dates_expected: number; // Legacy: asset-group-level expected
   dates_missing?: number;
   missing_dates?: string[];
   dates_expected_venue?: number; // NEW: venue-specific expected based on venue start
-  dates_expected_category?: number; // NEW: category-level expected for reference
+  dates_expected_asset_group?: number; // NEW: asset-group-level expected for reference
   venue_start_date?: string | null; // NEW: when venue data starts
   completion_pct: number;
   is_expected?: boolean;
@@ -864,8 +912,8 @@ export interface TurboVenueSummary {
   expected_coverage_pct: number;
 }
 
-export interface TurboCategoryStatus {
-  category: string;
+export interface TurboAssetGroupStatus {
+  asset_group: string;
   bucket: string;
   prefixes_queried: number;
   dates_expected: number;
@@ -932,13 +980,13 @@ export interface TurboDataStatusResponse {
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
   // Category-level totals for reference (not venue-weighted)
-  overall_dates_found_category?: number;
-  overall_dates_expected_category?: number;
+  overall_dates_found_asset_group?: number;
+  overall_dates_expected_asset_group?: number;
   total_missing?: number;
   unexpected_missing?: number;
   expected_missing?: number;
-  categories: {
-    [category: string]: TurboCategoryStatus;
+  asset_groups: {
+    [asset_group: string]: TurboAssetGroupStatus;
   };
 }
 
@@ -947,7 +995,7 @@ export async function getDataStatusTurbo(params: {
   start_date: string;
   end_date: string;
   mode?: "batch" | "live"; // batch vs live GCS paths
-  category?: string[];
+  asset_group?: string[];
   venue?: string[]; // Filter by specific venues (reduces cloud storage scan scope)
   folder?: string[]; // Filter by folder/instrument type (spot, perpetuals, etc.)
   data_type?: string[]; // Filter by data type (trades, book_snapshot_5, etc.)
@@ -966,8 +1014,8 @@ export async function getDataStatusTurbo(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -1011,15 +1059,15 @@ export async function getDataStatusManifest(params: {
   service: string;
   start_date: string;
   end_date: string;
-  category?: string[];
+  asset_group?: string[];
   signal?: AbortSignal;
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set("service", params.service);
   searchParams.set("start_date", params.start_date);
   searchParams.set("end_date", params.end_date);
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,
@@ -1041,11 +1089,11 @@ export interface CoverageCategorySummary {
 
 export interface CoverageSummaryResponse {
   service: string;
-  categories: Record<string, CoverageCategorySummary>;
+  asset_groups: Record<string, CoverageCategorySummary>;
   totals: {
     shards: number;
     instrument_rows: number;
-    dates_across_categories: number;
+    dates_across_asset_groups: number;
     latest_day_instruments: number;
   };
   mock?: boolean;
@@ -1053,12 +1101,12 @@ export interface CoverageSummaryResponse {
 
 export async function getDataCoverageSummary(params?: {
   service?: string;
-  categories?: string;
+  asset_groups?: string;
   signal?: AbortSignal;
 }): Promise<CoverageSummaryResponse> {
   const searchParams = new URLSearchParams();
   if (params?.service) searchParams.set("service", params.service);
-  if (params?.categories) searchParams.set("categories", params.categories);
+  if (params?.asset_groups) searchParams.set("asset_groups", params.asset_groups);
   const qs = searchParams.toString();
   return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
     signal: params?.signal,
@@ -1067,7 +1115,7 @@ export async function getDataCoverageSummary(params?: {
 
 // Get available filters for a specific venue
 export interface VenueFiltersResponse {
-  category: string;
+  asset_group: string;
   venue: string;
   folders: string[];
   data_types: string[];
@@ -1077,11 +1125,11 @@ export interface VenueFiltersResponse {
 }
 
 export async function getVenueFilters(
-  category: string,
+  assetGroup: string,
   venue: string,
 ): Promise<VenueFiltersResponse> {
   const searchParams = new URLSearchParams();
-  searchParams.set("category", category);
+  searchParams.set("asset_group", assetGroup);
   searchParams.set("venue", venue);
   return fetchJson(`/data-status/venue-filters?${searchParams.toString()}`);
 }
@@ -1089,7 +1137,7 @@ export async function getVenueFilters(
 // Venue detail drill-down — reads a parquet file and returns instrument breakdown
 export interface VenueDetailResult {
   venue: string;
-  category: string;
+  asset_group: string;
   date: string;
   total_instruments: number;
   columns: string[];
@@ -1100,13 +1148,13 @@ export interface VenueDetailResult {
 
 export async function fetchVenueDetail(
   service: string,
-  category: string,
+  assetGroup: string,
   venue: string,
   date?: string,
 ): Promise<VenueDetailResult> {
   const searchParams = new URLSearchParams();
   searchParams.set("service", service);
-  searchParams.set("category", category);
+  searchParams.set("asset_group", assetGroup);
   searchParams.set("venue", venue);
   if (date) searchParams.set("date", date);
   return fetchJson(`/data-status/venue-detail?${searchParams.toString()}`);
@@ -1134,7 +1182,7 @@ export interface DateFileResult {
 export interface ListFilesResponse {
   service: string;
   bucket: string;
-  category: string;
+  asset_group: string;
   venue: string;
   folder: string;
   data_type: string;
@@ -1159,7 +1207,7 @@ export interface ListFilesResponse {
 
 export async function listFiles(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   folder: string;
   data_type: string;
@@ -1170,7 +1218,7 @@ export async function listFiles(params: {
 }): Promise<ListFilesResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set("service", params.service);
-  searchParams.set("category", params.category);
+  searchParams.set("asset_group", params.asset_group);
   searchParams.set("venue", params.venue);
   searchParams.set("folder", params.folder);
   searchParams.set("data_type", params.data_type);
@@ -1179,9 +1227,17 @@ export async function listFiles(params: {
   if (params.timeframe) {
     searchParams.set("timeframe", params.timeframe);
   }
-  return fetchJson(`/data-status/list-files?${searchParams.toString()}`, {
+  const raw = await fetchJson<unknown>(`/data-status/list-files?${searchParams.toString()}`, {
     signal: params.signal,
   });
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("category" in r && !("asset_group" in r)) {
+      const { category, ...rest } = r;
+      return { ...rest, asset_group: category ?? "" } as ListFilesResponse;
+    }
+  }
+  return raw as ListFilesResponse;
 }
 
 // Services that require upstream availability check for accurate missing data
@@ -1265,21 +1321,22 @@ export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "alerting-service": "alert_type",
 };
 
+/** One asset group's venue-coverage check block (``check_venues`` mode). */
+export interface VenueCheckAssetGroupBlock {
+  dates_with_missing_venues: Array<{
+    date: string;
+    missing: string[];
+    file_exists: boolean;
+  }>;
+  total_dates: number;
+}
+
 // Venue Check Response type (when check_venues=true)
 export interface VenueCheckResponse {
   service: string;
   start_date: string;
   end_date: string;
-  categories: {
-    [category: string]: {
-      dates_with_missing_venues: Array<{
-        date: string;
-        missing: string[];
-        file_exists: boolean;
-      }>;
-      total_dates: number;
-    };
-  };
+  asset_groups: Record<string, VenueCheckAssetGroupBlock>;
 }
 
 // Data Type Check Response type (when check_data_types=true)
@@ -1311,7 +1368,7 @@ export async function getMissingShards(params: {
   start_date: string;
   end_date: string;
   mode?: string;
-  category?: string[];
+  asset_group?: string[];
   venue?: string[];
 }): Promise<MissingShardsResponse> {
   const searchParams = new URLSearchParams();
@@ -1321,8 +1378,8 @@ export async function getMissingShards(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -1503,15 +1560,15 @@ export async function getCapabilities(): Promise<CapabilitiesResponse> {
   return fetchJson("/capabilities");
 }
 
-export interface ServiceCategoriesResponse {
+export interface ServiceAssetGroupsResponse {
   service: string;
-  categories: string[];
+  asset_groups: string[];
 }
 
-export async function getServiceCategories(
+export async function getServiceAssetGroups(
   serviceName: string,
-): Promise<ServiceCategoriesResponse> {
-  return fetchJson(`/capabilities/service-categories/${serviceName}`);
+): Promise<ServiceAssetGroupsResponse> {
+  return fetchJson(`/capabilities/service-asset-groups/${serviceName}`);
 }
 
 // Cache Management
@@ -1547,7 +1604,7 @@ export interface SchemaColumnSpec {
 
 export interface ShardSchemaResponse {
   registered: boolean;
-  category: string;
+  asset_group: string;
   instrument_type: string;
   data_type: string;
   venue: string | null;
@@ -1560,14 +1617,14 @@ export interface ShardSchemaResponse {
 
 export async function fetchShardSchema(params: {
   service: string;
-  category: string;
+  asset_group: string;
   instrument_type: string;
   data_type: string;
   venue?: string;
 }): Promise<ShardSchemaResponse> {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     instrument_type: params.instrument_type,
     data_type: params.data_type,
   });
@@ -1594,7 +1651,7 @@ export type CaptureStatusLiteral =
 
 export interface ShardDetailCoord {
   service: string;
-  category: string;
+  asset_group: string;
   instrument_type: string;
   data_type: string;
   day: string;
@@ -1671,7 +1728,7 @@ export interface ShardDetailResponse {
 
 export async function fetchShardDetail(params: {
   service: string;
-  category: string;
+  asset_group: string;
   instrument_type: string;
   data_type: string;
   day: string;
@@ -1681,7 +1738,7 @@ export async function fetchShardDetail(params: {
 }): Promise<ShardDetailResponse> {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     instrument_type: params.instrument_type,
     data_type: params.data_type,
     day: params.day,
@@ -1699,7 +1756,7 @@ export async function fetchShardDetail(params: {
 // ``protocols`` being populated.  CeFi branches populate ``instruments`` +
 // ``total_instruments``.
 export interface VenueDetailV2Response {
-  category: string;
+  asset_group: string;
   venue: string;
   chain: string | null;
   protocol: string | null;
@@ -1715,12 +1772,12 @@ export interface VenueDetailV2Response {
 
 export async function fetchVenueDetailV2(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
 }): Promise<VenueDetailV2Response> {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     venue: params.venue,
   });
   return fetchJson<VenueDetailV2Response>(
@@ -1742,7 +1799,7 @@ export interface ShardInstrumentEntry {
 
 export interface InstrumentsForShardResponse {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_type: string;
@@ -1764,7 +1821,7 @@ export interface InstrumentsForShardResponse {
 // single shard. ``dry_run: false`` so it actually runs.
 export async function retryFailedShard(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
 }): Promise<{
@@ -1779,7 +1836,7 @@ export async function retryFailedShard(params: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       service: params.service,
-      category: params.category.toLowerCase(),
+      asset_group: params.asset_group.toLowerCase(),
       venue: params.venue,
       start_date: params.day,
       end_date: params.day,
@@ -1793,7 +1850,7 @@ export async function retryFailedShard(params: {
 
 export async function fetchInstrumentsForShard(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_type: string;
@@ -1804,7 +1861,7 @@ export async function fetchInstrumentsForShard(params: {
 }): Promise<InstrumentsForShardResponse> {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     venue: params.venue,
     day: params.day,
     instrument_type: params.instrument_type,
@@ -1830,7 +1887,7 @@ export interface BundlePreviewResponse {
 
 export interface ShardInfoResponse {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   data_type: string;
@@ -1840,7 +1897,7 @@ export interface ShardInfoResponse {
 
 export async function fetchShardInfo(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   data_type: string;
@@ -1851,7 +1908,7 @@ export async function fetchShardInfo(params: {
 
 export async function fetchBundlePreview(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_type: string;
@@ -1860,7 +1917,7 @@ export async function fetchBundlePreview(params: {
 }): Promise<BundlePreviewResponse> {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     venue: params.venue,
     day: params.day,
     instrument_type: params.instrument_type,
@@ -1879,7 +1936,7 @@ export interface BucketCountsResponse {
 
 export async function fetchBucketCounts(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   data_type: string;
@@ -1893,7 +1950,7 @@ export async function fetchBucketCounts(params: {
 /** Build the CSV download URL — used in an <a href> so the browser handles the download. */
 export function buildCsvDownloadUrl(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_type: string;
@@ -1902,7 +1959,7 @@ export function buildCsvDownloadUrl(params: {
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     venue: params.venue,
     day: params.day,
     instrument_type: params.instrument_type,
@@ -1921,7 +1978,7 @@ export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
 ]);
 
 /**
- * Build the shard CSV download URL for one (service, category, venue, date).
+ * Build the shard CSV download URL for one (service, asset group, venue, date).
  *
  * Routing on the server side:
  * - instruments-service / corporate-actions: reads the per-(venue, day) bundle
@@ -1933,13 +1990,13 @@ export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
  */
 export function buildShardDownloadUrl(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   date: string;
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
-    category: params.category,
+    asset_group: params.asset_group,
     venue: params.venue,
     date: params.date,
   });
@@ -2133,7 +2190,7 @@ export interface InstrumentSearchResult {
 }
 
 export interface InstrumentsListResponse {
-  category: string;
+  asset_group: string;
   aggregated_file?: string;
   aggregated_date?: string;
   total_in_file: number;
@@ -2149,7 +2206,7 @@ export interface InstrumentAvailabilityResponse {
     venue: string;
     instrument_type: string;
     symbol: string;
-    category: string;
+    asset_group: string;
     folder: string;
   };
   service: string;
@@ -2189,50 +2246,58 @@ export interface InstrumentAvailabilityResponse {
 }
 
 export async function getInstrumentsList(params: {
-  category: string;
+  asset_group: string;
   search?: string;
   limit?: number;
 }): Promise<InstrumentsListResponse> {
   const searchParams = new URLSearchParams();
-  searchParams.set("category", params.category);
+  searchParams.set("asset_group", params.asset_group);
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
-  return fetchJson(`/data-status/instruments?${searchParams.toString()}`);
+  const raw = await fetchJson<unknown>(`/data-status/instruments?${searchParams.toString()}`);
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("category" in r && !("asset_group" in r)) {
+      const { category, ...rest } = r;
+      return { ...rest, asset_group: category ?? "" } as InstrumentsListResponse;
+    }
+  }
+  return raw as InstrumentsListResponse;
 }
 
 /**
- * Cross-category canonical-symbol search — backed by
- * ``/api/data-status/instruments/search``. Walks one or all five categories
+ * Cross-asset-group canonical-symbol search — backed by
+ * ``/api/data-status/instruments/search``. Walks one or all five asset groups
  * (cefi/tradfi/defi/sports/prediction) and returns canonical IDs whose
  * substrings (whitespace-tokenised, AND-matched) contain the query.
  *
- * Sports returns ``league_id`` matches (EPL, BUNDESLIGA, …); other categories
+ * Sports returns ``league_id`` matches (EPL, BUNDESLIGA, …); other asset groups
  * return ``instrument_key`` matches like ``BINANCE-FUTURES:PERPETUAL:BTC-USDT``.
  */
 export interface InstrumentSearchMatch {
   canonical_id: string;
-  category: string;
+  asset_group: string;
   venue: string;
   instrument_type: string;
 }
 
 export interface InstrumentSearchResponse {
   query: string;
-  category: string | null;
+  asset_group: string | null;
   matches: InstrumentSearchMatch[];
   total_matches: number;
   truncated: boolean;
-  categories_searched: string[];
+  asset_groups_searched: string[];
 }
 
 export async function searchInstruments(params: {
   query: string;
-  category?: string;
+  asset_group?: string;
   limit?: number;
 }): Promise<InstrumentSearchResponse> {
   const qp = new URLSearchParams();
   qp.set("query", params.query);
-  if (params.category) qp.set("category", params.category);
+  if (params.asset_group) qp.set("asset_group", params.asset_group);
   if (params.limit !== undefined) qp.set("limit", params.limit.toString());
   return fetchJson<InstrumentSearchResponse>(
     `/data-status/instruments/search?${qp.toString()}`,
@@ -2311,9 +2376,24 @@ export async function getInstrumentAvailability(params: {
     searchParams.set("available_from", params.available_from);
   if (params.available_to)
     searchParams.set("available_to", params.available_to);
-  return fetchJson(
-    `/data-status/instrument-availability?${searchParams.toString()}`,
-  );
+  const raw = await fetchJson<
+    InstrumentAvailabilityResponse & {
+      parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
+    }
+  >(`/data-status/instrument-availability?${searchParams.toString()}`);
+  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
+    const p = raw.parsed as Record<string, unknown>;
+    const cat = p["category"];
+    const { category: _omit, ...rest } = p;
+    return {
+      ...raw,
+      parsed: {
+        ...rest,
+        asset_group: typeof cat === "string" ? cat : String(cat ?? ""),
+      } as InstrumentAvailabilityResponse["parsed"],
+    };
+  }
+  return raw;
 }
 
 // ── Event stream ─────────────────────────────────────────────────────────────

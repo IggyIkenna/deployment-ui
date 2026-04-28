@@ -3,17 +3,17 @@ import { Link, useParams } from "react-router-dom";
 import {
   fetchVmDeployment,
   fetchVmDeploymentEvents,
-  type VmDeploymentEntry,
   type DeploymentEventsResponse,
+  type VmDeploymentEntry,
 } from "../api/deploymentApi";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 
 const STATUS_VARIANT: Record<
   string,
@@ -101,7 +101,7 @@ export function VmDeploymentDetails() {
   const fields: Array<[string, string | number | null]> = [
     ["Deployment ID", entry.deployment_id],
     ["VM name", entry.vm_name],
-    ["Category", entry.category],
+    ["Asset group", entry.asset_group],
     ["Task", entry.task],
     ["Mode", entry.mode],
     ["Date range", `${entry.start_date} → ${entry.end_date}`],
