@@ -1569,7 +1569,7 @@ function DataStatusTabInternal({
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
                     <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.categories ?? {}).length}</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Categories</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Asset Groups</div>
                   </div>
                 </div>
 
@@ -1849,13 +1849,13 @@ function DataStatusTabInternal({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
               <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Categories
+                Asset Groups
               </Label>
               <div className="flex gap-2 flex-wrap">
                 {categoriesLoading ? (
                   <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading categories...
+                    Loading asset groups...
                   </div>
                 ) : (
                   availableCategories.map((cat) => (

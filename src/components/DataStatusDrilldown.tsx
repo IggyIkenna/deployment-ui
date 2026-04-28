@@ -76,7 +76,7 @@ function CaptureStatusBadge({
 
 export interface ShardCoordinate {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_type: string;
@@ -120,7 +120,7 @@ export function SchemaModal({
     let cancelled = false;
     fetchShardSchema({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       instrument_type: coord.instrument_type,
       data_type: coord.data_type,
       venue: coord.venue,
@@ -128,22 +128,39 @@ export function SchemaModal({
       .then((s) => {
         if (!cancelled) setSchema(s);
       })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          const msg =
+            e instanceof Error
+              ? e.message
+              : typeof e === "string"
+                ? e
+                : (() => {
+                    try {
+                      return JSON.stringify(e);
+                    } catch {
+                      return String(e);
+                    }
+                  })();
+          setError(msg);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [
     coord.service,
-    coord.category,
+    coord.asset_group,
     coord.instrument_type,
     coord.data_type,
     coord.venue,
   ]);
 
   return (
-    <ModalShell title={`Schema: ${coord.instrument_type} / ${coord.data_type}`} onClose={onClose}>
+    <ModalShell
+      title={`Schema: ${[coord.instrument_type, coord.data_type].filter(Boolean).join(" / ") || coord.data_type || "(unknown)"}`}
+      onClose={onClose}
+    >
       {error && (
         <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
       )}
@@ -279,7 +296,7 @@ function InstrumentsModalStandard({
     setShardInfo(null);
   }, [
     coord.service,
-    coord.category,
+    coord.asset_group,
     coord.venue,
     coord.day,
     coord.instrument_type,
@@ -293,7 +310,7 @@ function InstrumentsModalStandard({
     let cancelled = false;
     fetchShardInfo({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       venue: coord.venue,
       day: coord.day,
       data_type: coord.data_type,
@@ -315,7 +332,7 @@ function InstrumentsModalStandard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     coord.service,
-    coord.category,
+    coord.asset_group,
     coord.venue,
     coord.day,
     coord.data_type,
@@ -327,7 +344,7 @@ function InstrumentsModalStandard({
     setError(null);
     fetchInstrumentsForShard({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       venue: coord.venue,
       day: coord.day,
       instrument_type: activeInstrumentType,
@@ -353,15 +370,29 @@ function InstrumentsModalStandard({
           });
         }
       })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          const msg =
+            e instanceof Error
+              ? e.message
+              : typeof e === "string"
+                ? e
+                : (() => {
+                    try {
+                      return JSON.stringify(e);
+                    } catch {
+                      return String(e);
+                    }
+                  })();
+          setError(msg);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [
     coord.service,
-    coord.category,
+    coord.asset_group,
     coord.venue,
     coord.day,
     coord.instrument_type,
@@ -400,7 +431,7 @@ function InstrumentsModalStandard({
     setPasteError(null);
     const url = buildCsvDownloadUrl({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       venue: coord.venue,
       day: coord.day,
       instrument_type: activeInstrumentType,
@@ -419,7 +450,7 @@ function InstrumentsModalStandard({
   const downloadUrl = listing
     ? buildCsvDownloadUrl({
       service: coord.service,
-      category: coord.category,
+      asset_group: coord.asset_group,
       venue: coord.venue,
       day: coord.day,
       instrument_type: activeInstrumentType,
@@ -524,7 +555,7 @@ function InstrumentsModalStandard({
           <SchemaModal
             coord={{
               service: coord.service,
-              category: coord.category,
+              asset_group: coord.asset_group,
               venue: coord.venue,
               instrument_type: activeInstrumentType,
               data_type: coord.data_type,
@@ -659,7 +690,7 @@ function InstrumentsModalStandard({
                   {status === "attempted_failed" && (
                     <RetryShardButton
                       service={effectiveCoord.service}
-                      category={effectiveCoord.category}
+                      asset_group={effectiveCoord.asset_group}
                       venue={effectiveCoord.venue}
                       day={effectiveCoord.day}
                       instrument_id={i.instrument_id}
@@ -703,7 +734,7 @@ function InstrumentsModalStandard({
         <SchemaModal
           coord={{
             service: coord.service,
-            category: coord.category,
+            asset_group: coord.asset_group,
             venue: coord.venue,
             instrument_type: activeInstrumentType,
             data_type: coord.data_type,
@@ -751,7 +782,7 @@ function BundleRow({
     () =>
       buildCsvDownloadUrl({
         service: coord.service,
-        category: coord.category,
+        asset_group: coord.asset_group,
         venue: coord.venue,
         day: coord.day,
         instrument_type: coord.instrument_type,
@@ -771,7 +802,7 @@ function BundleRow({
       // rest since columns are shared within a bundle.
       fetchBundlePreview({
         service: coord.service,
-        category: coord.category,
+        asset_group: coord.asset_group,
         venue: coord.venue,
         day: coord.day,
         instrument_type: coord.instrument_type,
@@ -856,7 +887,7 @@ function InstrumentsServiceShardModal({
   const [schemaOpen, setSchemaOpen] = useState(false);
   const downloadUrl = buildCsvDownloadUrl({
     service: coord.service,
-    category: coord.category,
+    asset_group: coord.asset_group,
     venue: coord.venue,
     day: coord.day,
     instrument_type: coord.instrument_type,
@@ -892,7 +923,7 @@ function InstrumentsServiceShardModal({
         <SchemaModal
           coord={{
             service: coord.service,
-            category: coord.category,
+            asset_group: coord.asset_group,
             venue: coord.venue,
             instrument_type: coord.instrument_type,
             data_type: coord.data_type,
@@ -911,14 +942,14 @@ function InstrumentsServiceShardModal({
 
 export function BucketCountsBadge({
   service,
-  category,
+  asset_group,
   venue,
   day,
   data_type,
   autoLoad = true,
 }: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   data_type: string;
@@ -930,17 +961,31 @@ export function BucketCountsBadge({
   useEffect(() => {
     if (!autoLoad) return;
     let cancelled = false;
-    fetchBucketCounts({ service, category, venue, day, data_type })
+    fetchBucketCounts({ service, asset_group, venue, day, data_type })
       .then((r) => {
         if (!cancelled) setCounts(r);
       })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          const msg =
+            e instanceof Error
+              ? e.message
+              : typeof e === "string"
+                ? e
+                : (() => {
+                    try {
+                      return JSON.stringify(e);
+                    } catch {
+                      return String(e);
+                    }
+                  })();
+          setError(msg);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [autoLoad, service, category, venue, day, data_type]);
+  }, [autoLoad, service, asset_group, venue, day, data_type]);
 
   if (error) return null;
   if (!counts) return null;
@@ -1008,13 +1053,13 @@ export function ModalShell({
 
 function RetryShardButton({
   service,
-  category,
+  asset_group,
   venue,
   day,
   instrument_id,
 }: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   day: string;
   instrument_id: string;
@@ -1032,7 +1077,7 @@ function RetryShardButton({
     setPending(true);
     setResult("idle");
     try {
-      const resp = await retryFailedShard({ service, category, venue, day });
+      const resp = await retryFailedShard({ service, asset_group, venue, day });
       const depId = resp.deployment?.deployment_id ?? "";
       setResult("ok");
       setResultMessage(
