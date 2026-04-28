@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DataTypeCheckResponse,
   InstrumentSearchMatch,
-  TurboCategoryStatus,
+  TurboAssetGroupStatus,
   TurboDataStatusResponse,
   TurboLeagueStatus,
   TurboSubDimension,
@@ -32,14 +32,14 @@ import type {
 } from "../api/client";
 import * as api from "../api/client";
 import { SHARD_CSV_DOWNLOAD_SERVICES, UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl, buildShardDownloadUrl, searchInstruments } from "../api/client";
-import { getCategoryBreakdown } from "../lib/data-status-helpers";
+import { getAssetGroupBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
   formatEventDrivenCoverageLabel,
   formatRatePerDay,
   isRateMetricRow,
 } from "../lib/utils";
-import type { CategoryStatus, CategoryVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -128,7 +128,7 @@ const SUB_DIMENSION_LABELS: Record<string, string> = {
 const SUB_DIMENSION_KEYS = Object.keys(SUB_DIMENSION_LABELS);
 
 /** Extract sub-dimension data from a category result, regardless of which key it's under. */
-function getSubDimensionData(catData: TurboCategoryStatus): {
+function getSubDimensionData(catData: TurboAssetGroupStatus): {
   data: Record<string, TurboSubDimension> | null;
   key: string | null;
   label: string;
@@ -163,7 +163,7 @@ function getSubDimensionData(catData: TurboCategoryStatus): {
   // SPORTS response where breakdown_axis wasn't emitted) doesn't mask the
   // real drilldown that lives further down the list.
   for (const key of SUB_DIMENSION_KEYS) {
-    const subDimension = catData[key as keyof TurboCategoryStatus];
+    const subDimension = catData[key as keyof TurboAssetGroupStatus];
     if (
       subDimension &&
       typeof subDimension === "object" &&
@@ -935,13 +935,13 @@ function DataStatusTabInternal({
   useEffect(() => {
     setCategoriesLoading(true);
     api
-      .getServiceCategories(serviceName)
+      .getServiceAssetGroups(serviceName)
       .then((response) => {
-        if (response.categories && response.categories.length > 0) {
-          setAvailableCategories(response.categories);
+        if (response.asset_groups && response.asset_groups.length > 0) {
+          setAvailableCategories(response.asset_groups);
           // Clear selected categories that are no longer available
           setSelectedCategories((prev) =>
-            prev.filter((cat) => response.categories.includes(cat)),
+            prev.filter((cat) => response.asset_groups.includes(cat)),
           );
         } else {
           // Service has no category dimension (e.g., features-calendar-service)
@@ -995,8 +995,8 @@ function DataStatusTabInternal({
     setVenuesLoading(true);
 
     api
-      .getVenuesByCategory(category)
-      .then((response: CategoryVenuesResponse) => {
+      .getVenuesByAssetGroup(category)
+      .then((response: AssetGroupVenuesResponse) => {
         setAvailableVenues(response.venues || []);
       })
       .catch(() => {
@@ -1190,7 +1190,7 @@ function DataStatusTabInternal({
           // missing data. Sub-dimension may live under `venues` (legacy) or
           // `data_types` (SPORTS, via `breakdown_axis: "data_type"`).
           // Use dimension-weighted values when available for accurate detection.
-          const breakdown = getCategoryBreakdown(catData);
+          const breakdown = getAssetGroupBreakdown(catData);
           if (breakdown) {
             for (const [_, subData] of Object.entries(breakdown)) {
               const subExpected =
