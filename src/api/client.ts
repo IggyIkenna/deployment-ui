@@ -678,11 +678,40 @@ export async function fetchUpcomingFixtures(opts?: {
 
 // Turbo Data Status - much faster for large services (uses month-prefix queries)
 
-// Data type completion status (nested within venue)
+// Data type completion status (nested within venue).
+//
+// Shape mirrors what `_build_data_type_breakdown` returns in deployment-api
+// `data_status_service.py`. Includes the Phase-1 four-state classification
+// fields (deployment-api commit c73c732, 2026-04-28):
+//
+//   - missing       — actionable: in EXPECTED_COVERAGE scope, raw is captured
+//                     (or this IS raw), processed shard absent. `missing_dates`
+//                     contains only the actionable subset.
+//   - blocked_on_raw — non-actionable: processed shard absent because raw is
+//                     also absent. `blocked_on_raw_dates` lists those dates.
+//                     UI should render amber, not red.
+//   - out_of_scope  — `(asset_group, venue, data_type)` not in
+//                     EXPECTED_COVERAGE_BY_ASSET_GROUP. Excluded from
+//                     denominator at UI; render gray or hide by default.
+//   - captured      — `dates_found` covers this state.
+//
+// Empty fields (`blocked_on_raw_dates: []`, `out_of_scope: false`) are the
+// implicit defaults when the deployment-api response predates the four-state
+// rollout — UI should treat absence the same as `false` / `[]`.
 export interface TurboDataTypeStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  dates_blocked_on_raw?: number;
+  dates_found_list?: string[];
+  missing_dates?: string[];
+  blocked_on_raw_dates?: string[];
   completion_pct: number;
+  start_date?: string | null;
+  is_expected?: boolean;
+  in_expected_coverage?: boolean;
+  is_processed_data_type?: boolean;
+  out_of_scope?: boolean;
   status?: "complete" | "partial" | "missing";
 }
 
