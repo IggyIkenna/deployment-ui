@@ -91,12 +91,17 @@ export function formatEventDrivenCoverageLabel(
     typeof emptyRateEstimate === "number"
       ? ` (${Math.round(emptyRateEstimate * 100)}% empty)`
       : "";
-  const text = `${attempt.toFixed(1)}% attempted · ${capture.toFixed(1)}% captured${emptyPctText}`;
+  // Captured is the headline (real data on disk). Attempted is the secondary
+  // (we tried — includes captured + empty_confirmed + attempted_failed). The
+  // 2026-04-29 audit confused operators because the previous order led with
+  // attempted, making SPORTS look like 96% coverage when the actual captured
+  // shard count was 70%.
+  const text = `${capture.toFixed(1)}% captured · ${attempt.toFixed(1)}% attempted${emptyPctText}`;
   const tooltip =
     "This is an event-driven category — underlyings only trade on a fraction of days " +
     "(Polymarket conditionIds come and go, sports fixtures only occur on match days). " +
-    "Attempted = fraction of known underlyings with any observed data. " +
-    "Captured = fraction of (underlying × day) combos that had trades. " +
+    "Captured = fraction of (underlying × day) shards with real data on disk. " +
+    "Attempted = fraction of shards we've called the source for (captured + legitimately empty + failed). " +
     "Empty = approximate fraction of attempted underlying-days with no trades.";
   return { text, tooltip };
 }

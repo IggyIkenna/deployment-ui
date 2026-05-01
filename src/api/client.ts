@@ -28,7 +28,7 @@ function createClientConfig(
   baseUrl: string,
   options?: ApiClientOptions,
 ): { baseUrl: string; timeoutMs: number } {
-  return { baseUrl, timeoutMs: options?.timeoutMs ?? 30_000 };
+  return { baseUrl, timeoutMs: options?.timeoutMs ?? 120_000 };
 }
 
 function createApiClient(config: {

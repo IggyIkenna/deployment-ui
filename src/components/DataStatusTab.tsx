@@ -3351,8 +3351,16 @@ function DataStatusTabInternal({
                                       <span
                                         className="text-sm font-mono font-medium"
                                         style={{
+                                          // Event-driven row colour follows
+                                          // captured% (real data on disk),
+                                          // not attempted%. Pre-2026-04-29
+                                          // this used completion_pct which
+                                          // for SPORTS aliases to attempted%
+                                          // and made the row look healthier
+                                          // than reality.
                                           color: getCompletionColor(
-                                            catData.completion_pct,
+                                            catData.capture_coverage_pct ??
+                                              catData.completion_pct,
                                           ),
                                         }}
                                         title={eventLabel.tooltip}
@@ -3392,9 +3400,24 @@ function DataStatusTabInternal({
                               <div
                                 className="h-full transition-all duration-500"
                                 style={{
-                                  width: `${catData.completion_pct}%`,
+                                  // Bar reflects captured% (real data) for
+                                  // event-driven categories so the visual
+                                  // matches the headline. Dense categories
+                                  // fall through to completion_pct since
+                                  // captured == attempted there.
+                                  width: `${
+                                    catData.coverage_semantics ===
+                                    "event_driven"
+                                      ? catData.capture_coverage_pct ??
+                                        catData.completion_pct
+                                      : catData.completion_pct
+                                  }%`,
                                   backgroundColor: getCompletionColor(
-                                    catData.completion_pct,
+                                    catData.coverage_semantics ===
+                                      "event_driven"
+                                      ? catData.capture_coverage_pct ??
+                                          catData.completion_pct
+                                      : catData.completion_pct,
                                   ),
                                 }}
                               />
