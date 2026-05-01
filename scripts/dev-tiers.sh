@@ -130,13 +130,18 @@ EOF
 
   2)
     echo ">>> T2 — Local UI + local API, NEITHER in mock"
-    # Force UI off-mock + backend reads real GCP via ADC.
-    # Auth still skipped so we don't need OAuth setup locally.
-    VITE_MOCK_API=false \
-      CLOUD_MOCK_MODE=false \
-      CLOUD_PROVIDER=gcp \
-      DISABLE_AUTH=true \
-      bash "$PM_DEV/dev-start.sh" --stack deployment --mode mock $OPEN_FLAG
+    # Pre-export the internal DEV_* knobs that dev-start.sh consults; the
+    # 2026-05-01 ``: ${VAR:=default}`` patch makes those overrides win
+    # over the mode preset. UI off-mock, backend off-mock (real GCP via
+    # ADC), auth skipped (no OAuth dance locally).
+    export DEV_UI_MOCK=false
+    export DEV_UI_SKIP_AUTH=true
+    export DEV_CLOUD_PROVIDER=gcp
+    export DEV_CLOUD_MOCK_MODE=false
+    export DEV_RUNTIME_MODE=local
+    export DEV_DISABLE_AUTH=true
+    export DEV_MOCK_STATE_MODE=
+    bash "$PM_DEV/dev-start.sh" --stack deployment --mode mock $OPEN_FLAG
     cat <<EOF
 
 ━━━ T2 active ━━━
