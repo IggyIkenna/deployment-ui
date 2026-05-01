@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Database,
+  Download,
   Eye,
   FileText,
   Filter,
@@ -31,7 +32,7 @@ import type {
   VenueCheckResponse,
 } from "../api/client";
 import * as api from "../api/client";
-import { SHARD_CSV_DOWNLOAD_SERVICES, UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl, buildShardDownloadUrl, searchInstruments } from "../api/client";
+import { UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl, buildShardDownloadUrl, searchInstruments } from "../api/client";
 import { getAssetGroupBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
@@ -39,7 +40,7 @@ import {
   formatRatePerDay,
   isRateMetricRow,
 } from "../lib/utils";
-import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse, TurboVenueStatus } from "../types";
+import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -219,6 +220,66 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
         )}
       </div>
     </div>
+  );
+}
+
+const DATE_PAGE_SIZE = 60;
+
+function DateList({
+  dates,
+  onClickDate,
+  btnClassName,
+  testIdPrefix,
+  downloadUrl,
+  downloadTitle,
+}: {
+  dates: string[];
+  onClickDate: (date: string) => void;
+  btnClassName: string;
+  testIdPrefix: string;
+  downloadUrl?: (date: string) => string;
+  downloadTitle?: (date: string) => string;
+}) {
+  const [limit, setLimit] = useState(DATE_PAGE_SIZE);
+  const visible = dates.slice(0, limit);
+  const remaining = dates.length - limit;
+  return (
+    <>
+      {visible.map((date) => (
+        <span key={date} className="inline-flex items-center gap-0.5">
+          <button
+            type="button"
+            className={btnClassName}
+            title={`Show shard details for ${date}`}
+            data-testid={`${testIdPrefix}-${date}`}
+            onClick={() => onClickDate(date)}
+          >
+            {date}
+          </button>
+          {downloadUrl && (
+            <a
+              href={downloadUrl(date)}
+              className="inline-flex items-center justify-center px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] focus:outline-none"
+              title={downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`}
+              download
+              onClick={(e) => e.stopPropagation()}
+              data-testid={`${testIdPrefix}-${date}-download`}
+            >
+              <Download className="h-3 w-3" />
+            </a>
+          )}
+        </span>
+      ))}
+      {remaining > 0 && (
+        <button
+          type="button"
+          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          onClick={() => setLimit((l) => l + DATE_PAGE_SIZE)}
+        >
+          +{remaining} more
+        </button>
+      )}
+    </>
   );
 }
 
@@ -3111,14 +3172,14 @@ function DataStatusTabInternal({
 
                             {/* Expanded: Feature-group breakdown (features-* services). */}
                             {isExpanded &&
-                              (venueData as TurboVenueStatus).feature_groups &&
-                              Object.keys((venueData as TurboVenueStatus).feature_groups || {}).length > 0 && (
+                              venueData.feature_groups &&
+                              Object.keys(venueData.feature_groups || {}).length > 0 && (
                                 <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
                                   <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
                                     Feature Groups
                                   </div>
                                   <div className="grid gap-2">
-                                    {Object.entries((venueData as TurboVenueStatus).feature_groups || {}).map(
+                                    {Object.entries(venueData.feature_groups || {}).map(
                                       ([fgName, fgData]) => {
                                         const fgComplete = fgData.completion_pct === 100;
                                         return (
@@ -3155,14 +3216,14 @@ function DataStatusTabInternal({
 
                             {/* Expanded: Timeframe breakdown (features-* services). */}
                             {isExpanded &&
-                              (venueData as TurboVenueStatus).timeframes &&
-                              Object.keys((venueData as TurboVenueStatus).timeframes || {}).length > 0 && (
+                              venueData.timeframes &&
+                              Object.keys(venueData.timeframes || {}).length > 0 && (
                                 <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
                                   <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
                                     Timeframes
                                   </div>
                                   <div className="grid gap-2">
-                                    {Object.entries((venueData as TurboVenueStatus).timeframes || {}).map(
+                                    {Object.entries(venueData.timeframes || {}).map(
                                       ([tfName, tfData]) => {
                                         const tfComplete = tfData.completion_pct === 100;
                                         return (
@@ -4192,26 +4253,35 @@ function DataStatusTabInternal({
                                                   </>
                                                 );
                                               })()}
-                                              {catName === "SPORTS" && (
-                                                <button
-                                                  type="button"
-                                                  className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                  title={`View the ${name} parquet schema from unified-api-contracts — date-independent`}
-                                                  onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setSchemaModal({
-                                                      service: "instruments-service",
-                                                      asset_group: "SPORTS",
-                                                      venue: "",
-                                                      instrument_type: "",
-                                                      data_type: name,
-                                                    });
-                                                  }}
-                                                >
-                                                  schema
-                                                </button>
-                                              )}
+                                              {(() => {
+                                                const firstDt = subData.data_types ? Object.keys(subData.data_types)[0] : undefined;
+                                                const schemaDt = catName === "SPORTS" ? name : (firstDt ?? "AUTO");
+                                                const schemaVenue = catName === "SPORTS" ? "" : name;
+                                                return (
+                                                  <button
+                                                    type="button"
+                                                    className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                    title={catName === "SPORTS"
+                                                      ? `View ${name} schema`
+                                                      : firstDt
+                                                        ? `View ${name} schema (${firstDt})`
+                                                        : `View ${name} schema`}
+                                                    onClick={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      setSchemaModal({
+                                                        service: serviceName,
+                                                        asset_group: catName,
+                                                        venue: schemaVenue,
+                                                        instrument_type: "",
+                                                        data_type: schemaDt,
+                                                      });
+                                                    }}
+                                                  >
+                                                    schema
+                                                  </button>
+                                                );
+                                              })()}
                                             </div>
                                           </summary>
 
@@ -4406,41 +4476,97 @@ function DataStatusTabInternal({
                                                                 className="space-y-0.5"
                                                                 data-testid="honest-dt-per-instrument-table"
                                                               >
-                                                                {perInstrumentEntries.map(([iid, idata]) => (
-                                                                  <div
-                                                                    key={iid}
-                                                                    className="flex items-center gap-2 py-0.5 px-1.5"
-                                                                    data-testid="honest-dt-per-instrument-row"
-                                                                    data-instrument={iid}
-                                                                  >
-                                                                    <span
-                                                                      className="text-[9px] font-mono truncate min-w-0"
-                                                                      style={{ color: getCompletionColor(idata.completion_pct) }}
-                                                                      title={iid}
-                                                                    >
-                                                                      {iid}
-                                                                    </span>
-                                                                    <div className="flex-1" />
-                                                                    <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                                      {idata.found_shards}/{idata.expected_shards}
-                                                                    </span>
-                                                                    <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
-                                                                      <div
-                                                                        className="h-full"
-                                                                        style={{
-                                                                          width: `${idata.completion_pct}%`,
-                                                                          backgroundColor: getCompletionColor(idata.completion_pct),
-                                                                        }}
-                                                                      />
+                                                                {perInstrumentEntries.map(([iid, idata]) => {
+                                                                  const instMissing = idata.missing_dates ?? [];
+                                                                  const instHasMissing = instMissing.length > 0;
+                                                                  const instRowCore = (
+                                                                    <div className="flex items-center gap-2 py-0.5 px-1.5">
+                                                                      <span
+                                                                        className="text-[9px] font-mono truncate min-w-0"
+                                                                        style={{ color: getCompletionColor(idata.completion_pct) }}
+                                                                        title={iid}
+                                                                      >
+                                                                        {iid}
+                                                                      </span>
+                                                                      <div className="flex-1" />
+                                                                      <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                        {idata.found_shards}/{idata.expected_shards}
+                                                                      </span>
+                                                                      <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                        <div
+                                                                          className="h-full"
+                                                                          style={{
+                                                                            width: `${idata.completion_pct}%`,
+                                                                            backgroundColor: getCompletionColor(idata.completion_pct),
+                                                                          }}
+                                                                        />
+                                                                      </div>
+                                                                      <span
+                                                                        className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
+                                                                        style={{ color: getCompletionColor(idata.completion_pct) }}
+                                                                      >
+                                                                        {formatPct(idata.completion_pct)}%
+                                                                      </span>
                                                                     </div>
-                                                                    <span
-                                                                      className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
-                                                                      style={{ color: getCompletionColor(idata.completion_pct) }}
+                                                                  );
+                                                                  if (!instHasMissing) {
+                                                                    return (
+                                                                      <div
+                                                                        key={iid}
+                                                                        data-testid="honest-dt-per-instrument-row"
+                                                                        data-instrument={iid}
+                                                                      >
+                                                                        {instRowCore}
+                                                                      </div>
+                                                                    );
+                                                                  }
+                                                                  return (
+                                                                    <details
+                                                                      key={iid}
+                                                                      data-testid="honest-dt-per-instrument-row"
+                                                                      data-instrument={iid}
                                                                     >
-                                                                      {formatPct(idata.completion_pct)}%
-                                                                    </span>
-                                                                  </div>
-                                                                ))}
+                                                                      <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                        {instRowCore}
+                                                                      </summary>
+                                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                        <details>
+                                                                          <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                            {instMissing.length} missing dates
+                                                                          </summary>
+                                                                          <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                            <DateList
+                                                                              dates={instMissing}
+                                                                              btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                              testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
+                                                                              onClickDate={(date) => openShardDetail({
+                                                                                service: serviceName,
+                                                                                asset_group: catName,
+                                                                                venue: name,
+                                                                                day: date,
+                                                                                instrument_type: "AUTO",
+                                                                                data_type: dtName,
+                                                                                instrument_id: iid,
+                                                                              })}
+                                                                            />
+                                                                          </div>
+                                                                        </details>
+                                                                        {idata.found_shards > 0 && (
+                                                                          <a
+                                                                            href={buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date: "ALL", data_type: dtName, instrument_type: "AUTO" }) + `&instrument_ids=${encodeURIComponent(iid)}`}
+                                                                            className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
+                                                                            title={`Download ${dtName} CSV for ${iid} across the full window`}
+                                                                            download
+                                                                            data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
+                                                                          >
+                                                                            <Download className="h-3 w-3" />
+                                                                            <span className="font-mono">{iid} all-window CSV</span>
+                                                                          </a>
+                                                                        )}
+                                                                      </div>
+                                                                    </details>
+                                                                  );
+                                                                })}
                                                               </div>
                                                             )}
                                                           </div>
@@ -4556,6 +4682,24 @@ function DataStatusTabInternal({
                                                         <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
                                                           {formatPct(dtData.completion_pct)}%
                                                         </span>
+                                                        <button
+                                                          type="button"
+                                                          className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                          title={`View schema for ${name} / ${dtName}`}
+                                                          onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setSchemaModal({
+                                                              service: serviceName,
+                                                              asset_group: catName,
+                                                              venue: name,
+                                                              instrument_type: "",
+                                                              data_type: dtName,
+                                                            });
+                                                          }}
+                                                        >
+                                                          schema
+                                                        </button>
                                                       </summary>
                                                       {hasDates && (
                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
@@ -4566,40 +4710,27 @@ function DataStatusTabInternal({
                                                                   {dtData.dates_found} available — click a day to drill down
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                  {dtFoundList.slice(0, 60).map((date: string) => (
-                                                                    <button
-                                                                      key={date}
-                                                                      type="button"
-                                                                      className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                      title={`Show shard details for ${date}`}
-                                                                      data-testid={`cefi-date-found-${name}-${dtName}-${date}`}
-                                                                      onClick={() => {
-                                                                        // For Polymarket-style OTHER bucket the most interesting drill is
-                                                                        // the bundled parquet (per_condition_id). For other venues we
-                                                                        // pass ``"AUTO"`` so the backend resolves ``instrument_type``
-                                                                        // from the UAC SchemaContract registry — the click site only
-                                                                        // has ``data_type`` (``dtName``) in scope, not the actual
-                                                                        // instrument_type axis.
-                                                                        const itGuess =
-                                                                          name.toUpperCase() === "POLYMARKET"
-                                                                            ? "OTHER"
-                                                                            : "AUTO";
-                                                                        openShardDetail({
-                                                                          service: serviceName,
-                                                                          asset_group: catName,
-                                                                          venue: name,
-                                                                          day: date,
-                                                                          instrument_type: itGuess,
-                                                                          data_type: dtName,
-                                                                        });
-                                                                      }}
-                                                                    >
-                                                                      {date}
-                                                                    </button>
-                                                                  ))}
-                                                                  {dtFoundList.length > 60 && (
-                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">+{dtFoundList.length - 60} more</span>
-                                                                  )}
+                                                                  <DateList
+                                                                    dates={dtFoundList}
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    testIdPrefix={`cefi-date-found-${name}-${dtName}`}
+                                                                    onClickDate={(date) => {
+                                                                      const itGuess =
+                                                                        name.toUpperCase() === "POLYMARKET"
+                                                                          ? "OTHER"
+                                                                          : "AUTO";
+                                                                      openShardDetail({
+                                                                        service: serviceName,
+                                                                        asset_group: catName,
+                                                                        venue: name,
+                                                                        day: date,
+                                                                        instrument_type: itGuess,
+                                                                        data_type: dtName,
+                                                                      });
+                                                                    }}
+                                                                    downloadUrl={(date) => buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date, data_type: dtName })}
+                                                                    downloadTitle={(date) => `Download ${dtName} CSV for ${name} on ${date}`}
+                                                                  />
                                                                 </div>
                                                               </details>
                                                             )}
@@ -4609,34 +4740,25 @@ function DataStatusTabInternal({
                                                                   {dtMissingList.length} missing
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                  {dtMissingList.slice(0, 60).map((date: string) => (
-                                                                    <button
-                                                                      key={date}
-                                                                      type="button"
-                                                                      className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                      title={`Show shard details (missing) for ${date}`}
-                                                                      data-testid={`cefi-date-missing-${name}-${dtName}-${date}`}
-                                                                      onClick={() => {
-                                                                        const itGuess =
-                                                                          name.toUpperCase() === "POLYMARKET"
-                                                                            ? "OTHER"
-                                                                            : "AUTO";
-                                                                        openShardDetail({
-                                                                          service: serviceName,
-                                                                          asset_group: catName,
-                                                                          venue: name,
-                                                                          day: date,
-                                                                          instrument_type: itGuess,
-                                                                          data_type: dtName,
-                                                                        });
-                                                                      }}
-                                                                    >
-                                                                      {date}
-                                                                    </button>
-                                                                  ))}
-                                                                  {dtMissingList.length > 60 && (
-                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">+{dtMissingList.length - 60} more</span>
-                                                                  )}
+                                                                  <DateList
+                                                                    dates={dtMissingList}
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
+                                                                    onClickDate={(date) => {
+                                                                      const itGuess =
+                                                                        name.toUpperCase() === "POLYMARKET"
+                                                                          ? "OTHER"
+                                                                          : "AUTO";
+                                                                      openShardDetail({
+                                                                        service: serviceName,
+                                                                        asset_group: catName,
+                                                                        venue: name,
+                                                                        day: date,
+                                                                        instrument_type: itGuess,
+                                                                        data_type: dtName,
+                                                                      });
+                                                                    }}
+                                                                  />
                                                                 </div>
                                                               </details>
                                                             )}
@@ -4727,32 +4849,21 @@ function DataStatusTabInternal({
                                                                 )}
                                                               </summary>
                                                               <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {foundDatesList.map((date: string) =>
-                                                                  catName === "SPORTS" && name === "FIXTURES" ? (
-                                                                    <span key={date} className="inline-flex items-center gap-0.5">
-                                                                      <button
-                                                                        type="button"
-                                                                        onClick={() => toggleFixtureBreakdown(date, leagueName, false)}
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
-                                                                        title={`Expand per-fixture breakdown for ${leagueName} on ${date}`}
-                                                                        data-testid={`fixture-date-toggle-${leagueName}-${date}`}
-                                                                      >
-                                                                        {date}
-                                                                      </button>
-                                                                      <a
-                                                                        href={buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
-                                                                        className="text-[6px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
-                                                                        title={`Download league-day FIXTURES CSV for ${leagueName} on ${date}`}
-                                                                        download
-                                                                      >
-                                                                        ⬇
-                                                                      </a>
-                                                                    </span>
-                                                                  ) : (
+                                                                {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                  <DateList
+                                                                    dates={foundDatesList}
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                    testIdPrefix={`fixture-date-toggle-${leagueName}`}
+                                                                    onClickDate={(date) => toggleFixtureBreakdown(date, leagueName, false)}
+                                                                    downloadUrl={(date) => buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
+                                                                    downloadTitle={(date) => `Download league-day FIXTURES CSV for ${leagueName} on ${date}`}
+                                                                  />
+                                                                ) : (
+                                                                  foundDatesList.map((date: string) => (
                                                                     <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
                                                                       {date}
                                                                     </span>
-                                                                  ),
+                                                                  ))
                                                                 )}
                                                               </div>
                                                             </details>
@@ -4766,23 +4877,19 @@ function DataStatusTabInternal({
                                                                 )}
                                                               </summary>
                                                               <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {missingDatesList.map((date: string) =>
-                                                                  catName === "SPORTS" && name === "FIXTURES" ? (
-                                                                    <button
-                                                                      key={date}
-                                                                      type="button"
-                                                                      onClick={() => toggleFixtureBreakdown(date, leagueName, true)}
-                                                                      className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
-                                                                      title={`Expand expected fixtures for ${leagueName} on ${date} — read-only (no data to download)`}
-                                                                      data-testid={`fixture-date-toggle-missing-${leagueName}-${date}`}
-                                                                    >
-                                                                      {date}
-                                                                    </button>
-                                                                  ) : (
+                                                                {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                  <DateList
+                                                                    dates={missingDatesList}
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
+                                                                    testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
+                                                                    onClickDate={(date) => toggleFixtureBreakdown(date, leagueName, true)}
+                                                                  />
+                                                                ) : (
+                                                                  missingDatesList.map((date: string) => (
                                                                     <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
                                                                       {date}
                                                                     </span>
-                                                                  ),
+                                                                  ))
                                                                 )}
                                                               </div>
                                                             </details>
@@ -4811,58 +4918,25 @@ function DataStatusTabInternal({
                                                   <details>
                                                     <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                       {subData.dates_found} available {catName === "SPORTS" ? "fixtures" : "dates"}
-                                                      {SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" && (
-                                                        <span className="ml-1 text-[var(--color-text-muted)]">
-                                                          {(serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
-                                                            ? "· ⬇ downloads availability catalog CSV"
-                                                            : "· ⬇ downloads shard CSV"}
-                                                        </span>
-                                                      )}
                                                     </summary>
                                                     <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                      {foundList.map((date: string) =>
-                                                        SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" ? (
-                                                          <span key={date} className="inline-flex items-center gap-0.5">
-                                                            {/* Click date → ShardDetailModal (schema + sample + instruments + download).
-                                                            For shard-csv services we still keep the ⬇ as a 1-click shortcut. */}
-                                                            <button
-                                                              type="button"
-                                                              className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                              title={`Show shard details for ${date}`}
-                                                              data-testid={`shard-csv-date-found-${name}-${date}`}
-                                                              onClick={() => openShardDetail({
-                                                                service: serviceName,
-                                                                asset_group: catName,
-                                                                instrument_type: "AUTO",
-                                                                data_type: "AUTO",
-                                                                day: date,
-                                                                venue: name,
-                                                              })}
-                                                            >
-                                                              {date}
-                                                            </button>
-                                                            <a
-                                                              href={buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date })}
-                                                              className="text-[7px] font-mono px-0.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline"
-                                                              title={(serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
-                                                                ? `Download availability catalog CSV for ${name} on ${date}`
-                                                                : `Download shard CSV for ${name} on ${date}`}
-                                                              download
-                                                            >
-                                                              ⬇
-                                                            </a>
-                                                          </span>
-                                                        ) : (
-                                                          <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
-                                                            {date}
-                                                          </span>
-                                                        ),
-                                                      )}
-                                                      {subData.dates_found > foundList.length && (
-                                                        <span className="text-[8px] text-[var(--color-text-muted)]">
-                                                          +{subData.dates_found - foundList.length} more
-                                                        </span>
-                                                      )}
+                                                      <DateList
+                                                        dates={foundList}
+                                                        btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                        testIdPrefix={`shard-csv-date-found-${name}`}
+                                                        onClickDate={(date) => openShardDetail({
+                                                          service: serviceName,
+                                                          asset_group: catName,
+                                                          instrument_type: "AUTO",
+                                                          data_type: "AUTO",
+                                                          day: date,
+                                                          venue: name,
+                                                        })}
+                                                        downloadUrl={(date) => buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date })}
+                                                        downloadTitle={(date) => (serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
+                                                          ? `Download availability catalog CSV for ${name} on ${date}`
+                                                          : `Download shard CSV for ${name} on ${date}`}
+                                                      />
                                                     </div>
                                                   </details>
                                                 )}
@@ -4872,33 +4946,19 @@ function DataStatusTabInternal({
                                                       {missingCount} missing {catName === "SPORTS" ? "fixtures" : "dates"}
                                                     </summary>
                                                     <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                      {missingList.map((date: string) =>
-                                                        /* Missing dates are clickable too — modal opens with capture_status=missing
-                                                           so the user can see the expected schema and a "shard not present" panel. */
-                                                        SHARD_CSV_DOWNLOAD_SERVICES.has(serviceName) && catName !== "SPORTS" ? (
-                                                          <button
-                                                            key={date}
-                                                            type="button"
-                                                            className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                            title={`Show shard details (missing) for ${date}`}
-                                                            data-testid={`shard-csv-date-missing-${name}-${date}`}
-                                                            onClick={() => openShardDetail({
-                                                              service: serviceName,
-                                                              asset_group: catName,
-                                                              instrument_type: "AUTO",
-                                                              data_type: "AUTO",
-                                                              day: date,
-                                                              venue: name,
-                                                            })}
-                                                          >
-                                                            {date}
-                                                          </button>
-                                                        ) : (
-                                                          <span key={date} className="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
-                                                            {date}
-                                                          </span>
-                                                        ),
-                                                      )}
+                                                      <DateList
+                                                        dates={missingList}
+                                                        btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                        testIdPrefix={`shard-csv-date-missing-${name}`}
+                                                        onClickDate={(date) => openShardDetail({
+                                                          service: serviceName,
+                                                          asset_group: catName,
+                                                          instrument_type: "AUTO",
+                                                          data_type: "AUTO",
+                                                          day: date,
+                                                          venue: name,
+                                                        })}
+                                                      />
                                                       {missingCount > missingList.length && (
                                                         <span className="text-[8px] text-[var(--color-text-muted)]">
                                                           +{missingCount - missingList.length} more

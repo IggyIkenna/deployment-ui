@@ -97,6 +97,7 @@ import type {
   Deployment,
   DeploymentEventStream,
   DeploymentRequest,
+  DimensionStatus,
   DiscoverConfigsResponse,
   EpicDetail,
   EpicSummary,
@@ -1359,6 +1360,8 @@ export interface DataTypeCheckResponse {
           completion_percent: number;
         };
       };
+      feature_groups?: Record<string, DimensionStatus>;
+      timeframes?: Record<string, DimensionStatus>;
     };
   };
 }
@@ -1993,6 +1996,8 @@ export function buildShardDownloadUrl(params: {
   asset_group: string;
   venue: string;
   date: string;
+  data_type?: string;
+  instrument_type?: string;
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2000,6 +2005,12 @@ export function buildShardDownloadUrl(params: {
     venue: params.venue,
     date: params.date,
   });
+  if (params.data_type) {
+    qp.set("data_type", params.data_type);
+  }
+  if (params.instrument_type) {
+    qp.set("instrument_type", params.instrument_type);
+  }
   return `${API_BASE}/data-status/download-shard-csv?${qp.toString()}`;
 }
 
