@@ -1605,7 +1605,176 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // ─── VM deployments (Phase 4b — VM-backed pipeline observability) ───
+  if (path.startsWith("/api/vm-deployments") && method === "GET") {
+    const m = path.match(/^\/api\/vm-deployments\/([^/?]+)$/);
+    if (m) {
+      return json(_mockVmDeployment(decodeURIComponent(m[1]), "running"));
+    }
+    return json({
+      active: [
+        _mockVmDeployment(
+          "vm-2026-04-30-tradfi-bf-btc-heavy-2024-06",
+          "running",
+        ),
+        _mockVmDeployment(
+          "vm-2026-04-30-tradfi-bf-eth-light-2025",
+          "running",
+        ),
+      ],
+      recent: [
+        _mockVmDeployment(
+          "vm-2026-04-29-cefi-binance-futures-2024",
+          "completed",
+        ),
+        _mockVmDeployment("vm-2026-04-29-cefi-bybit-2024", "completed"),
+        _mockVmDeployment("vm-2026-04-28-mtds-options-may2025", "failed"),
+      ],
+      archive_days: 7,
+    });
+  }
+
+  // ─── Client subscriptions (Phase 4b — SLA / isolation) ───
+  if (path === "/subscriptions/" || path === "/subscriptions") {
+    if (method === "POST") {
+      const sub = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json(
+        _mockClientSubscription(String(sub.client_id ?? "client-new")),
+        201,
+      );
+    }
+    return json([
+      _mockClientSubscription("acme-trading", "premium"),
+      _mockClientSubscription("research-fund-a", "standard"),
+      _mockClientSubscription("smoke-test-client", "basic"),
+    ]);
+  }
+  const subMatch = path.match(/^\/subscriptions\/([^/]+)$/);
+  if (subMatch) {
+    const clientId = decodeURIComponent(subMatch[1]);
+    if (method === "PUT") {
+      const patch = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json({
+        ..._mockClientSubscription(clientId),
+        ...patch,
+      });
+    }
+    return json(_mockClientSubscription(clientId));
+  }
+
+  // ─── Chaos injections (Phase 4b — controlled fault injection) ───
+  if (path.startsWith("/chaos/injections")) {
+    const idMatch = path.match(/^\/chaos\/injections\/([^/?]+)$/);
+    if (idMatch && method === "DELETE") {
+      return json({ revoked: decodeURIComponent(idMatch[1]) });
+    }
+    if (method === "POST") {
+      const spec = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json(
+        {
+          injection_id: `chaos-${Date.now()}`,
+          point: spec.point ?? "venue_latency",
+          target_service: spec.target_service ?? "execution-service",
+          parameters: spec.parameters ?? {},
+          active_from: new Date().toISOString(),
+          active_until: spec.active_until ?? null,
+          created_by: "mock-operator",
+          runtime_profile: spec.runtime_profile ?? "staging",
+        },
+        201,
+      );
+    }
+    return json([
+      _mockChaosInjection(
+        "chaos-venue-latency-001",
+        "venue_latency",
+        "execution-service",
+        "staging",
+      ),
+      _mockChaosInjection(
+        "chaos-rpc-timeout-002",
+        "rpc_timeout",
+        "market-tick-data-service",
+        "paper",
+      ),
+    ]);
+  }
+
   return json({ error: "Mock: no handler", path }, 404);
+}
+
+function _mockVmDeployment(deploymentId: string, status: string) {
+  const startedAt = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  const lastHb = new Date(Date.now() - 30_000).toISOString();
+  const completedAt =
+    status === "running"
+      ? null
+      : new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const exitCode =
+    status === "running" ? null : status === "completed" ? 0 : 1;
+  return {
+    deployment_id: deploymentId,
+    vm_name: deploymentId.replace(/^vm-\d{4}-\d{2}-\d{2}-/, ""),
+    asset_group: "tradfi",
+    task: "backfill",
+    mode: "batch",
+    start_date: "2024-01-01",
+    end_date: "2024-12-31",
+    status,
+    started_at: startedAt,
+    last_heartbeat_at: lastHb,
+    completed_at: completedAt,
+    exit_code: exitCode,
+    rows_in: status === "running" ? 18432 : 31_240,
+    rows_out: status === "running" ? 18430 : 31_238,
+    rows_error: status === "failed" ? 7 : 0,
+    events_emitted: 412,
+    log_uri: `gs://deployment-scripts-central-element-323112/vm-logs/${deploymentId}/run.log`,
+  };
+}
+
+function _mockClientSubscription(clientId: string, tier: string = "standard") {
+  return {
+    client_id: clientId,
+    sla_tier: tier,
+    service_overrides: [
+      {
+        service_name: "execution-service",
+        isolation: tier === "premium" ? "isolated" : "shared",
+      },
+      {
+        service_name: "strategy-service",
+        isolation: tier === "premium" ? "isolated" : "shared",
+      },
+    ],
+    active_from: "2026-01-01T00:00:00Z",
+    active_until: null,
+    note: `Mock subscription for ${clientId}`,
+  };
+}
+
+function _mockChaosInjection(
+  injectionId: string,
+  point: string,
+  targetService: string,
+  runtimeProfile: string,
+) {
+  return {
+    injection_id: injectionId,
+    point,
+    target_service: targetService,
+    parameters: { latency_ms: "250", probability: "0.05" },
+    active_from: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    active_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    created_by: "mock-operator",
+    runtime_profile: runtimeProfile,
+  };
 }
 
 export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
@@ -1622,7 +1791,11 @@ export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
     if (
       url.includes("/api/") ||
       url.includes("/cloud-builds/") ||
-      url.includes("/service-status/")
+      url.includes("/service-status/") ||
+      url.includes("/subscriptions/") ||
+      url.includes("/subscriptions?") ||
+      url.endsWith("/subscriptions") ||
+      url.includes("/chaos/injections")
     ) {
       return handleRoute(url, init);
     }
