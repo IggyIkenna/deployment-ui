@@ -440,6 +440,18 @@ export interface DataTypeStatus {
   status?: "complete" | "partial" | "missing";
 }
 
+// Per-dimension breakdown shape used for timeframe + feature_group on
+// features-* services. Mirrors DataTypeStatus shape so the UI can render
+// either with the same component, just with a different label.
+export interface DimensionStatus {
+  dates_found: number;
+  dates_expected: number;
+  dates_missing: number;
+  dates_found_list?: string[];
+  missing_dates?: string[];
+  completion_pct: number;
+}
+
 // Turbo mode venue status with venue-specific expected dates
 export interface TurboVenueStatus {
   dates_found: number;
@@ -450,6 +462,9 @@ export interface TurboVenueStatus {
   is_expected: boolean;
   status: "expected" | "bonus";
   data_types?: Record<string, DataTypeStatus>; // per-data-type breakdown
+  // Features-* service dimensions (manifest v5 timeframe + feature_group columns).
+  timeframes?: Record<string, DimensionStatus>;
+  feature_groups?: Record<string, DimensionStatus>;
 }
 
 export interface AssetGroupStatus {

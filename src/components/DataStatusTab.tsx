@@ -39,7 +39,7 @@ import {
   formatRatePerDay,
   isRateMetricRow,
 } from "../lib/utils";
-import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse, TurboVenueStatus } from "../types";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -116,6 +116,7 @@ const SUB_DIMENSION_LABELS: Record<string, string> = {
   venues: "Venues",
   data_types: "Data Types",
   feature_groups: "Feature Groups",
+  timeframes: "Timeframes",
   strategies: "Strategies",
   models: "Models",
   modes: "Modes",
@@ -3107,6 +3108,94 @@ function DataStatusTabInternal({
                                 </div>
                               </div>
                             )}
+
+                            {/* Expanded: Feature-group breakdown (features-* services). */}
+                            {isExpanded &&
+                              (venueData as TurboVenueStatus).feature_groups &&
+                              Object.keys((venueData as TurboVenueStatus).feature_groups || {}).length > 0 && (
+                                <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
+                                  <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
+                                    Feature Groups
+                                  </div>
+                                  <div className="grid gap-2">
+                                    {Object.entries((venueData as TurboVenueStatus).feature_groups || {}).map(
+                                      ([fgName, fgData]) => {
+                                        const fgComplete = fgData.completion_pct === 100;
+                                        return (
+                                          <div
+                                            key={fgName}
+                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              {fgComplete ? (
+                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                              ) : (
+                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                              )}
+                                              <span className="font-mono text-sm">{fgName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span
+                                                className="text-sm font-medium"
+                                                style={{ color: getCompletionColor(fgData.completion_pct) }}
+                                              >
+                                                {fgData.completion_pct.toFixed(0)}%
+                                              </span>
+                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                                {fgData.dates_found}/{fgData.dates_expected}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      },
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                            {/* Expanded: Timeframe breakdown (features-* services). */}
+                            {isExpanded &&
+                              (venueData as TurboVenueStatus).timeframes &&
+                              Object.keys((venueData as TurboVenueStatus).timeframes || {}).length > 0 && (
+                                <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
+                                  <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
+                                    Timeframes
+                                  </div>
+                                  <div className="grid gap-2">
+                                    {Object.entries((venueData as TurboVenueStatus).timeframes || {}).map(
+                                      ([tfName, tfData]) => {
+                                        const tfComplete = tfData.completion_pct === 100;
+                                        return (
+                                          <div
+                                            key={tfName}
+                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              {tfComplete ? (
+                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                              ) : (
+                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                              )}
+                                              <span className="font-mono text-sm">{tfName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span
+                                                className="text-sm font-medium"
+                                                style={{ color: getCompletionColor(tfData.completion_pct) }}
+                                              >
+                                                {tfData.completion_pct.toFixed(0)}%
+                                              </span>
+                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                                {tfData.dates_found}/{tfData.dates_expected}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      },
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                           </div>
                         );
                       },
