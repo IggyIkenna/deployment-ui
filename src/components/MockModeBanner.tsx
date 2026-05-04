@@ -34,7 +34,12 @@ function useBackendHealth(): BackendState {
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await fetch("/api/health", { signal: AbortSignal.timeout(3000) });
+        // 15s timeout — long enough to absorb the deployment-api's per-VM
+        // shard merge fallback path (kicks in when the consolidated manifest
+        // blob is older than 120s; the live merge can take 5-10s on cold
+        // caches). Short enough to surface a genuine backend outage within
+        // half a poll interval.
+        const res = await fetch("/api/health", { signal: AbortSignal.timeout(15000) });
         if (!res.ok) {
           if (!cancelled) setState({ kind: "unreachable", reason: `HTTP ${res.status}` });
           return;
