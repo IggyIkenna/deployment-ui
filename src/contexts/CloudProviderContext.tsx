@@ -32,10 +32,27 @@ const PORT_MAP: Record<CloudTarget, number> = {
 };
 
 function getApiBaseUrl(t: CloudTarget): string {
-  // In dev mode, use the Vite proxy to avoid CORS issues
+  // Dev: use the Vite proxy to avoid CORS issues
   if (import.meta.env.DEV) {
     return "/api";
   }
+  // Production build served from the same origin as the backend
+  // (Cloud Run, single-image Docker bundle, etc.) — use a relative URL
+  // so requests stay on the deployed origin instead of escaping to
+  // localhost. Without this guard the production bundle hardcoded
+  // ``http://localhost:8004/api``, which silently routed UI requests
+  // to whatever was running on the user's laptop on port 8004
+  // (typically a long-running ``deployment-api --mode real`` from
+  // dev-start.sh) — causing minutes of cross-region GCS reads while
+  // appearing as "the Cloud Run UI is slow".
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return "/api";
+  }
+  // Local prod build (vite preview against a locally-running backend)
   return `http://localhost:${PORT_MAP[t]}/api`;
 }
 
