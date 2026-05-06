@@ -7,9 +7,12 @@ import {
   fetchShardInfo,
   fetchShardSchema,
   retryFailedShard,
+  smartShardDownload,
   type BucketCountsResponse,
   type BundlePreviewResponse,
   type InstrumentsForShardResponse,
+  type ShardDownloadResult,
+  type ShardDownloadStatus,
   type ShardInfoResponse,
   type ShardInstrumentEntry,
   type ShardSchemaResponse,
@@ -81,6 +84,27 @@ export interface ShardCoordinate {
   day: string;
   instrument_type: string;
   data_type: string;
+  // v7 multi-axis fields — Phase 3 of
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // Populated when the operator drills into a multi-axis leaf
+  // (DEFI chain, sports per-league/per-fixture, ML per-experiment-run,
+  // strategy/execution per-job, prediction per-question-group, or
+  // any features-* per-feature_group/per-timeframe slice). All
+  // optional — older click sites that pre-date Phase 3 keep their
+  // pre-v7 shape and the schema/download endpoints fall back to the
+  // base axes.
+  chain?: string;
+  instrument_id?: string;
+  league_id?: string;
+  fixture_id?: string;
+  canonical_question_group?: string;
+  job_id?: string;
+  model_family?: string;
+  training_period?: string;
+  strategy_id?: string;
+  instruction_type?: string;
+  feature_group?: string;
+  timeframe?: string;
 }
 
 // Page size for the InstrumentsModal — matches the backend DEFAULT_INSTRUMENT_LIMIT.
@@ -99,6 +123,159 @@ function isPlausibleInstrumentId(candidate: string): boolean {
 }
 
 /* =========================================================================
+ * SmartDownloadButton — Phase 3 of
+ * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ *
+ * Wraps the deployment-api download endpoints (which now return
+ * ``X-Capture-Status`` per the multi-axis-drilldown contract) so the
+ * operator sees the right empty-state message inline next to the
+ * button — distinguishes:
+ *   - captured (happy path) → file downloads + green confirmation.
+ *   - empty_confirmed → file downloads (CSV body explains the honest
+ *     empty in `# CAPTURE_STATUS` comment lines) AND an amber inline
+ *     alert tells the operator "source returned no rows; this is an
+ *     honest empty, not a missing day".
+ *   - attempted_failed → same as empty_confirmed but red; alert
+ *     shows the manifest's error_reason.
+ *   - never_attempted → no file; amber inline panel "adapter never
+ *     ran for this shard".
+ *   - path_drift → no file; RED banner "manifest claims captured
+ *     but downloader read 0 rows — likely writer/downloader path
+ *     drift; run the phantom audit".
+ *   - unknown → red banner with the raw error.
+ * ========================================================================= */
+
+function statusBannerStyle(status: ShardDownloadStatus): string {
+  switch (status) {
+    case "captured":
+      return "border-[var(--color-accent-green)] text-[var(--color-accent-green)]";
+    case "empty_confirmed":
+    case "never_attempted":
+      return "border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)]";
+    case "attempted_failed":
+    case "path_drift":
+    case "unknown":
+    default:
+      return "border-[var(--color-accent-red)] text-[var(--color-accent-red)]";
+  }
+}
+
+function statusBannerHeadline(status: ShardDownloadStatus): string {
+  switch (status) {
+    case "captured":
+      return "Downloaded";
+    case "empty_confirmed":
+      return "Empty (confirmed)";
+    case "attempted_failed":
+      return "Adapter failed";
+    case "never_attempted":
+      return "Never attempted";
+    case "path_drift":
+      return "Path drift — manifest says captured, downloader found 0 rows";
+    case "unknown":
+    default:
+      return "Download error";
+  }
+}
+
+function statusBannerBody(result: ShardDownloadResult): string {
+  switch (result.status) {
+    case "captured":
+      return `${result.filename ?? "shard.csv"}${
+        result.rowCount !== undefined ? ` · ${result.rowCount.toLocaleString()} rows` : ""
+      }`;
+    case "empty_confirmed":
+      return (
+        "Source returned 0 rows for this shard. NaN downstream is fine — " +
+        "tree-based ML and rank-based allocators handle missing data " +
+        "natively. The CSV explains the per-shard reason in its # comment " +
+        "lines."
+      );
+    case "attempted_failed":
+      return (
+        result.message?.split("\n").find((l) => l.startsWith("# error_reason:"))
+          ?.replace("# error_reason:", "")
+          .trim() ??
+        result.message ??
+        "Adapter ran and raised; see manifest error_reason in the CSV body."
+      );
+    case "never_attempted":
+      return (
+        "No manifest row exists for this shard — the adapter never ran. " +
+        "Trigger a backfill from the Data Status tab."
+      );
+    case "path_drift":
+      return (
+        result.message ??
+        "Manifest claims captured but downloader read 0 rows. Likely " +
+          "writer/downloader path-template drift. Run the phantom audit " +
+          "(instruments-service/scripts/reconcile_phantom_manifest_rows_all.py)."
+      );
+    case "unknown":
+    default:
+      return result.message ?? "Unknown download error.";
+  }
+}
+
+export function SmartDownloadButton({
+  urlBuilder,
+  label,
+  className,
+  testId,
+}: {
+  urlBuilder: () => string;
+  label: string;
+  className?: string;
+  testId?: string;
+}) {
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<ShardDownloadResult | null>(null);
+
+  async function onClick() {
+    setPending(true);
+    setResult(null);
+    try {
+      const r = await smartShardDownload(urlBuilder());
+      setResult(r);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        data-testid={testId}
+        className={
+          className ??
+          "px-3 py-1.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium disabled:opacity-50"
+        }
+      >
+        {pending ? "Loading…" : label}
+      </button>
+      {result && (
+        <div
+          role="status"
+          data-testid={testId ? `${testId}-status` : undefined}
+          data-capture-status={result.status}
+          className={`mt-1 rounded border px-2 py-1 text-[11px] ${statusBannerStyle(
+            result.status,
+          )}`}
+        >
+          <div className="font-medium">{statusBannerHeadline(result.status)}</div>
+          <div className="text-[10px] text-[var(--color-text-muted)] break-words whitespace-pre-wrap">
+            {statusBannerBody(result)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
  * Schema modal
  * -------------------------------------------------------------------------
  * Fetches the SchemaContract columns for (category, instrument_type,
@@ -110,7 +287,18 @@ export function SchemaModal({
   coord,
   onClose,
 }: {
-  coord: Omit<ShardCoordinate, "day">;
+  /**
+   * Full ShardCoordinate including optional v7 axes. SchemaModal now
+   * threads every multi-axis field through to /data-status/schema so
+   * the deepest leaf-shard parquet is projected — DEFI per-chain,
+   * sports per-(league_id, fixture_id), ML per-(model_family,
+   * training_period, job_id), strategy/execution per-(strategy_id,
+   * job_id), prediction per-canonical_question_group, features-* per-
+   * (feature_group, timeframe). Older click sites that pre-date Phase
+   * 3 keep their pre-v7 shape and the server-side projection falls
+   * back to the base axes.
+   */
+  coord: ShardCoordinate;
   onClose: () => void;
 }) {
   const [schema, setSchema] = useState<ShardSchemaResponse | null>(null);
@@ -124,6 +312,19 @@ export function SchemaModal({
       instrument_type: coord.instrument_type,
       data_type: coord.data_type,
       venue: coord.venue,
+      day: coord.day,
+      chain: coord.chain,
+      instrument_id: coord.instrument_id,
+      league_id: coord.league_id,
+      fixture_id: coord.fixture_id,
+      canonical_question_group: coord.canonical_question_group,
+      job_id: coord.job_id,
+      model_family: coord.model_family,
+      training_period: coord.training_period,
+      strategy_id: coord.strategy_id,
+      instruction_type: coord.instruction_type,
+      feature_group: coord.feature_group,
+      timeframe: coord.timeframe,
     })
       .then((s) => {
         if (!cancelled) setSchema(s);
@@ -154,13 +355,53 @@ export function SchemaModal({
     coord.instrument_type,
     coord.data_type,
     coord.venue,
+    coord.day,
+    coord.chain,
+    coord.instrument_id,
+    coord.league_id,
+    coord.fixture_id,
+    coord.canonical_question_group,
+    coord.job_id,
+    coord.model_family,
+    coord.training_period,
+    coord.strategy_id,
+    coord.instruction_type,
+    coord.feature_group,
+    coord.timeframe,
   ]);
 
+  // Build a one-line "leaf shard" identifier for the modal title so the
+  // operator can confirm at a glance which shard the schema corresponds
+  // to. Only renders the axes the operator actually drilled into; an
+  // empty list collapses to the legacy "instrument_type / data_type"
+  // title for backward compat.
+  const leafLabelParts = [
+    coord.chain,
+    coord.league_id,
+    coord.fixture_id,
+    coord.canonical_question_group,
+    coord.job_id,
+    coord.model_family,
+    coord.training_period,
+    coord.strategy_id,
+    coord.instruction_type,
+    coord.feature_group,
+    coord.timeframe,
+    coord.instrument_id,
+  ].filter((v): v is string => !!v);
+  const titleSuffix =
+    leafLabelParts.length > 0
+      ? leafLabelParts.join(" / ")
+      : [coord.instrument_type, coord.data_type].filter(Boolean).join(" / ") ||
+        coord.data_type ||
+        "(unknown)";
+
+  const isProjection = schema?.source === "PARQUET_PROJECTION";
+  const noSchemaYet =
+    !!schema && schema.source === "none" && schema.columns.length === 0;
+
   return (
-    <ModalShell
-      title={`Schema: ${[coord.instrument_type, coord.data_type].filter(Boolean).join(" / ") || coord.data_type || "(unknown)"}`}
-      onClose={onClose}
-    >
+    <ModalShell title={`Schema: ${titleSuffix}`} onClose={onClose}>
       {error && (
         <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
       )}
@@ -178,9 +419,36 @@ export function SchemaModal({
               </>
             )}
           </div>
-          {!schema.registered && (
+          {isProjection && schema.projected_from && (
+            <div className="text-xs text-[var(--color-text-muted)]">
+              Projected from{" "}
+              <span className="font-mono break-all">{schema.projected_from}</span>
+            </div>
+          )}
+          {noSchemaYet && (
+            <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-2 text-xs">
+              <div className="font-medium text-[var(--color-accent-yellow)]">
+                No schema yet
+              </div>
+              <div className="mt-1 text-[var(--color-text-muted)]">
+                No UAC contract is registered for this leaf shard AND no
+                parquet was found on disk to project columns from. Either
+                the writer hasn&apos;t shipped this axis yet (Phase&nbsp;1
+                of the multi-axis-shard plan) or the path-template the
+                projection probes doesn&apos;t match what the writer
+                emits — file the latter as a path-drift bug. Schema will
+                appear here automatically once the writer lands.
+              </div>
+              {schema.message && (
+                <div className="mt-2 text-[var(--color-text-muted)] italic">
+                  {schema.message}
+                </div>
+              )}
+            </div>
+          )}
+          {!schema.registered && !isProjection && !noSchemaYet && (
             <div className="text-xs text-[var(--color-accent-yellow)]">
-              No contract registered — the UI will project raw parquet columns.
+              No contract registered — the UI projected raw parquet columns.
             </div>
           )}
           {schema.columns.length > 0 && (
@@ -422,7 +690,7 @@ function InstrumentsModalStandard({
     setOffset((prev) => prev + PAGE_SIZE);
   }
 
-  function submitPaste() {
+  async function submitPaste() {
     const candidate = pasteInput.trim();
     if (!isPlausibleInstrumentId(candidate)) {
       setPasteError("Invalid instrument_id — no spaces, commas, or newlines allowed.");
@@ -437,14 +705,28 @@ function InstrumentsModalStandard({
       instrument_type: activeInstrumentType,
       data_type: coord.data_type,
       instrument_ids: [candidate],
+      chain: coord.chain,
+      league_id: coord.league_id,
+      job_id: coord.job_id,
     });
-    // Trigger download via a hidden link — avoids a navigation away from the UI.
-    const a = document.createElement("a");
-    a.href = url;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    // Phase 3: route through smartShardDownload so empty_confirmed /
+    // attempted_failed / never_attempted / path_drift surface as paste-
+    // error feedback rather than silently saving a confusing 0-byte file.
+    const result = await smartShardDownload(url);
+    if (result.status === "captured") return;
+    setPasteError(
+      result.status === "empty_confirmed"
+        ? "Source returned 0 rows for this shard (honest empty)."
+        : result.status === "attempted_failed"
+          ? `Adapter failed: ${result.message ?? "see manifest error_reason"}`
+          : result.status === "never_attempted"
+            ? "Adapter never ran for this shard — trigger a backfill."
+            : result.status === "path_drift"
+              ? `Path drift — manifest claims captured but downloader read 0 rows. ${
+                  result.message ?? ""
+                }`
+              : (result.message ?? "Unknown download error."),
+    );
   }
 
   const downloadUrl = listing
@@ -554,11 +836,8 @@ function InstrumentsModalStandard({
         {schemaOpen && listing && (
           <SchemaModal
             coord={{
-              service: coord.service,
-              asset_group: coord.asset_group,
-              venue: coord.venue,
+              ...coord,
               instrument_type: activeInstrumentType,
-              data_type: coord.data_type,
             }}
             onClose={() => setSchemaOpen(false)}
           />
@@ -720,12 +999,12 @@ function InstrumentsModalStandard({
               {selected.size === 0 && loadedInstruments.length > 0 && " (empty = full shard)"}
             </span>
             {downloadUrl && (
-              <a
-                href={downloadUrl}
-                className="px-2 py-1 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium"
-              >
-                Download CSV
-              </a>
+              <SmartDownloadButton
+                urlBuilder={() => downloadUrl}
+                label="Download CSV"
+                className="px-2 py-1 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium disabled:opacity-50"
+                testId="shard-download-csv"
+              />
             )}
           </div>
         </div>
@@ -733,11 +1012,8 @@ function InstrumentsModalStandard({
       {schemaOpen && listing && (
         <SchemaModal
           coord={{
-            service: coord.service,
-            asset_group: coord.asset_group,
-            venue: coord.venue,
+            ...coord,
             instrument_type: activeInstrumentType,
-            data_type: coord.data_type,
           }}
           onClose={() => setSchemaOpen(false)}
         />
@@ -832,12 +1108,12 @@ function BundleRow({
         >
           {previewOpen ? "Hide symbols" : "Preview symbols inside"}
         </button>
-        <a
-          href={downloadUrl}
-          className="px-2 py-0.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium text-[10px]"
-        >
-          Download {instrument.instrument_id} bundle
-        </a>
+        <SmartDownloadButton
+          urlBuilder={() => downloadUrl}
+          label={`Download ${instrument.instrument_id} bundle`}
+          className="px-2 py-0.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium text-[10px] disabled:opacity-50"
+          testId={`bundle-download-${instrument.instrument_id}`}
+        />
       </div>
       {previewOpen && (
         <div className="mt-1 ml-2 pl-2 border-l border-[var(--color-border-subtle)]">
@@ -904,12 +1180,12 @@ function InstrumentsServiceShardModal({
           Instruments reference data is low-cardinality — one file per day per venue.
         </div>
         <div className="flex gap-2">
-          <a
-            href={downloadUrl}
-            className="px-3 py-1.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium"
-          >
-            Download day CSV
-          </a>
+          <SmartDownloadButton
+            urlBuilder={() => downloadUrl}
+            label="Download day CSV"
+            className="px-3 py-1.5 rounded bg-[var(--color-accent-cyan)] text-[var(--color-bg-primary)] font-medium disabled:opacity-50"
+            testId="instruments-day-download"
+          />
           <button
             type="button"
             className="underline"
@@ -921,13 +1197,7 @@ function InstrumentsServiceShardModal({
       </div>
       {schemaOpen && (
         <SchemaModal
-          coord={{
-            service: coord.service,
-            asset_group: coord.asset_group,
-            venue: coord.venue,
-            instrument_type: coord.instrument_type,
-            data_type: coord.data_type,
-          }}
+          coord={coord}
           onClose={() => setSchemaOpen(false)}
         />
       )}

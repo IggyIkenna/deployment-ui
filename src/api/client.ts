@@ -1683,10 +1683,20 @@ export interface ShardSchemaResponse {
   data_type: string;
   venue: string | null;
   symbol_column: string | null;
+  /**
+   * Source of the schema columns:
+   * - `CONTRACT_REGISTRY` / `VENUE_CONTRACT_OVERRIDES` — UAC contract.
+   * - `PARQUET_PROJECTION` — registry has no entry, columns are
+   *   projected from the actual parquet on GCS at `projected_from`.
+   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+   * - `none` — no contract AND no parquet found; the UI should show
+   *   "no schema yet" rather than blank.
+   */
   source: string;
   columns: SchemaColumnSpec[];
   required_row_count_min?: number;
   message?: string;
+  projected_from?: string;
 }
 
 export async function fetchShardSchema(params: {
@@ -1695,6 +1705,26 @@ export async function fetchShardSchema(params: {
   instrument_type: string;
   data_type: string;
   venue?: string;
+  // v7 multi-axis params (Phase 3 of
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md). The
+  // /api/data-status/schema endpoint uses these to probe the DEEPEST
+  // shard parquet — DEFI per-chain, sports per-league/per-fixture, ML
+  // per-experiment-run, strategy/execution per-job_id, etc. Each leaf
+  // parquet has its own column shape; the schema view should never
+  // collapse or aggregate.
+  day?: string;
+  chain?: string;
+  instrument_id?: string;
+  league_id?: string;
+  fixture_id?: string;
+  canonical_question_group?: string;
+  job_id?: string;
+  model_family?: string;
+  training_period?: string;
+  strategy_id?: string;
+  instruction_type?: string;
+  feature_group?: string;
+  timeframe?: string;
 }): Promise<ShardSchemaResponse> {
   const qp = new URLSearchParams({
     service: params.service,
@@ -1703,6 +1733,21 @@ export async function fetchShardSchema(params: {
     data_type: params.data_type,
   });
   if (params.venue) qp.set("venue", params.venue);
+  if (params.day) qp.set("day", params.day);
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.fixture_id) qp.set("fixture_id", params.fixture_id);
+  if (params.canonical_question_group) {
+    qp.set("canonical_question_group", params.canonical_question_group);
+  }
+  if (params.job_id) qp.set("job_id", params.job_id);
+  if (params.model_family) qp.set("model_family", params.model_family);
+  if (params.training_period) qp.set("training_period", params.training_period);
+  if (params.strategy_id) qp.set("strategy_id", params.strategy_id);
+  if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
+  if (params.feature_group) qp.set("feature_group", params.feature_group);
+  if (params.timeframe) qp.set("timeframe", params.timeframe);
   return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
 }
 
@@ -2030,6 +2075,15 @@ export function buildCsvDownloadUrl(params: {
   instrument_type: string;
   data_type: string;
   instrument_ids: string[];
+  // v7 multi-axis filters — Phase 3 of
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // Server reads manifest capture_status using these axes BEFORE
+  // touching the parquet so the response distinguishes empty_confirmed
+  // (honest empty) from path_drift (manifest claims captured but
+  // downloader can't find rows).
+  chain?: string;
+  league_id?: string;
+  job_id?: string;
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2040,6 +2094,9 @@ export function buildCsvDownloadUrl(params: {
     data_type: params.data_type,
     instrument_ids: params.instrument_ids.join(","),
   });
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.job_id) qp.set("job_id", params.job_id);
   return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
 }
 
@@ -2069,6 +2126,10 @@ export function buildShardDownloadUrl(params: {
   date: string;
   data_type?: string;
   instrument_type?: string;
+  // v7 multi-axis filters (Phase 3 — see buildCsvDownloadUrl above).
+  chain?: string;
+  league_id?: string;
+  job_id?: string;
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2082,6 +2143,9 @@ export function buildShardDownloadUrl(params: {
   if (params.instrument_type) {
     qp.set("instrument_type", params.instrument_type);
   }
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.job_id) qp.set("job_id", params.job_id);
   return `${API_BASE}/data-status/download-shard-csv?${qp.toString()}`;
 }
 
@@ -2096,6 +2160,131 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
     league_id: params.league_id,
   });
   return `${API_BASE}/data-status/download-fixtures-csv?${qp.toString()}`;
+}
+
+/**
+ * Smart shard CSV download — Phase 3 of
+ * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ *
+ * Fetches the URL via fetch(), reads the ``X-Capture-Status`` response
+ * header, and returns one of five branches so the UI can render the
+ * right empty-state panel BEFORE (or alongside) triggering the actual
+ * file download. Distinguishes:
+ *
+ *   - "captured" — manifest claims rows AND parquet read returned >0
+ *     rows. Triggers a Blob-based download.
+ *   - "empty_confirmed" — adapter ran, source returned 0 rows
+ *     legitimately. The response body is a header-only CSV explaining
+ *     the honest empty; we still trigger the download (operator sees
+ *     the CSV's # comment lines) AND return the status so the caller
+ *     can render an inline alert.
+ *   - "attempted_failed" — adapter ran and raised. Same shape as
+ *     empty_confirmed but the alert flags an error.
+ *   - "never_attempted" — manifest has no row at all (HTTP 404). No
+ *     file is downloaded; caller renders an inline panel.
+ *   - "path_drift" — manifest claims captured but downloader read
+ *     0 rows (HTTP 502). No file is downloaded; caller renders a
+ *     red banner with the drift hint.
+ *   - "unknown" — anything else (network error, 500, missing header).
+ *
+ * Returns the resolved status + an optional ``message`` from the
+ * response body for the non-captured branches.
+ */
+export type ShardDownloadStatus =
+  | "captured"
+  | "empty_confirmed"
+  | "attempted_failed"
+  | "never_attempted"
+  | "path_drift"
+  | "unknown";
+
+export interface ShardDownloadResult {
+  status: ShardDownloadStatus;
+  filename?: string;
+  message?: string;
+  rowCount?: number;
+}
+
+export async function smartShardDownload(
+  url: string,
+): Promise<ShardDownloadResult> {
+  let resp: Response;
+  try {
+    resp = await fetch(url, { credentials: "include" });
+  } catch (e) {
+    return {
+      status: "unknown",
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  const headerStatus = resp.headers.get("X-Capture-Status") ?? "";
+  const rowCountStr = resp.headers.get("X-Row-Count") ?? "";
+  const rowCount = rowCountStr ? parseInt(rowCountStr, 10) : undefined;
+
+  // Resolve canonical status. Servers older than Phase 3 deployment-api
+  // 85053fe will not set X-Capture-Status; map by HTTP code instead.
+  let status: ShardDownloadStatus = "unknown";
+  if (
+    headerStatus === "captured" ||
+    headerStatus === "empty_confirmed" ||
+    headerStatus === "attempted_failed" ||
+    headerStatus === "never_attempted" ||
+    headerStatus === "path_drift"
+  ) {
+    status = headerStatus;
+  } else if (resp.ok) {
+    status = "captured";
+  } else if (resp.status === 404) {
+    status = "never_attempted";
+  } else if (resp.status === 502) {
+    status = "path_drift";
+  }
+
+  // Pull filename from Content-Disposition.
+  const cd = resp.headers.get("Content-Disposition") ?? "";
+  const fnMatch = /filename="([^"]+)"/.exec(cd);
+  const filename = fnMatch?.[1];
+
+  if (!resp.ok) {
+    let body = "";
+    try {
+      body = await resp.text();
+    } catch {
+      // ignore
+    }
+    return { status, message: body || resp.statusText, filename };
+  }
+
+  // Trigger the actual download for captured AND honest empties /
+  // attempted_failed (the body has the explanation in CSV comment lines).
+  if (
+    status === "captured" ||
+    status === "empty_confirmed" ||
+    status === "attempted_failed"
+  ) {
+    let blob: Blob;
+    try {
+      blob = await resp.blob();
+    } catch (e) {
+      return {
+        status: "unknown",
+        message: e instanceof Error ? e.message : String(e),
+        rowCount,
+      };
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename ?? "shard.csv";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  }
+
+  return { status, filename, rowCount };
 }
 
 /**
