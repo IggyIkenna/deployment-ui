@@ -1250,10 +1250,17 @@ export const UPSTREAM_CHECK_SERVICES = [
 ];
 
 // Services that support turbo mode (GCS/S3 blob listing — L1-L3 dimension-based)
+//
+// 2026-05-06: removed market-data-processing-service from this list. Its turbo
+// path hangs >90s on a 1-day window in local dev (the service has too many
+// per-(date, venue, data_type, instrument_type) shards for the GCS-listing-based
+// turbo aggregator). MDPS is already in MANIFEST_MODE_SERVICES below; the
+// manifest-based path is faster and was specifically built for high-cardinality
+// services like this one. Keeping it in both lists caused the UI to fall back
+// to turbo and time out before the manifest path got tried.
 export const TURBO_MODE_SERVICES = [
   "instruments-service",
   "market-tick-data-handler",
-  "market-data-processing-service",
   "features-delta-one-service",
   "features-calendar-service",
   "features-onchain-service",
