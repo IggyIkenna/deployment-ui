@@ -41,6 +41,7 @@ import {
   isRateMetricRow,
 } from "../lib/utils";
 import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import { BreakdownsAccordion } from "./BreakdownsAccordion";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -493,6 +494,18 @@ function DataStatusTabInternal({
     return () => controller.abort();
   }, [serviceName]);
 
+  // Phase 3 — auto-fetch per-(service, asset_group) shard/display/primary
+  // axis SSOT alongside coverage-summary. The two fetches are independent
+  // and run in parallel.
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .getShardAxisMatrix(serviceName, controller.signal)
+      .then((result) => setShardAxisMatrix(result))
+      .catch(() => setShardAxisMatrix(null));
+    return () => controller.abort();
+  }, [serviceName]);
+
   // First day of month filter - useful for TARDIS free tier (no API key needed)
   const [firstDayOfMonthOnly, setFirstDayOfMonthOnly] = useState(false);
 
@@ -560,6 +573,17 @@ function DataStatusTabInternal({
   const [coverageSummary, setCoverageSummary] =
     useState<api.CoverageSummaryResponse | null>(null);
   const [coverageSummaryLoading, setCoverageSummaryLoading] = useState(false);
+
+  // Per-(service, asset_group) shard / display / primary axis SSOT — Phase 3
+  // of data_status_multi_axis_shard_propagation_2026_05_06.plan.md. Drives
+  // the per-asset-group BreakdownsAccordion + downstream secondary-axis
+  // selectors (DEFI chain, sports league_id, strategy job_id, etc.). On
+  // fetch failure or empty payload the accordion silently no-ops — the
+  // venue-pill list above stays intact, so a Phase 0/2 deploy lag
+  // (deployment-api older image, axis-matrix endpoint missing) doesn't
+  // break the existing UI surface.
+  const [shardAxisMatrix, setShardAxisMatrix] =
+    useState<api.ShardAxisMatrixResponse | null>(null);
 
   // Venue toggle removed - turbo mode handles venue breakdown automatically
   // instruments-service uses sub_dimension: "venue" which gives venue breakdown in turbo mode
@@ -1637,7 +1661,18 @@ function DataStatusTabInternal({
 
                 {/* Per asset group breakdown (CeFi / DeFi / TradFi / …) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {Object.entries(coverageSummary.asset_groups ?? {}).map(([cat, catData]) => (
+                  {Object.entries(coverageSummary.asset_groups ?? {}).map(([cat, catData]) => {
+                    // Phase 3 (data_status_multi_axis_shard_propagation): pull
+                    // per-(service, asset_group) breakdown axes from UAC SSOT
+                    // via deployment-api /api/config/shard-axis-matrix. Empty
+                    // axes (writer hasn't populated the column yet) still
+                    // render with a "no data yet" placeholder by design — UI
+                    // shape leads, writers follow.
+                    const axisKey = cat.toLowerCase();
+                    const breakdownAxes =
+                      shardAxisMatrix?.breakdown_axes?.[serviceName]?.[axisKey] ?? [];
+                    const breakdowns = catData.breakdowns ?? {};
+                    return (
                     <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
@@ -1652,8 +1687,18 @@ function DataStatusTabInternal({
                       </div>
                       {/* Instrument type pills — show first 8 with expandable overflow */}
                       <VenuePillList venues={catData.latest_day_instruments} />
+                      {breakdownAxes.length > 0 ? (
+                        <div className="mt-3">
+                          <BreakdownsAccordion
+                            axes={breakdownAxes}
+                            breakdowns={breakdowns}
+                            title="Breakdowns"
+                          />
+                        </div>
+                      ) : null}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : null}

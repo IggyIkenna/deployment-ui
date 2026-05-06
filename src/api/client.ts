@@ -1055,12 +1055,26 @@ export async function getDataStatusTurbo(params: {
  * Reads consolidated parquet index files instead of listing blobs.
  * Works with both GCS and S3 (cloud-agnostic).
  * Returns the same shape as turbo for UI compatibility.
+ *
+ * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * adds optional `secondary_axis` + per-shard filter params (league_id /
+ * fixture_id / canonical_question_group / job_id / chain) for the
+ * deployment-ui axis-selector drill-down. Empty/omitted == today's
+ * behaviour. The rollup fast-path is bypassed by deployment-api when any
+ * row filter is set (rollup is filter-free), so filtered queries fall
+ * through to the on-demand path automatically.
  */
 export async function getDataStatusManifest(params: {
   service: string;
   start_date: string;
   end_date: string;
   asset_group?: string[];
+  secondary_axis?: string;
+  league_id?: string;
+  fixture_id?: string;
+  canonical_question_group?: string;
+  job_id?: string;
+  chain?: string;
   signal?: AbortSignal;
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
@@ -1070,22 +1084,72 @@ export async function getDataStatusManifest(params: {
   if (params.asset_group) {
     params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
+  if (params.secondary_axis) searchParams.set("secondary_axis", params.secondary_axis);
+  if (params.league_id) searchParams.set("league_id", params.league_id);
+  if (params.fixture_id) searchParams.set("fixture_id", params.fixture_id);
+  if (params.canonical_question_group) {
+    searchParams.set("canonical_question_group", params.canonical_question_group);
+  }
+  if (params.job_id) searchParams.set("job_id", params.job_id);
+  if (params.chain) searchParams.set("chain", params.chain);
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,
   });
 }
 
-// Coverage summary — manifest totals + latest-day unique instrument counts
+/**
+ * Per-(service, asset_group) shard / display / primary axis SSOT.
+ *
+ * Source: unified_api_contracts.registry.data_status_axis_matrix (Phase 0
+ * of data_status_multi_axis_shard_propagation_2026_05_06.plan.md). Drives
+ * the axis-selector dropdowns in DataStatusTab — DEFI panels render a
+ * chain dropdown, sports a league_id dropdown, strategy/execution a
+ * job_id picker, ml-training a model_family + training_period selector,
+ * etc. The four maps are keyed `service -> asset_group -> tuple|str`.
+ *
+ * `breakdown_axes` is the union of shard + display minus primary,
+ * preserving the SHARD-then-DISPLAY ordering — the
+ * `BreakdownsAccordion` consumes this directly.
+ */
+export interface ShardAxisMatrixResponse {
+  shard_axes: Record<string, Record<string, string[]>>;
+  display_axes: Record<string, Record<string, string[]>>;
+  primary_axis: Record<string, Record<string, string>>;
+  breakdown_axes: Record<string, Record<string, string[]>>;
+}
+
+export async function getShardAxisMatrix(
+  service?: string,
+  signal?: AbortSignal,
+): Promise<ShardAxisMatrixResponse> {
+  const qs = service ? `?service=${encodeURIComponent(service)}` : "";
+  return fetchJson(`/config/shard-axis-matrix${qs}`, { signal });
+}
+
+// Coverage summary — manifest totals + latest-day unique instrument counts.
+//
+// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+// adds the `breakdowns` map: per-axis (chain / league_id / job_id /
+// model_family / canonical_question_group / etc.) value->count from the
+// UAC SHARD_AXIS_MATRIX SSOT. Each axis's empty `{}` means the axis
+// applies to this (service, asset_group) per the SSOT but no manifest
+// row has populated it yet — render an empty selector + "no data yet"
+// placeholder. Old rows with an empty value collapse under the
+// synthetic `__legacy__` key so the UI can call them out as
+// pre-Phase-1B.
 export interface CoverageCategorySummary {
   total_shards: number;
   total_instrument_rows: number;
+  total_instruments?: number;
   unique_dates: number;
   unique_venues: number;
   sub_dimension_label?: string;
+  group_axis?: string;
   date_range: { start: string; end: string } | null;
   latest_day: string | null;
   latest_day_instruments: Record<string, number>;
   latest_day_total: number;
+  breakdowns?: Record<string, Record<string, number>>;
 }
 
 export interface CoverageSummaryResponse {
