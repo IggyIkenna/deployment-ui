@@ -253,7 +253,22 @@ function DrilldownNodeRow({
           // Leaf-row controls: per-leaf CSV download + Deploy-Missing
           // surgical-recovery button. Only render when the row_key has
           // enough fields to produce a meaningful action.
+          //
+          // Deploy-Missing requires the FULL shard-atom (venue +
+          // data_type + day at minimum). Intermediate "leaves" at
+          // ``expand_to_depth=1`` may have ``is_leaf=true`` for the
+          // tree-rendering shape but only carry the partial row_key
+          // matching their depth (e.g. just {venue}). Calling the
+          // /deploy-missing-preview endpoint with such a row_key
+          // returns 400 from the backend's required-field validation.
+          // Render the button only when the row_key composes a
+          // workable shard.
           const downloadUrl = _leafDownloadUrl(service, assetGroup, node.row_key);
+          const rk = node.row_key;
+          const hasFullShardKey =
+            !!rk.venue &&
+            !!rk.data_type &&
+            (!!rk.day || !!rk.date);
           const isMissingShard = node.captured === 0;
           return (
             <span className="drilldown-leaf-controls">
@@ -268,7 +283,7 @@ function DrilldownNodeRow({
                   ↓ csv
                 </a>
               )}
-              {isMissingShard && (
+              {isMissingShard && hasFullShardKey && (
                 <DeployMissingButton
                   service={service}
                   assetGroup={assetGroup}
