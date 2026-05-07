@@ -50,9 +50,11 @@ import {
   type ShardCoordinate,
 } from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
+import { FailurePillarStack } from "./FailurePillarStack";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
+import { TypedReasonBadges } from "./TypedReasonBadges";
 import {
   ShardDetailModal,
   type ShardDetailCoordInput,
@@ -4332,6 +4334,19 @@ function DataStatusTabInternal({
                                                 {blockedOnRawTotal} blocked on raw
                                               </span>
                                             )}
+                                            {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
+                                                empty_reasons closed taxonomies) + failure-pillar stacked
+                                                bar. Both auto-suppress when every count is zero so the
+                                                summary line stays compact for healthy venues. */}
+                                            <TypedReasonBadges
+                                              emptyReasons={subData.empty_reasons}
+                                              failurePillars={subData.failure_pillars}
+                                              testIdPrefix={`venue-${name}`}
+                                            />
+                                            <FailurePillarStack
+                                              failurePillars={subData.failure_pillars}
+                                              testIdPrefix={`venue-${name}`}
+                                            />
                                             {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
                                             {(() => {
                                               const firstDt =
