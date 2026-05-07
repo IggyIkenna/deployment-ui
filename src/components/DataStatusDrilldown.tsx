@@ -394,6 +394,7 @@ export function SchemaModal({
       ? leafLabelParts.join(" / ")
       : [coord.instrument_type, coord.data_type].filter(Boolean).join(" / ") ||
         coord.data_type ||
+        coord.venue ||
         "(unknown)";
 
   const isProjection = schema?.source === "PARQUET_PROJECTION";
@@ -430,20 +431,10 @@ export function SchemaModal({
               <div className="font-medium text-[var(--color-accent-yellow)]">
                 No schema yet
               </div>
-              <div className="mt-1 text-[var(--color-text-muted)]">
-                No UAC contract is registered for this leaf shard AND no
-                parquet was found on disk to project columns from. Either
-                the writer hasn&apos;t shipped this axis yet (Phase&nbsp;1
-                of the multi-axis-shard plan) or the path-template the
-                projection probes doesn&apos;t match what the writer
-                emits — file the latter as a path-drift bug. Schema will
-                appear here automatically once the writer lands.
-              </div>
-              {schema.message && (
-                <div className="mt-2 text-[var(--color-text-muted)] italic">
-                  {schema.message}
-                </div>
-              )}
+              <pre className="mt-1 text-[var(--color-text-muted)] whitespace-pre-wrap font-mono text-[11px] leading-snug">
+                {schema.message ??
+                  "No UAC contract registered for this leaf shard AND no parquet found on disk to project columns from. Either the writer hasn't shipped yet or the projection path-template doesn't match the on-disk layout — file the latter as a path-drift bug."}
+              </pre>
             </div>
           )}
           {!schema.registered && !isProjection && !noSchemaYet && (

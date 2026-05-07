@@ -1697,6 +1697,13 @@ export interface ShardSchemaResponse {
   required_row_count_min?: number;
   message?: string;
   projected_from?: string;
+  /**
+   * GCS URIs the projection probed when ``source === "none"``. Surfaced
+   * in the modal so a path-drift bug is actionable — operator can run
+   * ``gcloud storage ls <uri>`` and see whether the parquet exists at
+   * a different layout than the projection template expects.
+   */
+  probed_paths?: string[];
 }
 
 export async function fetchShardSchema(params: {

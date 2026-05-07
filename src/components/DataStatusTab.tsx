@@ -1678,7 +1678,7 @@ function DataStatusTabInternal({
                   <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
                     {coverageSummary.totals.latest_day_instruments.toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">unique venues (latest day)</div>
+                  <div className="text-[10px] text-[var(--color-text-muted)]">instruments (latest day, sum across asset groups)</div>
                 </div>
               )}
             </div>
@@ -4382,7 +4382,17 @@ function DataStatusTabInternal({
                                               })()}
                                               {(() => {
                                                 const firstDt = subData.data_types ? Object.keys(subData.data_types)[0] : undefined;
-                                                const schemaDt = catName === "SPORTS" ? name : (firstDt ?? "AUTO");
+                                                // Empty data_type triggers the backend's
+                                                // ``instrument_catalogue`` synthesis branch for
+                                                // instruments-service so the venue-level click
+                                                // resolves to the registered
+                                                // ``CONTRACT_REGISTRY[("tradfi",
+                                                // "instrument_catalogue", "instrument_catalogue")]``
+                                                // contract. The previous "AUTO" placeholder
+                                                // literal broke the synthesis and made every
+                                                // instruments-service venue schema view return
+                                                // "no schema yet".
+                                                const schemaDt = catName === "SPORTS" ? name : (firstDt ?? "");
                                                 const schemaVenue = catName === "SPORTS" ? "" : name;
                                                 return (
                                                   <button
