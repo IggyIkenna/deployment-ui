@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as apiClient from "../api/client";
@@ -199,5 +199,272 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     expect(callArg.asset_group).toBe("defi");
     expect(callArg.start_date).toBe("2024-03-01");
     expect(callArg.end_date).toBe("2024-03-04");
+  });
+
+  it("renders the empty state when tree is empty", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([]),
+    );
+    render(
+      <HierarchicalShardDrilldown
+        service="market-tick-data-service"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/No data for cefi/)).toBeTruthy(),
+    );
+  });
+
+  it("renders the error state when the fetch rejects", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockRejectedValue(
+      new Error("API down"),
+    );
+    render(
+      <HierarchicalShardDrilldown
+        service="market-tick-data-service"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toMatch(/Failed to load drill-down/),
+    );
+  });
+
+  it("ignores AbortError without surfacing an error banner", async () => {
+    const abortErr = Object.assign(new Error("aborted"), { name: "AbortError" });
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockRejectedValue(abortErr);
+    render(
+      <HierarchicalShardDrilldown
+        service="market-tick-data-service"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    // Should not display a "Failed to load" banner — instead the empty
+    // / loading state stays.
+    await waitFor(() => {
+      expect(screen.queryByText(/Failed to load drill-down/)).toBeNull();
+    });
+  });
+
+  it("renders empty + failed pills when totals carry empty/failed counts", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue({
+      service: "mtds",
+      asset_group: "cefi",
+      axes: ["venue", "date"],
+      tree: [
+        _node({
+          axis: "venue",
+          value: "BINANCE",
+          captured: 5,
+          empty_confirmed: 2,
+          attempted_failed: 1,
+          total: 8,
+          completion_pct: 62.5,
+          row_key: { venue: "BINANCE" },
+        }),
+      ],
+      totals: {
+        captured: 5,
+        empty_confirmed: 2,
+        attempted_failed: 1,
+        total: 8,
+        completion_pct: 62.5,
+      },
+      filtered_by: {},
+    });
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/2 empty/)).toBeTruthy());
+    expect(screen.getByText(/1 failed/)).toBeTruthy();
+    // Per-node empty + failed badges also render.
+    expect(screen.getByText(/2e/)).toBeTruthy();
+    expect(screen.getByText(/1f/)).toBeTruthy();
+  });
+
+  it("renders the load-more button when total_top_axis_children exceeds shown rows", async () => {
+    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue({
+      service: "mtds",
+      asset_group: "cefi",
+      axes: ["venue"],
+      tree: [
+        _node({ axis: "venue", value: "V1", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V1" } }),
+      ],
+      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
+      filtered_by: {},
+      total_top_axis_children: 5,
+      child_offset: 0,
+      child_limit: 1,
+    });
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+        topPageSize={1}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/Showing 1 of 5/)).toBeTruthy(),
+    );
+    expect(screen.getByText(/Show more/)).toBeTruthy();
+
+    // Click load-more — second fetch with bumped offset should fire.
+    spy.mockResolvedValueOnce({
+      service: "mtds",
+      asset_group: "cefi",
+      axes: ["venue"],
+      tree: [
+        _node({ axis: "venue", value: "V2", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V2" } }),
+      ],
+      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
+      filtered_by: {},
+      total_top_axis_children: 5,
+      child_offset: 1,
+      child_limit: 1,
+    });
+    fireEvent.click(screen.getByText(/Show more/));
+    await waitFor(() => expect(screen.getByText(/V2/)).toBeTruthy());
+  });
+
+  it("does not render load-more when shown >= total_top_axis_children", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue({
+      service: "mtds",
+      asset_group: "cefi",
+      axes: ["venue"],
+      tree: [
+        _node({ axis: "venue", value: "V1", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V1" } }),
+      ],
+      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
+      filtered_by: {},
+      total_top_axis_children: 1,
+      child_offset: 0,
+      child_limit: 200,
+    });
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/V1/)).toBeTruthy());
+    expect(screen.queryByText(/Show more/)).toBeNull();
+  });
+
+  it("expands a non-leaf node + lazy-loads children on click", async () => {
+    const spy = vi
+      .spyOn(apiClient, "getHierarchicalDrilldown")
+      .mockResolvedValueOnce(
+        _mockResponse([
+          _node({
+            axis: "venue",
+            value: "BINANCE",
+            captured: 10,
+            total: 20,
+            completion_pct: 50,
+            row_key: { venue: "BINANCE" },
+            children: [],
+            is_leaf: false,
+          }),
+        ]),
+      );
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/BINANCE/)).toBeTruthy());
+
+    spy.mockResolvedValueOnce(
+      _mockResponse([
+        _node({
+          axis: "data_type",
+          value: "trades",
+          captured: 5,
+          total: 10,
+          completion_pct: 50,
+          row_key: { venue: "BINANCE", data_type: "trades" },
+          is_leaf: false,
+        }),
+      ]),
+    );
+    fireEvent.click(
+      screen.getByLabelText(/venue=BINANCE: 10 captured of 20 total/),
+    );
+    await waitFor(() => expect(screen.getByText(/trades/)).toBeTruthy());
+  });
+
+  it("renders the csv download link when leaf has venue + day", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2024-01-03",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: {
+            venue: "CME",
+            data_type: "trades",
+            instrument_type: "FUTURE",
+            day: "2024-01-03",
+          },
+          is_leaf: true,
+        }),
+      ]),
+    );
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="tradfi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/csv/)).toBeTruthy());
+  });
+
+  it("does not render the csv link when leaf row_key lacks venue or day", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "venue",
+          value: "BINANCE",
+          captured: 0,
+          total: 1,
+          completion_pct: 0,
+          row_key: { venue: "BINANCE" }, // no day → downloadUrl null
+          is_leaf: true,
+        }),
+      ]),
+    );
+    render(
+      <HierarchicalShardDrilldown
+        service="mtds"
+        assetGroup="cefi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/BINANCE/)).toBeTruthy());
+    expect(screen.queryByText(/csv/)).toBeNull();
   });
 });
