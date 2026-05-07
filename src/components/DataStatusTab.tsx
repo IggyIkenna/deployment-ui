@@ -585,6 +585,17 @@ function DataStatusTabInternal({
   const [shardAxisMatrix, setShardAxisMatrix] =
     useState<api.ShardAxisMatrixResponse | null>(null);
 
+  // Manifest secondary-axis filter — set when the operator clicks a value
+  // in the per-asset-group BreakdownsAccordion (DEFI chain, sports league,
+  // strategy job_id, …). Drives a re-fetch of /api/data-status/manifest
+  // with `?secondary_axis={axis}&{axis}={value}` so the cell grid scopes
+  // to that filter. Cleared via the "Clear filter" button in the active-
+  // filter banner. Phase 3 of data_status_multi_axis_shard_propagation.
+  const [manifestFilter, setManifestFilter] = useState<{
+    axis: string;
+    value: string;
+  } | null>(null);
+
   // Venue toggle removed - turbo mode handles venue breakdown automatically
   // instruments-service uses sub_dimension: "venue" which gives venue breakdown in turbo mode
   const supportsVenueCheck = false;
@@ -673,13 +684,32 @@ function DataStatusTabInternal({
           setDataTypeCheckData(result);
         } else if (useManifestMode) {
           // MANIFEST MODE: Reads consolidated parquet index (fastest path)
-          // Works with both GCS and S3 (cloud-agnostic)
+          // Works with both GCS and S3 (cloud-agnostic).
+          //
+          // Secondary-axis filter: when the operator selects a value in the
+          // per-asset-group BreakdownsAccordion, `manifestFilter` is set
+          // and we thread (a) `secondary_axis={axis}` to ask the API to
+          // include that column in the response, and (b) the per-axis
+          // filter param (chain / league_id / fixture_id /
+          // canonical_question_group / job_id) so the response is scoped.
+          // Filter cleared via the active-filter banner.
+          const filterAxis = manifestFilter?.axis;
+          const filterValue = manifestFilter?.value;
           const result = await api.getDataStatusManifest({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
             asset_group:
               selectedCategories.length > 0 ? selectedCategories : undefined,
+            secondary_axis: filterAxis,
+            chain: filterAxis === "chain" ? filterValue : undefined,
+            league_id: filterAxis === "league_id" ? filterValue : undefined,
+            fixture_id: filterAxis === "fixture_id" ? filterValue : undefined,
+            canonical_question_group:
+              filterAxis === "canonical_question_group"
+                ? filterValue
+                : undefined,
+            job_id: filterAxis === "job_id" ? filterValue : undefined,
             signal: abortController.signal,
           });
 
@@ -802,8 +832,22 @@ function DataStatusTabInternal({
       requireFreshness,
       freshnessDate,
       dataStatusMode,
+      manifestFilter,
     ],
   );
+
+  // Re-fetch the manifest when the secondary-axis filter changes. We
+  // don't want to wait for the next user-driven date change — clicking a
+  // chain pill should produce an immediate scoped result. Only fires in
+  // manifest mode (manifest is the only mode that consumes the filter).
+  useEffect(() => {
+    if (!useManifestMode) return;
+    if (!startDate || !endDate) return;
+    void fetchData(startDate, endDate);
+    // We deliberately depend on the filter object identity — fetchData
+    // already closes over manifestFilter via its useCallback deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manifestFilter]);
 
   // Clear data status cache only (doesn't affect deployment state cache)
   const handleClearDataStatusCache = useCallback(async () => {
@@ -1693,6 +1737,9 @@ function DataStatusTabInternal({
                             axes={breakdownAxes}
                             breakdowns={breakdowns}
                             title="Breakdowns"
+                            onSelectValue={(axis, value) =>
+                              setManifestFilter({ axis, value })
+                            }
                           />
                         </div>
                       ) : null}
@@ -3323,6 +3370,33 @@ function DataStatusTabInternal({
         )}
 
       {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
+      {/* Manifest secondary-axis filter banner — surfaces the active filter
+          set from the BreakdownsAccordion so the operator can clear it.
+          Phase 3 of data_status_multi_axis_shard_propagation. */}
+      {manifestFilter && (
+        <div
+          className="rounded border border-[var(--color-accent-cyan)] bg-[var(--color-bg-tertiary)] px-3 py-2 text-xs flex items-center justify-between gap-3"
+          data-testid="manifest-filter-banner"
+        >
+          <span className="font-mono">
+            <span className="text-[var(--color-text-muted)]">Filter active:</span>{" "}
+            <strong>{manifestFilter.axis}</strong>
+            <span className="text-[var(--color-text-muted)]">=</span>
+            <strong>{manifestFilter.value}</strong>
+            <span className="text-[var(--color-text-muted)] ml-2">
+              · cell grid scoped to this value
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setManifestFilter(null)}
+            className="rounded border border-[var(--color-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--color-bg-hover)]"
+            data-testid="manifest-filter-clear"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
       {turboData && turboData.date_range && !checkVenues && !checkDataTypes && (
         <>
           {/* Summary Card */}
