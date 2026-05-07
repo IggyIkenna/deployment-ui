@@ -689,6 +689,105 @@ export async function getDataStatus(params: {
   return raw;
 }
 
+// ===========================================================================
+// Hierarchical shard-atom drill-down — drilldown plan Phase 1/2.
+// ===========================================================================
+
+/** One node in the per-(service, asset_group) hierarchical drill-down tree.
+ *
+ * Returned by ``GET /api/data-status/drilldown/{service}/{asset_group}``.
+ * Mirrors ``DrilldownNode.to_dict()`` in
+ * ``deployment_api/services/data_status_hierarchical.py``.
+ */
+export interface DrilldownNode {
+  axis: string;
+  value: string;
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  total: number;
+  completion_pct: number;
+  row_key: Record<string, string>;
+  children: DrilldownNode[];
+  is_leaf: boolean;
+}
+
+export interface DrilldownTotals {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  total: number;
+  completion_pct: number;
+}
+
+export interface DrilldownResponse {
+  service: string;
+  asset_group: string;
+  axes: string[];
+  tree: DrilldownNode[];
+  totals: DrilldownTotals;
+  filtered_by: Record<string, string>;
+  manifest_uri?: string;
+  mock?: boolean;
+}
+
+export interface DrilldownPair {
+  service: string;
+  asset_group: string;
+  axes: string[];
+}
+
+const _DRILLDOWN_FILTER_KEYS: readonly string[] = [
+  "chain",
+  "venue",
+  "data_type",
+  "instrument_type",
+  "instrument_id",
+  "league_id",
+  "feature_group",
+  "timeframe",
+  "canonical_question_group",
+] as const;
+
+export async function getHierarchicalDrilldown(params: {
+  service: string;
+  asset_group: string;
+  start_date: string;
+  end_date: string;
+  filters?: Record<string, string>;
+  expand_to_depth?: number;
+  signal?: AbortSignal;
+}): Promise<DrilldownResponse> {
+  const sp = new URLSearchParams();
+  sp.set("start_date", params.start_date);
+  sp.set("end_date", params.end_date);
+  if (params.expand_to_depth != null) {
+    sp.set("expand_to_depth", String(params.expand_to_depth));
+  }
+  for (const key of _DRILLDOWN_FILTER_KEYS) {
+    const val = params.filters?.[key];
+    if (val != null && val !== "") {
+      sp.set(key, val);
+    }
+  }
+  return fetchJson<DrilldownResponse>(
+    `/data-status/drilldown/${encodeURIComponent(params.service)}/${encodeURIComponent(
+      params.asset_group,
+    )}?${sp.toString()}`,
+    { signal: params.signal },
+  );
+}
+
+export async function getDrilldownSupportedPairs(opts?: {
+  signal?: AbortSignal;
+}): Promise<DrilldownPair[]> {
+  const res = await fetchJson<{ pairs: DrilldownPair[] }>(
+    `/data-status/drilldown-pairs`,
+    { signal: opts?.signal },
+  );
+  return res.pairs ?? [];
+}
+
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
 export interface UpcomingFixture {
   fixture_id: string;
