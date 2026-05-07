@@ -802,12 +802,31 @@ export interface DeployMissingPreviewResponse {
   launcher_script: string;
   command: string;
   notes: string[];
+  mode: DeployMissingMode;
+  warnings: string[];
 }
+
+/** Launch modes supported by the Deploy-Missing flow.
+ *
+ * - ``preview`` — bash invocation against the GCS tarball that's
+ *   currently in ``deployment-scripts-{pid}``. Operator copies + runs
+ *   from their authenticated terminal. Safe in any environment.
+ * - ``tarball-from-local`` — pairs the launcher with a
+ *   ``create-code-tarballs.sh --all`` step that bundles the operator's
+ *   local working tree before the VM launches. **ONLY works from the
+ *   operator's workstation** — never from a Cloud Run pod / CI runner.
+ *   Strong UI warning required.
+ *
+ * Future modes (auto-launch) live behind the
+ * ``deploy_missing_auto_launch_2026_05_07`` successor plan.
+ */
+export type DeployMissingMode = "preview" | "tarball-from-local";
 
 export async function postDeployMissingPreview(params: {
   service: string;
   asset_group: string;
   row_key: Record<string, string>;
+  mode?: DeployMissingMode;
   signal?: AbortSignal;
 }): Promise<DeployMissingPreviewResponse> {
   return fetchJson<DeployMissingPreviewResponse>(
@@ -819,6 +838,7 @@ export async function postDeployMissingPreview(params: {
         service: params.service,
         asset_group: params.asset_group,
         row_key: params.row_key,
+        mode: params.mode ?? "preview",
       }),
       signal: params.signal,
     },

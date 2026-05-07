@@ -19,6 +19,7 @@
 import { useCallback, useState } from "react";
 
 import {
+  type DeployMissingMode,
   type DeployMissingPreviewResponse,
   postDeployMissingPreview,
 } from "../api/client";
@@ -41,21 +42,46 @@ export function DeployMissingButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<DeployMissingMode>("preview");
+
+  const fetchPreview = useCallback(
+    (nextMode: DeployMissingMode) => {
+      setLoading(true);
+      setError(null);
+      postDeployMissingPreview({
+        service,
+        asset_group: assetGroup,
+        row_key: rowKey,
+        mode: nextMode,
+      })
+        .then((res) => {
+          setPreview(res);
+        })
+        .catch((e: unknown) => {
+          setError(String(e));
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    },
+    [service, assetGroup, rowKey],
+  );
 
   const handleClick = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    postDeployMissingPreview({ service, asset_group: assetGroup, row_key: rowKey })
-      .then((res) => {
-        setPreview(res);
-      })
-      .catch((e: unknown) => {
-        setError(String(e));
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [service, assetGroup, rowKey]);
+    fetchPreview(mode);
+  }, [fetchPreview, mode]);
+
+  const handleSwitchMode = useCallback(
+    (nextMode: DeployMissingMode) => {
+      setMode(nextMode);
+      // Re-fetch immediately if a preview is already open so the
+      // displayed command + warnings stay in sync with the toggle.
+      if (preview) {
+        fetchPreview(nextMode);
+      }
+    },
+    [fetchPreview, preview],
+  );
 
   const handleCopy = useCallback(() => {
     if (!preview) {
@@ -103,6 +129,67 @@ export function DeployMissingButton({
               ×
             </button>
           </div>
+
+          {/* Mode toggle: preview (against current GCS tarball) vs
+              tarball-from-local (bundle local working tree first). The
+              tarball-from-local mode renders prominent warnings below
+              because it ONLY works from the operator's workstation. */}
+          <div
+            className="deploy-missing-mode-toggle"
+            role="radiogroup"
+            aria-label="Deploy mode"
+            style={{
+              display: "flex",
+              gap: "8px",
+              fontSize: "11px",
+              marginBottom: "6px",
+            }}
+          >
+            <label style={{ cursor: "pointer" }}>
+              <input
+                type="radio"
+                name={`deploy-missing-mode-${preview.shard_key}`}
+                checked={mode === "preview"}
+                onChange={() => handleSwitchMode("preview")}
+              />{" "}
+              preview (current GCS tarball)
+            </label>
+            <label style={{ cursor: "pointer" }}>
+              <input
+                type="radio"
+                name={`deploy-missing-mode-${preview.shard_key}`}
+                checked={mode === "tarball-from-local"}
+                onChange={() => handleSwitchMode("tarball-from-local")}
+              />{" "}
+              tarball-from-local (bundle my local code first)
+            </label>
+          </div>
+
+          {preview.warnings.length > 0 && (
+            <div
+              className="deploy-missing-warnings"
+              role="alert"
+              style={{
+                background: "#3a1f00",
+                border: "1px solid #8a5a00",
+                color: "#ffcc66",
+                padding: "6px 8px",
+                borderRadius: "4px",
+                fontSize: "11px",
+                marginBottom: "6px",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: "4px" }}>
+                ⚠ Mode warning
+              </strong>
+              <ul style={{ margin: 0, paddingLeft: "16px" }}>
+                {preview.warnings.map((w, idx) => (
+                  <li key={idx}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <pre className="deploy-missing-command">{preview.command}</pre>
           <div className="deploy-missing-actions">
             <button type="button" onClick={handleCopy} className="copy">
@@ -111,6 +198,19 @@ export function DeployMissingButton({
           </div>
           <div className="deploy-missing-meta">
             <code className="shard-key">{preview.shard_key}</code>
+            <span
+              className="deploy-missing-mode-badge"
+              style={{
+                marginLeft: "8px",
+                fontSize: "10px",
+                padding: "1px 6px",
+                borderRadius: "3px",
+                background: mode === "tarball-from-local" ? "#8a5a00" : "#1f3a5a",
+                color: "#fff",
+              }}
+            >
+              {preview.mode}
+            </span>
           </div>
           {preview.notes.length > 0 && (
             <ul className="deploy-missing-notes">
