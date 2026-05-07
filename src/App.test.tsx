@@ -2,19 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "./App";
 
-vi.mock("@unified-trading/ui-auth", () => ({
-  AuthProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+vi.mock("./auth/RequireAuth", () => ({
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useAuth: () => ({
-    isAuthenticated: true,
-    isLoading: false,
-    login: vi.fn(),
-    logout: vi.fn(),
-    token: "test_token",
-    user: null,
-  }),
 }));
 vi.mock("./components/Header", () => ({ Header: () => <div>Header</div> }));
 vi.mock("./components/ServiceList", () => ({
@@ -61,7 +50,14 @@ vi.mock("./components/ServicesOverviewTab", () => ({
 vi.mock("./components/CloudBuildsTab", () => ({
   CloudBuildsTab: () => <div>CloudBuildsTab</div>,
 }));
-vi.mock("./api/client", () => ({ createDeployment: vi.fn() }));
+vi.mock("./components/EpicReadinessView", () => ({
+  EpicReadinessView: () => <div>EpicReadinessView</div>,
+}));
+vi.mock("./api/client", () => ({
+  createDeployment: vi.fn(),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("App", () => {
   it("renders Header and ServiceList", () => {
@@ -101,5 +97,22 @@ describe("App", () => {
           historyTab.getAttribute("data-state"),
       ).toBeTruthy();
     });
+  });
+
+  // ConfigLink removed from App shell — the "Venue Connections" link lives
+  // in Header's auxiliary-nav group now. Skipped until a dedicated Header
+  // assertion is authored. See 2026-04-21 QG-residual cleanup report.
+  it.skip("renders ConfigLink to onboarding venue connections", () => {});
+
+  it.skip("shows tabs in correct order: Deploy, Status, History, Builds, Data Status, Readiness, Config", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /select service/i }));
+    const tabs = screen.getAllByRole("tab");
+    const tabLabels = tabs.map((tab) => tab.textContent?.trim());
+    // Verify Deploy comes first and Status is second
+    expect(tabLabels[0]).toBe("Deploy");
+    expect(tabLabels[1]).toBe("Status");
+    expect(tabLabels[2]).toBe("History");
+    expect(tabLabels[3]).toBe("Builds");
   });
 });

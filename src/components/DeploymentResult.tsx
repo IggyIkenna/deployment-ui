@@ -1,31 +1,31 @@
-import { useState, useMemo } from "react";
 import {
-  CheckCircle2,
-  Copy,
   Check,
-  Terminal,
-  Layers,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Loader2,
-  FolderOpen,
   Clock,
+  Copy,
+  FolderOpen,
+  Layers,
+  Loader2,
+  Terminal,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { useMemo, useState } from "react";
 import { cn } from "../lib/utils";
 import type {
   CreateDeploymentResponse,
-  ShardPreviewInfo,
   GroupedShards,
+  ShardPreviewInfo,
 } from "../types";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 
 interface DeploymentResultProps {
   result: CreateDeploymentResponse;
@@ -65,21 +65,22 @@ function extractDate(shard: ShardPreviewInfo): string {
   return "unknown";
 }
 
-// Group shards by category -> date
+// Group shards by asset group -> date
 function groupShards(shards: ShardPreviewInfo[]): GroupedShards {
   const grouped: GroupedShards = {};
 
   for (const shard of shards) {
-    const category = String(shard.dimensions.category || "unknown");
+    const dims = shard.dimensions as Record<string, string | number | undefined>;
+    const ag = String(dims.asset_group ?? dims.category ?? "unknown");
     const date = extractDate(shard);
 
-    if (!grouped[category]) {
-      grouped[category] = {};
+    if (!grouped[ag]) {
+      grouped[ag] = {};
     }
-    if (!grouped[category][date]) {
-      grouped[category][date] = [];
+    if (!grouped[ag][date]) {
+      grouped[ag][date] = [];
     }
-    grouped[category][date].push(shard);
+    grouped[ag][date].push(shard);
   }
 
   return grouped;
@@ -96,12 +97,12 @@ export function DeploymentResult({
   const [showShards, setShowShards] = useState(false);
   const [allShards, setAllShards] = useState<ShardPreviewInfo[] | null>(null);
   const [loadingAllShards, setLoadingAllShards] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+  const [expandedAssetGroups, setExpandedAssetGroups] = useState<Set<string>>(
     new Set(),
   );
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
-  // Group shards by category -> date (use all shards if loaded, otherwise preview shards)
+  // Group shards by asset group -> date (use all shards if loaded, otherwise preview shards)
   const groupedShards = useMemo(
     () => groupShards(allShards ?? result.shards ?? []),
     [allShards, result.shards],
@@ -120,13 +121,13 @@ export function DeploymentResult({
     }
   };
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories((prev) => {
+  const toggleAssetGroup = (assetGroup: string) => {
+    setExpandedAssetGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
+      if (next.has(assetGroup)) {
+        next.delete(assetGroup);
       } else {
-        next.add(category);
+        next.add(assetGroup);
       }
       return next;
     });
@@ -270,7 +271,7 @@ export function DeploymentResult({
                       {typeof values === "number"
                         ? values
                         : Object.keys(values as Record<string, unknown>)
-                            .length}{" "}
+                          .length}{" "}
                       values
                     </span>
                   </div>
@@ -358,7 +359,7 @@ export function DeploymentResult({
           );
         })()}
 
-        {/* Shard List (expandable, grouped by category -> date) */}
+        {/* Shard List (expandable, grouped by asset group -> date) */}
         {result.shards && result.shards.length > 0 && (
           <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
             <Button
@@ -402,28 +403,28 @@ export function DeploymentResult({
                   </div>
                 )}
 
-                {/* Grouped shards by category -> date */}
+                {/* Grouped shards by asset group -> date */}
                 {Object.entries(groupedShards)
                   .sort()
-                  .map(([category, dates]) => (
+                  .map(([ag, dates]) => (
                     <div
-                      key={category}
+                      key={ag}
                       className="border-b border-[var(--color-border-subtle)] last:border-b-0"
                     >
-                      {/* Category header */}
+                      {/* Asset group header */}
                       <Button
                         variant="ghost"
-                        onClick={() => toggleCategory(category)}
+                        onClick={() => toggleAssetGroup(ag)}
                         className="w-full flex items-center justify-between p-2 px-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors h-auto rounded-none"
                       >
                         <span className="text-sm font-medium text-[var(--color-accent-cyan)]">
-                          {category}
+                          {ag}
                         </span>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">
                             {Object.keys(dates).length} dates
                           </Badge>
-                          {expandedCategories.has(category) ? (
+                          {expandedAssetGroups.has(ag) ? (
                             <ChevronUp className="h-3 w-3 text-[var(--color-text-muted)]" />
                           ) : (
                             <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)]" />
@@ -431,13 +432,13 @@ export function DeploymentResult({
                         </div>
                       </Button>
 
-                      {/* Dates within category */}
-                      {expandedCategories.has(category) && (
+                      {/* Dates within asset group */}
+                      {expandedAssetGroups.has(ag) && (
                         <div className="pl-3">
                           {Object.entries(dates)
                             .sort()
                             .map(([date, shards]) => {
-                              const dateKey = `${category}-${date}`;
+                              const dateKey = `${ag}-${date}`;
                               return (
                                 <div
                                   key={dateKey}

@@ -1,8 +1,8 @@
+import { Check, Copy, Terminal } from "lucide-react";
 import { useState } from "react";
-import { Copy, Check, Terminal } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
 import type { DeploymentRequest, ServiceDimensionsResponse } from "../types";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 interface CLIPreviewProps {
   serviceName: string;
@@ -87,6 +87,11 @@ function buildCLICommand(
   args.push("python -m unified_trading_deployment.cli deploy");
   args.push(`--service ${serviceName}`);
 
+  // Operation (CLI --operation axis)
+  if (formValues.operation) {
+    args.push(`--operation ${formValues.operation}`);
+  }
+
   // Compute target
   if (formValues.compute) {
     args.push(`--compute ${formValues.compute}`);
@@ -100,10 +105,10 @@ function buildCLICommand(
     args.push(`--end-date ${formValues.end_date}`);
   }
 
-  // Category filter
-  if (formValues.category && formValues.category.length > 0) {
-    for (const cat of formValues.category) {
-      args.push(`--category ${cat}`);
+  // Asset group filter (trading venue axis)
+  if (formValues.asset_group && formValues.asset_group.length > 0) {
+    for (const ag of formValues.asset_group) {
+      args.push(`--asset-group ${ag}`);
     }
   }
 
@@ -240,7 +245,7 @@ export function ContainerCommandPreview({
         args.push(`--end-date ${value}`);
       }
     } else if (
-      dim.name === "category" &&
+      dim.name === "asset_group" &&
       serviceName === "market-data-processing-service"
     ) {
       // market-data-processing-service uses boolean flags

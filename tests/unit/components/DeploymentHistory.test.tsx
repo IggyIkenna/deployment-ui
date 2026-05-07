@@ -7,6 +7,8 @@ vi.mock("../../../src/api/client", () => ({
   bulkDeleteDeployments: vi.fn(),
   cancelDeployment: vi.fn(),
   updateDeploymentTag: vi.fn(),
+  setApiBaseUrl: vi.fn(),
+  clearCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { getDeployments } from "../../../src/api/client";

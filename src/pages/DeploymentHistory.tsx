@@ -5,7 +5,7 @@ import {
   rollbackDeployment,
 } from "../api/deploymentApi";
 import type { DeployJob, DeployJobStatus } from "../types/deploymentTypes";
-import { Button } from "@unified-trading/ui-kit";
+import { Button } from "../components/ui/button";
 
 const STATUS_COLORS: Record<DeployJobStatus, string> = {
   QUEUED: "var(--color-text-muted)",

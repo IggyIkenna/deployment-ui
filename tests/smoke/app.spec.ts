@@ -1,4 +1,4 @@
-import { test, expect, Page } from "@playwright/test";
+import { expect, Page, test } from "@playwright/test";
 
 // ── Mock API responses ──────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ const MOCK_DIMENSIONS = {
       granularity: "daily",
     },
   ],
-  cli_args: { "--category": null, "--start-date": null, "--end-date": null },
+  cli_args: { "--asset-group": null, "--start-date": null, "--end-date": null },
 };
 
 const MOCK_REGION = {
@@ -117,7 +117,7 @@ async function mockAllApis(page: Page) {
           service: "instruments-service",
           total_shards: 24,
           message: "Dry run: 24 shards would be created",
-          cli_command: "python -m instruments_service --category cefi",
+          cli_command: "python -m instruments_service --asset-group cefi",
           shards: [],
         },
       });

@@ -1,39 +1,134 @@
-import {
-  createApiClient,
-  createClientConfig,
-  ApiClientError,
-} from "@unified-admin/core";
-import type { ApiClient } from "@unified-admin/core";
+// ---------------------------------------------------------------------------
+// Local API client (replaces @unified-admin/core dependency)
+// ---------------------------------------------------------------------------
+
+interface ApiClientOptions {
+  timeoutMs?: number;
+}
+
+class ApiClientError extends Error {
+  status: number;
+  code: string;
+  constructor(opts: { status: number; code: string; message: string }) {
+    super(opts.message);
+    this.name = "ApiClientError";
+    this.status = opts.status;
+    this.code = opts.code;
+  }
+}
+
+interface ApiClient {
+  get<T>(url: string, opts?: RequestInit): Promise<T>;
+  post<T>(url: string, body?: unknown, opts?: RequestInit): Promise<T>;
+  put<T>(url: string, body?: unknown, opts?: RequestInit): Promise<T>;
+  delete<T>(url: string, opts?: RequestInit): Promise<T>;
+}
+
+function createClientConfig(
+  baseUrl: string,
+  options?: ApiClientOptions,
+): { baseUrl: string; timeoutMs: number } {
+  return { baseUrl, timeoutMs: options?.timeoutMs ?? 120_000 };
+}
+
+function createApiClient(config: {
+  baseUrl: string;
+  timeoutMs: number;
+}): ApiClient {
+  async function request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    opts?: RequestInit,
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      const response = await fetch(`${config.baseUrl}${url}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: opts?.signal ?? controller.signal,
+      });
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Unknown error" }));
+        throw new ApiClientError({
+          status: response.status,
+          code: `HTTP_${response.status}`,
+          message: error.detail || `HTTP ${response.status}`,
+        });
+      }
+      if (response.status === 204) return undefined as T;
+      return response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return {
+    get: <T>(url: string, opts?: RequestInit) =>
+      request<T>("GET", url, undefined, opts),
+    post: <T>(url: string, body?: unknown, opts?: RequestInit) =>
+      request<T>("POST", url, body, opts),
+    put: <T>(url: string, body?: unknown, opts?: RequestInit) =>
+      request<T>("PUT", url, body, opts),
+    delete: <T>(url: string, opts?: RequestInit) =>
+      request<T>("DELETE", url, undefined, opts),
+  };
+}
+
+// ---------------------------------------------------------------------------
+
 import type {
-  Service,
-  ServiceDimensionsResponse,
-  VenuesResponse,
-  CategoryVenuesResponse,
-  StartDatesResponse,
+  AssetGroupStartDates,
+  AssetGroupVenuesResponse,
+  ChecklistResponse,
+  ChecklistSummary,
+  ChecklistValidateResponse,
+  CreateDeploymentResponse,
+  DataStatusResponse,
   DependenciesResponse,
   Deployment,
-  DeploymentRequest,
-  CreateDeploymentResponse,
-  HealthResponse,
-  ChecklistResponse,
-  ChecklistValidateResponse,
-  ChecklistSummary,
-  DataStatusResponse,
-  MissingShardsResponse,
-  ServiceStatus,
-  ServicesOverview,
-  DiscoverConfigsResponse,
   DeploymentEventStream,
+  DeploymentRequest,
+  DimensionStatus,
+  DiscoverConfigsResponse,
+  EpicDetail,
+  EpicSummary,
+  HealthResponse,
+  LiveHealthStatus,
+  MissingShardsResponse,
   RollbackRequest,
   RollbackResponse,
-  LiveHealthStatus,
-  EpicSummary,
-  EpicDetail,
+  Service,
+  ServiceDimensionsResponse,
+  ServiceStatus,
+  ServicesOverview,
+  StartDatesResponse,
+  VenuesResponse,
 } from "../types";
 
-const API_BASE = "/api";
+/**
+ * Dynamic API base URL — updated when the cloud provider toggle switches.
+ * Default: "/api" (proxied by Vite to the deployment-api dev port).
+ * When explicitly set via ``setApiBaseUrl``: an absolute URL read from
+ * ``import.meta.env.VITE_API_BASE_URL`` (or the cloud-provider toggle).
+ */
+let API_BASE = "/api";
+let apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
 
-const apiClient: ApiClient = createApiClient(createClientConfig(API_BASE));
+/** Switch the API backend URL. Called by CloudProviderContext on toggle. */
+export function setApiBaseUrl(baseUrl: string) {
+  if (baseUrl === API_BASE) return;
+  API_BASE = baseUrl;
+  apiClient = createApiClient(createClientConfig(API_BASE));
+}
 
 /**
  * Backward-compatible ApiError class.
@@ -184,19 +279,46 @@ export async function getConfigBuckets(
 
 // Config
 export async function getVenues(): Promise<VenuesResponse> {
-  return fetchJson("/config/venues");
+  const raw = await fetchJson<unknown>("/config/venues");
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("categories" in r && !("asset_groups" in r)) {
+      const { categories, ...rest } = r;
+      return { ...rest, asset_groups: categories ?? {} } as VenuesResponse;
+    }
+  }
+  return raw as VenuesResponse;
 }
 
-export async function getVenuesByCategory(
-  category: string,
-): Promise<CategoryVenuesResponse> {
-  return fetchJson(`/config/venues/${category}`);
+export async function getVenuesByAssetGroup(
+  assetGroup: string,
+): Promise<AssetGroupVenuesResponse> {
+  return fetchJson(`/config/venues/${assetGroup}`);
 }
 
 export async function getStartDates(
   serviceName: string,
 ): Promise<StartDatesResponse> {
-  return fetchJson(`/config/expected-start-dates/${serviceName}`);
+  const raw = await fetchJson<
+    StartDatesResponse & {
+      start_dates?: Record<
+        string,
+        AssetGroupStartDates & { category_start?: string }
+      >;
+    }
+  >(`/config/expected-start-dates/${serviceName}`);
+  if (!raw.start_dates) return raw;
+  const next: StartDatesResponse["start_dates"] = {};
+  for (const [ag, block] of Object.entries(raw.start_dates)) {
+    if (!block || typeof block !== "object") continue;
+    const b = block as AssetGroupStartDates & { category_start?: string };
+    const ags = b.asset_group_start ?? b.category_start;
+    next[ag] = {
+      ...b,
+      asset_group_start: typeof ags === "string" ? ags : String(ags ?? ""),
+    };
+  }
+  return { ...raw, start_dates: next };
 }
 
 export async function getDependencies(
@@ -209,14 +331,14 @@ export async function getDependencies(
 export async function getDeployments(filters?: {
   service?: string;
   status?: string;
-  category?: string;
+  asset_group?: string;
   limit?: number;
   forceRefresh?: boolean;
 }): Promise<{ deployments: Deployment[]; count: number }> {
   const params = new URLSearchParams();
   if (filters?.service) params.set("service", filters.service);
   if (filters?.status) params.set("status", filters.status);
-  if (filters?.category) params.set("category", filters.category);
+  if (filters?.asset_group) params.set("asset_group", filters.asset_group);
   if (filters?.limit) params.set("limit", filters.limit.toString());
   if (filters?.forceRefresh) params.set("force_refresh", "true");
 
@@ -329,10 +451,10 @@ export interface RetryFailedResult {
 
 export async function retryFailedShards(
   id: string,
-  options?: { category?: string; dryRun?: boolean },
+  options?: { asset_group?: string; dryRun?: boolean },
 ): Promise<RetryFailedResult> {
   const params = new URLSearchParams();
-  if (options?.category) params.set("category", options.category);
+  if (options?.asset_group) params.set("asset_group", options.asset_group);
   if (options?.dryRun) params.set("dry_run", "true");
   const query = params.toString();
 
@@ -425,7 +547,7 @@ export interface DeploymentReport {
   failed_shards: Array<{
     shard_id: string;
     error?: string;
-    category?: string;
+    asset_group?: string;
     dimensions?: Record<string, unknown>;
   }>;
   infrastructure_issues: Array<{
@@ -433,7 +555,7 @@ export interface DeploymentReport {
     zone?: string;
     region?: string;
     reason?: string;
-    category?: string;
+    asset_group?: string;
     attempt?: number;
   }>;
   retry_stats: {
@@ -512,7 +634,7 @@ export async function getDataStatus(params: {
   start_date: string;
   end_date: string;
   mode?: string;
-  category?: string[];
+  asset_group?: string[];
   venue?: string[];
   show_missing?: boolean;
   check_venues?: boolean;
@@ -526,8 +648,8 @@ export async function getDataStatus(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -544,24 +666,314 @@ export async function getDataStatus(params: {
   if (params.force_refresh) {
     searchParams.set("force_refresh", "true");
   }
-  return fetchJson(`/data-status?${searchParams.toString()}`);
+  const raw = await fetchJson<
+    DataStatusResponse | VenueCheckResponse | DataTypeCheckResponse
+  >(`/data-status?${searchParams.toString()}`);
+  // Legacy data-status CLI JSON used `categories`; deployment-api and current
+  // CLIs emit `asset_groups`. Accept both for one release. Use
+  // ``overall_excluded`` to disambiguate from ``DataTypeCheckResponse`` (which
+  // also has ``overall_completion`` but no per-asset-group block).
+  if (
+    raw &&
+    typeof raw === "object" &&
+    "overall_excluded" in raw &&
+    "categories" in raw &&
+    !("asset_groups" in raw)
+  ) {
+    const legacy = raw as DataStatusResponse & {
+      categories: DataStatusResponse["asset_groups"];
+    };
+    const { categories, ...rest } = legacy;
+    return { ...rest, asset_groups: categories } as DataStatusResponse;
+  }
+  return raw;
+}
+
+// ===========================================================================
+// Hierarchical shard-atom drill-down — drilldown plan Phase 1/2.
+// ===========================================================================
+
+/** One node in the per-(service, asset_group) hierarchical drill-down tree.
+ *
+ * Returned by ``GET /api/data-status/drilldown/{service}/{asset_group}``.
+ * Mirrors ``DrilldownNode.to_dict()`` in
+ * ``deployment_api/services/data_status_hierarchical.py``.
+ */
+export interface DrilldownNode {
+  axis: string;
+  value: string;
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  total: number;
+  completion_pct: number;
+  row_key: Record<string, string>;
+  children: DrilldownNode[];
+  is_leaf: boolean;
+}
+
+export interface DrilldownTotals {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  total: number;
+  completion_pct: number;
+}
+
+export interface DrilldownResponse {
+  service: string;
+  asset_group: string;
+  axes: string[];
+  tree: DrilldownNode[];
+  totals: DrilldownTotals;
+  filtered_by: Record<string, string>;
+  manifest_uri?: string;
+  mock?: boolean;
+  /** Pagination — Phase 6 of
+   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.md.
+   * ``total_top_axis_children`` is the unfiltered child count at the
+   * head axis; ``child_offset`` / ``child_limit`` echo the page
+   * requested. UI uses them to render "showing N–M of T" + load-more.
+   */
+  total_top_axis_children?: number;
+  child_offset?: number;
+  child_limit?: number | null;
+}
+
+export interface DrilldownPair {
+  service: string;
+  asset_group: string;
+  axes: string[];
+}
+
+const _DRILLDOWN_FILTER_KEYS: readonly string[] = [
+  "chain",
+  "venue",
+  "data_type",
+  "instrument_type",
+  "instrument_id",
+  "league_id",
+  "feature_group",
+  "timeframe",
+  "canonical_question_group",
+] as const;
+
+export async function getHierarchicalDrilldown(params: {
+  service: string;
+  asset_group: string;
+  start_date: string;
+  end_date: string;
+  filters?: Record<string, string>;
+  expand_to_depth?: number;
+  /** Pagination offset into the top-level children list (Phase 6). */
+  child_offset?: number;
+  /** Max top-level children returned. ``undefined`` = no slice. */
+  child_limit?: number;
+  signal?: AbortSignal;
+}): Promise<DrilldownResponse> {
+  const sp = new URLSearchParams();
+  sp.set("start_date", params.start_date);
+  sp.set("end_date", params.end_date);
+  if (params.expand_to_depth != null) {
+    sp.set("expand_to_depth", String(params.expand_to_depth));
+  }
+  if (params.child_offset != null) {
+    sp.set("child_offset", String(params.child_offset));
+  }
+  if (params.child_limit != null) {
+    sp.set("child_limit", String(params.child_limit));
+  }
+  for (const key of _DRILLDOWN_FILTER_KEYS) {
+    const val = params.filters?.[key];
+    if (val != null && val !== "") {
+      sp.set(key, val);
+    }
+  }
+  return fetchJson<DrilldownResponse>(
+    `/data-status/drilldown/${encodeURIComponent(params.service)}/${encodeURIComponent(
+      params.asset_group,
+    )}?${sp.toString()}`,
+    { signal: params.signal },
+  );
+}
+
+export async function getDrilldownSupportedPairs(opts?: {
+  signal?: AbortSignal;
+}): Promise<DrilldownPair[]> {
+  const res = await fetchJson<{ pairs: DrilldownPair[] }>(
+    `/data-status/drilldown-pairs`,
+    { signal: opts?.signal },
+  );
+  return res.pairs ?? [];
+}
+
+// ===========================================================================
+// Deploy-Missing surgical-recovery preview — drilldown plan Phase 3.
+// ===========================================================================
+
+/** Response from ``POST /api/data-status/deploy-missing-preview``. Mirrors
+ * the Python ``DeployMissingPreview.to_dict()`` shape. */
+export interface DeployMissingPreviewResponse {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  shard_key: string;
+  launcher_script: string;
+  command: string;
+  notes: string[];
+  mode: DeployMissingMode;
+  warnings: string[];
+}
+
+/** Launch modes supported by the Deploy-Missing flow.
+ *
+ * - ``preview`` — bash invocation against the GCS tarball that's
+ *   currently in ``deployment-scripts-{pid}``. Operator copies + runs
+ *   from their authenticated terminal. Safe in any environment.
+ * - ``tarball-from-local`` — pairs the launcher with a
+ *   ``create-code-tarballs.sh --all`` step that bundles the operator's
+ *   local working tree before the VM launches. **ONLY works from the
+ *   operator's workstation** — never from a Cloud Run pod / CI runner.
+ *   Strong UI warning required.
+ *
+ * Future modes (auto-launch) live behind the
+ * ``deploy_missing_auto_launch_2026_05_07`` successor plan.
+ */
+export type DeployMissingMode = "preview" | "tarball-from-local";
+
+export async function postDeployMissingPreview(params: {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  mode?: DeployMissingMode;
+  signal?: AbortSignal;
+}): Promise<DeployMissingPreviewResponse> {
+  return fetchJson<DeployMissingPreviewResponse>(
+    `/data-status/deploy-missing-preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service: params.service,
+        asset_group: params.asset_group,
+        row_key: params.row_key,
+        mode: params.mode ?? "preview",
+      }),
+      signal: params.signal,
+    },
+  );
+}
+
+export async function getDeployMissingServices(opts?: {
+  signal?: AbortSignal;
+}): Promise<string[]> {
+  const res = await fetchJson<{ services: string[] }>(
+    `/data-status/deploy-missing-services`,
+    { signal: opts?.signal },
+  );
+  return res.services ?? [];
+}
+
+/** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
+export interface UpcomingFixture {
+  fixture_id: string;
+  kickoff_utc: string;
+  league_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  home_team_name: string;
+  away_team_name: string;
+  venue_id: string;
+  venue_name: string;
+  status: string;
+  round: string;
+}
+
+export async function fetchUpcomingFixtures(opts?: {
+  days?: number;
+  league_id?: string;
+  signal?: AbortSignal;
+}): Promise<UpcomingFixture[]> {
+  const searchParams = new URLSearchParams();
+  if (opts?.days != null) {
+    searchParams.set("days", String(opts.days));
+  }
+  if (opts?.league_id) {
+    searchParams.set("league_id", opts.league_id);
+  }
+  const q = searchParams.toString();
+  const path = `/fixtures/upcoming${q ? `?${q}` : ""}`;
+  const res = await fetchJson<{ fixtures: UpcomingFixture[]; mock?: boolean }>(
+    path,
+    { signal: opts?.signal },
+  );
+  return res.fixtures ?? [];
 }
 
 // Turbo Data Status - much faster for large services (uses month-prefix queries)
 
-// Data type completion status (nested within venue)
+// Data type completion status (nested within venue).
+//
+// Shape mirrors what `_build_data_type_breakdown` returns in deployment-api
+// `data_status_service.py`. Includes the Phase-1 four-state classification
+// fields (deployment-api commit c73c732, 2026-04-28):
+//
+//   - missing       — actionable: in EXPECTED_COVERAGE scope, raw is captured
+//                     (or this IS raw), processed shard absent. `missing_dates`
+//                     contains only the actionable subset.
+//   - blocked_on_raw — non-actionable: processed shard absent because raw is
+//                     also absent. `blocked_on_raw_dates` lists those dates.
+//                     UI should render amber, not red.
+//   - out_of_scope  — `(asset_group, venue, data_type)` not in
+//                     EXPECTED_COVERAGE_BY_ASSET_GROUP. Excluded from
+//                     denominator at UI; render gray or hide by default.
+//   - captured      — `dates_found` covers this state.
+//
+// Empty fields (`blocked_on_raw_dates: []`, `out_of_scope: false`) are the
+// implicit defaults when the deployment-api response predates the four-state
+// rollout — UI should treat absence the same as `false` / `[]`.
 export interface TurboDataTypeStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  dates_blocked_on_raw?: number;
+  dates_found_list?: string[];
+  missing_dates?: string[];
+  blocked_on_raw_dates?: string[];
   completion_pct: number;
+  start_date?: string | null;
+  is_expected?: boolean;
+  in_expected_coverage?: boolean;
+  is_processed_data_type?: boolean;
+  out_of_scope?: boolean;
   status?: "complete" | "partial" | "missing";
+}
+
+export interface TurboLeagueStatus {
+  // Legacy v3/v4 fields (kept for forward/back-compat; may be absent on v5 responses).
+  dates_found?: number;
+  dates_expected?: number;
+  dates_missing?: number;
+  dates_found_list?: string[];
+  // v5 honest-coverage canonical fields (per codex/02-data/availability-manifest-and-data-status.md).
+  // SPORTS per-league entries emit these; the UI prefers them when present.
+  found_shards?: number;
+  expected_shards?: number;
+  missing_shards?: number;
+  found_dates_list?: string[];
+  missing_dates?: string[];
+  completion_pct: number;
+  unit?: string;
+  not_applicable?: boolean;
 }
 
 export interface TurboSubDimension {
   dates_found: number;
-  dates_expected: number; // Legacy: category-level expected
+  dates_expected: number; // Legacy: asset-group-level expected
+  dates_missing?: number;
+  missing_dates?: string[];
   dates_expected_venue?: number; // NEW: venue-specific expected based on venue start
-  dates_expected_category?: number; // NEW: category-level expected for reference
+  dates_expected_asset_group?: number; // NEW: asset-group-level expected for reference
   venue_start_date?: string | null; // NEW: when venue data starts
   completion_pct: number;
   is_expected?: boolean;
@@ -578,6 +990,126 @@ export interface TurboSubDimension {
   dates_missing_list_tail?: string[]; // Last 25 missing dates (if truncated)
   dates_missing_truncated?: boolean; // True if list was truncated
   data_types?: Record<string, TurboDataTypeStatus>; // NEW: per-data-type breakdown
+  instrument_types?: Record<string, TurboInstrumentTypeStatus>; // v4: per-instrument-type (spot, perpetuals, etc.)
+  leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
+  // Canonical shard totals (populated for SPORTS data_type entries from the
+  // honest-coverage availability manifest). Consumers should prefer these
+  // over `dates_found` / `dates_expected` / `dates_missing` when present.
+  found_shards?: number;
+  expected_shards?: number;
+  missing_shards?: number;
+  unit?: string; // e.g. "fixture_dates", "daily_snapshots"
+  axis?: string; // e.g. "per_league_per_fixture_date", "global_periodic"
+  source?: string; // e.g. "api_football"
+  expected_leagues?: string[];
+  // MTDS honest-coverage annotations (2026-04-20 / deployment-api Phase 6c /
+  // deployment-api commit 9d21ac8). Populated on MTDS venue rows inside
+  // CEFI / TRADFI / DEFI / PREDICTION categories only — SPORTS keeps the
+  // data-type-axis drilldown under the category entry itself. Absent for
+  // non-MTDS services (instruments-service / MDPS / features-* / …).
+  expected_data_types?: string[]; // UAC-declared data_types for this venue
+  missing_data_types?: string[]; // declared data_types with zero found shards
+  honest_data_types?: Record<string, TurboHonestDataTypeStatus>; // per-dt honest-coverage drilldown
+  honest_axis?: string; // e.g. "per_venue_per_data_type_per_day"
+  // Honest-coverage rollups emitted by deployment-api per venue
+  // (writegate Phase 4.A — deployment-api@453836d / @7d57056).
+  // ``failure_pillars`` buckets ``attempted_failed`` rows by typed-error
+  // class prefix (UpstreamTimestampBiasError / MalformedTickFieldError /
+  // ClusterCoverageError / LookaheadBiasError + placeholder pillars +
+  // ``failed_other`` catch-all). ``empty_reasons`` buckets ``empty_confirmed``
+  // rows by ``error_reason`` per the closed UAC ``EMPTY_CONFIRMED_REASONS``
+  // taxonomy plus an ``empty_unclassified`` catch-all that doubles as a
+  // back-fill progress indicator. Both maps surface every registered key
+  // with count 0 when no rows match, so the UI can render a fixed grid
+  // without conditional checks. SSOT: deployment_api/services/data_status_service.py
+  // ``_FAILURE_PILLAR_KEYS`` + ``_EMPTY_REASON_KEYS``.
+  failure_pillars?: Record<string, number>;
+  empty_reasons?: Record<string, number>;
+  // Capture-status rollup — Phase-C honest-coverage venue-level split.
+  capture_status_counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+  };
+  attempt_coverage_pct?: number;
+  capture_coverage_pct?: number;
+  empty_rate?: number;
+  failure_rate?: number;
+}
+
+/**
+ * Per-data-type honest-coverage stats emitted under
+ * `TurboSubDimension.honest_data_types` for MTDS venues
+ * (deployment-api commit 9d21ac8). Shards are
+ * `(venue, data_type, date)` triples over the UAC-declared date window for
+ * this (venue, data_type); missing shards isolate real adapter gaps from
+ * venue-wide day misses.
+ *
+ * Phase 8 extensions (deployment-api commit c059e6f, 2026-04-20): adds per-
+ * instrument shard-unit discrimination. `unit` now signals whether the
+ * denominator is venue-level (`shard_days`), per-instrument
+ * (`shard_instrument_days`, Tier-3 dt such as trades/book_snapshot_5), or
+ * the degraded pre-Phase-8C fallback (`shard_days_legacy`). When
+ * per-instrument, `expected_instruments` / `missing_instruments` / optional
+ * `per_instrument` detail the instrument universe behind the shard count.
+ */
+export interface TurboHonestDataTypeStatus {
+  expected_shards: number;
+  found_shards: number;
+  missing_shards: number;
+  completion_pct: number;
+  unit?: "shard_days" | "shard_instrument_days" | "shard_days_legacy" | string;
+  missing_dates?: string[];
+  dates_found_list?: string[];
+  axis?: string; // Phase 6c: e.g. "per_venue_per_data_type_per_day"
+  // Phase 8 per-instrument shard fields
+  expected_instruments?: string[]; // instrument_ids in the denominator
+  missing_instruments?: string[]; // instruments with zero captured shards
+  per_instrument?: Record<string, TurboHonestInstrumentStatus>; // populated when instrument universe < 20
+  legacy_row_count?: number; // count of pre-Phase-8C rows counted via Tier-2 fallback
+}
+
+/**
+ * Per-instrument honest-coverage stats inside
+ * `TurboHonestDataTypeStatus.per_instrument`. Only emitted when the
+ * (venue, data_type) instrument universe is small enough (< 20) to keep
+ * the aggregator response compact.
+ */
+export interface TurboHonestInstrumentStatus {
+  found_shards: number;
+  expected_shards: number;
+  completion_pct: number;
+  missing_dates?: string[];
+}
+
+export interface TurboUnderlyingStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  data_types?: Record<string, TurboDataTypeStatus>;
+}
+
+export interface TurboInstrumentTypeStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  data_types?: Record<string, TurboDataTypeStatus>;
+  underlyings?: Record<string, TurboUnderlyingStatus>;
+}
+
+export interface TurboChainStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  venues: string[];
+  venue_count: number;
+}
+
+export interface TurboFeatureGroupStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
 }
 
 export interface TurboVenueSummary {
@@ -590,14 +1122,30 @@ export interface TurboVenueSummary {
   expected_coverage_pct: number;
 }
 
-export interface TurboCategoryStatus {
-  category: string;
+export interface TurboAssetGroupStatus {
+  asset_group: string;
   bucket: string;
   prefixes_queried: number;
   dates_expected: number;
   dates_found: number;
   dates_missing: number;
   completion_pct: number;
+  // Axis discriminator added 2026-04-20. Controls whether the sub-dimension
+  // drilldown lives under `venues` ("venue", legacy default used by CEFI /
+  // TRADFI / DEFI / PREDICTION) or under `data_types` ("data_type", used by
+  // SPORTS). Consumers MUST branch on this when reading sub-dimensions.
+  breakdown_axis?: "venue" | "data_type";
+  // Coverage semantics (2026-04-19): distinguishes "dense" categories where
+  // every underlying is expected to produce data every day (CeFi / TradFi /
+  // DeFi) from "event_driven" categories where underlyings only trade on a
+  // fraction of days (sports fixtures, Polymarket conditionIds). For
+  // event_driven categories `completion_pct` is aliased to `attempt_coverage_pct`
+  // so the row header reflects "did we observe every market?" rather than
+  // the misleading "is every market dense every day?".
+  coverage_semantics?: "dense" | "event_driven";
+  attempt_coverage_pct?: number;
+  capture_coverage_pct?: number;
+  empty_rate_estimate?: number | null;
   missing_dates: string[] | string;
   // Category-level dates lists (with truncation for UI display)
   dates_found_count?: number; // Total found count
@@ -622,8 +1170,9 @@ export interface TurboCategoryStatus {
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
-  feature_groups?: { [name: string]: TurboSubDimension };
   folders?: { [name: string]: TurboSubDimension }; // Instrument type breakdown
+  chains?: { [name: string]: TurboChainStatus }; // DeFi chain breakdown (v4)
+  feature_groups?: { [name: string]: TurboFeatureGroupStatus }; // Feature service breakdown (v4)
   venue_summary?: TurboVenueSummary;
 }
 
@@ -641,13 +1190,13 @@ export interface TurboDataStatusResponse {
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
   // Category-level totals for reference (not venue-weighted)
-  overall_dates_found_category?: number;
-  overall_dates_expected_category?: number;
+  overall_dates_found_asset_group?: number;
+  overall_dates_expected_asset_group?: number;
   total_missing?: number;
   unexpected_missing?: number;
   expected_missing?: number;
-  categories: {
-    [category: string]: TurboCategoryStatus;
+  asset_groups: {
+    [asset_group: string]: TurboAssetGroupStatus;
   };
 }
 
@@ -656,7 +1205,7 @@ export async function getDataStatusTurbo(params: {
   start_date: string;
   end_date: string;
   mode?: "batch" | "live"; // batch vs live GCS paths
-  category?: string[];
+  asset_group?: string[];
   venue?: string[]; // Filter by specific venues (reduces cloud storage scan scope)
   folder?: string[]; // Filter by folder/instrument type (spot, perpetuals, etc.)
   data_type?: string[]; // Filter by data type (trades, book_snapshot_5, etc.)
@@ -675,8 +1224,8 @@ export async function getDataStatusTurbo(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -710,9 +1259,137 @@ export async function getDataStatusTurbo(params: {
   });
 }
 
+/**
+ * Get data status from manifest availability indices (fastest path).
+ * Reads consolidated parquet index files instead of listing blobs.
+ * Works with both GCS and S3 (cloud-agnostic).
+ * Returns the same shape as turbo for UI compatibility.
+ *
+ * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * adds optional `secondary_axis` + per-shard filter params (league_id /
+ * fixture_id / canonical_question_group / job_id / chain) for the
+ * deployment-ui axis-selector drill-down. Empty/omitted == today's
+ * behaviour. The rollup fast-path is bypassed by deployment-api when any
+ * row filter is set (rollup is filter-free), so filtered queries fall
+ * through to the on-demand path automatically.
+ */
+export async function getDataStatusManifest(params: {
+  service: string;
+  start_date: string;
+  end_date: string;
+  asset_group?: string[];
+  secondary_axis?: string;
+  league_id?: string;
+  fixture_id?: string;
+  canonical_question_group?: string;
+  job_id?: string;
+  chain?: string;
+  signal?: AbortSignal;
+}): Promise<TurboDataStatusResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("service", params.service);
+  searchParams.set("start_date", params.start_date);
+  searchParams.set("end_date", params.end_date);
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
+  }
+  if (params.secondary_axis) searchParams.set("secondary_axis", params.secondary_axis);
+  if (params.league_id) searchParams.set("league_id", params.league_id);
+  if (params.fixture_id) searchParams.set("fixture_id", params.fixture_id);
+  if (params.canonical_question_group) {
+    searchParams.set("canonical_question_group", params.canonical_question_group);
+  }
+  if (params.job_id) searchParams.set("job_id", params.job_id);
+  if (params.chain) searchParams.set("chain", params.chain);
+  return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
+    signal: params.signal,
+  });
+}
+
+/**
+ * Per-(service, asset_group) shard / display / primary axis SSOT.
+ *
+ * Source: unified_api_contracts.registry.data_status_axis_matrix (Phase 0
+ * of data_status_multi_axis_shard_propagation_2026_05_06.plan.md). Drives
+ * the axis-selector dropdowns in DataStatusTab — DEFI panels render a
+ * chain dropdown, sports a league_id dropdown, strategy/execution a
+ * job_id picker, ml-training a model_family + training_period selector,
+ * etc. The four maps are keyed `service -> asset_group -> tuple|str`.
+ *
+ * `breakdown_axes` is the union of shard + display minus primary,
+ * preserving the SHARD-then-DISPLAY ordering — the
+ * `BreakdownsAccordion` consumes this directly.
+ */
+export interface ShardAxisMatrixResponse {
+  shard_axes: Record<string, Record<string, string[]>>;
+  display_axes: Record<string, Record<string, string[]>>;
+  primary_axis: Record<string, Record<string, string>>;
+  breakdown_axes: Record<string, Record<string, string[]>>;
+}
+
+export async function getShardAxisMatrix(
+  service?: string,
+  signal?: AbortSignal,
+): Promise<ShardAxisMatrixResponse> {
+  const qs = service ? `?service=${encodeURIComponent(service)}` : "";
+  return fetchJson(`/config/shard-axis-matrix${qs}`, { signal });
+}
+
+// Coverage summary — manifest totals + latest-day unique instrument counts.
+//
+// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+// adds the `breakdowns` map: per-axis (chain / league_id / job_id /
+// model_family / canonical_question_group / etc.) value->count from the
+// UAC SHARD_AXIS_MATRIX SSOT. Each axis's empty `{}` means the axis
+// applies to this (service, asset_group) per the SSOT but no manifest
+// row has populated it yet — render an empty selector + "no data yet"
+// placeholder. Old rows with an empty value collapse under the
+// synthetic `__legacy__` key so the UI can call them out as
+// pre-Phase-1B.
+export interface CoverageCategorySummary {
+  total_shards: number;
+  total_instrument_rows: number;
+  total_instruments?: number;
+  unique_dates: number;
+  unique_venues: number;
+  sub_dimension_label?: string;
+  group_axis?: string;
+  date_range: { start: string; end: string } | null;
+  latest_day: string | null;
+  latest_day_instruments: Record<string, number>;
+  latest_day_total: number;
+  breakdowns?: Record<string, Record<string, number>>;
+}
+
+export interface CoverageSummaryResponse {
+  service: string;
+  asset_groups: Record<string, CoverageCategorySummary>;
+  totals: {
+    shards: number;
+    instrument_rows: number;
+    dates_across_asset_groups: number;
+    latest_day_instruments: number;
+  };
+  mock?: boolean;
+}
+
+export async function getDataCoverageSummary(params?: {
+  service?: string;
+  asset_groups?: string;
+  signal?: AbortSignal;
+}): Promise<CoverageSummaryResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.service) searchParams.set("service", params.service);
+  if (params?.asset_groups) searchParams.set("asset_groups", params.asset_groups);
+  const qs = searchParams.toString();
+  return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
+    signal: params?.signal,
+  });
+}
+
 // Get available filters for a specific venue
 export interface VenueFiltersResponse {
-  category: string;
+  asset_group: string;
   venue: string;
   folders: string[];
   data_types: string[];
@@ -722,13 +1399,39 @@ export interface VenueFiltersResponse {
 }
 
 export async function getVenueFilters(
-  category: string,
+  assetGroup: string,
   venue: string,
 ): Promise<VenueFiltersResponse> {
   const searchParams = new URLSearchParams();
-  searchParams.set("category", category);
+  searchParams.set("asset_group", assetGroup);
   searchParams.set("venue", venue);
   return fetchJson(`/data-status/venue-filters?${searchParams.toString()}`);
+}
+
+// Venue detail drill-down — reads a parquet file and returns instrument breakdown
+export interface VenueDetailResult {
+  venue: string;
+  asset_group: string;
+  date: string;
+  total_instruments: number;
+  columns: string[];
+  instrument_types?: Record<string, number>;
+  statuses?: Record<string, number>;
+  top_instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
+}
+
+export async function fetchVenueDetail(
+  service: string,
+  assetGroup: string,
+  venue: string,
+  date?: string,
+): Promise<VenueDetailResult> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("service", service);
+  searchParams.set("asset_group", assetGroup);
+  searchParams.set("venue", venue);
+  if (date) searchParams.set("date", date);
+  return fetchJson(`/data-status/venue-detail?${searchParams.toString()}`);
 }
 
 // List actual files in cloud storage (GCS or S3) for a fully-specified path
@@ -753,7 +1456,7 @@ export interface DateFileResult {
 export interface ListFilesResponse {
   service: string;
   bucket: string;
-  category: string;
+  asset_group: string;
   venue: string;
   folder: string;
   data_type: string;
@@ -778,7 +1481,7 @@ export interface ListFilesResponse {
 
 export async function listFiles(params: {
   service: string;
-  category: string;
+  asset_group: string;
   venue: string;
   folder: string;
   data_type: string;
@@ -789,7 +1492,7 @@ export async function listFiles(params: {
 }): Promise<ListFilesResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set("service", params.service);
-  searchParams.set("category", params.category);
+  searchParams.set("asset_group", params.asset_group);
   searchParams.set("venue", params.venue);
   searchParams.set("folder", params.folder);
   searchParams.set("data_type", params.data_type);
@@ -798,9 +1501,17 @@ export async function listFiles(params: {
   if (params.timeframe) {
     searchParams.set("timeframe", params.timeframe);
   }
-  return fetchJson(`/data-status/list-files?${searchParams.toString()}`, {
+  const raw = await fetchJson<unknown>(`/data-status/list-files?${searchParams.toString()}`, {
     signal: params.signal,
   });
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("category" in r && !("asset_group" in r)) {
+      const { category, ...rest } = r;
+      return { ...rest, asset_group: category ?? "" } as ListFilesResponse;
+    }
+  }
+  return raw as ListFilesResponse;
 }
 
 // Services that require upstream availability check for accurate missing data
@@ -811,43 +1522,102 @@ export const UPSTREAM_CHECK_SERVICES = [
   "features-delta-one-service", // Depends on market-data-processing-service (processed_candles)
 ];
 
-// Services that support turbo mode (all services now supported)
+// Services that support turbo mode (GCS/S3 blob listing — L1-L3 dimension-based)
+//
+// 2026-05-06: removed market-data-processing-service from this list. Its turbo
+// path hangs >90s on a 1-day window in local dev (the service has too many
+// per-(date, venue, data_type, instrument_type) shards for the GCS-listing-based
+// turbo aggregator). MDPS is already in MANIFEST_MODE_SERVICES below; the
+// manifest-based path is faster and was specifically built for high-cardinality
+// services like this one. Keeping it in both lists caused the UI to fall back
+// to turbo and time out before the manifest path got tried.
 export const TURBO_MODE_SERVICES = [
   "instruments-service",
   "market-tick-data-handler",
-  "market-data-processing-service",
   "features-delta-one-service",
   "features-calendar-service",
   "features-onchain-service",
   "features-volatility-service",
+  "features-sports-service",
+  "features-multi-timeframe-service",
+  "features-cross-instrument-service",
+  "features-commodity-service",
 ];
+
+// Services that support manifest mode (fast parquet index reads — any service with ManifestWriter)
+export const MANIFEST_MODE_SERVICES = [
+  "instruments-service",
+  "market-tick-data-service",
+  "market-data-processing-service",
+  "features-onchain-service",
+  "features-delta-one-service",
+  "features-volatility-service",
+  "features-calendar-service",
+  "features-sports-service",
+  "features-multi-timeframe-service",
+  "features-cross-instrument-service",
+  "features-commodity-service",
+  // L4-L6: Rich services (config/strategy-based sharding)
+  "strategy-service",
+  "execution-service",
+  "ml-training-service",
+  "ml-inference-service",
+  "risk-and-exposure-service",
+  "pnl-attribution-service",
+  "alerting-service",
+];
+
+// Config-based services (L4-L5) — sharding from GCS configs, not fixed dimensions
+export const CONFIG_BASED_SERVICES = [
+  "strategy-service",
+  "execution-service",
+  "ml-training-service",
+  "ml-inference-service",
+];
+
+// Services with no date dimension (use "none" date granularity)
+export const NO_DATE_SERVICES = ["ml-training-service"];
 
 // Services with sub-dimension breakdown support
 export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "instruments-service": "venue",
   "market-tick-data-handler": "data_type",
+  "market-tick-data-service": "data_type",
   "market-data-processing-service": "data_type",
   "features-delta-one-service": "feature_group",
   "features-calendar-service": "feature_group",
   "features-volatility-service": "feature_group",
   "features-onchain-service": "feature_group",
+  "features-sports-service": "feature_group",
+  "features-multi-timeframe-service": "feature_group",
+  "features-cross-instrument-service": "feature_group",
+  "features-commodity-service": "feature_group",
+  // L4-L6 config-based services
+  "strategy-service": "strategy_id",
+  "execution-service": "domain",
+  "ml-training-service": "model_id",
+  "ml-inference-service": "mode",
+  "risk-and-exposure-service": "client_id",
+  "pnl-attribution-service": "strategy_id",
+  "alerting-service": "alert_type",
 };
+
+/** One asset group's venue-coverage check block (``check_venues`` mode). */
+export interface VenueCheckAssetGroupBlock {
+  dates_with_missing_venues: Array<{
+    date: string;
+    missing: string[];
+    file_exists: boolean;
+  }>;
+  total_dates: number;
+}
 
 // Venue Check Response type (when check_venues=true)
 export interface VenueCheckResponse {
   service: string;
   start_date: string;
   end_date: string;
-  categories: {
-    [category: string]: {
-      dates_with_missing_venues: Array<{
-        date: string;
-        missing: string[];
-        file_exists: boolean;
-      }>;
-      total_dates: number;
-    };
-  };
+  asset_groups: Record<string, VenueCheckAssetGroupBlock>;
 }
 
 // Data Type Check Response type (when check_data_types=true)
@@ -870,6 +1640,8 @@ export interface DataTypeCheckResponse {
           completion_percent: number;
         };
       };
+      feature_groups?: Record<string, DimensionStatus>;
+      timeframes?: Record<string, DimensionStatus>;
     };
   };
 }
@@ -879,7 +1651,7 @@ export async function getMissingShards(params: {
   start_date: string;
   end_date: string;
   mode?: string;
-  category?: string[];
+  asset_group?: string[];
   venue?: string[];
 }): Promise<MissingShardsResponse> {
   const searchParams = new URLSearchParams();
@@ -889,8 +1661,8 @@ export async function getMissingShards(params: {
   if (params.mode) {
     searchParams.set("mode", params.mode);
   }
-  if (params.category) {
-    params.category.forEach((c) => searchParams.append("category", c));
+  if (params.asset_group) {
+    params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
   if (params.venue) {
     params.venue.forEach((v) => searchParams.append("venue", v));
@@ -1071,15 +1843,15 @@ export async function getCapabilities(): Promise<CapabilitiesResponse> {
   return fetchJson("/capabilities");
 }
 
-export interface ServiceCategoriesResponse {
+export interface ServiceAssetGroupsResponse {
   service: string;
-  categories: string[];
+  asset_groups: string[];
 }
 
-export async function getServiceCategories(
+export async function getServiceAssetGroups(
   serviceName: string,
-): Promise<ServiceCategoriesResponse> {
-  return fetchJson(`/capabilities/service-categories/${serviceName}`);
+): Promise<ServiceAssetGroupsResponse> {
+  return fetchJson(`/capabilities/service-asset-groups/${serviceName}`);
 }
 
 // Cache Management
@@ -1099,7 +1871,716 @@ export async function clearDataStatusCache(): Promise<{
   status: string;
   entries_cleared: number;
 }> {
-  return fetchJson("/data-status/turbo/cache/clear", { method: "POST" });
+  return fetchJson("/data-status/turbo/clear", { method: "POST" });
+}
+
+// ---------------------------------------------------------------------------
+// Drill-down (schema / instruments / bucket counts / CSV download)
+// ---------------------------------------------------------------------------
+
+export interface SchemaColumnSpec {
+  name: string;
+  dtype: string;
+  nullable: boolean;
+  description: string;
+}
+
+export interface ShardSchemaResponse {
+  registered: boolean;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  venue: string | null;
+  symbol_column: string | null;
+  /**
+   * Source of the schema columns:
+   * - `CONTRACT_REGISTRY` / `VENUE_CONTRACT_OVERRIDES` — UAC contract.
+   * - `PARQUET_PROJECTION` — registry has no entry, columns are
+   *   projected from the actual parquet on GCS at `projected_from`.
+   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+   * - `none` — no contract AND no parquet found; the UI should show
+   *   "no schema yet" rather than blank.
+   */
+  source: string;
+  columns: SchemaColumnSpec[];
+  required_row_count_min?: number;
+  message?: string;
+  projected_from?: string;
+  /**
+   * GCS URIs the projection probed when ``source === "none"``. Surfaced
+   * in the modal so a path-drift bug is actionable — operator can run
+   * ``gcloud storage ls <uri>`` and see whether the parquet exists at
+   * a different layout than the projection template expects.
+   */
+  probed_paths?: string[];
+}
+
+export async function fetchShardSchema(params: {
+  service: string;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  venue?: string;
+  // v7 multi-axis params (Phase 3 of
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md). The
+  // /api/data-status/schema endpoint uses these to probe the DEEPEST
+  // shard parquet — DEFI per-chain, sports per-league/per-fixture, ML
+  // per-experiment-run, strategy/execution per-job_id, etc. Each leaf
+  // parquet has its own column shape; the schema view should never
+  // collapse or aggregate.
+  day?: string;
+  chain?: string;
+  instrument_id?: string;
+  league_id?: string;
+  fixture_id?: string;
+  canonical_question_group?: string;
+  job_id?: string;
+  model_family?: string;
+  training_period?: string;
+  strategy_id?: string;
+  instruction_type?: string;
+  feature_group?: string;
+  timeframe?: string;
+}): Promise<ShardSchemaResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.day) qp.set("day", params.day);
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.fixture_id) qp.set("fixture_id", params.fixture_id);
+  if (params.canonical_question_group) {
+    qp.set("canonical_question_group", params.canonical_question_group);
+  }
+  if (params.job_id) qp.set("job_id", params.job_id);
+  if (params.model_family) qp.set("model_family", params.model_family);
+  if (params.training_period) qp.set("training_period", params.training_period);
+  if (params.strategy_id) qp.set("strategy_id", params.strategy_id);
+  if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
+  if (params.feature_group) qp.set("feature_group", params.feature_group);
+  if (params.timeframe) qp.set("timeframe", params.timeframe);
+  return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
+}
+
+// ---------------------------------------------------------------------------
+// ShardDetail / VenueDetail v2 — unified shard drilldown contract.
+// Upstream: deployment-api types/shard_detail.py (commit 9d93236).
+// ---------------------------------------------------------------------------
+
+export type ShardClassLiteral =
+  | "grouped"
+  | "per_symbol"
+  | "reference"
+  | "fixtures";
+
+export type CaptureStatusLiteral =
+  | "captured"
+  | "empty_confirmed"
+  | "attempted_failed"
+  | "missing";
+
+export interface ShardDetailCoord {
+  service: string;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue: string | null;
+  underlying: string | null;
+  instrument_id: string | null;
+}
+
+export interface ShardDetailColumn {
+  name: string;
+  dtype: string;
+  nullable: boolean;
+  required: boolean;
+  provided_by_venues: string[] | null;
+  description: string;
+}
+
+export interface ShardDetailSchema {
+  registered: boolean;
+  source: "CONTRACT_REGISTRY" | "VENUE_CONTRACT_OVERRIDES" | "none";
+  symbol_column: string | null;
+  columns: ShardDetailColumn[];
+  message: string;
+  // ``explicit`` — caller passed a concrete instrument_type;
+  // ``auto`` — caller passed ``"AUTO"``/``"UNKNOWN"`` and the backend
+  //   resolved it from the UAC SchemaContract registry;
+  // ``none`` — auto resolution was requested but no contract matched.
+  // Optional for backwards compatibility with older API responses.
+  instrument_type_resolved_via?: "explicit" | "auto" | "none";
+}
+
+export interface ShardDetailGcs {
+  path: string | null;
+  file_size_bytes: number | null;
+  row_count: number | null;
+  captured_at: string | null;
+  capture_status: CaptureStatusLiteral;
+  error_reason: string | null;
+}
+
+export interface ShardDetailDownloadUrls {
+  parquet_signed_url: string | null;
+  csv_projected: string | null;
+}
+
+export interface ShardDetailPayloadGrouped {
+  instrument_list: Record<string, string>[];
+}
+
+export interface ShardDetailPayloadPerSymbol {
+  instrument_list: Record<string, string>[];
+}
+
+export interface ShardDetailPayloadReference {
+  instrument_definitions: Record<string, unknown>[];
+}
+
+export interface ShardDetailPayloadFixtures {
+  fixtures: Record<string, unknown>[];
+}
+
+export interface ShardDetailResponse {
+  coord: ShardDetailCoord;
+  shard_class: ShardClassLiteral;
+  schema: ShardDetailSchema;
+  gcs: ShardDetailGcs;
+  download_urls: ShardDetailDownloadUrls;
+  sample_rows: Record<string, unknown>[];
+  payload_grouped: ShardDetailPayloadGrouped | null;
+  payload_per_symbol: ShardDetailPayloadPerSymbol | null;
+  payload_reference: ShardDetailPayloadReference | null;
+  payload_fixtures: ShardDetailPayloadFixtures | null;
+}
+
+export async function fetchShardDetail(params: {
+  service: string;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue?: string | null;
+  underlying?: string | null;
+  instrument_id?: string | null;
+}): Promise<ShardDetailResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    day: params.day,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.underlying) qp.set("underlying", params.underlying);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  return fetchJson<ShardDetailResponse>(
+    `/data-status/shard-detail?${qp.toString()}`,
+  );
+}
+
+// VenueDetail v2 — DeFi-aware.  Composite (PROTOCOL-CHAIN) vs chain-only
+// paths are disambiguated via ``chain`` / ``protocol`` / ``pools`` /
+// ``protocols`` being populated.  CeFi branches populate ``instruments`` +
+// ``total_instruments``.
+export interface VenueDetailV2Response {
+  asset_group: string;
+  venue: string;
+  chain: string | null;
+  protocol: string | null;
+  total_instruments: number;
+  total_pools: number;
+  total_tokens: number;
+  instruments: Record<string, unknown>[];
+  protocols: Record<string, unknown>[];
+  pools: Record<string, unknown>[];
+  tokens: Record<string, unknown>[];
+  day: string | null;
+}
+
+export async function fetchVenueDetailV2(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+}): Promise<VenueDetailV2Response> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    venue: params.venue,
+  });
+  return fetchJson<VenueDetailV2Response>(
+    `/data-status/venue-detail?${qp.toString()}`,
+  );
+}
+
+export interface ShardInstrumentEntry {
+  instrument_id: string;
+  file_uri: string;
+  size_bytes: number;
+  bundled_under?: string;
+  // Phase-C honest-coverage: manifest capture metadata surfaced per
+  // instrument so the drill-down can badge + retry failed shards.
+  capture_status?: "captured" | "empty_confirmed" | "attempted_failed";
+  error_reason?: string;
+  attempted_at?: string;
+}
+
+export interface InstrumentsForShardResponse {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  bundling: "per_symbol" | "per_underlying" | "per_condition_id";
+  instruments: ShardInstrumentEntry[];
+  bucket: string;
+  prefix: string;
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  search: string;
+}
+
+// Phase C (honest-coverage): retry a single failed shard day by triggering
+// deploy-missing for the (service, date, venue, category) tuple with force=true.
+// The server already owns the scheduling + VM spawn — we just re-enqueue the
+// single shard. ``dry_run: false`` so it actually runs.
+export async function retryFailedShard(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+}): Promise<{
+  deployment?: { deployment_id?: string } | null;
+  message?: string;
+}> {
+  return fetchJson<{
+    deployment?: { deployment_id?: string } | null;
+    message?: string;
+  }>("/deployments/deploy-missing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service: params.service,
+      asset_group: params.asset_group.toLowerCase(),
+      venue: params.venue,
+      start_date: params.day,
+      end_date: params.day,
+      force: true,
+      dry_run: false,
+      deploy_missing_only: false,
+      mode: "batch",
+    }),
+  });
+}
+
+export async function fetchInstrumentsForShard(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  limit?: number;
+  offset?: number;
+  search?: string;
+}): Promise<InstrumentsForShardResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.limit !== undefined) qp.set("limit", String(params.limit));
+  if (params.offset !== undefined) qp.set("offset", String(params.offset));
+  if (params.search !== undefined && params.search !== "")
+    qp.set("search", params.search);
+  return fetchJson<InstrumentsForShardResponse>(
+    `/data-status/instruments-for-shard?${qp.toString()}`,
+  );
+}
+
+export interface BundlePreviewResponse {
+  bundling: string;
+  underlying?: string;
+  file_uri?: string;
+  symbol_column?: string;
+  symbols: string[];
+  message?: string;
+}
+
+export interface ShardInfoResponse {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  data_type: string;
+  instrument_types: { name: string; bundling: string }[];
+  recommended_instrument_type: string | null;
+}
+
+export async function fetchShardInfo(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  data_type: string;
+}): Promise<ShardInfoResponse> {
+  const qp = new URLSearchParams(params);
+  return fetchJson<ShardInfoResponse>(`/data-status/shard-info?${qp.toString()}`);
+}
+
+export async function fetchBundlePreview(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  limit?: number;
+}): Promise<BundlePreviewResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+  });
+  if (params.limit !== undefined) qp.set("limit", String(params.limit));
+  return fetchJson<BundlePreviewResponse>(
+    `/data-status/bundle-preview?${qp.toString()}`,
+  );
+}
+
+export interface BucketCountsResponse {
+  named_market_count: number;
+  other_market_count: number;
+}
+
+export async function fetchBucketCounts(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  data_type: string;
+}): Promise<BucketCountsResponse> {
+  const qp = new URLSearchParams(params);
+  return fetchJson<BucketCountsResponse>(
+    `/data-status/bucket-counts?${qp.toString()}`,
+  );
+}
+
+/** Build the CSV download URL — used in an <a href> so the browser handles the download. */
+export function buildCsvDownloadUrl(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  day: string;
+  instrument_type: string;
+  data_type: string;
+  instrument_ids: string[];
+  // v7 multi-axis filters — Phase 3 of
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // Server reads manifest capture_status using these axes BEFORE
+  // touching the parquet so the response distinguishes empty_confirmed
+  // (honest empty) from path_drift (manifest claims captured but
+  // downloader can't find rows).
+  chain?: string;
+  league_id?: string;
+  job_id?: string;
+}): string {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    venue: params.venue,
+    day: params.day,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    instrument_ids: params.instrument_ids.join(","),
+  });
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.job_id) qp.set("job_id", params.job_id);
+  return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
+}
+
+// Services that write per-venue-day-bundle parquets and support shard CSV download.
+export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
+  "instruments-service",
+  "corporate-actions",
+  "market-tick-data-service",
+  "market-data-processing-service",
+]);
+
+/**
+ * Build the shard CSV download URL for one (service, asset group, venue, date).
+ *
+ * Routing on the server side:
+ * - instruments-service / corporate-actions: reads the per-(venue, day) bundle
+ *   parquet and returns its instrument rows as CSV.
+ * - market-tick-data-service / market-data-processing-service: returns the
+ *   availability-manifest catalog for (venue, date) as CSV — shows which
+ *   instruments were captured, their data_type / instrument_type, capture_status,
+ *   and any error_reason. Tick data itself is too large to download directly.
+ */
+export function buildShardDownloadUrl(params: {
+  service: string;
+  asset_group: string;
+  venue: string;
+  date: string;
+  data_type?: string;
+  instrument_type?: string;
+  // v7 multi-axis filters (Phase 3 — see buildCsvDownloadUrl above).
+  chain?: string;
+  league_id?: string;
+  job_id?: string;
+}): string {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    venue: params.venue,
+    date: params.date,
+  });
+  if (params.data_type) {
+    qp.set("data_type", params.data_type);
+  }
+  if (params.instrument_type) {
+    qp.set("instrument_type", params.instrument_type);
+  }
+  if (params.chain) qp.set("chain", params.chain);
+  if (params.league_id) qp.set("league_id", params.league_id);
+  if (params.job_id) qp.set("job_id", params.job_id);
+  return `${API_BASE}/data-status/download-shard-csv?${qp.toString()}`;
+}
+
+/**
+ * Build the sports-FIXTURES CSV download URL for one (day, league) slice.
+ * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
+ * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
+ */
+export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
+  const qp = new URLSearchParams({
+    day: params.day,
+    league_id: params.league_id,
+  });
+  return `${API_BASE}/data-status/download-fixtures-csv?${qp.toString()}`;
+}
+
+/**
+ * Smart shard CSV download — Phase 3 of
+ * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ *
+ * Fetches the URL via fetch(), reads the ``X-Capture-Status`` response
+ * header, and returns one of five branches so the UI can render the
+ * right empty-state panel BEFORE (or alongside) triggering the actual
+ * file download. Distinguishes:
+ *
+ *   - "captured" — manifest claims rows AND parquet read returned >0
+ *     rows. Triggers a Blob-based download.
+ *   - "empty_confirmed" — adapter ran, source returned 0 rows
+ *     legitimately. The response body is a header-only CSV explaining
+ *     the honest empty; we still trigger the download (operator sees
+ *     the CSV's # comment lines) AND return the status so the caller
+ *     can render an inline alert.
+ *   - "attempted_failed" — adapter ran and raised. Same shape as
+ *     empty_confirmed but the alert flags an error.
+ *   - "never_attempted" — manifest has no row at all (HTTP 404). No
+ *     file is downloaded; caller renders an inline panel.
+ *   - "path_drift" — manifest claims captured but downloader read
+ *     0 rows (HTTP 502). No file is downloaded; caller renders a
+ *     red banner with the drift hint.
+ *   - "unknown" — anything else (network error, 500, missing header).
+ *
+ * Returns the resolved status + an optional ``message`` from the
+ * response body for the non-captured branches.
+ */
+export type ShardDownloadStatus =
+  | "captured"
+  | "empty_confirmed"
+  | "attempted_failed"
+  | "never_attempted"
+  | "path_drift"
+  | "unknown";
+
+export interface ShardDownloadResult {
+  status: ShardDownloadStatus;
+  filename?: string;
+  message?: string;
+  rowCount?: number;
+}
+
+export async function smartShardDownload(
+  url: string,
+): Promise<ShardDownloadResult> {
+  let resp: Response;
+  try {
+    resp = await fetch(url, { credentials: "include" });
+  } catch (e) {
+    return {
+      status: "unknown",
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  const headerStatus = resp.headers.get("X-Capture-Status") ?? "";
+  const rowCountStr = resp.headers.get("X-Row-Count") ?? "";
+  const rowCount = rowCountStr ? parseInt(rowCountStr, 10) : undefined;
+
+  // Resolve canonical status. Servers older than Phase 3 deployment-api
+  // 85053fe will not set X-Capture-Status; map by HTTP code instead.
+  let status: ShardDownloadStatus = "unknown";
+  if (
+    headerStatus === "captured" ||
+    headerStatus === "empty_confirmed" ||
+    headerStatus === "attempted_failed" ||
+    headerStatus === "never_attempted" ||
+    headerStatus === "path_drift"
+  ) {
+    status = headerStatus;
+  } else if (resp.ok) {
+    status = "captured";
+  } else if (resp.status === 404) {
+    status = "never_attempted";
+  } else if (resp.status === 502) {
+    status = "path_drift";
+  }
+
+  // Pull filename from Content-Disposition.
+  const cd = resp.headers.get("Content-Disposition") ?? "";
+  const fnMatch = /filename="([^"]+)"/.exec(cd);
+  const filename = fnMatch?.[1];
+
+  if (!resp.ok) {
+    let body = "";
+    try {
+      body = await resp.text();
+    } catch {
+      // ignore
+    }
+    return { status, message: body || resp.statusText, filename };
+  }
+
+  // Trigger the actual download for captured AND honest empties /
+  // attempted_failed (the body has the explanation in CSV comment lines).
+  if (
+    status === "captured" ||
+    status === "empty_confirmed" ||
+    status === "attempted_failed"
+  ) {
+    let blob: Blob;
+    try {
+      blob = await resp.blob();
+    } catch (e) {
+      return {
+        status: "unknown",
+        message: e instanceof Error ? e.message : String(e),
+        rowCount,
+      };
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename ?? "shard.csv";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  }
+
+  return { status, filename, rowCount };
+}
+
+/**
+ * Per-fixture coverage for one (day, league) slice.
+ *
+ * ``capture_status`` values per entity match the v5 honest-coverage manifest:
+ * ``captured`` / ``empty_confirmed`` / ``missing`` / ``attempted_failed``.
+ */
+export type FixtureCoverageStatus =
+  | "captured"
+  | "empty_confirmed"
+  | "missing"
+  | "attempted_failed";
+
+export interface FixtureCoverageSummary {
+  captured: number;
+  empty_confirmed: number;
+  missing: number;
+  failed: number;
+}
+
+export interface FixtureBreakdownEntry {
+  fixture_id: string;
+  kickoff_utc: string;
+  home_team_name: string;
+  away_team_name: string;
+  status: string;
+  venue_id: string;
+  coverage: Record<string, FixtureCoverageStatus>;
+  coverage_summary: FixtureCoverageSummary;
+}
+
+export interface FixtureBreakdownResponse {
+  day: string;
+  league_id: string;
+  af_league_id: number | null;
+  fixtures_expected: number;
+  fixtures: FixtureBreakdownEntry[];
+  // "resolved" = master fixtures parquet present (may still be empty).
+  // "no_schedule" = master fixtures parquet absent for this day.
+  status: "resolved" | "no_schedule";
+}
+
+/**
+ * Fetch per-fixture coverage for one (day, league_id) — powers the SPORTS
+ * fixture-leaf drilldown below the existing per-league date badges.
+ */
+export async function fetchFixtureBreakdown(params: {
+  day: string;
+  league_id: string;
+}): Promise<FixtureBreakdownResponse> {
+  const qp = new URLSearchParams({
+    day: params.day,
+    league_id: params.league_id,
+  });
+  const res = await fetch(`${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(`fetchFixtureBreakdown ${res.status}: ${await res.text()}`);
+  }
+  return (await res.json()) as FixtureBreakdownResponse;
+}
+
+/**
+ * Build the per-fixture download URL. ``format='csv'`` returns a
+ * denormalised union CSV (one leading ``entity`` column); ``format='json'``
+ * returns structured JSON keyed by entity with ``capture_status`` sentinels.
+ */
+export function buildFixtureDownloadUrl(params: {
+  fixture_id: string;
+  day: string;
+  format: "csv" | "json";
+}): string {
+  const qp = new URLSearchParams({
+    fixture_id: params.fixture_id,
+    day: params.day,
+    format: params.format,
+  });
+  return `${API_BASE}/data-status/fixtures/download?${qp.toString()}`;
 }
 
 // Cloud Builds
@@ -1170,6 +2651,18 @@ export async function getCloudBuildHistory(
   return fetchJson(`/cloud-builds/history/${service}?limit=${limit}`);
 }
 
+export interface AwsStatusResponse {
+  authenticated: boolean;
+  account_id?: string;
+  user_arn?: string;
+  region?: string;
+  error?: string;
+}
+
+export async function getAwsStatus(): Promise<AwsStatusResponse> {
+  return fetchJson("/cloud-builds/aws-status");
+}
+
 // Instrument Search and Availability
 export interface InstrumentSearchResult {
   instrument_key: string;
@@ -1184,7 +2677,7 @@ export interface InstrumentSearchResult {
 }
 
 export interface InstrumentsListResponse {
-  category: string;
+  asset_group: string;
   aggregated_file?: string;
   aggregated_date?: string;
   total_in_file: number;
@@ -1200,7 +2693,7 @@ export interface InstrumentAvailabilityResponse {
     venue: string;
     instrument_type: string;
     symbol: string;
-    category: string;
+    asset_group: string;
     folder: string;
   };
   service: string;
@@ -1240,15 +2733,110 @@ export interface InstrumentAvailabilityResponse {
 }
 
 export async function getInstrumentsList(params: {
-  category: string;
+  asset_group: string;
   search?: string;
   limit?: number;
 }): Promise<InstrumentsListResponse> {
   const searchParams = new URLSearchParams();
-  searchParams.set("category", params.category);
+  searchParams.set("asset_group", params.asset_group);
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
-  return fetchJson(`/data-status/instruments?${searchParams.toString()}`);
+  const raw = await fetchJson<unknown>(`/data-status/instruments?${searchParams.toString()}`);
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if ("category" in r && !("asset_group" in r)) {
+      const { category, ...rest } = r;
+      return { ...rest, asset_group: category ?? "" } as InstrumentsListResponse;
+    }
+  }
+  return raw as InstrumentsListResponse;
+}
+
+/**
+ * Cross-asset-group canonical-symbol search — backed by
+ * ``/api/data-status/instruments/search``. Walks one or all five asset groups
+ * (cefi/tradfi/defi/sports/prediction) and returns canonical IDs whose
+ * substrings (whitespace-tokenised, AND-matched) contain the query.
+ *
+ * Sports returns ``league_id`` matches (EPL, BUNDESLIGA, …); other asset groups
+ * return ``instrument_key`` matches like ``BINANCE-FUTURES:PERPETUAL:BTC-USDT``.
+ */
+export interface InstrumentSearchMatch {
+  canonical_id: string;
+  asset_group: string;
+  venue: string;
+  instrument_type: string;
+}
+
+export interface InstrumentSearchResponse {
+  query: string;
+  asset_group: string | null;
+  matches: InstrumentSearchMatch[];
+  total_matches: number;
+  truncated: boolean;
+  asset_groups_searched: string[];
+}
+
+export async function searchInstruments(params: {
+  query: string;
+  asset_group?: string;
+  limit?: number;
+}): Promise<InstrumentSearchResponse> {
+  const qp = new URLSearchParams();
+  qp.set("query", params.query);
+  if (params.asset_group) qp.set("asset_group", params.asset_group);
+  if (params.limit !== undefined) qp.set("limit", params.limit.toString());
+  return fetchJson<InstrumentSearchResponse>(
+    `/data-status/instruments/search?${qp.toString()}`,
+  );
+}
+
+/**
+ * Per-pool DeFi drilldown — backed by ``/api/data-status/pools/breakdown``.
+ * Chain-native equivalent of the sports per-fixture breakdown. Returns one
+ * row per pool ID surfaced under the (day, venue, chain) shard with a
+ * coverage map showing which data_types captured each pool.
+ */
+export type PoolCoverageState =
+  | "captured"
+  | "empty_confirmed"
+  | "missing"
+  | "failed";
+
+export interface PoolCoverageRow {
+  pool_id: string;
+  coverage: Record<string, PoolCoverageState>;
+  coverage_summary: {
+    captured: number;
+    empty_confirmed: number;
+    missing: number;
+    failed: number;
+  };
+}
+
+export interface PoolBreakdownResponse {
+  day: string;
+  venue: string;
+  chain: string;
+  venue_chain: string;
+  data_types_expected: string[];
+  pools_expected: number;
+  pools: PoolCoverageRow[];
+  status: "resolved" | "no_data";
+}
+
+export async function getPoolBreakdown(params: {
+  day: string;
+  venue: string;
+  chain: string;
+}): Promise<PoolBreakdownResponse> {
+  const qp = new URLSearchParams();
+  qp.set("day", params.day);
+  qp.set("venue", params.venue);
+  qp.set("chain", params.chain);
+  return fetchJson<PoolBreakdownResponse>(
+    `/data-status/pools/breakdown?${qp.toString()}`,
+  );
 }
 
 export async function getInstrumentAvailability(params: {
@@ -1275,9 +2863,24 @@ export async function getInstrumentAvailability(params: {
     searchParams.set("available_from", params.available_from);
   if (params.available_to)
     searchParams.set("available_to", params.available_to);
-  return fetchJson(
-    `/data-status/instrument-availability?${searchParams.toString()}`,
-  );
+  const raw = await fetchJson<
+    InstrumentAvailabilityResponse & {
+      parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
+    }
+  >(`/data-status/instrument-availability?${searchParams.toString()}`);
+  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
+    const p = raw.parsed as Record<string, unknown>;
+    const cat = p["category"];
+    const { category: _omit, ...rest } = p;
+    return {
+      ...raw,
+      parsed: {
+        ...rest,
+        asset_group: typeof cat === "string" ? cat : String(cat ?? ""),
+      } as InstrumentAvailabilityResponse["parsed"],
+    };
+  }
+  return raw;
 }
 
 // ── Event stream ─────────────────────────────────────────────────────────────
@@ -1338,6 +2941,77 @@ export async function getLiveDeploymentHealth(
   const params = new URLSearchParams({ service, region });
   return fetchJson(
     `/deployments/${deploymentId}/live-health?${params.toString()}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// v7 — Client subscriptions + chaos injections (Phase 4b)
+// ---------------------------------------------------------------------------
+
+import type {
+  ChaosInjectionSpec,
+  ClientSubscription,
+  RuntimeProfile,
+} from "../types";
+
+export async function listClientSubscriptions(): Promise<ClientSubscription[]> {
+  return fetchJson<ClientSubscription[]>("/subscriptions/");
+}
+
+export async function getClientSubscription(
+  clientId: string,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>(
+    `/subscriptions/${encodeURIComponent(clientId)}`,
+  );
+}
+
+export async function createClientSubscription(
+  sub: ClientSubscription,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>("/subscriptions/", {
+    method: "POST",
+    body: JSON.stringify(sub),
+  });
+}
+
+export async function updateClientSubscription(
+  clientId: string,
+  patch: Partial<ClientSubscription>,
+): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>(
+    `/subscriptions/${encodeURIComponent(clientId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    },
+  );
+}
+
+export async function listActiveChaosInjections(
+  runtimeProfile?: RuntimeProfile,
+): Promise<ChaosInjectionSpec[]> {
+  const qs = runtimeProfile
+    ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}`
+    : "";
+  return fetchJson<ChaosInjectionSpec[]>(`/chaos/injections/${qs}`);
+}
+
+export async function createChaosInjection(
+  spec: ChaosInjectionSpec,
+): Promise<ChaosInjectionSpec> {
+  return fetchJson<ChaosInjectionSpec>("/chaos/injections/", {
+    method: "POST",
+    body: JSON.stringify(spec),
+  });
+}
+
+export async function deleteChaosInjection(injectionId: string): Promise<void> {
+  await fetchJson<void>(
+    `/chaos/injections/${encodeURIComponent(injectionId)}`,
+    {
+      method: "DELETE",
+    },
   );
 }
 

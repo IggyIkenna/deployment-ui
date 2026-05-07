@@ -124,3 +124,6 @@ logs/
 # .ipynb_checkpoints/
 # profile_default/
 test-results/
+
+# Orphan-route audit runtime report (scanner regenerates on every run)
+scripts/.orphan-audit-report.json

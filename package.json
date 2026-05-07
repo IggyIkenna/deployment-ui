@@ -16,20 +16,27 @@
     "smoketest-no-compile": "playwright test --no-deps",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "orphan-audit": "tsx scripts/orphan-audit.ts",
+    "orphan-audit:blocking": "tsx scripts/orphan-audit.ts --blocking",
+    "orphan-audit:write-baseline": "tsx scripts/orphan-audit.ts --write-baseline"
   },
   "dependencies": {
+    "@radix-ui/react-checkbox": "^1.1.0",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-select": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^25.3.3",
-    "@unified-admin/core": "file:../unified-admin-ui/packages/core",
-    "@unified-trading/ui-auth": "file:../unified-trading-ui-auth",
-    "@unified-trading/ui-kit": "file:../unified-trading-ui-kit",
     "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.0",
     "lucide-react": "^0.577.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.20.0",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.0",
+    "tailwind-merge": "^2.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -46,9 +53,10 @@
     "globals": "^17.3.0",
     "jsdom": "^29.0.0",
     "prettier": "^3.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.57.0",
-    "vite": "^6.0.0",
+    "vite": "^8.0.0",
     "vitest": "^4.1.0"
   }
 }

@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "_comment": "Routes that are NOT and CANNOT BE human-navigable from any nav surface. Reviewers rejecting a whitelist PR MUST apply the triage test: 'Can a human user (any persona) gain from seeing this page?' If yes, it does NOT belong here. Every entry's reason MUST begin with one of MACHINE-ONLY / API-HANDLER / UNAUTHENTICATED-FUNNEL. SSOT: unified-trading-pm/codex/06-coding-standards/orphan-audit.md §Whitelist Triage Rule.",
+  "entries": []
+}

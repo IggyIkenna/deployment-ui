@@ -76,33 +76,25 @@ describe("deployment-ui ↔ deployment-api integration", () => {
 
   it("GET /services/{service_name}/dimensions returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/services/{service_name}/dimensions",
-    );
+    const { ok, status } = await fetchApi("/services/{service_name}/dimensions");
     expect(ok || status === 401).toBe(true);
   });
 
   it("GET /services/{service_name}/discover-configs returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/services/{service_name}/discover-configs",
-    );
+    const { ok, status } = await fetchApi("/services/{service_name}/discover-configs");
     expect(ok || status === 401).toBe(true);
   });
 
   it("GET /services/{service_name}/list-directories returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/services/{service_name}/list-directories",
-    );
+    const { ok, status } = await fetchApi("/services/{service_name}/list-directories");
     expect(ok || status === 401).toBe(true);
   });
 
   it("GET /services/{service_name}/config-buckets returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/services/{service_name}/config-buckets",
-    );
+    const { ok, status } = await fetchApi("/services/{service_name}/config-buckets");
     expect(ok || status === 401).toBe(true);
   });
 
@@ -156,9 +148,7 @@ describe("deployment-ui ↔ deployment-api integration", () => {
 
   it("GET /service-status/execution-service/data-status returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/service-status/execution-service/data-status",
-    );
+    const { ok, status } = await fetchApi("/service-status/execution-service/data-status");
     expect(ok || status === 401).toBe(true);
   });
 
@@ -206,9 +196,7 @@ describe("deployment-ui ↔ deployment-api integration", () => {
 
   it("GET /data-status/instrument-availability returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/data-status/instrument-availability",
-    );
+    const { ok, status } = await fetchApi("/data-status/instrument-availability");
     expect(ok || status === 401).toBe(true);
   });
 
@@ -226,17 +214,13 @@ describe("deployment-ui ↔ deployment-api integration", () => {
 
   it("GET /checklists/{service_name}/checklist returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/checklists/{service_name}/checklist",
-    );
+    const { ok, status } = await fetchApi("/checklists/{service_name}/checklist");
     expect(ok || status === 401).toBe(true);
   });
 
   it("GET /checklists/{service_name}/checklist/validate returns ok or 401", async () => {
     if (!apiAvailable) return;
-    const { ok, status } = await fetchApi(
-      "/checklists/{service_name}/checklist/validate",
-    );
+    const { ok, status } = await fetchApi("/checklists/{service_name}/checklist/validate");
     expect(ok || status === 401).toBe(true);
   });
 

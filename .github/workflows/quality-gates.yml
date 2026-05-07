@@ -2,9 +2,13 @@ name: Quality Gates
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging, live-defi-rollout]
   pull_request:
-    branches: [main, develop]
+    branches: [main, staging, live-defi-rollout]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality-gates:

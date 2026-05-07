@@ -62,10 +62,11 @@ describe("DeploymentFrequencyChart", () => {
     expect(screen.getByText("70")).toBeInTheDocument();
   });
 
-  it("renders the success rate", () => {
+  it("renders the success rate (excludes failed + rolled_back)", () => {
     render(<DeploymentFrequencyChart />);
-    // (70 - 4) / 70 * 100 = 94.3%
-    expect(screen.getByText("94.3%")).toBeInTheDocument();
+    // Fixture sums: 64 successful + 4 failed + 2 rolled_back = 70.
+    // successRate = (70 - 4 - 2) / 70 * 100 = 91.4% (1 decimal).
+    expect(screen.getByText("91.4%")).toBeInTheDocument();
   });
 
   it("renders axes", () => {

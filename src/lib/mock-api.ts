@@ -6,7 +6,18 @@
  * This enables full E2E smoke testing without a real backend.
  */
 
+/**
+ * Mock API handlers for deployment-ui.
+ * Active when VITE_MOCK_API=true.
+ *
+ * Supports:
+ * - VITE_STRESS_SCENARIO: BIG_DRAWDOWN | BIG_TICKS | MISSING_DATA | BAD_SCHEMAS | STALE_DATA | HIGH_CARDINALITY
+ * - VITE_MOCK_DELAY_MS: artificial delay in ms for all mock responses
+ */
+
 export const MOCK_MODE = import.meta.env.VITE_MOCK_API === "true";
+const STRESS_SCENARIO = import.meta.env.VITE_STRESS_SCENARIO || "";
+const MOCK_DELAY_MS = parseInt(import.meta.env.VITE_MOCK_DELAY_MS || "60", 10);
 
 // ---- Mock data ----
 
@@ -15,7 +26,7 @@ const MOCK_SERVICES = [
     name: "instruments-service",
     layer: 1,
     category: "data",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T14:00:00Z",
   },
@@ -23,7 +34,7 @@ const MOCK_SERVICES = [
     name: "corporate-actions",
     layer: 1,
     category: "data",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-08T10:00:00Z",
   },
@@ -31,7 +42,7 @@ const MOCK_SERVICES = [
     name: "market-tick-data-service",
     layer: 2,
     category: "ingestion",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T16:00:00Z",
   },
@@ -39,7 +50,7 @@ const MOCK_SERVICES = [
     name: "market-data-processing-service",
     layer: 2,
     category: "ingestion",
-    dimensions: ["category", "venue", "date"],
+    dimensions: ["asset_group", "venue", "date"],
     status: "warning",
     lastDeployed: "2026-03-07T12:00:00Z",
   },
@@ -47,7 +58,7 @@ const MOCK_SERVICES = [
     name: "features-calendar-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "date"],
+    dimensions: ["asset_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:00:00Z",
   },
@@ -55,7 +66,7 @@ const MOCK_SERVICES = [
     name: "features-delta-one-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:30:00Z",
   },
@@ -63,7 +74,7 @@ const MOCK_SERVICES = [
     name: "features-volatility-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-09T18:45:00Z",
   },
@@ -71,7 +82,7 @@ const MOCK_SERVICES = [
     name: "features-onchain-service",
     layer: 3,
     category: "features",
-    dimensions: ["category", "feature_group", "date"],
+    dimensions: ["asset_group", "feature_group", "date"],
     status: "healthy",
     lastDeployed: "2026-03-10T09:00:00Z",
   },
@@ -153,9 +164,9 @@ const MOCK_CATEGORIES = [
   "sports",
 ];
 
-const MOCK_VENUES_BY_CATEGORY: Record<string, string[]> = {
+const MOCK_VENUES_BY_TRADING_CLASS: Record<string, string[]> = {
   equity: ["NYSE", "NASDAQ", "LSE", "TSE", "HKEX"],
-  crypto: ["Binance", "OKX", "Bybit", "Kraken", "Coinbase"],
+  crypto: ["Binance", "OKX", "Bybit", "Coinbase"],
   fx: ["Reuters", "Bloomberg", "EBS"],
   rates: ["CME", "EUREX", "ICE"],
   commodity: ["NYMEX", "LME", "ICE"],
@@ -175,21 +186,633 @@ const MOCK_QUOTA = {
   },
 };
 
+// Phase-C honest-coverage seed (2026-04-20) — matches the shape the
+// Category Breakdown card + 4-state heatmap + "Show only failures" filter
+// + drill-down retry button expect. Prior seed was a minimal calendar
+// object that carried no `asset_groups`, which meant the full Phase-C UI
+// surface never rendered in local dev / Playwright audits.
+//
+// Seed is deterministic: PREDICTION has high attempt / low capture (event-
+// driven), CEFI/TRADFI/DEFI are dense ~99%, and every category carries
+// at least one attempted_failed row in its first venue so the failures
+// filter + retry affordance are both exercised.
+function _mkVenue(
+  dates_expected: number,
+  captured: number,
+  empty: number,
+  failed: number,
+) {
+  const attempted = captured + empty + failed;
+  const denom = Math.max(1, dates_expected);
+  const attemptedDenom = Math.max(1, attempted);
+  return {
+    dates_found: captured,
+    dates_expected,
+    dates_expected_venue: dates_expected,
+    dates_missing: Math.max(0, dates_expected - captured),
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    completion_pct: Math.min(
+      Math.round((captured / denom) * 10000) / 100,
+      100,
+    ),
+    venue_start_date: "2024-01-01",
+    capture_status_counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+    },
+    attempt_coverage_pct: Math.min(
+      Math.round((attempted / denom) * 10000) / 100,
+      100,
+    ),
+    capture_coverage_pct: Math.min(
+      Math.round((captured / denom) * 10000) / 100,
+      100,
+    ),
+    empty_rate: Math.round((empty / attemptedDenom) * 10000) / 10000,
+    failure_rate: Math.round((failed / attemptedDenom) * 10000) / 10000,
+  };
+}
+
+function _mkCategory(
+  category: string,
+  semantics: "dense" | "event_driven",
+  dates_expected: number,
+  captured: number,
+  empty: number,
+  failed: number,
+  venues: string[],
+) {
+  const attempted = captured + empty + failed;
+  const denom = Math.max(1, dates_expected);
+  const attemptedDenom = Math.max(1, attempted);
+  const capturePct = Math.min(Math.round((captured / denom) * 10000) / 100, 100);
+  const attemptPct = Math.min(
+    Math.round((attempted / denom) * 10000) / 100,
+    100,
+  );
+  const emptyRate =
+    attempted > 0
+      ? Math.round((empty / attemptedDenom) * 10000) / 10000
+      : null;
+  const failureRate = Math.round((failed / attemptedDenom) * 10000) / 10000;
+
+  const perVenueExpected = Math.max(1, Math.floor(dates_expected / venues.length));
+  let remainingFailed = failed;
+  let remainingEmpty = empty;
+  let remainingCaptured = captured;
+  const venuesDict: Record<string, ReturnType<typeof _mkVenue>> = {};
+  const failureRateByDim: Record<
+    string,
+    { failure_rate: number; attempted_failed_count: number }
+  > = {};
+  venues.forEach((v, idx) => {
+    const vFailed = idx === 0 ? remainingFailed : 0;
+    const split = Math.max(1, venues.length - idx);
+    const vEmpty = remainingEmpty > 0 ? Math.floor(remainingEmpty / split) : 0;
+    const vCaptured =
+      remainingCaptured > 0 ? Math.floor(remainingCaptured / split) : 0;
+    remainingFailed -= vFailed;
+    remainingEmpty -= vEmpty;
+    remainingCaptured -= vCaptured;
+    venuesDict[v] = _mkVenue(perVenueExpected, vCaptured, vEmpty, vFailed);
+    if (vFailed > 0) {
+      const vAttempted = vCaptured + vEmpty + vFailed;
+      failureRateByDim[v] = {
+        failure_rate:
+          Math.round((vFailed / Math.max(1, vAttempted)) * 10000) / 10000,
+        attempted_failed_count: vFailed,
+      };
+    }
+  });
+
+  return {
+    category,
+    bucket: `mock-bucket-${category.toLowerCase()}`,
+    prefixes_queried: 0,
+    dates_found: captured,
+    dates_expected,
+    dates_missing: Math.max(0, dates_expected - captured),
+    shards_found: captured,
+    shards_expected: dates_expected,
+    completion_pct: semantics === "event_driven" ? attemptPct : capturePct,
+    completion_pct_dates: capturePct,
+    completion_pct_shards_weighted: capturePct,
+    attempt_coverage_pct: attemptPct,
+    capture_coverage_pct: capturePct,
+    coverage_semantics: semantics,
+    empty_rate_estimate: emptyRate,
+    failure_rate: failureRate,
+    capture_status_counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+    },
+    venue_weighted: true,
+    venue_dates_found: captured,
+    venue_dates_expected: dates_expected,
+    unit: category === "SPORTS" ? "fixtures" : "dates",
+    effective_start_date: "2024-01-01",
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    // Default axis: `venue` for CeFi / TradFi / DeFi / Prediction / legacy
+    // callers. SPORTS gets a dedicated builder below that flips to
+    // `data_type` so consumers exercise the new discriminator path.
+    breakdown_axis: "venue" as const,
+    venues: venuesDict,
+    data_types: {} as Record<string, never>,
+    failure_rate_by_dimension: failureRateByDim,
+  };
+}
+
+/**
+ * SPORTS fixture builder — emits the 2026-04-20 `breakdown_axis: "data_type"`
+ * shape so the mock exercises the UI path that reads `catData.data_types`
+ * instead of `catData.venues`. Numbers are loosely modelled on the real
+ * manifest output (`FIXTURES` heavy, `LEAGUES` near-complete, `FIXTURE_EVENTS`
+ * empty) so coverage bars render visibly.
+ */
+function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
+  const fixturesFound = 2094;
+  const fixturesExpected = 164027;
+  const fixturesMissing = fixturesExpected - fixturesFound;
+  const fixturesPct =
+    Math.round((fixturesFound / fixturesExpected) * 10000) / 100;
+
+  const leaguesFound = 2083;
+  const leaguesExpected = 2088;
+  const leaguesPct = Math.round((leaguesFound / leaguesExpected) * 10000) / 100;
+
+  const totalFound = fixturesFound + leaguesFound;
+  const totalExpected = fixturesExpected + leaguesExpected;
+  const pct = Math.round((totalFound / totalExpected) * 10000) / 100;
+
+  const dataTypesDict: Record<string, ReturnType<typeof _mkVenue>> = {
+    FIXTURES: {
+      ..._mkVenue(fixturesExpected, fixturesFound, 0, 0),
+      dates_missing: fixturesMissing,
+      completion_pct: fixturesPct,
+      found_shards: fixturesFound,
+      expected_shards: fixturesExpected,
+      missing_shards: fixturesMissing,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {
+        EPL: {
+          found_shards: 5,
+          expected_shards: 1783,
+          missing_shards: 1778,
+          completion_pct: 0.28,
+          unit: "fixture_dates",
+        },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    LEAGUES: {
+      ..._mkVenue(leaguesExpected, leaguesFound, 0, 0),
+      completion_pct: leaguesPct,
+      found_shards: leaguesFound,
+      expected_shards: leaguesExpected,
+      missing_shards: leaguesExpected - leaguesFound,
+      unit: "daily_snapshots",
+      axis: "global_periodic",
+      source: "api_football",
+      expected_leagues: [] as string[],
+      leagues: {} as Record<string, never>,
+    } as unknown as ReturnType<typeof _mkVenue>,
+    FIXTURE_EVENTS: {
+      ..._mkVenue(fixturesExpected, 0, 0, 0),
+      completion_pct: 0,
+      found_shards: 0,
+      expected_shards: fixturesExpected,
+      missing_shards: fixturesExpected,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {} as Record<string, never>,
+    } as unknown as ReturnType<typeof _mkVenue>,
+  };
+
+  return {
+    category: "SPORTS",
+    bucket: "mock-bucket-sports",
+    prefixes_queried: 0,
+    dates_found: totalFound,
+    dates_expected: totalExpected,
+    dates_missing: totalExpected - totalFound,
+    shards_found: totalFound,
+    shards_expected: totalExpected,
+    completion_pct: pct,
+    completion_pct_dates: pct,
+    completion_pct_shards_weighted: pct,
+    attempt_coverage_pct: pct,
+    capture_coverage_pct: pct,
+    coverage_semantics: "event_driven",
+    empty_rate_estimate: 0,
+    failure_rate: 0,
+    capture_status_counts: {
+      captured: totalFound,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+    },
+    venue_weighted: true,
+    venue_dates_found: totalFound,
+    venue_dates_expected: totalExpected,
+    unit: "fixtures",
+    effective_start_date: "2024-01-01",
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    // SPORTS flips the axis — drilldown lives under `data_types`, NOT `venues`.
+    breakdown_axis: "data_type" as const,
+    venues: {} as Record<string, never>,
+    data_types: dataTypesDict,
+    failure_rate_by_dimension: {},
+  } as unknown as ReturnType<typeof _mkCategory>;
+}
+
+/**
+ * Annotate a venue row with MTDS honest-coverage fields
+ * (deployment-api `_apply_mtds_honest_coverage`, commit 9d21ac8). Builds a
+ * realistic per-data-type `honest_data_types` dict so the Phase 6e.3 UI
+ * renders the "Honest coverage (data types)" panel in mock mode. Declared
+ * data types with zero found shards are listed under `missing_data_types`
+ * so the red "N data types missing" badge surfaces on the venue summary
+ * row.
+ *
+ * Phase 8H extension (deployment-api commit c059e6f, 2026-04-20): each
+ * dt can now opt into `shard_instrument_days` / `shard_days_legacy` units
+ * via `perInstrumentDataTypes` / `legacyDataTypes` — emitting the
+ * `expected_instruments` / `missing_instruments` / `per_instrument` /
+ * `legacy_row_count` fields the Phase 8H UI renders.
+ */
+interface MtdsHonestPhase8Opts {
+  /**
+   * Map of per-instrument (Tier-3) data_types to their instrument universe.
+   * Each dt emits `unit="shard_instrument_days"`, `expected_instruments`,
+   * `missing_instruments`, and (when universe size < 20) a
+   * `per_instrument` dict.
+   */
+  perInstrumentDataTypes?: Record<
+    string,
+    {
+      expected_instruments: string[];
+      /** Instruments with zero captured shards in the window. */
+      missing_instruments: string[];
+    }
+  >;
+  /**
+   * Data types whose manifest pre-dates Phase 8C (no `instrument_id`
+   * column). Emits `unit="shard_days_legacy"` + `legacy_row_count`. The
+   * expected instrument universe is listed under `expected_instruments`
+   * so the UI can badge them as "all missing" under the degraded
+   * denominator.
+   */
+  legacyDataTypes?: Record<
+    string,
+    {
+      expected_instruments: string[];
+      legacy_row_count: number;
+    }
+  >;
+}
+
+interface MtdsHonestDtShape {
+  expected_shards: number;
+  found_shards: number;
+  missing_shards: number;
+  completion_pct: number;
+  unit: "shard_days" | "shard_instrument_days" | "shard_days_legacy";
+  missing_dates: string[];
+  dates_found_list: string[];
+  expected_instruments?: string[];
+  missing_instruments?: string[];
+  per_instrument?: Record<
+    string,
+    {
+      found_shards: number;
+      expected_shards: number;
+      completion_pct: number;
+      missing_dates?: string[];
+    }
+  >;
+  legacy_row_count?: number;
+}
+
+function _mkMtdsHonest(
+  expectedDataTypes: string[],
+  missingDataTypes: string[],
+  windowDays: number,
+  honestAxis: string,
+  opts: MtdsHonestPhase8Opts = {},
+) {
+  const honest: Record<string, MtdsHonestDtShape> = {};
+  const perInstrumentDts = opts.perInstrumentDataTypes ?? {};
+  const legacyDts = opts.legacyDataTypes ?? {};
+  for (const dt of expectedDataTypes) {
+    const isPerInstrument = Object.prototype.hasOwnProperty.call(perInstrumentDts, dt);
+    const isLegacy = Object.prototype.hasOwnProperty.call(legacyDts, dt);
+    if (isPerInstrument) {
+      const { expected_instruments, missing_instruments } = perInstrumentDts[dt];
+      const universe = expected_instruments.length;
+      const expected = windowDays * universe;
+      // One captured instrument gets (windowDays - 2) shards per instrument;
+      // missing instruments contribute 0. This mirrors the aggregator's
+      // per-(venue, dt, instrument, date) shard counting.
+      const capturedInstruments = expected_instruments.filter(
+        (iid) => !missing_instruments.includes(iid),
+      );
+      const perInstrumentFound = Math.max(0, windowDays - 2);
+      const found = capturedInstruments.length * perInstrumentFound;
+      const missing = Math.max(0, expected - found);
+      const pct =
+        expected === 0
+          ? 0
+          : Math.min(Math.round((found / expected) * 10000) / 100, 100);
+      const shape: MtdsHonestDtShape = {
+        expected_shards: expected,
+        found_shards: found,
+        missing_shards: missing,
+        completion_pct: pct,
+        unit: "shard_instrument_days",
+        missing_dates: [],
+        dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
+        expected_instruments: [...expected_instruments],
+        missing_instruments: [...missing_instruments],
+      };
+      // Only populate per_instrument when the universe is small enough
+      // (aggregator budget — avoids response bloat for 100+ symbols).
+      if (universe < 20) {
+        const perInstrument: Record<
+          string,
+          { found_shards: number; expected_shards: number; completion_pct: number; missing_dates?: string[] }
+        > = {};
+        for (const iid of expected_instruments) {
+          const iFound = missing_instruments.includes(iid) ? 0 : perInstrumentFound;
+          const iPct =
+            windowDays === 0
+              ? 0
+              : Math.min(Math.round((iFound / windowDays) * 10000) / 100, 100);
+          perInstrument[iid] = {
+            found_shards: iFound,
+            expected_shards: windowDays,
+            completion_pct: iPct,
+            missing_dates:
+              iFound > 0 && iFound < windowDays
+                ? ["2025-04-29", "2025-04-30"].slice(0, windowDays - iFound)
+                : undefined,
+          };
+        }
+        shape.per_instrument = perInstrument;
+      }
+      honest[dt] = shape;
+      continue;
+    }
+    if (isLegacy) {
+      const { expected_instruments, legacy_row_count } = legacyDts[dt];
+      // Legacy denominator is degraded to venue-level shard_days — same as
+      // the Phase 6e.3 shape, but flagged via `unit=shard_days_legacy` so
+      // the UI can amber-badge it as migration-in-progress.
+      const expected = windowDays;
+      const found = 0; // legacy rows were counted via Tier-2 fallback, not shards
+      const missing = expected - found;
+      honest[dt] = {
+        expected_shards: expected,
+        found_shards: found,
+        missing_shards: missing,
+        completion_pct: 0,
+        unit: "shard_days_legacy",
+        missing_dates: ["2025-04-29", "2025-04-30"],
+        dates_found_list: [],
+        expected_instruments: [...expected_instruments],
+        missing_instruments: [...expected_instruments],
+        legacy_row_count,
+      };
+      continue;
+    }
+    // Default venue-level shard_days path (unchanged from Phase 6e.3).
+    const expected = windowDays;
+    const found = missingDataTypes.includes(dt)
+      ? 0
+      : Math.max(0, windowDays - 2);
+    const missing = Math.max(0, expected - found);
+    honest[dt] = {
+      expected_shards: expected,
+      found_shards: found,
+      missing_shards: missing,
+      completion_pct:
+        expected === 0
+          ? 0
+          : Math.min(Math.round((found / expected) * 10000) / 100, 100),
+      unit: "shard_days",
+      missing_dates: missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
+      dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
+    };
+  }
+  return {
+    expected_data_types: [...expectedDataTypes].sort(),
+    missing_data_types: [...missingDataTypes].sort(),
+    honest_data_types: honest,
+    honest_axis: honestAxis,
+  };
+}
+
+/**
+ * CEFI fixture with MTDS honest-coverage annotations (Phase 6e.3 +
+ * Phase 8H). Emulates deployment-api's aggregator output for a MTDS
+ * service:
+ *
+ * - BINANCE-SPOT: every declared dt captured at venue-level (baseline).
+ * - BINANCE-FUTURES: mixes the three Phase 8 unit axes —
+ *     • `liquidations` → venue-level (`shard_days`)
+ *     • `trades` → pre-Phase-8C manifest (`shard_days_legacy`, amber
+ *       migration badge, 10 expected instruments all missing,
+ *       `legacy_row_count=486`)
+ *     • `derivative_ticker` → Tier-3 per-instrument
+ *       (`shard_instrument_days`, 3 expected instruments with 1 captured
+ *       + 2 missing, `per_instrument` dict populated).
+ * - DERIBIT: missing both derivative_ticker and options_chain (venue-level).
+ */
+function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
+  const base = _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
+    "BINANCE-SPOT",
+    "BINANCE-FUTURES",
+    "DERIBIT",
+  ]);
+  const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
+  const HONEST_AXIS = "per_venue_per_data_type_per_day";
+  // BINANCE-SPOT — all declared dts captured (no missing).
+  venuesDict["BINANCE-SPOT"] = {
+    ...venuesDict["BINANCE-SPOT"],
+    ..._mkMtdsHonest(
+      ["trades", "orderbook_snapshot_1s", "ticker"],
+      [],
+      120,
+      HONEST_AXIS,
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  // BINANCE-FUTURES — mixes all three Phase 8 unit axes.
+  const binFutPerps = [
+    "BTC-USDT",
+    "ETH-USDT",
+    "SOL-USDT",
+    "XRP-USDT",
+    "BNB-USDT",
+    "ADA-USDT",
+    "DOGE-USDT",
+    "AVAX-USDT",
+    "MATIC-USDT",
+    "LINK-USDT",
+  ];
+  venuesDict["BINANCE-FUTURES"] = {
+    ...venuesDict["BINANCE-FUTURES"],
+    ..._mkMtdsHonest(
+      ["trades", "liquidations", "derivative_ticker", "futures_chain"],
+      ["futures_chain"],
+      120,
+      HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          derivative_ticker: {
+            expected_instruments: ["BTC-USDT", "ETH-USDT", "SOL-USDT"],
+            missing_instruments: ["SOL-USDT"],
+          },
+        },
+        legacyDataTypes: {
+          trades: {
+            expected_instruments: binFutPerps,
+            legacy_row_count: 486,
+          },
+        },
+      },
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  // DERIBIT — missing both derivative_ticker and options_chain.
+  venuesDict["DERIBIT"] = {
+    ...venuesDict["DERIBIT"],
+    ..._mkMtdsHonest(
+      ["trades", "orderbook_snapshot_1s", "derivative_ticker", "options_chain"],
+      ["derivative_ticker", "options_chain"],
+      120,
+      HONEST_AXIS,
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  return base;
+}
+
+/**
+ * DEFI fixture with Phase 8H per-instrument honest-coverage. Wave 8G
+ * seeded UAC instrument-ref for DEFI protocols, so UNISWAPV3-ETHEREUM now
+ * declares 20 dex_pools and AAVEV3-ETHEREUM declares 10 lending_indices
+ * instruments.  The 20-pool universe sits exactly at the aggregator's
+ * `per_instrument` budget threshold (< 20) so it is intentionally
+ * emitted WITHOUT a `per_instrument` dict — mirroring the live aggregator
+ * behaviour and letting the UI exercise the "large universe" branch.
+ */
+function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
+  const base = _mkCategory("DEFI", "dense", 110, 102, 5, 3, [
+    "UNISWAPV3-ETHEREUM",
+    "AAVEV3-ETHEREUM",
+  ]);
+  const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
+  const HONEST_AXIS = "per_venue_per_data_type_per_day";
+  const uniPools = Array.from({ length: 20 }, (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`);
+  const aaveIndices = Array.from({ length: 10 }, (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`);
+  venuesDict["UNISWAPV3-ETHEREUM"] = {
+    ...venuesDict["UNISWAPV3-ETHEREUM"],
+    ..._mkMtdsHonest(
+      ["dex_pools"],
+      [],
+      90,
+      HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          // 20-element universe — hits the aggregator's "<20" gate, so
+          // per_instrument is intentionally omitted to mirror live shape.
+          dex_pools: {
+            expected_instruments: uniPools,
+            missing_instruments: uniPools.slice(17), // last 3 missing
+          },
+        },
+      },
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  venuesDict["AAVEV3-ETHEREUM"] = {
+    ...venuesDict["AAVEV3-ETHEREUM"],
+    ..._mkMtdsHonest(
+      ["lending_indices"],
+      [],
+      90,
+      HONEST_AXIS,
+      {
+        perInstrumentDataTypes: {
+          // 10-element universe — under the <20 budget, so per_instrument
+          // detail is populated.
+          lending_indices: {
+            expected_instruments: aaveIndices,
+            missing_instruments: [aaveIndices[3], aaveIndices[7]],
+          },
+        },
+      },
+    ),
+  } as ReturnType<typeof _mkVenue>;
+  return base;
+}
+
+const _MOCK_CATS = {
+  CEFI: _mkCefiMtdsHonest(),
+  TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, [
+    "DATABENTO-DBEQ",
+    "DATABENTO-GLBX",
+  ]),
+  DEFI: _mkDefiMtdsHonest(),
+  // SPORTS uses the new `breakdown_axis: "data_type"` shape (2026-04-20).
+  // Drilldown lives under `data_types`, not `venues`.
+  SPORTS: _mkSportsByDataType(),
+  PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, [
+    "POLYMARKET",
+  ]),
+};
+
+const _MOCK_TOTAL_EXPECTED = Object.values(_MOCK_CATS).reduce(
+  (acc, c) => acc + c.dates_expected,
+  0,
+);
+const _MOCK_TOTAL_CAPTURED = Object.values(_MOCK_CATS).reduce(
+  (acc, c) => acc + c.dates_found,
+  0,
+);
+
 const MOCK_DATA_STATUS = {
   service: "instruments-service",
-  category: "equity",
-  totalDates: 30,
-  completeDates: 28,
-  missingDates: ["2026-03-05", "2026-03-06"],
-  calendar: Array.from({ length: 30 }, (_, i) => {
-    const d = new Date("2026-02-09");
-    d.setDate(d.getDate() + i);
-    return {
-      date: d.toISOString().split("T")[0],
-      status: i === 24 || i === 25 ? "missing" : "complete",
-      shards: i === 24 || i === 25 ? 0 : Math.floor(Math.random() * 20) + 40,
-    };
-  }),
+  date_range: { start: "2025-01-01", end: "2025-04-30", days: 120 },
+  mode: "turbo" as const,
+  sub_dimension: "venue" as const,
+  overall_completion_pct: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_completion_pct_dates: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_completion_pct_shards_weighted: Math.min(
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    100,
+  ),
+  overall_dates_found: _MOCK_TOTAL_CAPTURED,
+  overall_dates_expected: _MOCK_TOTAL_EXPECTED,
+  overall_shards_found: _MOCK_TOTAL_CAPTURED,
+  overall_shards_expected: _MOCK_TOTAL_EXPECTED,
+  total_missing: Math.max(0, _MOCK_TOTAL_EXPECTED - _MOCK_TOTAL_CAPTURED),
+  migration_in_progress: false,
+  asset_groups: _MOCK_CATS,
+  mock: true,
 };
 
 const MOCK_CHECKLIST = {
@@ -268,8 +891,57 @@ const MOCK_CHECKLIST = {
 
 // ---- Route handler ----
 
-function delay(ms = 60): Promise<void> {
+function delay(ms = MOCK_DELAY_MS): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// ---- Stress overrides ----
+function getStressDeployments(): typeof MOCK_DEPLOYMENTS {
+  if (STRESS_SCENARIO === "MISSING_DATA") return [];
+  if (STRESS_SCENARIO === "HIGH_CARDINALITY") {
+    return Array.from({ length: 500 }, (_, i) => ({
+      id: `dep-hc-${String(i).padStart(4, "0")}`,
+      service: MOCK_SERVICES[i % MOCK_SERVICES.length].name,
+      status: ["completed", "running", "failed", "queued"][i % 4],
+      created_at: new Date(Date.now() - i * 3600000).toISOString(),
+      updated_at: new Date(Date.now() - i * 1800000).toISOString(),
+      total_shards: Math.floor(Math.random() * 200) + 10,
+      completed_shards: Math.floor(Math.random() * 100),
+      failed_shards: i % 4 === 2 ? Math.floor(Math.random() * 20) : 0,
+      parameters: { compute: "vm", mode: "batch", cloud_provider: "gcp" },
+      tag: null,
+    }));
+  }
+  if (STRESS_SCENARIO === "BIG_DRAWDOWN") {
+    return MOCK_DEPLOYMENTS.map((d) => ({
+      ...d,
+      status: "failed",
+      failed_shards: d.total_shards,
+    }));
+  }
+  return MOCK_DEPLOYMENTS;
+}
+
+function getStressServices(): typeof MOCK_SERVICES {
+  if (STRESS_SCENARIO === "MISSING_DATA") return [];
+  if (STRESS_SCENARIO === "HIGH_CARDINALITY") {
+    return Array.from({ length: 100 }, (_, i) => ({
+      name: `service-${String(i).padStart(3, "0")}`,
+      layer: (i % 6) + 1,
+      category: [
+        "data",
+        "ingestion",
+        "features",
+        "ml",
+        "execution",
+        "monitoring",
+      ][i % 6],
+      dimensions: ["asset_group", "date"],
+      status: i % 10 === 0 ? "warning" : "healthy",
+      lastDeployed: new Date(Date.now() - i * 86400000).toISOString(),
+    }));
+  }
+  return MOCK_SERVICES;
 }
 
 function json<T>(data: T, status = 200): Response {
@@ -309,7 +981,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Services list
   if (path === "/api/services") {
-    return json({ services: MOCK_SERVICES });
+    return json({ services: getStressServices() });
   }
 
   // Service sub-routes
@@ -325,11 +997,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           granularity: "daily",
         };
       }
-      if (name === "category") {
+      if (name === "asset_group") {
         return {
-          name: "category",
+          name: "asset_group",
           type: "fixed",
-          description: "Market category",
+          description: "Asset group (CEFI, TRADFI, DEFI, …)",
           values: ["cefi", "tradfi", "defi"],
         };
       }
@@ -387,9 +1059,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Config
   if (path.match(/^\/api\/config\/venues/)) {
-    const cat =
-      new URL(url, "http://x").searchParams.get("category") ?? "equity";
-    return json({ venues: MOCK_VENUES_BY_CATEGORY[cat] ?? [] });
+    const params = new URL(url, "http://x").searchParams;
+    const ag =
+      params.get("asset_group") ?? params.get("category") ?? "equity";
+    return json({ venues: MOCK_VENUES_BY_TRADING_CLASS[ag] ?? [] });
   }
   if (path.match(/^\/api\/config\/start-dates/)) {
     return json({ dates: { equity: "2020-01-02", crypto: "2019-01-01" } });
@@ -405,10 +1078,39 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Venues
   if (path.startsWith("/api/venues")) {
-    return json({ categories: {}, category: "", venues: [], data_types: [] });
+    return json({
+      asset_groups: {},
+      asset_group: "",
+      venues: [],
+      data_types: [],
+    });
   }
 
   // Deployments
+  // Phase-C retry: /deployments/deploy-missing gets POSTed from the
+  // drill-down retry button. Return a deployment-shaped payload so the
+  // UI flips the button to the "Retried ✓" state.
+  if (path === "/api/deployments/deploy-missing" && method === "POST") {
+    const body = init?.body
+      ? (JSON.parse(init.body as string) as Record<string, unknown>)
+      : {};
+    const depId = `dep-retry-${Date.now()}`;
+    return json({
+      missing_analysis: {
+        service: body.service,
+        date_range: { start: body.start_date, end: body.end_date },
+        total_missing: 1,
+      },
+      deployment: {
+        deployment_id: depId,
+        status: "pending",
+        total_shards: 1,
+        cli_command: `mock retry --service ${body.service ?? ""} --day ${body.start_date ?? ""}`,
+      },
+      dry_run: body.dry_run ?? false,
+      message: "Retry queued (mock)",
+    });
+  }
   if (path === "/api/deployments" && method === "POST") {
     const body = init?.body
       ? (JSON.parse(init.body as string) as Record<string, unknown>)
@@ -447,9 +1149,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     );
   }
   if (path === "/api/deployments") {
+    const deps = getStressDeployments();
     return json({
-      deployments: MOCK_DEPLOYMENTS,
-      total: MOCK_DEPLOYMENTS.length,
+      deployments: deps,
+      total: deps.length,
     });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/quota$/)) {
@@ -470,7 +1173,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const id = path.split("/")[3];
     return json({ deployment_id: id, events: [], count: 0 });
   }
-  if (path.match(/^\/api\/deployments\/(.+)$/)) {
+  // GET /api/deployments/<id> — single deployment lookup. Regex excludes
+  // any extra path segments (rollback / deploy / events / vm-events /
+  // quota) which are handled by their own branches below — the previous
+  // `.+` pattern was greedy and would swallow POST routes like
+  // `/api/deployments/<id>/rollback`, returning the wrong payload.
+  if (path.match(/^\/api\/deployments\/[^/]+$/) && method !== "POST") {
     const id = path.split("/").pop();
     const dep =
       MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];
@@ -750,9 +1458,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       version: "0.3.0",
     });
   }
-  if (path.match(/^\/api\/capabilities\/service-categories\/.+/)) {
+  if (
+    path.match(/^\/api\/capabilities\/service-asset-groups\/.+/) ||
+    path.match(/^\/api\/capabilities\/service-categories\/.+/)
+  ) {
     return json({
-      categories: ["data", "ingestion", "features", "ml"],
+      asset_groups: ["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"],
       service: path.split("/").pop(),
     });
   }
@@ -794,17 +1505,72 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path.startsWith("/api/data-status/turbo/cache/clear")) {
     return json({ cleared: true });
   }
-  if (path.startsWith("/api/data-status/turbo")) {
+  if (
+    path.startsWith("/api/data-status/turbo") ||
+    path.startsWith("/api/data-status/manifest")
+  ) {
     return json(MOCK_DATA_STATUS);
   }
   if (path.startsWith("/api/data-status/venue-filters")) {
     return json({
-      venues: ["Binance", "OKX", "Bybit", "Coinbase"],
-      categories: ["crypto", "equity", "fx"],
+      service: "instruments-service",
+      asset_groups: {
+        cefi: { venues: ["Binance", "OKX"], count: 2 },
+        tradfi: { venues: ["CME"], count: 1 },
+      },
     });
   }
   if (path.startsWith("/api/data-status/list-files")) {
     return json({ files: [], directories: [], error: null });
+  }
+  // Phase-C drill-down: three instrument rows, one per capture_status, so
+  // the UI shows every badge colour + exercises the Retry button flow.
+  if (path.startsWith("/api/data-status/instruments-for-shard")) {
+    const venue = new URL(path, "http://x").searchParams.get("venue") ?? "MOCK";
+    const day = new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
+    return json({
+      service: "market-tick-data-service",
+      category: "cefi",
+      venue,
+      day,
+      instrument_type: "perpetuals",
+      data_type: "trades",
+      bundling: "per_symbol",
+      bucket: "mock-bucket-cefi",
+      prefix: `raw_tick_data/by_date/day=${day}/category=cefi/venue=${venue}/`,
+      instruments: [
+        {
+          instrument_id: `${venue}-CAPTURED-1`,
+          file_uri: `gs://mock/${venue}/${day}/CAPTURED-1.parquet`,
+          size_bytes: 1024,
+          capture_status: "captured",
+          error_reason: "",
+          attempted_at: `${day}T00:10:00+00:00`,
+        },
+        {
+          instrument_id: `${venue}-EMPTY-1`,
+          file_uri: `gs://mock/${venue}/${day}/EMPTY-1.parquet`,
+          size_bytes: 0,
+          capture_status: "empty_confirmed",
+          error_reason: "",
+          attempted_at: `${day}T00:12:00+00:00`,
+        },
+        {
+          instrument_id: `${venue}-FAILED-1`,
+          file_uri: `gs://mock/${venue}/${day}/FAILED-1.parquet`,
+          size_bytes: 0,
+          capture_status: "attempted_failed",
+          error_reason: "RATE_LIMIT_HIT",
+          attempted_at: `${day}T00:14:00+00:00`,
+        },
+      ],
+      total_count: 3,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+      search: "",
+      mock: true,
+    });
   }
   if (path.startsWith("/api/data-status/instruments")) {
     return json({
@@ -839,7 +1605,176 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // ─── VM deployments (Phase 4b — VM-backed pipeline observability) ───
+  if (path.startsWith("/api/vm-deployments") && method === "GET") {
+    const m = path.match(/^\/api\/vm-deployments\/([^/?]+)$/);
+    if (m) {
+      return json(_mockVmDeployment(decodeURIComponent(m[1]), "running"));
+    }
+    return json({
+      active: [
+        _mockVmDeployment(
+          "vm-2026-04-30-tradfi-bf-btc-heavy-2024-06",
+          "running",
+        ),
+        _mockVmDeployment(
+          "vm-2026-04-30-tradfi-bf-eth-light-2025",
+          "running",
+        ),
+      ],
+      recent: [
+        _mockVmDeployment(
+          "vm-2026-04-29-cefi-binance-futures-2024",
+          "completed",
+        ),
+        _mockVmDeployment("vm-2026-04-29-cefi-bybit-2024", "completed"),
+        _mockVmDeployment("vm-2026-04-28-mtds-options-may2025", "failed"),
+      ],
+      archive_days: 7,
+    });
+  }
+
+  // ─── Client subscriptions (Phase 4b — SLA / isolation) ───
+  if (path === "/subscriptions/" || path === "/subscriptions") {
+    if (method === "POST") {
+      const sub = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json(
+        _mockClientSubscription(String(sub.client_id ?? "client-new")),
+        201,
+      );
+    }
+    return json([
+      _mockClientSubscription("acme-trading", "premium"),
+      _mockClientSubscription("research-fund-a", "standard"),
+      _mockClientSubscription("smoke-test-client", "basic"),
+    ]);
+  }
+  const subMatch = path.match(/^\/subscriptions\/([^/]+)$/);
+  if (subMatch) {
+    const clientId = decodeURIComponent(subMatch[1]);
+    if (method === "PUT") {
+      const patch = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json({
+        ..._mockClientSubscription(clientId),
+        ...patch,
+      });
+    }
+    return json(_mockClientSubscription(clientId));
+  }
+
+  // ─── Chaos injections (Phase 4b — controlled fault injection) ───
+  if (path.startsWith("/chaos/injections")) {
+    const idMatch = path.match(/^\/chaos\/injections\/([^/?]+)$/);
+    if (idMatch && method === "DELETE") {
+      return json({ revoked: decodeURIComponent(idMatch[1]) });
+    }
+    if (method === "POST") {
+      const spec = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      return json(
+        {
+          injection_id: `chaos-${Date.now()}`,
+          point: spec.point ?? "venue_latency",
+          target_service: spec.target_service ?? "execution-service",
+          parameters: spec.parameters ?? {},
+          active_from: new Date().toISOString(),
+          active_until: spec.active_until ?? null,
+          created_by: "mock-operator",
+          runtime_profile: spec.runtime_profile ?? "staging",
+        },
+        201,
+      );
+    }
+    return json([
+      _mockChaosInjection(
+        "chaos-venue-latency-001",
+        "venue_latency",
+        "execution-service",
+        "staging",
+      ),
+      _mockChaosInjection(
+        "chaos-rpc-timeout-002",
+        "rpc_timeout",
+        "market-tick-data-service",
+        "paper",
+      ),
+    ]);
+  }
+
   return json({ error: "Mock: no handler", path }, 404);
+}
+
+function _mockVmDeployment(deploymentId: string, status: string) {
+  const startedAt = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  const lastHb = new Date(Date.now() - 30_000).toISOString();
+  const completedAt =
+    status === "running"
+      ? null
+      : new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const exitCode =
+    status === "running" ? null : status === "completed" ? 0 : 1;
+  return {
+    deployment_id: deploymentId,
+    vm_name: deploymentId.replace(/^vm-\d{4}-\d{2}-\d{2}-/, ""),
+    asset_group: "tradfi",
+    task: "backfill",
+    mode: "batch",
+    start_date: "2024-01-01",
+    end_date: "2024-12-31",
+    status,
+    started_at: startedAt,
+    last_heartbeat_at: lastHb,
+    completed_at: completedAt,
+    exit_code: exitCode,
+    rows_in: status === "running" ? 18432 : 31_240,
+    rows_out: status === "running" ? 18430 : 31_238,
+    rows_error: status === "failed" ? 7 : 0,
+    events_emitted: 412,
+    log_uri: `gs://deployment-scripts-central-element-323112/vm-logs/${deploymentId}/run.log`,
+  };
+}
+
+function _mockClientSubscription(clientId: string, tier: string = "standard") {
+  return {
+    client_id: clientId,
+    sla_tier: tier,
+    service_overrides: [
+      {
+        service_name: "execution-service",
+        isolation: tier === "premium" ? "isolated" : "shared",
+      },
+      {
+        service_name: "strategy-service",
+        isolation: tier === "premium" ? "isolated" : "shared",
+      },
+    ],
+    active_from: "2026-01-01T00:00:00Z",
+    active_until: null,
+    note: `Mock subscription for ${clientId}`,
+  };
+}
+
+function _mockChaosInjection(
+  injectionId: string,
+  point: string,
+  targetService: string,
+  runtimeProfile: string,
+) {
+  return {
+    injection_id: injectionId,
+    point,
+    target_service: targetService,
+    parameters: { latency_ms: "250", probability: "0.05" },
+    active_from: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    active_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    created_by: "mock-operator",
+    runtime_profile: runtimeProfile,
+  };
 }
 
 export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
@@ -856,7 +1791,11 @@ export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
     if (
       url.includes("/api/") ||
       url.includes("/cloud-builds/") ||
-      url.includes("/service-status/")
+      url.includes("/service-status/") ||
+      url.includes("/subscriptions/") ||
+      url.includes("/subscriptions?") ||
+      url.endsWith("/subscriptions") ||
+      url.includes("/chaos/injections")
     ) {
       return handleRoute(url, init);
     }

@@ -96,9 +96,7 @@ describe("deploymentApi", async () => {
 
     const result = await api.fetchServices();
     expect(result).toEqual(mockServices);
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/services"),
-    );
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/services"));
   });
 
   it("fetchServices throws on HTTP error", async () => {
@@ -165,7 +163,7 @@ describe("deploymentApi", async () => {
 
     await api.triggerDeploy(params);
     const [url, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain("/api/v1/deployments");
+    expect(url).toContain("/api/deployments");
     expect(options.method).toBe("POST");
     expect(options.headers["Content-Type"]).toBe("application/json");
     expect(JSON.parse(options.body)).toEqual(params);
@@ -182,7 +180,7 @@ describe("deploymentApi", async () => {
 
     await api.rollbackDeployment("job-123");
     const [url, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toContain("/api/v1/deployments/job-123/rollback");
+    expect(url).toContain("/api/deployments/job-123/rollback");
     expect(options.method).toBe("POST");
   });
 });
