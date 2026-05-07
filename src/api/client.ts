@@ -1011,6 +1011,30 @@ export interface TurboSubDimension {
   missing_data_types?: string[]; // declared data_types with zero found shards
   honest_data_types?: Record<string, TurboHonestDataTypeStatus>; // per-dt honest-coverage drilldown
   honest_axis?: string; // e.g. "per_venue_per_data_type_per_day"
+  // Honest-coverage rollups emitted by deployment-api per venue
+  // (writegate Phase 4.A — deployment-api@453836d / @7d57056).
+  // ``failure_pillars`` buckets ``attempted_failed`` rows by typed-error
+  // class prefix (UpstreamTimestampBiasError / MalformedTickFieldError /
+  // ClusterCoverageError / LookaheadBiasError + placeholder pillars +
+  // ``failed_other`` catch-all). ``empty_reasons`` buckets ``empty_confirmed``
+  // rows by ``error_reason`` per the closed UAC ``EMPTY_CONFIRMED_REASONS``
+  // taxonomy plus an ``empty_unclassified`` catch-all that doubles as a
+  // back-fill progress indicator. Both maps surface every registered key
+  // with count 0 when no rows match, so the UI can render a fixed grid
+  // without conditional checks. SSOT: deployment_api/services/data_status_service.py
+  // ``_FAILURE_PILLAR_KEYS`` + ``_EMPTY_REASON_KEYS``.
+  failure_pillars?: Record<string, number>;
+  empty_reasons?: Record<string, number>;
+  // Capture-status rollup — Phase-C honest-coverage venue-level split.
+  capture_status_counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+  };
+  attempt_coverage_pct?: number;
+  capture_coverage_pct?: number;
+  empty_rate?: number;
+  failure_rate?: number;
 }
 
 /**
