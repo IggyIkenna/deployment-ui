@@ -291,11 +291,19 @@ function DataStatusTabInternal({
   isDeploying,
   onDeployMissing,
 }: DataStatusTabProps) {
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
-  });
+  // Default startDate = workspace-wide rollup origin (2018-01-01) so the
+  // initial Asset-group-breakdown card shows the full historical coverage
+  // (instruments-service goes back to 2019-03; MTDS to 2018+; all
+  // pre-2018 dates are pre-launch venue starts and clip out via per-venue
+  // effective_start). Pre-2026-05-06 the rollup-slicer didn't yet respect
+  // the UI date window, so a "today - 30 days" default was harmless —
+  // every fetch returned all-time. After the slicer landed (deployment-api
+  // commit ad1e80b "offline rollup fast-path — slicer + worker"), the
+  // 30-day default started clipping the breakdown to ~28 days per venue
+  // even though the rollup itself contains full history. Defaulting to
+  // 2018-01-01 reverses the regression; operators narrow the window via
+  // the date picker if they want recent-only.
+  const [startDate, setStartDate] = useState(() => "2018-01-01");
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
