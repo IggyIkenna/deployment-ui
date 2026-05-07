@@ -788,6 +788,53 @@ export async function getDrilldownSupportedPairs(opts?: {
   return res.pairs ?? [];
 }
 
+// ===========================================================================
+// Deploy-Missing surgical-recovery preview — drilldown plan Phase 3.
+// ===========================================================================
+
+/** Response from ``POST /api/data-status/deploy-missing-preview``. Mirrors
+ * the Python ``DeployMissingPreview.to_dict()`` shape. */
+export interface DeployMissingPreviewResponse {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  shard_key: string;
+  launcher_script: string;
+  command: string;
+  notes: string[];
+}
+
+export async function postDeployMissingPreview(params: {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  signal?: AbortSignal;
+}): Promise<DeployMissingPreviewResponse> {
+  return fetchJson<DeployMissingPreviewResponse>(
+    `/data-status/deploy-missing-preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service: params.service,
+        asset_group: params.asset_group,
+        row_key: params.row_key,
+      }),
+      signal: params.signal,
+    },
+  );
+}
+
+export async function getDeployMissingServices(opts?: {
+  signal?: AbortSignal;
+}): Promise<string[]> {
+  const res = await fetchJson<{ services: string[] }>(
+    `/data-status/deploy-missing-services`,
+    { signal: opts?.signal },
+  );
+  return res.services ?? [];
+}
+
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
 export interface UpcomingFixture {
   fixture_id: string;

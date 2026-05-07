@@ -17,8 +17,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type DrilldownNode,
   type DrilldownResponse,
+  buildShardDownloadUrl,
   getHierarchicalDrilldown,
 } from "../api/client";
+import { DeployMissingButton } from "./DeployMissingButton";
 
 interface HierarchicalShardDrilldownProps {
   service: string;
@@ -27,6 +29,32 @@ interface HierarchicalShardDrilldownProps {
   endDate: string;
   /** Initial expand depth from the top-level call. Default 1. */
   initialDepth?: number;
+}
+
+function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<string, string>): string | null {
+  const date = rowKey.day ?? rowKey.date;
+  const venue = rowKey.venue;
+  if (!date || !venue) {
+    return null;
+  }
+  // Reuse the existing /data-status/download-shard-csv endpoint. The
+  // builder accepts the v7 multi-axis fields (chain / league_id /
+  // job_id) so leaf row_keys map cleanly. Per-instrument /
+  // feature_group / timeframe / canonical_question_group filters are
+  // honored at server-side via /data-status/instruments-for-shard +
+  // schema; the leaf-level CSV download starts from the (venue, day,
+  // data_type, instrument_type) coord and the user picks instruments
+  // in the InstrumentsModal flow today.
+  return buildShardDownloadUrl({
+    service,
+    asset_group: assetGroup,
+    venue,
+    date,
+    instrument_type: rowKey.instrument_type ?? "",
+    data_type: rowKey.data_type ?? "",
+    chain: rowKey.chain,
+    league_id: rowKey.league_id,
+  });
 }
 
 export function HierarchicalShardDrilldown({
@@ -195,32 +223,63 @@ function DrilldownNodeRow({
 
   return (
     <li className="drilldown-row" role="treeitem" aria-expanded={isLeaf ? undefined : expanded}>
-      <button
-        className="drilldown-toggle"
-        type="button"
-        onClick={handleToggle}
-        disabled={isLeaf}
-        aria-label={ariaLabel}
-        style={{ paddingLeft: `${depth * 16}px` }}
-      >
-        <span className="chevron">{isLeaf ? " " : expanded ? "▾" : "▸"}</span>
-        <span className="axis-label">{node.axis}=</span>
-        <span className="value">{node.value}</span>
-        <span className="counts">
-          {node.captured.toLocaleString()} / {node.total.toLocaleString()}
-        </span>
-        <span className="pct">{node.completion_pct.toFixed(1)}%</span>
-        {node.empty_confirmed > 0 && (
-          <span className="empty-badge" title="Honest empty">
-            {node.empty_confirmed}e
+      <div className="drilldown-row-content" style={{ paddingLeft: `${depth * 16}px` }}>
+        <button
+          className="drilldown-toggle"
+          type="button"
+          onClick={handleToggle}
+          disabled={isLeaf}
+          aria-label={ariaLabel}
+        >
+          <span className="chevron">{isLeaf ? " " : expanded ? "▾" : "▸"}</span>
+          <span className="axis-label">{node.axis}=</span>
+          <span className="value">{node.value}</span>
+          <span className="counts">
+            {node.captured.toLocaleString()} / {node.total.toLocaleString()}
           </span>
-        )}
-        {node.attempted_failed > 0 && (
-          <span className="failed-badge" title="Failed; retry">
-            {node.attempted_failed}f
-          </span>
-        )}
-      </button>
+          <span className="pct">{node.completion_pct.toFixed(1)}%</span>
+          {node.empty_confirmed > 0 && (
+            <span className="empty-badge" title="Honest empty">
+              {node.empty_confirmed}e
+            </span>
+          )}
+          {node.attempted_failed > 0 && (
+            <span className="failed-badge" title="Failed; retry">
+              {node.attempted_failed}f
+            </span>
+          )}
+        </button>
+        {isLeaf && (() => {
+          // Leaf-row controls: per-leaf CSV download + Deploy-Missing
+          // surgical-recovery button. Only render when the row_key has
+          // enough fields to produce a meaningful action.
+          const downloadUrl = _leafDownloadUrl(service, assetGroup, node.row_key);
+          const isMissingShard = node.captured === 0;
+          return (
+            <span className="drilldown-leaf-controls">
+              {downloadUrl && (
+                <a
+                  className="drilldown-download"
+                  href={downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Download this shard's parquet as CSV"
+                >
+                  ↓ csv
+                </a>
+              )}
+              {isMissingShard && (
+                <DeployMissingButton
+                  service={service}
+                  assetGroup={assetGroup}
+                  rowKey={node.row_key}
+                  label="↻ deploy"
+                />
+              )}
+            </span>
+          );
+        })()}
+      </div>
       {expanded && !isLeaf && (
         <ul className="drilldown-tree-nested" role="group">
           {loading && <li className="drilldown-loading">Loading...</li>}

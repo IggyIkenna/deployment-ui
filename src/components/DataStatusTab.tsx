@@ -42,6 +42,7 @@ import {
 } from "../lib/utils";
 import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import { BreakdownsAccordion } from "./BreakdownsAccordion";
+import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -1751,6 +1752,29 @@ function DataStatusTabInternal({
                           />
                         </div>
                       ) : null}
+                      {/* Drilldown plan Phase 2: hierarchical shard-atom
+                          drill-down. Tree shape comes from the codex
+                          per-(service, asset_group) shard-axis matrix
+                          (UAC SSOT). Each leaf row exposes a per-shard
+                          CSV download + a Deploy-Missing button that
+                          composes the surgical --shard-key=... command
+                          for missing shards. Default-collapsed inside
+                          a <details> so the page doesn't fan out
+                          5000 instruments by default. */}
+                      <details className="mt-3">
+                        <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
+                          Hierarchical drill-down (shard atom)
+                        </summary>
+                        <div className="mt-2">
+                          <HierarchicalShardDrilldown
+                            service={serviceName}
+                            assetGroup={axisKey}
+                            startDate={startDate}
+                            endDate={endDate}
+                            initialDepth={1}
+                          />
+                        </div>
+                      </details>
                     </div>
                     );
                   })}
@@ -5881,7 +5905,15 @@ function DataStatusTabInternal({
         />
       )}
       {schemaModal && (
-        <SchemaModal coord={schemaModal} onClose={() => setSchemaModal(null)} />
+        // Schema lookup is venue-level (data_type schema doesn't change per
+        // day), so the click sites don't carry a ``day`` -- the modal's
+        // ShardCoordinate prop expects one, so inject an empty string at
+        // render. SchemaModal's downstream calls treat empty ``day`` as
+        // "any day" which matches the venue-level schema semantics.
+        <SchemaModal
+          coord={{ ...schemaModal, day: "" }}
+          onClose={() => setSchemaModal(null)}
+        />
       )}
       {poolBreakdownModal && (
         <PoolBreakdownModal
