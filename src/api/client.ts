@@ -729,6 +729,15 @@ export interface DrilldownResponse {
   filtered_by: Record<string, string>;
   manifest_uri?: string;
   mock?: boolean;
+  /** Pagination — Phase 6 of
+   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.md.
+   * ``total_top_axis_children`` is the unfiltered child count at the
+   * head axis; ``child_offset`` / ``child_limit`` echo the page
+   * requested. UI uses them to render "showing N–M of T" + load-more.
+   */
+  total_top_axis_children?: number;
+  child_offset?: number;
+  child_limit?: number | null;
 }
 
 export interface DrilldownPair {
@@ -756,6 +765,10 @@ export async function getHierarchicalDrilldown(params: {
   end_date: string;
   filters?: Record<string, string>;
   expand_to_depth?: number;
+  /** Pagination offset into the top-level children list (Phase 6). */
+  child_offset?: number;
+  /** Max top-level children returned. ``undefined`` = no slice. */
+  child_limit?: number;
   signal?: AbortSignal;
 }): Promise<DrilldownResponse> {
   const sp = new URLSearchParams();
@@ -763,6 +776,12 @@ export async function getHierarchicalDrilldown(params: {
   sp.set("end_date", params.end_date);
   if (params.expand_to_depth != null) {
     sp.set("expand_to_depth", String(params.expand_to_depth));
+  }
+  if (params.child_offset != null) {
+    sp.set("child_offset", String(params.child_offset));
+  }
+  if (params.child_limit != null) {
+    sp.set("child_limit", String(params.child_limit));
   }
   for (const key of _DRILLDOWN_FILTER_KEYS) {
     const val = params.filters?.[key];

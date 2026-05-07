@@ -29,6 +29,10 @@ interface HierarchicalShardDrilldownProps {
   endDate: string;
   /** Initial expand depth from the top-level call. Default 1. */
   initialDepth?: number;
+  /** Top-level page size — Phase 6 (operator finding 2026-05-07).
+   *  Default 200; the API returns ``total_top_axis_children`` so the
+   *  UI can render a load-more button when more shards exist. */
+  topPageSize?: number;
 }
 
 function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<string, string>): string | null {
@@ -63,10 +67,12 @@ export function HierarchicalShardDrilldown({
   startDate,
   endDate,
   initialDepth = 1,
+  topPageSize = 200,
 }: HierarchicalShardDrilldownProps) {
   const [topLevel, setTopLevel] = useState<DrilldownResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,6 +84,8 @@ export function HierarchicalShardDrilldown({
       start_date: startDate,
       end_date: endDate,
       expand_to_depth: initialDepth,
+      child_offset: 0,
+      child_limit: topPageSize,
       signal: controller.signal,
     })
       .then((res) => {
@@ -92,7 +100,47 @@ export function HierarchicalShardDrilldown({
         setLoading(false);
       });
     return () => controller.abort();
-  }, [service, assetGroup, startDate, endDate, initialDepth]);
+  }, [service, assetGroup, startDate, endDate, initialDepth, topPageSize]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!topLevel || loadingMore) {
+      return;
+    }
+    const controller = new AbortController();
+    setLoadingMore(true);
+    setError(null);
+    getHierarchicalDrilldown({
+      service,
+      asset_group: assetGroup,
+      start_date: startDate,
+      end_date: endDate,
+      expand_to_depth: initialDepth,
+      child_offset: topLevel.tree.length,
+      child_limit: topPageSize,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        setTopLevel((prev) =>
+          prev
+            ? {
+                ...prev,
+                tree: [...prev.tree, ...res.tree],
+                total_top_axis_children: res.total_top_axis_children,
+                child_offset: res.child_offset,
+                child_limit: res.child_limit,
+              }
+            : res,
+        );
+      })
+      .catch((e: unknown) => {
+        if ((e as { name?: string })?.name !== "AbortError") {
+          setError(String(e));
+        }
+      })
+      .finally(() => {
+        setLoadingMore(false);
+      });
+  }, [topLevel, loadingMore, service, assetGroup, startDate, endDate, initialDepth, topPageSize]);
 
   if (loading && !topLevel) {
     return <div className="drilldown-loading">Loading {assetGroup} drill-down...</div>;
@@ -145,6 +193,37 @@ export function HierarchicalShardDrilldown({
           />
         ))}
       </ul>
+      {(() => {
+        // Phase 6 (2026-05-07 operator finding): when the API has more
+        // top-level children than we've fetched, render load-more so
+        // operators can scroll through every per-instrument shard
+        // (BINANCE-FUTURES PERPETUAL, DERIBIT options chains, ...).
+        const total = topLevel.total_top_axis_children;
+        const shown = topLevel.tree.length;
+        if (total == null || shown >= total) {
+          return null;
+        }
+        const remaining = total - shown;
+        return (
+          <div className="drilldown-load-more">
+            <span className="drilldown-load-more-summary">
+              Showing {shown.toLocaleString()} of {total.toLocaleString()}{" "}
+              {topLevel.axes[0] ?? "items"}
+            </span>
+            <button
+              className="drilldown-load-more-button"
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              aria-label={`Load next ${Math.min(topPageSize, remaining)} of ${remaining} remaining`}
+            >
+              {loadingMore
+                ? "Loading…"
+                : `Show more (${remaining.toLocaleString()} remaining)`}
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
