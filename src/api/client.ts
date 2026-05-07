@@ -2086,6 +2086,75 @@ export async function fetchShardDetail(params: {
   );
 }
 
+// LeafParquetStats — writegate Phase 4.A.3 (deployment-api@3b0477a).
+// Live per-leaf-parquet stats: row count, per-column non_null + NaN ratio,
+// available_at envelope (min / max ISO + null count), and file size.
+// Distinct from `fetchShardSchema` which returns the DECLARED SchemaContract.
+// Used by LeafSchemaModal (Phase 4.B.3) to surface real shard health
+// alongside the contract-declared columns.
+export interface LeafParquetColumnStat {
+  name: string;
+  dtype: string;
+  non_null_count: number;
+  null_count: number;
+  nan_ratio: number;
+}
+
+export interface LeafAvailableAtEnvelope {
+  present: boolean;
+  min_iso: string | null;
+  max_iso: string | null;
+  null_count: number;
+}
+
+export interface LeafParquetStatsResponse {
+  coord: {
+    service: string;
+    asset_group: string;
+    instrument_type: string;
+    data_type: string;
+    day: string;
+    venue: string | null;
+    underlying: string | null;
+    instrument_id: string | null;
+  };
+  gs_uri: string | null;
+  available: boolean;
+  error_reason: string | null;
+  row_count: number;
+  column_count: number;
+  columns: LeafParquetColumnStat[];
+  available_at: LeafAvailableAtEnvelope;
+  file_size_bytes: number | null;
+  truncated: boolean;
+  truncated_at_rows: number | null;
+}
+
+export async function fetchLeafParquetStats(params: {
+  service: string;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue?: string | null;
+  underlying?: string | null;
+  instrument_id?: string | null;
+}): Promise<LeafParquetStatsResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    day: params.day,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.underlying) qp.set("underlying", params.underlying);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  return fetchJson<LeafParquetStatsResponse>(
+    `/data-status/leaf-stats?${qp.toString()}`,
+  );
+}
+
 // VenueDetail v2 — DeFi-aware.  Composite (PROTOCOL-CHAIN) vs chain-only
 // paths are disambiguated via ``chain`` / ``protocol`` / ``pools`` /
 // ``protocols`` being populated.  CeFi branches populate ``instruments`` +
