@@ -53,6 +53,10 @@ import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
+import {
+  LeafSchemaModal,
+  type LeafSchemaModalCoord,
+} from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
 import {
@@ -389,6 +393,14 @@ function DataStatusTabInternal({
   const openShardDetail = useCallback((c: ShardDetailCoordInput) => {
     setShardDetailCoord(c);
   }, []);
+
+  // Writegate Phase 4.B.3 — leaf-stats schema modal. Triggered by clicking a
+  // typed-reason badge on a venue summary line; the badge passes the
+  // representative leaf coord (venue + most-recent captured day + first
+  // data_type + AUTO instrument_type — the deployment-api leaf-stats route
+  // resolves the leaf parquet via _gcs_path_for_shard).
+  const [leafSchemaCoord, setLeafSchemaCoord] =
+    useState<LeafSchemaModalCoord | null>(null);
 
   // SPORTS fixture-level breakdown — toggled per (league, day, readOnly) key.
   // readOnly flag disables per-fixture download buttons for red (missing) dates.
@@ -4337,11 +4349,33 @@ function DataStatusTabInternal({
                                             {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
                                                 empty_reasons closed taxonomies) + failure-pillar stacked
                                                 bar. Both auto-suppress when every count is zero so the
-                                                summary line stays compact for healthy venues. */}
+                                                summary line stays compact for healthy venues. Click on a
+                                                badge mounts the LeafSchemaModal for the venue's
+                                                representative leaf parquet (most-recent captured day,
+                                                first data_type, AUTO instrument_type — deployment-api's
+                                                /leaf-stats resolves via _gcs_path_for_shard). */}
                                             <TypedReasonBadges
                                               emptyReasons={subData.empty_reasons}
                                               failurePillars={subData.failure_pillars}
                                               testIdPrefix={`venue-${name}`}
+                                              onBadgeClick={() => {
+                                                const firstDt = subData.data_types
+                                                  ? Object.keys(subData.data_types)[0]
+                                                  : undefined;
+                                                const anchorDay =
+                                                  foundList.length > 0
+                                                    ? foundList[foundList.length - 1]
+                                                    : null;
+                                                if (!firstDt || !anchorDay) return;
+                                                setLeafSchemaCoord({
+                                                  service: serviceName,
+                                                  asset_group: catName,
+                                                  instrument_type: "AUTO",
+                                                  data_type: firstDt,
+                                                  day: anchorDay,
+                                                  venue: name,
+                                                });
+                                              }}
                                             />
                                             <FailurePillarStack
                                               failurePillars={subData.failure_pillars}
@@ -5942,6 +5976,12 @@ function DataStatusTabInternal({
         <ShardDetailModal
           coord={shardDetailCoord}
           onClose={() => setShardDetailCoord(null)}
+        />
+      )}
+      {leafSchemaCoord && (
+        <LeafSchemaModal
+          coord={leafSchemaCoord}
+          onClose={() => setLeafSchemaCoord(null)}
         />
       )}
     </div>
