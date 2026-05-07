@@ -25,6 +25,8 @@ vi.mock("../../../src/api/client", () => ({
   ),
   setApiBaseUrl: vi.fn(),
   clearCache: vi.fn().mockResolvedValue(undefined),
+  smartShardDownload: vi.fn().mockResolvedValue({ status: "captured" }),
+  retryFailedShard: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -80,8 +82,10 @@ describe("SchemaModal", () => {
       data_type: "unknown",
       venue: null,
       symbol_column: null,
-      source: "none",
-      columns: [],
+      source: "VENUE_CONTRACT_OVERRIDES",
+      columns: [
+        { name: "price", dtype: "float64", nullable: true, description: "" },
+      ],
       message: "No contract",
     });
     render(
