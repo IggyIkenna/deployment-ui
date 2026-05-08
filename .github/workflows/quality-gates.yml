@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality-gates:
+  call-quality-gates:
     uses: IggyIkenna/unified-trading-pm/.github/workflows/ui-quality-gates.yml@live-defi-rollout
     with:
       node-version: "22"
