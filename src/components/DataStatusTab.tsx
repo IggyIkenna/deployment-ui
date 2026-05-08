@@ -50,6 +50,10 @@ import {
 } from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
+import {
+  FeatureFamilyBreakdown,
+  groupFeatureGroupsByFamily,
+} from "./FeatureFamilyBreakdown";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
@@ -3308,10 +3312,44 @@ function DataStatusTabInternal({
                               </div>
                             )}
 
-                            {/* Expanded: Feature-group breakdown (features-* services). */}
+                            {/* Expanded: Feature-FAMILY breakdown (Phase 8B
+                              of features_repo_consolidation_2026_05_08.plan).
+                              Prefer the API-rolled feature_families map; if
+                              absent, group the flat feature_groups by their
+                              embedded feature_family axis client-side. The
+                              existing feature_groups block below stays as a
+                              fallback for legacy / non-features rows. */}
+                            {isExpanded &&
+                              venueData.feature_families &&
+                              Object.keys(venueData.feature_families || {}).length > 0 && (
+                                <FeatureFamilyBreakdown
+                                  feature_families={venueData.feature_families}
+                                />
+                              )}
+                            {isExpanded &&
+                              !venueData.feature_families &&
+                              venueData.feature_groups &&
+                              Object.values(venueData.feature_groups).some(
+                                (fg) => Boolean(fg.feature_family),
+                              ) && (
+                                <FeatureFamilyBreakdown
+                                  feature_families={groupFeatureGroupsByFamily(
+                                    venueData.feature_groups,
+                                  )}
+                                />
+                              )}
+
+                            {/* Expanded: Feature-group breakdown (features-* services).
+                              Renders when feature_groups exist but no
+                              feature_family axis is populated — preserves the
+                              pre-Phase-8B view for legacy rows. */}
                             {isExpanded &&
                               venueData.feature_groups &&
-                              Object.keys(venueData.feature_groups || {}).length > 0 && (
+                              Object.keys(venueData.feature_groups || {}).length > 0 &&
+                              !venueData.feature_families &&
+                              !Object.values(venueData.feature_groups).some(
+                                (fg) => Boolean(fg.feature_family),
+                              ) && (
                                 <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
                                   <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
                                     Feature Groups

@@ -1105,11 +1105,62 @@ export interface TurboChainStatus {
   venue_count: number;
 }
 
+// Closed-set enum mirroring UAC `FeatureFamily` (Phase 1A of
+// features_repo_consolidation_2026_05_08.plan). Each value corresponds
+// to one ``features-{family}-service`` repo. The 8 values are the
+// SSOT — adding a new family is a deliberate UAC change paired with
+// this type. Source:
+// unified_api_contracts/canonical/domain/features/registry.py.
+export type FeatureFamily =
+  | "calendar"
+  | "commodity"
+  | "cross_instrument"
+  | "delta_one"
+  | "multi_timeframe"
+  | "onchain"
+  | "sports"
+  | "volatility";
+
+export const FEATURE_FAMILIES: ReadonlyArray<FeatureFamily> = [
+  "calendar",
+  "commodity",
+  "cross_instrument",
+  "delta_one",
+  "multi_timeframe",
+  "onchain",
+  "sports",
+  "volatility",
+];
+
+export function isFeatureFamily(value: string): value is FeatureFamily {
+  return (FEATURE_FAMILIES as readonly string[]).includes(value);
+}
+
 export interface TurboFeatureGroupStatus {
   dates_found: number;
   dates_expected: number;
   completion_pct: number;
   timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
+  // Optional feature_family axis (Phase 8B of features_repo_consolidation_
+  // 2026_05_08.plan). When the manifest row carries a non-null
+  // feature_family value the deployment-api propagates it here so the UI
+  // can group feature_groups by family. Null / absent on non-features
+  // rows (MTDS / MDPS) or pre-Phase-8B manifest rows.
+  feature_family?: FeatureFamily | null;
+}
+
+// Phase 8B feature_family rollup (Phase 8B of
+// features_repo_consolidation_2026_05_08.plan). The deployment-api
+// populates this when ``feature_groups`` rows carry a populated
+// ``feature_family``; the UI drills feature_family -> feature_group ->
+// timeframe. Backwards-compatible: a feature_groups response without
+// any feature_family rows simply has no `feature_families` map and the
+// UI falls back to the flat feature_groups view.
+export interface TurboFeatureFamilyStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  feature_groups: Record<string, TurboFeatureGroupStatus>;
 }
 
 export interface TurboVenueSummary {
@@ -1173,6 +1224,10 @@ export interface TurboAssetGroupStatus {
   folders?: { [name: string]: TurboSubDimension }; // Instrument type breakdown
   chains?: { [name: string]: TurboChainStatus }; // DeFi chain breakdown (v4)
   feature_groups?: { [name: string]: TurboFeatureGroupStatus }; // Feature service breakdown (v4)
+  // Phase 8B feature-family rollup. When present, UI prefers this for the
+  // features-service drilldown (feature_family -> feature_group -> timeframe);
+  // when absent, the flat feature_groups map renders unchanged.
+  feature_families?: { [family: string]: TurboFeatureFamilyStatus };
   venue_summary?: TurboVenueSummary;
 }
 
@@ -1185,7 +1240,7 @@ export interface TurboDataStatusResponse {
   };
   mode: "turbo";
   first_day_of_month_only?: boolean; // True if only checking first day of each month (TARDIS free tier)
-  sub_dimension?: string | null; // 'venue', 'data_type', 'feature_group', or null
+  sub_dimension?: string | null; // 'venue' | 'data_type' | 'feature_group' | 'feature_family' | null
   overall_completion_pct: number;
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
@@ -1284,6 +1339,12 @@ export async function getDataStatusManifest(params: {
   canonical_question_group?: string;
   job_id?: string;
   chain?: string;
+  // Phase 8B of features_repo_consolidation_2026_05_08.plan — slice the
+  // manifest by feature_family. UAC `FeatureFamily` enum values
+  // (calendar / commodity / cross_instrument / delta_one /
+  // multi_timeframe / onchain / sports / volatility). Empty/omitted ==
+  // unfiltered behaviour preserved.
+  feature_family?: FeatureFamily | string;
   signal?: AbortSignal;
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
@@ -1301,6 +1362,9 @@ export async function getDataStatusManifest(params: {
   }
   if (params.job_id) searchParams.set("job_id", params.job_id);
   if (params.chain) searchParams.set("chain", params.chain);
+  if (params.feature_family) {
+    searchParams.set("feature_family", params.feature_family);
+  }
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,
   });
@@ -1941,6 +2005,8 @@ export async function fetchShardSchema(params: {
   instruction_type?: string;
   feature_group?: string;
   timeframe?: string;
+  // Phase 8B feature_family filter for the consolidated features-service.
+  feature_family?: FeatureFamily | string;
 }): Promise<ShardSchemaResponse> {
   const qp = new URLSearchParams({
     service: params.service,
@@ -1964,6 +2030,7 @@ export async function fetchShardSchema(params: {
   if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
   if (params.feature_group) qp.set("feature_group", params.feature_group);
   if (params.timeframe) qp.set("timeframe", params.timeframe);
+  if (params.feature_family) qp.set("feature_family", params.feature_family);
   return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
 }
 
@@ -2139,6 +2206,8 @@ export async function fetchLeafParquetStats(params: {
   venue?: string | null;
   underlying?: string | null;
   instrument_id?: string | null;
+  // Phase 8B feature_family filter for the consolidated features-service.
+  feature_family?: FeatureFamily | string | null;
 }): Promise<LeafParquetStatsResponse> {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2150,6 +2219,7 @@ export async function fetchLeafParquetStats(params: {
   if (params.venue) qp.set("venue", params.venue);
   if (params.underlying) qp.set("underlying", params.underlying);
   if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  if (params.feature_family) qp.set("feature_family", params.feature_family);
   return fetchJson<LeafParquetStatsResponse>(
     `/data-status/leaf-stats?${qp.toString()}`,
   );
