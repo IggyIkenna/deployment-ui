@@ -1,7 +1,7 @@
 /**
  * Per-asset-group breakdowns accordion for the Data Status panel.
  *
- * Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan
  * — first deliverable for the multi-axis-shard rollout.
  *
  * Design principle ("deliver-with-empty-data"):
@@ -159,10 +159,10 @@ export function BreakdownsAccordion({
                         <Tag
                           {...(clickable
                             ? {
-                                type: "button" as const,
-                                onClick: () =>
-                                  onSelectValue?.(axis, value),
-                              }
+                              type: "button" as const,
+                              onClick: () =>
+                                onSelectValue?.(axis, value),
+                            }
                             : {})}
                           className={
                             "flex w-full items-center justify-between text-left text-xs " +

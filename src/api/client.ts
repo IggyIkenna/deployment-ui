@@ -730,7 +730,7 @@ export interface DrilldownResponse {
   manifest_uri?: string;
   mock?: boolean;
   /** Pagination — Phase 6 of
-   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.md.
+   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.
    * ``total_top_axis_children`` is the unfiltered child count at the
    * head axis; ``child_offset`` / ``child_limit`` echo the page
    * requested. UI uses them to render "showing N–M of T" + load-more.
@@ -1265,7 +1265,7 @@ export async function getDataStatusTurbo(params: {
  * Works with both GCS and S3 (cloud-agnostic).
  * Returns the same shape as turbo for UI compatibility.
  *
- * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan
  * adds optional `secondary_axis` + per-shard filter params (league_id /
  * fixture_id / canonical_question_group / job_id / chain) for the
  * deployment-ui axis-selector drill-down. Empty/omitted == today's
@@ -1310,7 +1310,7 @@ export async function getDataStatusManifest(params: {
  * Per-(service, asset_group) shard / display / primary axis SSOT.
  *
  * Source: unified_api_contracts.registry.data_status_axis_matrix (Phase 0
- * of data_status_multi_axis_shard_propagation_2026_05_06.plan.md). Drives
+ * of data_status_multi_axis_shard_propagation_2026_05_06.plan). Drives
  * the axis-selector dropdowns in DataStatusTab — DEFI panels render a
  * chain dropdown, sports a league_id dropdown, strategy/execution a
  * job_id picker, ml-training a model_family + training_period selector,
@@ -1337,7 +1337,7 @@ export async function getShardAxisMatrix(
 
 // Coverage summary — manifest totals + latest-day unique instrument counts.
 //
-// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan
 // adds the `breakdowns` map: per-axis (chain / league_id / job_id /
 // model_family / canonical_question_group / etc.) value->count from the
 // UAC SHARD_AXIS_MATRIX SSOT. Each axis's empty `{}` means the axis
@@ -1897,7 +1897,7 @@ export interface ShardSchemaResponse {
    * - `CONTRACT_REGISTRY` / `VENUE_CONTRACT_OVERRIDES` — UAC contract.
    * - `PARQUET_PROJECTION` — registry has no entry, columns are
    *   projected from the actual parquet on GCS at `projected_from`.
-   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.
    * - `none` — no contract AND no parquet found; the UI should show
    *   "no schema yet" rather than blank.
    */
@@ -1922,7 +1922,7 @@ export async function fetchShardSchema(params: {
   data_type: string;
   venue?: string;
   // v7 multi-axis params (Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md). The
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan). The
   // /api/data-status/schema endpoint uses these to probe the DEEPEST
   // shard parquet — DEFI per-chain, sports per-league/per-fixture, ML
   // per-experiment-run, strategy/execution per-job_id, etc. Each leaf
@@ -2361,7 +2361,7 @@ export function buildCsvDownloadUrl(params: {
   data_type: string;
   instrument_ids: string[];
   // v7 multi-axis filters — Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.
   // Server reads manifest capture_status using these axes BEFORE
   // touching the parquet so the response distinguishes empty_confirmed
   // (honest empty) from path_drift (manifest claims captured but
@@ -2449,7 +2449,7 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
 
 /**
  * Smart shard CSV download — Phase 3 of
- * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ * data_status_multi_axis_shard_propagation_2026_05_06.plan.
  *
  * Fetches the URL via fetch(), reads the ``X-Capture-Status`` response
  * header, and returns one of five branches so the UI can render the

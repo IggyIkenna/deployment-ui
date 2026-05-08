@@ -40,9 +40,8 @@ import {
   formatRatePerDay,
   isRateMetricRow,
 } from "../lib/utils";
-import type { AssetGroupStatus as CategoryStatus, AssetGroupVenuesResponse, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import type { AssetGroupVenuesResponse, AssetGroupStatus as CategoryStatus, CreateDeploymentResponse, DataStatusResponse } from "../types";
 import { BreakdownsAccordion } from "./BreakdownsAccordion";
-import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
 import {
   BucketCountsBadge,
   InstrumentsModal,
@@ -53,16 +52,17 @@ import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
+import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
 import {
   LeafSchemaModal,
   type LeafSchemaModalCoord,
 } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
-import { TypedReasonBadges } from "./TypedReasonBadges";
 import {
   ShardDetailModal,
   type ShardDetailCoordInput,
 } from "./ShardDetailModal";
+import { TypedReasonBadges } from "./TypedReasonBadges";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
@@ -598,7 +598,7 @@ function DataStatusTabInternal({
   const [coverageSummaryLoading, setCoverageSummaryLoading] = useState(false);
 
   // Per-(service, asset_group) shard / display / primary axis SSOT — Phase 3
-  // of data_status_multi_axis_shard_propagation_2026_05_06.plan.md. Drives
+  // of data_status_multi_axis_shard_propagation_2026_05_06.plan. Drives
   // the per-asset-group BreakdownsAccordion + downstream secondary-axis
   // selectors (DEFI chain, sports league_id, strategy job_id, etc.). On
   // fetch failure or empty payload the accordion silently no-ops — the
@@ -1740,33 +1740,33 @@ function DataStatusTabInternal({
                       shardAxisMatrix?.breakdown_axes?.[serviceName]?.[axisKey] ?? [];
                     const breakdowns = catData.breakdowns ?? {};
                     return (
-                    <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
-                        <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} {catData.sub_dimension_label ?? "venues"}</span>
-                      </div>
-                      <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments (latest day)</div>
-                      <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
-                        {catData.unique_dates.toLocaleString()} dates &middot; {catData.total_shards.toLocaleString()} shards
-                        {catData.date_range && (
-                          <> &middot; {catData.date_range.start} to {catData.date_range.end}</>
-                        )}
-                      </div>
-                      {/* Instrument type pills — show first 8 with expandable overflow */}
-                      <VenuePillList venues={catData.latest_day_instruments} />
-                      {breakdownAxes.length > 0 ? (
-                        <div className="mt-3">
-                          <BreakdownsAccordion
-                            axes={breakdownAxes}
-                            breakdowns={breakdowns}
-                            title="Breakdowns"
-                            onSelectValue={(axis, value) =>
-                              setManifestFilter({ axis, value })
-                            }
-                          />
+                      <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
+                          <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} {catData.sub_dimension_label ?? "venues"}</span>
                         </div>
-                      ) : null}
-                      {/* Drilldown plan Phase 2: hierarchical shard-atom
+                        <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments (latest day)</div>
+                        <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                          {catData.unique_dates.toLocaleString()} dates &middot; {catData.total_shards.toLocaleString()} shards
+                          {catData.date_range && (
+                            <> &middot; {catData.date_range.start} to {catData.date_range.end}</>
+                          )}
+                        </div>
+                        {/* Instrument type pills — show first 8 with expandable overflow */}
+                        <VenuePillList venues={catData.latest_day_instruments} />
+                        {breakdownAxes.length > 0 ? (
+                          <div className="mt-3">
+                            <BreakdownsAccordion
+                              axes={breakdownAxes}
+                              breakdowns={breakdowns}
+                              title="Breakdowns"
+                              onSelectValue={(axis, value) =>
+                                setManifestFilter({ axis, value })
+                              }
+                            />
+                          </div>
+                        ) : null}
+                        {/* Drilldown plan Phase 2: hierarchical shard-atom
                           drill-down. Tree shape comes from the codex
                           per-(service, asset_group) shard-axis matrix
                           (UAC SSOT). Each leaf row exposes a per-shard
@@ -1775,21 +1775,21 @@ function DataStatusTabInternal({
                           for missing shards. Default-collapsed inside
                           a <details> so the page doesn't fan out
                           5000 instruments by default. */}
-                      <details className="mt-3">
-                        <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
-                          Hierarchical drill-down (shard atom)
-                        </summary>
-                        <div className="mt-2">
-                          <HierarchicalShardDrilldown
-                            service={serviceName}
-                            assetGroup={axisKey}
-                            startDate={startDate}
-                            endDate={endDate}
-                            initialDepth={1}
-                          />
-                        </div>
-                      </details>
-                    </div>
+                        <details className="mt-3">
+                          <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
+                            Hierarchical drill-down (shard atom)
+                          </summary>
+                          <div className="mt-2">
+                            <HierarchicalShardDrilldown
+                              service={serviceName}
+                              assetGroup={axisKey}
+                              startDate={startDate}
+                              endDate={endDate}
+                              initialDepth={1}
+                            />
+                          </div>
+                        </details>
+                      </div>
                     );
                   })}
                 </div>
@@ -3675,7 +3675,7 @@ function DataStatusTabInternal({
                                           // than reality.
                                           color: getCompletionColor(
                                             catData.capture_coverage_pct ??
-                                              catData.completion_pct,
+                                            catData.completion_pct,
                                           ),
                                         }}
                                         title={eventLabel.tooltip}
@@ -3720,18 +3720,17 @@ function DataStatusTabInternal({
                                   // matches the headline. Dense categories
                                   // fall through to completion_pct since
                                   // captured == attempted there.
-                                  width: `${
-                                    catData.coverage_semantics ===
-                                    "event_driven"
+                                  width: `${catData.coverage_semantics ===
+                                      "event_driven"
                                       ? catData.capture_coverage_pct ??
-                                        catData.completion_pct
+                                      catData.completion_pct
                                       : catData.completion_pct
-                                  }%`,
+                                    }%`,
                                   backgroundColor: getCompletionColor(
                                     catData.coverage_semantics ===
                                       "event_driven"
                                       ? catData.capture_coverage_pct ??
-                                          catData.completion_pct
+                                      catData.completion_pct
                                       : catData.completion_pct,
                                   ),
                                 }}
@@ -3968,10 +3967,10 @@ function DataStatusTabInternal({
                                               // hidden in that case.
                                               const defiPoolsDay =
                                                 vdTyped.dates_found_list_tail?.[
-                                                  (vdTyped.dates_found_list_tail?.length ?? 0) - 1
+                                                (vdTyped.dates_found_list_tail?.length ?? 0) - 1
                                                 ] ??
                                                 vdTyped.dates_found_list?.[
-                                                  (vdTyped.dates_found_list?.length ?? 0) - 1
+                                                (vdTyped.dates_found_list?.length ?? 0) - 1
                                                 ];
                                               return (
                                                 <details key={v} className="group/cv">

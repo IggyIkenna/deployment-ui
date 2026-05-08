@@ -85,7 +85,7 @@ export interface ShardCoordinate {
   instrument_type: string;
   data_type: string;
   // v7 multi-axis fields — Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // data_status_multi_axis_shard_propagation_2026_05_06.md.
   // Populated when the operator drills into a multi-axis leaf
   // (DEFI chain, sports per-league/per-fixture, ML per-experiment-run,
   // strategy/execution per-job, prediction per-question-group, or
@@ -124,7 +124,7 @@ function isPlausibleInstrumentId(candidate: string): boolean {
 
 /* =========================================================================
  * SmartDownloadButton — Phase 3 of
- * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ * data_status_multi_axis_shard_propagation_2026_05_06.md.
  *
  * Wraps the deployment-api download endpoints (which now return
  * ``X-Capture-Status`` per the multi-axis-drilldown contract) so the
@@ -181,9 +181,8 @@ function statusBannerHeadline(status: ShardDownloadStatus): string {
 function statusBannerBody(result: ShardDownloadResult): string {
   switch (result.status) {
     case "captured":
-      return `${result.filename ?? "shard.csv"}${
-        result.rowCount !== undefined ? ` · ${result.rowCount.toLocaleString()} rows` : ""
-      }`;
+      return `${result.filename ?? "shard.csv"}${result.rowCount !== undefined ? ` · ${result.rowCount.toLocaleString()} rows` : ""
+        }`;
     case "empty_confirmed":
       return (
         "Source returned 0 rows for this shard. NaN downstream is fine — " +
@@ -208,8 +207,8 @@ function statusBannerBody(result: ShardDownloadResult): string {
       return (
         result.message ??
         "Manifest claims captured but downloader read 0 rows. Likely " +
-          "writer/downloader path-template drift. Run the phantom audit " +
-          "(instruments-service/scripts/reconcile_phantom_manifest_rows_all.py)."
+        "writer/downloader path-template drift. Run the phantom audit " +
+        "(instruments-service/scripts/reconcile_phantom_manifest_rows_all.py)."
       );
     case "unknown":
     default:
@@ -337,12 +336,12 @@ export function SchemaModal({
               : typeof e === "string"
                 ? e
                 : (() => {
-                    try {
-                      return JSON.stringify(e);
-                    } catch {
-                      return String(e);
-                    }
-                  })();
+                  try {
+                    return JSON.stringify(e);
+                  } catch {
+                    return String(e);
+                  }
+                })();
           setError(msg);
         }
       });
@@ -393,9 +392,9 @@ export function SchemaModal({
     leafLabelParts.length > 0
       ? leafLabelParts.join(" / ")
       : [coord.instrument_type, coord.data_type].filter(Boolean).join(" / ") ||
-        coord.data_type ||
-        coord.venue ||
-        "(unknown)";
+      coord.data_type ||
+      coord.venue ||
+      "(unknown)";
 
   const isProjection = schema?.source === "PARQUET_PROJECTION";
   const noSchemaYet =
@@ -637,12 +636,12 @@ function InstrumentsModalStandard({
               : typeof e === "string"
                 ? e
                 : (() => {
-                    try {
-                      return JSON.stringify(e);
-                    } catch {
-                      return String(e);
-                    }
-                  })();
+                  try {
+                    return JSON.stringify(e);
+                  } catch {
+                    return String(e);
+                  }
+                })();
           setError(msg);
         }
       });
@@ -713,9 +712,8 @@ function InstrumentsModalStandard({
           : result.status === "never_attempted"
             ? "Adapter never ran for this shard — trigger a backfill."
             : result.status === "path_drift"
-              ? `Path drift — manifest claims captured but downloader read 0 rows. ${
-                  result.message ?? ""
-                }`
+              ? `Path drift — manifest claims captured but downloader read 0 rows. ${result.message ?? ""
+              }`
               : (result.message ?? "Unknown download error."),
     );
   }
@@ -1234,12 +1232,12 @@ export function BucketCountsBadge({
               : typeof e === "string"
                 ? e
                 : (() => {
-                    try {
-                      return JSON.stringify(e);
-                    } catch {
-                      return String(e);
-                    }
-                  })();
+                  try {
+                    return JSON.stringify(e);
+                  } catch {
+                    return String(e);
+                  }
+                })();
           setError(msg);
         }
       });
