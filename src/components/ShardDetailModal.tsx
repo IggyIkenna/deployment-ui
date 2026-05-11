@@ -15,6 +15,7 @@ import {
   type ShardDetailResponse,
 } from "../api/client";
 import { ModalShell } from "./DataStatusDrilldown";
+import { ServiceEmissionStateBadge } from "./ServiceEmissionStateBadge";
 
 export interface ShardDetailCoordInput {
   service: string;
@@ -307,6 +308,25 @@ export function ShardDetailModal({
           >
             {detail.gcs.capture_status}
           </span>
+          {/*
+           * v8 manifest signals (writegate Phase 4 — surfaced via
+           * deployment-api ``ShardGcsMetadata``). Both render as muted
+           * placeholders when null/undefined (pre-v8 manifest rows).
+           */}
+          <ServiceEmissionStateBadge
+            state={detail.gcs.service_emission_state}
+            compact
+          />
+          {detail.gcs.pipeline_mode && (
+            <span
+              className="px-1 py-0 rounded border text-[9px] font-mono text-[var(--color-text-muted)] border-[var(--color-border-subtle)]"
+              title={`pipeline_mode=${detail.gcs.pipeline_mode}`}
+              data-testid="shard-detail-pipeline-mode"
+              data-pipeline-mode={detail.gcs.pipeline_mode}
+            >
+              {detail.gcs.pipeline_mode}
+            </span>
+          )}
           <span className="truncate" title={detail.gcs.path ?? ""}>
             {detail.gcs.path ?? "(no path)"}
           </span>

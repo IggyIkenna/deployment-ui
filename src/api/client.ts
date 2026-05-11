@@ -2051,6 +2051,17 @@ export type CaptureStatusLiteral =
   | "attempted_failed"
   | "missing";
 
+// Mirrors UAC ``ServiceEmissionStateEnum`` (writegate slice (b) / v8). The
+// SSOT for the value set is the Python enum at
+// ``unified_api_contracts.canonical.crosscutting.service_emission_state``;
+// this TS union is the type-level alias for the API response shape. Drift
+// between these and the UAC enum is review-blocking.
+export type ServiceEmissionState =
+  | "PUBLISHED_OK"
+  | "PUBLISHED_DEGRADED"
+  | "STALE_DATA_HEARTBEAT_ONLY"
+  | "BLOCKED";
+
 export interface ShardDetailCoord {
   service: string;
   asset_group: string;
@@ -2092,6 +2103,16 @@ export interface ShardDetailGcs {
   captured_at: string | null;
   capture_status: CaptureStatusLiteral;
   error_reason: string | null;
+  // v8 manifest columns (writegate Phase 4 — surfaced via deployment-api
+  // ``ShardGcsMetadata``). All four optional + nullable for forward-compat
+  // with pre-v8 manifest rows that lack these columns. UI renders the
+  // ``ServiceEmissionStateBadge`` next to ``capture_status`` and a small
+  // ``pipeline_mode`` label when populated; a muted ``—`` placeholder
+  // when null/undefined.
+  pipeline_mode?: string | null;
+  service_emission_state?: ServiceEmissionState | null;
+  last_emission_decision_at?: string | null;
+  expected_window_completeness_fraction?: number | null;
 }
 
 export interface ShardDetailDownloadUrls {
