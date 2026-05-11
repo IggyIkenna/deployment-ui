@@ -35,6 +35,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { DeployLiveClusterButton } from "./DeployLiveClusterButton";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -192,13 +193,18 @@ export function LiveDataStatusTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Live data status</CardTitle>
-        <CardDescription>
-          Per-shard live-pipeline status pivoted by{" "}
-          <code>pipeline_mode=live_websocket</code>. Sourced from{" "}
-          <code>/api/data-status/live</code> (Phase 11.1) joined with the
-          per-service Health-API endpoints (Phase 8).
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Live data status</CardTitle>
+            <CardDescription>
+              Per-shard live-pipeline status pivoted by{" "}
+              <code>pipeline_mode=live_websocket</code>. Sourced from{" "}
+              <code>/api/data-status/live</code> (Phase 11.1) joined with the
+              per-service Health-API endpoints (Phase 8).
+            </CardDescription>
+          </div>
+          <DeployLiveClusterButton />
+        </div>
       </CardHeader>
       <CardContent>
         {state.kind === "idle" || state.kind === "loading" ? (
