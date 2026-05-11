@@ -59,6 +59,18 @@ export function nanRatioColor(ratio: number): string {
   return "var(--color-text-muted)";
 }
 
+/** Writegate slice (b) Phase 5.5 — completeness colour mapping (inverted from
+ * nanRatioColor since higher fraction = better, vs higher NaN ratio = worse).
+ * Green ≥ 1.0; yellow 0.99-1.0; amber 0.95-0.99; red < 0.95 (per writegate
+ * plan body Phase 5.5 colour spec). */
+export function completenessColor(fraction: number | null): string {
+  if (fraction === null) return "var(--color-text-muted)";
+  if (fraction >= 1.0) return "var(--color-accent-green)";
+  if (fraction >= 0.99) return "var(--color-accent-yellow)";
+  if (fraction >= 0.95) return "var(--color-accent-amber)";
+  return "var(--color-accent-red)";
+}
+
 export function formatNanRatio(ratio: number): string {
   if (ratio === 0) return "0%";
   if (ratio < 0.0001) return "<0.01%";
@@ -218,6 +230,83 @@ export function LeafSchemaModal({
             >
               MISSING — writegate contract violation (every shard's parquet
               must carry available_at)
+            </div>
+          )}
+        </div>
+
+        {/* 2.b completeness envelope — writegate slice (b) Phase 5.5 surface */}
+        <div data-testid="leaf-schema-completeness-block">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">
+            completeness envelope
+          </div>
+          {data.completeness.present ? (
+            <div
+              className="text-[10px] font-mono space-y-0.5"
+              data-testid="leaf-schema-completeness-present"
+            >
+              <div className="flex gap-3 flex-wrap">
+                <span>
+                  min:{" "}
+                  <span
+                    style={{ color: completenessColor(data.completeness.min_fraction) }}
+                  >
+                    {data.completeness.min_fraction !== null
+                      ? data.completeness.min_fraction.toFixed(3)
+                      : "—"}
+                  </span>
+                </span>
+                <span>
+                  max:{" "}
+                  <span
+                    style={{ color: completenessColor(data.completeness.max_fraction) }}
+                  >
+                    {data.completeness.max_fraction !== null
+                      ? data.completeness.max_fraction.toFixed(3)
+                      : "—"}
+                  </span>
+                </span>
+                <span>
+                  mean:{" "}
+                  <span
+                    style={{ color: completenessColor(data.completeness.mean_fraction) }}
+                  >
+                    {data.completeness.mean_fraction !== null
+                      ? data.completeness.mean_fraction.toFixed(3)
+                      : "—"}
+                  </span>
+                </span>
+                <span
+                  style={{
+                    color: nanRatioColor(
+                      data.completeness.null_count > 0 && data.row_count > 0
+                        ? data.completeness.null_count / data.row_count
+                        : 0,
+                    ),
+                  }}
+                >
+                  null_count: {data.completeness.null_count}
+                </span>
+                <span
+                  style={{
+                    color:
+                      data.completeness.incomplete_window_present_count > 0
+                        ? "var(--color-accent-amber)"
+                        : "var(--color-text-muted)",
+                  }}
+                  title="Number of rows where the incomplete_window column is non-empty / non-null (i.e. the upstream window had gaps at write-time)."
+                >
+                  incomplete_window: {data.completeness.incomplete_window_present_count}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="text-[10px] text-[var(--color-text-muted)] font-mono"
+              data-testid="leaf-schema-completeness-absent"
+              title="Parquet predates the writegate slice (c) per-service emission-policy rollout (Phase 6.1-6.9). Auto-surfaces once MDPS / features-* / ml-* / strategy / execution start writing `completeness_fraction` + `incomplete_window` columns via publish_with_policy()."
+            >
+              not yet populated (parquet predates slice (c) per-service emission-policy
+              rollout)
             </div>
           )}
         </div>

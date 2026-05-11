@@ -4,6 +4,7 @@ import {
   LeafSchemaModal,
   nanRatioColor,
   formatNanRatio,
+  completenessColor,
 } from "./LeafSchemaModal";
 import type { LeafParquetStatsResponse } from "../api/client";
 import * as apiClient from "../api/client";
@@ -50,6 +51,14 @@ function makeResponse(
     column_count: 0,
     columns: [],
     available_at: { present: false, min_iso: null, max_iso: null, null_count: 0 },
+    completeness: {
+      present: false,
+      min_fraction: null,
+      max_fraction: null,
+      mean_fraction: null,
+      null_count: 0,
+      incomplete_window_present_count: 0,
+    },
     file_size_bytes: null,
     truncated: false,
     truncated_at_rows: null,
@@ -256,5 +265,101 @@ describe("LeafSchemaModal", () => {
     await waitFor(() => {
       expect(screen.getByTestId("leaf-schema-truncated")).toBeTruthy();
     });
+  });
+});
+
+describe("completenessColor (writegate slice (b) Phase 5.5)", () => {
+  it("null returns muted text color", () => {
+    expect(completenessColor(null)).toBe("var(--color-text-muted)");
+  });
+  it("1.0 returns green", () => {
+    expect(completenessColor(1.0)).toBe("var(--color-accent-green)");
+  });
+  it("0.995 returns yellow", () => {
+    expect(completenessColor(0.995)).toBe("var(--color-accent-yellow)");
+  });
+  it("0.97 returns amber", () => {
+    expect(completenessColor(0.97)).toBe("var(--color-accent-amber)");
+  });
+  it("0.85 returns red", () => {
+    expect(completenessColor(0.85)).toBe("var(--color-accent-red)");
+  });
+  it("boundary 0.95 inclusive returns amber (not red)", () => {
+    expect(completenessColor(0.95)).toBe("var(--color-accent-amber)");
+  });
+  it("boundary 0.99 inclusive returns yellow (not amber)", () => {
+    expect(completenessColor(0.99)).toBe("var(--color-accent-yellow)");
+  });
+});
+
+describe("LeafSchemaModal completeness envelope rendering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders absent state when completeness.present=false", async () => {
+    vi.mocked(apiClient.fetchLeafParquetStats).mockResolvedValue(
+      makeResponse({
+        available: true,
+        row_count: 24,
+        column_count: 5,
+      }),
+    );
+    render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("leaf-schema-completeness-absent")).toBeTruthy();
+    });
+  });
+
+  it("renders present state with min/max/mean when completeness.present=true", async () => {
+    vi.mocked(apiClient.fetchLeafParquetStats).mockResolvedValue(
+      makeResponse({
+        available: true,
+        row_count: 24,
+        column_count: 5,
+        completeness: {
+          present: true,
+          min_fraction: 0.95,
+          max_fraction: 1.0,
+          mean_fraction: 0.99,
+          null_count: 0,
+          incomplete_window_present_count: 1,
+        },
+      }),
+    );
+    render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("leaf-schema-completeness-present")).toBeTruthy();
+    });
+    const block = screen.getByTestId("leaf-schema-completeness-present");
+    expect(block.textContent).toContain("0.950");
+    expect(block.textContent).toContain("1.000");
+    expect(block.textContent).toContain("0.990");
+    expect(block.textContent).toContain("incomplete_window: 1");
+  });
+
+  it("renders null fractions as em-dash when completeness all rows null", async () => {
+    vi.mocked(apiClient.fetchLeafParquetStats).mockResolvedValue(
+      makeResponse({
+        available: true,
+        row_count: 24,
+        column_count: 5,
+        completeness: {
+          present: true,
+          min_fraction: null,
+          max_fraction: null,
+          mean_fraction: null,
+          null_count: 24,
+          incomplete_window_present_count: 0,
+        },
+      }),
+    );
+    render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("leaf-schema-completeness-present")).toBeTruthy();
+    });
+    const block = screen.getByTestId("leaf-schema-completeness-present");
+    expect(block.textContent).toContain("null_count: 24");
+    expect(block.textContent).toContain("—");
   });
 });

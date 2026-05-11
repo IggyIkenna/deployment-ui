@@ -2174,6 +2174,15 @@ export interface LeafAvailableAtEnvelope {
   null_count: number;
 }
 
+export interface LeafCompletenessEnvelope {
+  present: boolean;
+  min_fraction: number | null;
+  max_fraction: number | null;
+  mean_fraction: number | null;
+  null_count: number;
+  incomplete_window_present_count: number;
+}
+
 export interface LeafParquetStatsResponse {
   coord: {
     service: string;
@@ -2192,6 +2201,10 @@ export interface LeafParquetStatsResponse {
   column_count: number;
   columns: LeafParquetColumnStat[];
   available_at: LeafAvailableAtEnvelope;
+  /** Writegate slice (b) Phase 5.5 — completeness envelope (forward-compatible).
+   * `present: false` when the parquet predates the slice (c) per-service
+   * emission-policy rollout. UI renders a placeholder pill in that case. */
+  completeness: LeafCompletenessEnvelope;
   file_size_bytes: number | null;
   truncated: boolean;
   truncated_at_rows: number | null;
