@@ -9,6 +9,7 @@ import {
   Play,
   Settings,
   ShieldCheck,
+  TrendingUp,
   Trophy,
 } from "lucide-react";
 import { Component, type ReactNode, useState } from "react";
@@ -29,6 +30,7 @@ import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceStatusTab } from "./components/ServiceStatusTab";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
+import { ClientReportingTab } from "./components/ClientReportingTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
@@ -178,7 +180,7 @@ function App() {
                 <Route path="/chaos" element={<Chaos />} />
                 <Route
                   path="*"
-                  element={(
+                  element={
                     <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px]">
                       <div className="grid grid-cols-12 gap-4 lg:gap-6">
                         <div className="col-span-12 lg:col-span-3 xl:col-span-2 2xl:col-span-2">
@@ -189,9 +191,11 @@ function App() {
                               setSelectedOperation(operation ?? null);
                               if (
                                 INFRASTRUCTURE_SERVICES.includes(service) &&
-                                !["builds", "service-status", "config"].includes(
-                                  activeTab,
-                                )
+                                ![
+                                  "builds",
+                                  "service-status",
+                                  "config",
+                                ].includes(activeTab)
                               ) {
                                 setActiveTab("builds");
                               }
@@ -205,7 +209,9 @@ function App() {
                           {selectedService ? (
                             (() => {
                               const isInfra =
-                                INFRASTRUCTURE_SERVICES.includes(selectedService);
+                                INFRASTRUCTURE_SERVICES.includes(
+                                  selectedService,
+                                );
                               return (
                                 <>
                                   {!isInfra &&
@@ -245,7 +251,7 @@ function App() {
                                             }
                                             onLoadAllShards={
                                               deploymentResult.dry_run &&
-                                                deploymentResult.shards_truncated
+                                              deploymentResult.shards_truncated
                                                 ? handleLoadAllShards
                                                 : undefined
                                             }
@@ -284,10 +290,13 @@ function App() {
                                   >
                                     <TabsList
                                       variant="pill"
-                                      className={`grid w-full ${isInfra ? "grid-cols-3" : "grid-cols-7"} mb-6`}
+                                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-8" : "grid-cols-7"} mb-6`}
                                     >
                                       {!isInfra && (
-                                        <TabsTrigger value="deploy" className="gap-2">
+                                        <TabsTrigger
+                                          value="deploy"
+                                          className="gap-2"
+                                        >
                                           <Play className="h-4 w-4" />
                                           Deploy
                                         </TabsTrigger>
@@ -308,7 +317,10 @@ function App() {
                                           History
                                         </TabsTrigger>
                                       )}
-                                      <TabsTrigger value="builds" className="gap-2">
+                                      <TabsTrigger
+                                        value="builds"
+                                        className="gap-2"
+                                      >
                                         <Hammer className="h-4 w-4" />
                                         Builds
                                       </TabsTrigger>
@@ -330,10 +342,23 @@ function App() {
                                           Readiness
                                         </TabsTrigger>
                                       )}
-                                      <TabsTrigger value="config" className="gap-2">
+                                      <TabsTrigger
+                                        value="config"
+                                        className="gap-2"
+                                      >
                                         <Settings className="h-4 w-4" />
                                         Config
                                       </TabsTrigger>
+                                      {selectedService ===
+                                        "client-reporting-api" && (
+                                        <TabsTrigger
+                                          value="client-reporting"
+                                          className="gap-2"
+                                        >
+                                          <TrendingUp className="h-4 w-4" />
+                                          Client Reporting
+                                        </TabsTrigger>
+                                      )}
                                     </TabsList>
                                     {!isInfra && (
                                       <TabsContent value="deploy">
@@ -354,51 +379,57 @@ function App() {
                                       <TabsContent value="history">
                                         <DeploymentHistory
                                           serviceName={selectedService}
-                                          onViewDetails={handleViewDeploymentDetails}
+                                          onViewDetails={
+                                            handleViewDeploymentDetails
+                                          }
                                         />
                                       </TabsContent>
                                     )}
                                     <TabsContent value="builds">
-                                      <CloudBuildsTab serviceName={selectedService} />
+                                      <CloudBuildsTab
+                                        serviceName={selectedService}
+                                      />
                                     </TabsContent>
                                     {!isInfra && (
                                       <TabsContent value="data-status">
                                         {selectedService ===
                                           "market-data-processing-service" && (
-                                            <div
-                                              data-testid="mdps-consolidation-banner"
-                                              className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-4 py-3 text-sm text-[var(--color-text-primary)]"
-                                            >
-                                              <Info className="h-5 w-5 shrink-0 text-[var(--color-accent-blue)] mt-0.5" />
-                                              <div className="flex-1 space-y-1">
-                                                <p className="font-medium">
-                                                  MDPS processed candles live alongside
-                                                  raw ticks under market-tick-data-service&apos;s
-                                                  bucket.
-                                                </p>
-                                                <p className="text-xs text-[var(--color-text-secondary)]">
-                                                  Showing processed-* data types only
-                                                  (prefix{" "}
-                                                  <code className="font-mono px-1 rounded bg-[var(--color-bg-tertiary)]">
-                                                    processed_candles/
-                                                  </code>
-                                                  ). Raw ticks are visible under the
-                                                  full{" "}
-                                                  <button
-                                                    onClick={() =>
-                                                      setSelectedService(
-                                                        "market-tick-data-service",
-                                                      )
-                                                    }
-                                                    className="underline text-[var(--color-accent-blue)] hover:opacity-80"
-                                                  >
-                                                    market-tick-data-service Data Status
-                                                  </button>{" "}
-                                                  tab.
-                                                </p>
-                                              </div>
+                                          <div
+                                            data-testid="mdps-consolidation-banner"
+                                            className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-4 py-3 text-sm text-[var(--color-text-primary)]"
+                                          >
+                                            <Info className="h-5 w-5 shrink-0 text-[var(--color-accent-blue)] mt-0.5" />
+                                            <div className="flex-1 space-y-1">
+                                              <p className="font-medium">
+                                                MDPS processed candles live
+                                                alongside raw ticks under
+                                                market-tick-data-service&apos;s
+                                                bucket.
+                                              </p>
+                                              <p className="text-xs text-[var(--color-text-secondary)]">
+                                                Showing processed-* data types
+                                                only (prefix{" "}
+                                                <code className="font-mono px-1 rounded bg-[var(--color-bg-tertiary)]">
+                                                  processed_candles/
+                                                </code>
+                                                ). Raw ticks are visible under
+                                                the full{" "}
+                                                <button
+                                                  onClick={() =>
+                                                    setSelectedService(
+                                                      "market-tick-data-service",
+                                                    )
+                                                  }
+                                                  className="underline text-[var(--color-accent-blue)] hover:opacity-80"
+                                                >
+                                                  market-tick-data-service Data
+                                                  Status
+                                                </button>{" "}
+                                                tab.
+                                              </p>
                                             </div>
-                                          )}
+                                          </div>
+                                        )}
                                         <DataStatusTab
                                           serviceName={selectedService}
                                           deploymentResult={deploymentResult}
@@ -421,7 +452,8 @@ function App() {
                                               skip_existing:
                                                 params.skip_existing ?? true,
                                               deploy_missing_only:
-                                                params.deploy_missing_only ?? true,
+                                                params.deploy_missing_only ??
+                                                true,
                                               date_granularity:
                                                 params.date_granularity,
                                               first_day_of_month_only:
@@ -434,12 +466,22 @@ function App() {
                                     )}
                                     {!isInfra && (
                                       <TabsContent value="readiness">
-                                        <ReadinessTab serviceName={selectedService} />
+                                        <ReadinessTab
+                                          serviceName={selectedService}
+                                        />
                                       </TabsContent>
                                     )}
                                     <TabsContent value="config">
-                                      <ServiceDetails serviceName={selectedService} />
+                                      <ServiceDetails
+                                        serviceName={selectedService}
+                                      />
                                     </TabsContent>
+                                    {selectedService ===
+                                      "client-reporting-api" && (
+                                      <TabsContent value="client-reporting">
+                                        <ClientReportingTab />
+                                      </TabsContent>
+                                    )}
                                   </Tabs>
                                 </>
                               );
@@ -472,7 +514,7 @@ function App() {
                         </div>
                       </div>
                     </main>
-                  )}
+                  }
                 />
               </Routes>
             </div>
