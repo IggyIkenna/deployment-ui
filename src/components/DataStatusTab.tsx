@@ -67,6 +67,7 @@ import {
   type ShardDetailCoordInput,
 } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
+import { HonestCoverageCard } from "./HonestCoverageCard";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
@@ -1681,6 +1682,9 @@ function DataStatusTabInternal({
   return (
     <div className="space-y-4">
       {serviceName === "instruments-service" && <UpcomingFixtures />}
+
+      {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
+      <HonestCoverageCard />
 
       {/* Coverage Summary Card — auto-loaded from manifest */}
       {(coverageSummary || coverageSummaryLoading) && (

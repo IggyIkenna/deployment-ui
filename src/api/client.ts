@@ -3188,4 +3188,42 @@ export async function deleteChaosInjection(injectionId: string): Promise<void> {
   );
 }
 
+/** Per-capture-status counts for one shard population. */
+export interface HonestCoverageStatusCounts {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  expected_unattempted: number;
+  total: number;
+  coverage_pct: number;
+}
+
+/** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
+export interface HonestCoverageResponse {
+  generated_at: string;
+  date: string;
+  by_asset_group: Record<string, HonestCoverageStatusCounts>;
+  by_venue: Record<string, Record<string, HonestCoverageStatusCounts>>;
+  by_venue_data_type: Record<
+    string,
+    Record<string, Record<string, HonestCoverageStatusCounts>>
+  >;
+}
+
+/** Fetch cross-asset-group honest coverage for a given date (default: today UTC).
+ * Returns null when the API responds 404 (cron VM hasn't run yet). */
+export async function getHonestCoverage(
+  date?: string,
+): Promise<HonestCoverageResponse | null> {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  try {
+    return await fetchJson<HonestCoverageResponse>(
+      `/data-status/honest-coverage${qs}`,
+    );
+  } catch (err) {
+    if (err instanceof ApiClientError && err.status === 404) return null;
+    throw err;
+  }
+}
+
 export { ApiError };
