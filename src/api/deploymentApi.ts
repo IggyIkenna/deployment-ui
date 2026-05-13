@@ -160,3 +160,59 @@ export async function deployBuild(
     environment: string;
   }>(response);
 }
+
+// -------------------------------------------------------------------------
+// Data Status Live (Monitor→Live sub-tab, DataStatusTab mode toggle)
+// -------------------------------------------------------------------------
+
+export interface LiveStatusRow {
+  asset_group: string;
+  data_type: string;
+  venue: string;
+  chain?: string;
+  capture_status: "captured" | "empty_confirmed" | "attempted_failed" | "expected_unattempted";
+  staleness_seconds: number;
+  refreshed_at: string;
+}
+
+export interface LiveStatusResponse {
+  rows: LiveStatusRow[];
+  refreshed_at: string;
+}
+
+export async function getLiveStatus(): Promise<LiveStatusResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/live`);
+  return handleResponse<LiveStatusResponse>(response);
+}
+
+// -------------------------------------------------------------------------
+// VM Events (StreamingLogsPanel for VM-based event streaming)
+// -------------------------------------------------------------------------
+
+export interface VmEvent {
+  event_id: string;
+  event_type: string;
+  timestamp: string;
+  vm_name: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface VmEventsResponse {
+  vm_name: string;
+  events: VmEvent[];
+  count: number;
+}
+
+export async function getVmEvents(
+  vmName: string,
+  date?: string,
+): Promise<VmEventsResponse> {
+  const params = new URLSearchParams();
+  params.append("vm_name", vmName);
+  if (date) params.append("date", date);
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm/events?${params.toString()}`,
+  );
+  return handleResponse<VmEventsResponse>(response);
+}

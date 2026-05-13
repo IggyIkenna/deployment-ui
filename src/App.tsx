@@ -1,11 +1,10 @@
 import {
-  Activity,
   AlertCircle,
   Database,
   Hammer,
-  History,
   Info,
   LayoutGrid,
+  Monitor,
   Play,
   Settings,
   ShieldCheck,
@@ -20,11 +19,11 @@ import { CloudBuildsTab } from "./components/CloudBuildsTab";
 import { DataStatusTab } from "./components/DataStatusTab";
 import { DeployForm } from "./components/DeployForm";
 import { DeploymentDetails } from "./components/DeploymentDetails";
-import { DeploymentHistory } from "./components/DeploymentHistory";
 import { DeploymentResult } from "./components/DeploymentResult";
 import { EpicReadinessView } from "./components/EpicReadinessView";
 import { Header } from "./components/Header";
 import { MockModeBanner } from "./components/MockModeBanner";
+import { MonitorTab } from "./components/MonitorTab";
 import { ReadinessTab } from "./components/ReadinessTab";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
@@ -116,7 +115,7 @@ function App() {
       const result = await createDeployment(request);
       setDeploymentResult(result);
       if (!result.dry_run && result.deployment_id) {
-        setActiveTab("history");
+        setActiveTab("monitor");
         setSelectedDeploymentId(result.deployment_id);
       }
     } catch (err) {
@@ -193,7 +192,6 @@ function App() {
                                 INFRASTRUCTURE_SERVICES.includes(service) &&
                                 ![
                                   "builds",
-                                  "service-status",
                                   "config",
                                 ].includes(activeTab)
                               ) {
@@ -280,7 +278,7 @@ function App() {
                                           "config",
                                           "readiness",
                                           "data-status",
-                                          "service-status",
+                                          "monitor",
                                           "builds",
                                         ].includes(tab)
                                       )
@@ -290,7 +288,7 @@ function App() {
                                   >
                                     <TabsList
                                       variant="pill"
-                                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-8" : "grid-cols-7"} mb-6`}
+                                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-7" : "grid-cols-6"} mb-6`}
                                     >
                                       {!isInfra && (
                                         <TabsTrigger
@@ -301,20 +299,13 @@ function App() {
                                           Deploy
                                         </TabsTrigger>
                                       )}
-                                      <TabsTrigger
-                                        value="service-status"
-                                        className="gap-2"
-                                      >
-                                        <Activity className="h-4 w-4" />
-                                        Status
-                                      </TabsTrigger>
                                       {!isInfra && (
                                         <TabsTrigger
-                                          value="history"
+                                          value="monitor"
                                           className="gap-2"
                                         >
-                                          <History className="h-4 w-4" />
-                                          History
+                                          <Monitor className="h-4 w-4" />
+                                          Monitor
                                         </TabsTrigger>
                                       )}
                                       <TabsTrigger
@@ -370,19 +361,9 @@ function App() {
                                         />
                                       </TabsContent>
                                     )}
-                                    <TabsContent value="service-status">
-                                      <ServiceStatusTab
-                                        serviceName={selectedService}
-                                      />
-                                    </TabsContent>
                                     {!isInfra && (
-                                      <TabsContent value="history">
-                                        <DeploymentHistory
-                                          serviceName={selectedService}
-                                          onViewDetails={
-                                            handleViewDeploymentDetails
-                                          }
-                                        />
+                                      <TabsContent value="monitor">
+                                        <MonitorTab />
                                       </TabsContent>
                                     )}
                                     <TabsContent value="builds">
