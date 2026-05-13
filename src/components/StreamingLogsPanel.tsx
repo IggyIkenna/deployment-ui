@@ -1,28 +1,25 @@
 import { useState, useRef, useEffect } from "react";
-import { useDeployEventStream } from "../hooks/useDeployEventStream";
 import { useVmEventStream } from "../hooks/useVmEventStream";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Download, Pause, Play } from "lucide-react";
+import type { VmEvent } from "../api/deploymentApi";
 
 interface StreamingLogsPanelProps {
-  deploymentId?: string;
-  vmName?: string;
+  vmName: string;
+  date?: string;
   onClose?: () => void;
 }
 
 export function StreamingLogsPanel({
-  deploymentId,
   vmName,
+  date,
   onClose,
 }: StreamingLogsPanelProps) {
-  const deploymentStream = useDeployEventStream(deploymentId);
-  const vmStream = useVmEventStream(vmName);
+  const { events, loading, error } = useVmEventStream(vmName, date);
   const [searchText, setSearchText] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
-
-  const events = deploymentId ? deploymentStream.events : vmStream.events;
 
   useEffect(() => {
     if (!isPaused) {
@@ -43,7 +40,7 @@ export function StreamingLogsPanel({
       "timestamp,event_type,message\n" +
       filteredEvents
         .map(
-          (e) =>
+          (e: VmEvent) =>
             `"${e.timestamp}","${e.event_type}","${(e.message || "").replace(/"/g, '""')}"`,
         )
         .join("\n");
@@ -55,11 +52,6 @@ export function StreamingLogsPanel({
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const loading = deploymentId
-    ? deploymentStream.loading
-    : vmStream.loading;
-  const error = deploymentId ? deploymentStream.error : vmStream.error;
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -109,7 +101,7 @@ export function StreamingLogsPanel({
         {!loading && filteredEvents.length === 0 && !searchText && (
           <div className="text-gray-500">No events yet</div>
         )}
-        {filteredEvents.map((event, idx) => (
+        {filteredEvents.map((event: VmEvent, idx: number) => (
           <div key={idx} className="py-1 border-b border-gray-800">
             <span className="text-gray-400">{event.timestamp}</span>
             {" | "}

@@ -90,7 +90,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface DataStatusTabProps {
   serviceName: string;
@@ -326,8 +326,8 @@ function DataStatusTabInternal({
     "batch",
   );
 
-  // View mode for data status tab (separate from API dataStatusMode)
-  const [viewMode, setViewMode] = useState<"batch" | "scheduled-today" | "live">("batch");
+  // Data status view mode toggle (batch/scheduled-today/live) - separate from table/calendar display mode
+  const [dataStatusViewMode, setDataStatusViewMode] = useState<"batch" | "scheduled-today" | "live">("batch");
 
   // NOTE: Removed debounced dates - no longer auto-fetching on date change
   // Users must click "Check Status" button to fetch data
@@ -1687,10 +1687,10 @@ function DataStatusTabInternal({
     <div className="space-y-4">
       {/* Data Status View Mode Toggle (B4 + B5) */}
       <Tabs
-        value={viewMode}
+        value={dataStatusViewMode}
         onValueChange={(mode: string) => {
           const newMode = mode as "batch" | "scheduled-today" | "live";
-          setViewMode(newMode);
+          setDataStatusViewMode(newMode);
 
           if (newMode === "scheduled-today") {
             // Set dates to today

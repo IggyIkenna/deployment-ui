@@ -1,11 +1,4 @@
 import { useState, useEffect } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-} from "./ui/table";
 import { Badge } from "./ui/badge";
 import { getLiveStatus, type LiveStatusRow } from "../api/deploymentApi";
 
@@ -43,12 +36,10 @@ export function LiveFreshnessPanel() {
     };
   }, []);
 
-  const getStalenessColor = (
-    stalenessSec: number,
-  ): "default" | "secondary" | "destructive" => {
-    if (stalenessSec < 300) return "default";
-    if (stalenessSec < 900) return "secondary";
-    return "destructive";
+  const getStalenessColor = (stalenessSec: number): string => {
+    if (stalenessSec < 300) return "bg-green-100 text-green-800";
+    if (stalenessSec < 900) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
   };
 
   const getStalenessLabel = (stalenessSec: number): string => {
@@ -84,37 +75,37 @@ export function LiveFreshnessPanel() {
         )}
       </div>
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Asset Group</TableCell>
-            <TableCell>Data Type</TableCell>
-            <TableCell>Venue / Chain</TableCell>
-            <TableCell>Capture Status</TableCell>
-            <TableCell>Staleness</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-gray-100 p-3 grid grid-cols-5 gap-2 font-semibold text-sm">
+          <div>Asset Group</div>
+          <div>Data Type</div>
+          <div>Venue / Chain</div>
+          <div>Capture Status</div>
+          <div>Staleness</div>
+        </div>
+        <div className="divide-y">
           {rows.map((row, idx) => (
-            <TableRow key={idx}>
-              <TableCell className="font-medium">{row.asset_group}</TableCell>
-              <TableCell>{row.data_type}</TableCell>
-              <TableCell>{row.chain || row.venue}</TableCell>
-              <TableCell>
+            <div
+              key={idx}
+              className="p-3 grid grid-cols-5 gap-2 items-center text-sm hover:bg-gray-50"
+            >
+              <div className="font-medium">{row.asset_group}</div>
+              <div>{row.data_type}</div>
+              <div>{row.chain || row.venue}</div>
+              <div>
                 <Badge variant="outline">{row.capture_status}</Badge>
-              </TableCell>
-              <TableCell>
+              </div>
+              <div>
                 <Badge
-                  variant={getStalenessColor(row.staleness_seconds)}
-                  className="whitespace-nowrap"
+                  className={`whitespace-nowrap ${getStalenessColor(row.staleness_seconds)}`}
                 >
                   {getStalenessLabel(row.staleness_seconds)}
                 </Badge>
-              </TableCell>
-            </TableRow>
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
+        </div>
+      </div>
     </div>
   );
 }

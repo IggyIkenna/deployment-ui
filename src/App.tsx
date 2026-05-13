@@ -27,7 +27,6 @@ import { MonitorTab } from "./components/MonitorTab";
 import { ReadinessTab } from "./components/ReadinessTab";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
-import { ServiceStatusTab } from "./components/ServiceStatusTab";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
 import { Button } from "./components/ui/button";
@@ -145,15 +144,6 @@ function App() {
   const handleCloseResult = () => {
     setDeploymentResult(null);
     setDeploymentError(null);
-  };
-
-  const handleViewDeploymentDetails = (deploymentId: string) => {
-    setSelectedDeploymentId(deploymentId);
-    requestAnimationFrame(() => {
-      document
-        .getElementById("deployment-details-panel")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
   };
 
   const handleCloseDeploymentDetails = () => setSelectedDeploymentId(null);

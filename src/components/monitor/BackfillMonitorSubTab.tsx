@@ -1,10 +1,10 @@
 import { LifecyclePrefetchProvider } from "../../contexts/LifecyclePrefetchContext";
-import DeploymentHistory from "../DeploymentHistory";
+import { DeploymentHistory } from "../DeploymentHistory";
 
 export function BackfillMonitorSubTab() {
   return (
     <LifecyclePrefetchProvider>
-      <DeploymentHistory />
+      <DeploymentHistory serviceName="" />
     </LifecyclePrefetchProvider>
   );
 }

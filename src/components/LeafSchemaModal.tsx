@@ -23,7 +23,6 @@
  * empty + the error_reason is the only content.
  * ========================================================================= */
 
-import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import {
   fetchLeafParquetStats,

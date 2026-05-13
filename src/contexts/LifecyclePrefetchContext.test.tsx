@@ -10,14 +10,14 @@ vi.mock("./CloudProviderContext");
 const TestComponent = () => {
   const state = useLifecyclePrefetch();
   return (
-    <div>
+    <>
       {state.backfill.loading && <div>Backfill loading</div>}
       {state.backfill.error && <div>Backfill error: {state.backfill.error.message}</div>}
       {state.backfill.data && <div>Backfill loaded</div>}
       {state.live.loading && <div>Live loading</div>}
       {state.live.error && <div>Live error: {state.live.error.message}</div>}
       {state.live.data && <div>Live loaded</div>}
-    </div>
+    </>
   );
 };
 
