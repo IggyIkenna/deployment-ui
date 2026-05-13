@@ -1103,6 +1103,8 @@ export interface TurboChainStatus {
   completion_pct: number;
   venues: string[];
   venue_count: number;
+  shards_found?: number;
+  shards_expected?: number;
 }
 
 // Closed-set enum mirroring UAC `FeatureFamily` (Phase 1A of
@@ -1218,6 +1220,8 @@ export interface TurboAssetGroupStatus {
   venue_weighted?: boolean;
   venue_dates_found?: number;
   venue_dates_expected?: number;
+  overall_shards_found?: number;
+  overall_shards_expected?: number;
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
@@ -1247,6 +1251,8 @@ export interface TurboDataStatusResponse {
   // Category-level totals for reference (not venue-weighted)
   overall_dates_found_asset_group?: number;
   overall_dates_expected_asset_group?: number;
+  overall_shards_found?: number;
+  overall_shards_expected?: number;
   total_missing?: number;
   unexpected_missing?: number;
   expected_missing?: number;

@@ -3556,8 +3556,8 @@ function DataStatusTabInternal({
                     {turboData.overall_completion_pct.toFixed(1)}%
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    {turboData.overall_dates_found} /{" "}
-                    {turboData.overall_dates_expected} shards
+                    {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
+                    {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards
                   </div>
                   {turboData.overall_dates_found_asset_group !== undefined && (
                     <div className="text-xs text-[var(--color-text-muted)] opacity-70">
@@ -3735,10 +3735,10 @@ function DataStatusTabInternal({
                                   return (
                                     <>
                                       <span className="text-sm text-[var(--color-text-muted)]">
-                                        {catData.venue_dates_found ??
+                                        {catData.overall_shards_found ?? catData.venue_dates_found ??
                                           catData.dates_found}{" "}
                                         /{" "}
-                                        {catData.venue_dates_expected ??
+                                        {catData.overall_shards_expected ?? catData.venue_dates_expected ??
                                           catData.dates_expected}{" "}
                                         shards
                                       </span>
@@ -3768,10 +3768,10 @@ function DataStatusTabInternal({
                               ) : (
                                 <>
                                   <span className="text-sm text-[var(--color-text-muted)]">
-                                    {catData.venue_dates_found ??
+                                    {catData.overall_shards_found ?? catData.venue_dates_found ??
                                       catData.dates_found}{" "}
                                     /{" "}
-                                    {catData.venue_dates_expected ??
+                                    {catData.overall_shards_expected ?? catData.venue_dates_expected ??
                                       catData.dates_expected}{" "}
                                     shards
                                   </span>
@@ -4002,7 +4002,7 @@ function DataStatusTabInternal({
                                   </p>
                                   <div className="space-y-0.5">
                                     {Object.entries(catData.chains).map(([chainName, chainData]) => {
-                                      const cd = chainData as { dates_found: number; dates_expected: number; completion_pct: number; venues: string[]; venue_count: number };
+                                      const cd = chainData as { dates_found: number; dates_expected: number; completion_pct: number; venues: string[]; venue_count: number; shards_found?: number; shards_expected?: number };
                                       // Get per-venue data for venues in this chain
                                       const venueData = getSubDimensionData(catData).data || {};
                                       return (
@@ -4012,7 +4012,7 @@ function DataStatusTabInternal({
                                             <span className="text-xs font-mono font-medium">{chainName}</span>
                                             <span className="text-[9px] text-[var(--color-text-muted)]">({cd.venue_count} protocols)</span>
                                             <div className="flex-1" />
-                                            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{cd.dates_found}/{cd.dates_expected}</span>
+                                            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{cd.shards_found ?? cd.dates_found}/{cd.shards_expected ?? cd.dates_expected}</span>
                                             <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
                                               <div className="h-full" style={{ width: `${cd.completion_pct}%`, backgroundColor: getCompletionColor(cd.completion_pct) }} />
                                             </div>
