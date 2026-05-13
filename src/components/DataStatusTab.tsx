@@ -5091,9 +5091,13 @@ function DataStatusTabInternal({
                                                   const foundCount = ld.found_shards ?? ld.dates_found;
                                                   const expectedCount = ld.expected_shards ?? ld.dates_expected;
                                                   const missingCount =
-                                                    ld.missing_shards ?? ld.dates_missing ?? ld.missing_dates?.length;
+                                                    ld.missing_count ?? ld.missing_shards ?? ld.dates_missing ?? ld.missing_dates?.length;
                                                   const foundDatesList = ld.found_dates_list ?? ld.dates_found_list ?? [];
                                                   const missingDatesList = ld.missing_dates ?? [];
+                                                  const missingIsSample =
+                                                    missingCount !== undefined &&
+                                                    missingDatesList.length > 0 &&
+                                                    missingDatesList.length < missingCount;
                                                   const unitLabel = formatUnitLabel(ld.unit);
                                                   const countDisplay =
                                                     foundCount === undefined || expectedCount === undefined
@@ -5160,6 +5164,11 @@ function DataStatusTabInternal({
                                                             <details>
                                                               <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                 {missingCount ?? missingDatesList.length} missing
+                                                                {missingIsSample && (
+                                                                  <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                    (sample of {missingDatesList.length})
+                                                                  </span>
+                                                                )}
                                                                 {catName === "SPORTS" && name === "FIXTURES" && (
                                                                   <span className="ml-1 text-[var(--color-text-muted)]">· click to see expected fixtures (read-only)</span>
                                                                 )}

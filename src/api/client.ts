@@ -962,6 +962,7 @@ export interface TurboLeagueStatus {
   missing_shards?: number;
   found_dates_list?: string[];
   missing_dates?: string[];
+  missing_count?: number; // Total missing count (list may be a truncated sample)
   completion_pct: number;
   unit?: string;
   not_applicable?: boolean;
