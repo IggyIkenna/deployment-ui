@@ -90,6 +90,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface DataStatusTabProps {
   serviceName: string;
@@ -324,6 +325,9 @@ function DataStatusTabInternal({
   const [dataStatusMode, setDataStatusMode] = useState<"batch" | "live">(
     "batch",
   );
+
+  // View mode for data status tab (separate from API dataStatusMode)
+  const [viewMode, setViewMode] = useState<"batch" | "scheduled-today" | "live">("batch");
 
   // NOTE: Removed debounced dates - no longer auto-fetching on date change
   // Users must click "Check Status" button to fetch data
@@ -1681,6 +1685,39 @@ function DataStatusTabInternal({
 
   return (
     <div className="space-y-4">
+      {/* Data Status View Mode Toggle (B4 + B5) */}
+      <Tabs
+        value={viewMode}
+        onValueChange={(mode: string) => {
+          const newMode = mode as "batch" | "scheduled-today" | "live";
+          setViewMode(newMode);
+
+          if (newMode === "scheduled-today") {
+            // Set dates to today
+            const today = new Date().toISOString().split("T")[0];
+            setStartDate(today);
+            setEndDate(today);
+            setDataStatusMode("batch");
+          } else if (newMode === "batch") {
+            // Reset to workspace-wide default
+            setStartDate("2018-01-01");
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            setEndDate(d.toISOString().split("T")[0]);
+            setDataStatusMode("batch");
+          } else if (newMode === "live") {
+            setDataStatusMode("live");
+          }
+        }}
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="batch">Batch</TabsTrigger>
+          <TabsTrigger value="scheduled-today">Today</TabsTrigger>
+          <TabsTrigger value="live">Live</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {serviceName === "instruments-service" && <UpcomingFixtures />}
 
       {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
