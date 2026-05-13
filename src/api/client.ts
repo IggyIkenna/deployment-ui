@@ -1482,12 +1482,14 @@ export async function getVenueFilters(
 export interface VenueDetailResult {
   venue: string;
   asset_group: string;
-  date: string;
+  date?: string;
+  day?: string | null;
   total_instruments: number;
-  columns: string[];
+  total_instruments_unfiltered?: number;
+  columns?: string[];
   instrument_types?: Record<string, number>;
   statuses?: Record<string, number>;
-  top_instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
+  instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
 }
 
 export async function fetchVenueDetail(
@@ -2275,6 +2277,7 @@ export interface VenueDetailV2Response {
   chain: string | null;
   protocol: string | null;
   total_instruments: number;
+  total_instruments_unfiltered?: number;
   total_pools: number;
   total_tokens: number;
   instruments: Record<string, unknown>[];

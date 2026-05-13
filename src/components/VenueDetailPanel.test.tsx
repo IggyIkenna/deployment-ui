@@ -17,7 +17,7 @@ describe("VenueDetailPanel", () => {
     expect(screen.getByTestId("venue-detail-panel-error")).toBeTruthy();
   });
 
-  it("renders CeFi v1 payload with instrument_types + top_instruments", () => {
+  it("renders CeFi v1 payload with instrument_types + instruments", () => {
     const data: VenueDetailResult = {
       venue: "BINANCE-SPOT",
       asset_group: "CEFI",
@@ -25,14 +25,14 @@ describe("VenueDetailPanel", () => {
       total_instruments: 120,
       columns: ["symbol", "base", "quote"],
       instrument_types: { PERPETUAL: 80, SPOT: 40 },
-      top_instruments: [
+      instruments: [
         { key: "BTC-USD", type: "SPOT", base: "BTC", quote: "USD" },
       ],
     };
     render(<VenueDetailPanel loading={false} data={data} />);
     expect(screen.getByTestId("venue-detail-panel-cefi")).toBeTruthy();
     expect(screen.getByText("PERPETUAL")).toBeTruthy();
-    // "SPOT" appears both in instrument_types summary and top_instruments row
+    // "SPOT" appears both in instrument_types summary and instruments row
     expect(screen.getAllByText("SPOT").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("BTC-USD")).toBeTruthy();
   });
