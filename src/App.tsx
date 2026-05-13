@@ -29,6 +29,7 @@ import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
+import { TreasuryTab } from "./components/TreasuryTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
@@ -278,7 +279,7 @@ function App() {
                                   >
                                     <TabsList
                                       variant="pill"
-                                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-7" : "grid-cols-6"} mb-6`}
+                                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-7" : selectedService === "deployment-api" ? "grid-cols-8" : "grid-cols-6"} mb-6`}
                                     >
                                       {!isInfra && (
                                         <TabsTrigger
@@ -338,6 +339,16 @@ function App() {
                                         >
                                           <TrendingUp className="h-4 w-4" />
                                           Client Reporting
+                                        </TabsTrigger>
+                                      )}
+                                      {selectedService ===
+                                        "deployment-api" && (
+                                        <TabsTrigger
+                                          value="treasury"
+                                          className="gap-2"
+                                        >
+                                          <Info className="h-4 w-4" />
+                                          Treasury
                                         </TabsTrigger>
                                       )}
                                     </TabsList>
@@ -451,6 +462,11 @@ function App() {
                                       "client-reporting-api" && (
                                       <TabsContent value="client-reporting">
                                         <ClientReportingTab />
+                                      </TabsContent>
+                                    )}
+                                    {selectedService === "deployment-api" && (
+                                      <TabsContent value="treasury">
+                                        <TreasuryTab />
                                       </TabsContent>
                                     )}
                                   </Tabs>
