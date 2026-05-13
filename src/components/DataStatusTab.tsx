@@ -1731,7 +1731,17 @@ function DataStatusTabInternal({
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                 <CardTitle className="text-base">Instrument Coverage Summary</CardTitle>
-                <Badge variant="outline" className="text-[10px]">MANIFEST</Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[10px]"
+                  title={
+                    coverageSummary?.totals_source === "rollup"
+                      ? "Served from pre-computed rollup (≤30 min stale). Numbers may differ from live manifest until writegate Phase 3.D.4 lands."
+                      : "Served from live manifest scan."
+                  }
+                >
+                  {coverageSummary?.totals_source === "rollup" ? "ROLLUP" : "MANIFEST"}
+                </Badge>
               </div>
               {coverageSummary?.totals && (
                 <div className="text-right">

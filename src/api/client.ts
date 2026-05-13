@@ -1441,6 +1441,8 @@ export interface CoverageSummaryResponse {
     dates_across_asset_groups: number;
     latest_day_instruments: number;
   };
+  totals_source?: "rollup" | "manifest";
+  served_from?: string;
   mock?: boolean;
 }
 
