@@ -18,19 +18,30 @@ describe("LiveClusterSubTab", () => {
     });
   });
 
-  it("renders LiveFreshnessPanel", () => {
+  it("renders LiveFreshnessPanel", async () => {
     vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue({
       active: [],
       recent: [],
       archive_days: 7,
     });
     vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue({
-      rows: [],
+      rows: [
+        {
+          asset_group: "defi",
+          data_type: "ohlcv_1m",
+          venue: "HYPERLIQUID",
+          capture_status: "captured",
+          staleness_seconds: 120,
+          refreshed_at: new Date().toISOString(),
+        },
+      ],
       refreshed_at: new Date().toISOString(),
     });
 
     render(<LiveClusterSubTab />);
-    expect(screen.getByText("Live Data Freshness")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Live Data Freshness")).toBeInTheDocument();
+    });
   });
 
   it("displays live status rows in table", async () => {

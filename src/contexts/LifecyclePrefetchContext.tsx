@@ -139,31 +139,31 @@ export function LifecyclePrefetchProvider({
     dispatch({ type: "FETCH_START" });
 
     const fetchData = async () => {
-      try {
-        const [backfillResponse, liveResponse] = await Promise.all([
-          fetchVmDeployments(7),
-          getLiveStatus(),
-        ]);
+      const [backfillResult, liveResult] = await Promise.allSettled([
+        fetchVmDeployments(7),
+        getLiveStatus(),
+      ]);
 
-        if (!isMounted) return;
+      if (!isMounted) return;
 
-        dispatch({
-          type: "BACKFILL_SUCCESS",
-          payload: backfillResponse,
-        });
-        dispatch({
-          type: "LIVE_SUCCESS",
-          payload: liveResponse,
-        });
-      } catch (err) {
-        if (!isMounted) return;
-        const error = err instanceof Error ? err : new Error(String(err));
-        if (!isCacheFresh(state.backfill.fetchedAt)) {
-          dispatch({ type: "BACKFILL_ERROR", payload: error });
-        }
-        if (!isCacheFresh(state.live.fetchedAt)) {
-          dispatch({ type: "LIVE_ERROR", payload: error });
-        }
+      if (backfillResult.status === "fulfilled") {
+        dispatch({ type: "BACKFILL_SUCCESS", payload: backfillResult.value });
+      } else {
+        const error =
+          backfillResult.reason instanceof Error
+            ? backfillResult.reason
+            : new Error(String(backfillResult.reason));
+        dispatch({ type: "BACKFILL_ERROR", payload: error });
+      }
+
+      if (liveResult.status === "fulfilled") {
+        dispatch({ type: "LIVE_SUCCESS", payload: liveResult.value });
+      } else {
+        const error =
+          liveResult.reason instanceof Error
+            ? liveResult.reason
+            : new Error(String(liveResult.reason));
+        dispatch({ type: "LIVE_ERROR", payload: error });
       }
     };
 

@@ -7,7 +7,7 @@ import * as cloudContext from "../contexts/CloudProviderContext";
 vi.mock("../api/deploymentApi");
 vi.mock("../contexts/CloudProviderContext");
 vi.mock("./DeploymentHistory", () => ({
-  default: () => <div>Deployment History</div>,
+  DeploymentHistory: () => <div>Deployment History</div>,
 }));
 
 describe("MonitorTab", () => {
@@ -48,16 +48,29 @@ describe("MonitorTab", () => {
   it("switches to experiments tab when clicked", async () => {
     render(<MonitorTab />);
     const experimentsTab = screen.getByRole("tab", { name: /Experiments/ });
-    fireEvent.click(experimentsTab);
+    fireEvent.mouseDown(experimentsTab);
     await waitFor(() => {
       expect(screen.getByText("Experiment Tracker")).toBeInTheDocument();
     });
   });
 
   it("switches to live tab when clicked", async () => {
+    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue({
+      rows: [
+        {
+          asset_group: "defi",
+          data_type: "ohlcv_1m",
+          venue: "HYPERLIQUID",
+          capture_status: "captured",
+          staleness_seconds: 120,
+          refreshed_at: new Date().toISOString(),
+        },
+      ],
+      refreshed_at: new Date().toISOString(),
+    });
     render(<MonitorTab />);
     const liveTab = screen.getByRole("tab", { name: /Live/ });
-    fireEvent.click(liveTab);
+    fireEvent.mouseDown(liveTab);
     await waitFor(() => {
       expect(screen.getByText("Live Data Freshness")).toBeInTheDocument();
     });
@@ -66,24 +79,37 @@ describe("MonitorTab", () => {
   it("switches to scheduled tab when clicked", async () => {
     render(<MonitorTab />);
     const scheduledTab = screen.getByRole("tab", { name: /Scheduled/ });
-    fireEvent.click(scheduledTab);
+    fireEvent.mouseDown(scheduledTab);
     await waitFor(() => {
       expect(screen.getByText("Scheduler Registry")).toBeInTheDocument();
     });
   });
 
   it("navigates between tabs", async () => {
+    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue({
+      rows: [
+        {
+          asset_group: "defi",
+          data_type: "ohlcv_1m",
+          venue: "HYPERLIQUID",
+          capture_status: "captured",
+          staleness_seconds: 120,
+          refreshed_at: new Date().toISOString(),
+        },
+      ],
+      refreshed_at: new Date().toISOString(),
+    });
     render(<MonitorTab />);
 
     const backfillTab = screen.getByRole("tab", { name: /Backfill/ });
     const liveTab = screen.getByRole("tab", { name: /Live/ });
 
-    fireEvent.click(liveTab);
+    fireEvent.mouseDown(liveTab);
     await waitFor(() => {
       expect(screen.getByText("Live Data Freshness")).toBeInTheDocument();
     });
 
-    fireEvent.click(backfillTab);
+    fireEvent.mouseDown(backfillTab);
     await waitFor(() => {
       expect(screen.getByText("Deployment History")).toBeInTheDocument();
     });

@@ -8,6 +8,7 @@ vi.mock("../hooks/useVmEventStream");
 describe("StreamingLogsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
   it("renders with VM events", () => {

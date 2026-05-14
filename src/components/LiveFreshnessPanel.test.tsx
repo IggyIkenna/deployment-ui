@@ -49,14 +49,13 @@ describe("LiveFreshnessPanel", () => {
           asset_group: "defi",
           data_type: "ohlcv_1m",
           venue: "HYPERLIQUID",
-          chain: "Ethereum",
           capture_status: "captured",
           staleness_seconds: 120,
           refreshed_at: new Date().toISOString(),
         },
         {
           asset_group: "cefi",
-          data_type: "ohlcv_1m",
+          data_type: "book_snapshot_5",
           venue: "BINANCE",
           capture_status: "captured",
           staleness_seconds: 700,
@@ -90,7 +89,7 @@ describe("LiveFreshnessPanel", () => {
     render(<LiveFreshnessPanel />);
     await waitFor(() => {
       const badge = screen.getByText(/Fresh \(120s\)/);
-      expect(badge).toHaveClass("bg-slate-100");
+      expect(badge).toHaveClass("bg-green-100");
     });
   });
 
@@ -111,7 +110,7 @@ describe("LiveFreshnessPanel", () => {
     render(<LiveFreshnessPanel />);
     await waitFor(() => {
       const badge = screen.getByText(/Degraded \(700s\)/);
-      expect(badge).toHaveClass("border-gray-300");
+      expect(badge).toHaveClass("bg-yellow-100");
     });
   });
 

@@ -53,6 +53,9 @@ vi.mock("./components/CloudBuildsTab", () => ({
 vi.mock("./components/EpicReadinessView", () => ({
   EpicReadinessView: () => <div>EpicReadinessView</div>,
 }));
+vi.mock("./components/MonitorTab", () => ({
+  MonitorTab: () => <div>MonitorTab</div>,
+}));
 vi.mock("./api/client", () => ({
   createDeployment: vi.fn(),
   setApiBaseUrl: vi.fn(),
@@ -78,23 +81,23 @@ describe("App", () => {
     expect(screen.getByRole("tab", { name: /deploy/i })).toBeInTheDocument();
   });
 
-  it("shows history tab", () => {
+  it("shows monitor tab", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /select service/i }));
-    expect(screen.getByRole("tab", { name: /history/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /monitor/i })).toBeInTheDocument();
   });
 
-  it("switches to history tab on click", async () => {
+  it("switches to monitor tab on click", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /select service/i }));
-    // Click history tab - Radix UI tabs update state async in jsdom
-    fireEvent.click(screen.getByRole("tab", { name: /history/i }));
-    // History tab should now be active (aria-selected)
+    // Click monitor tab - Radix UI tabs update state async in jsdom
+    fireEvent.click(screen.getByRole("tab", { name: /monitor/i }));
+    // Monitor tab should now be active (aria-selected)
     await waitFor(() => {
-      const historyTab = screen.getByRole("tab", { name: /history/i });
+      const monitorTab = screen.getByRole("tab", { name: /monitor/i });
       expect(
-        historyTab.getAttribute("aria-selected") ??
-          historyTab.getAttribute("data-state"),
+        monitorTab.getAttribute("aria-selected") ??
+          monitorTab.getAttribute("data-state"),
       ).toBeTruthy();
     });
   });
