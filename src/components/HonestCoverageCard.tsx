@@ -1,4 +1,4 @@
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3, Info, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { HonestCoverageResponse } from "../api/client";
 import { getHonestCoverage } from "../api/client";
@@ -80,8 +80,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
     };
   }, [date]);
 
-  // Silently hide when no data yet (404)
-  if (!loading && data === null && error === null) return null;
+  const notYetComputed = !loading && data === null && error === null;
 
   return (
     <Card>
@@ -104,6 +103,14 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading coverage…
+          </div>
+        ) : notYetComputed ? (
+          <div
+            className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]"
+            data-testid="honest-coverage-not-yet-computed"
+          >
+            <Info className="h-4 w-4" />
+            Coverage data not yet computed for{date ? ` ${date}` : " this date"}.
           </div>
         ) : error ? (
           <div className="text-xs text-red-500">{error}</div>
