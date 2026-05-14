@@ -29,6 +29,7 @@ import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
+import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { TreasuryTab } from "./components/TreasuryTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -268,6 +269,7 @@ function App() {
                                           "deploy",
                                           "config",
                                           "readiness",
+                                          "deploy-readiness",
                                           "data-status",
                                           "monitor",
                                           "builds",
@@ -349,6 +351,16 @@ function App() {
                                         >
                                           <Info className="h-4 w-4" />
                                           Treasury
+                                        </TabsTrigger>
+                                      )}
+                                      {selectedService ===
+                                        "deployment-api" && (
+                                        <TabsTrigger
+                                          value="deploy-readiness"
+                                          className="gap-2"
+                                        >
+                                          <ShieldCheck className="h-4 w-4" />
+                                          QG Readiness
                                         </TabsTrigger>
                                       )}
                                     </TabsList>
@@ -467,6 +479,11 @@ function App() {
                                     {selectedService === "deployment-api" && (
                                       <TabsContent value="treasury">
                                         <TreasuryTab />
+                                      </TabsContent>
+                                    )}
+                                    {selectedService === "deployment-api" && (
+                                      <TabsContent value="deploy-readiness">
+                                        <DeploymentReadinessTab />
                                       </TabsContent>
                                     )}
                                   </Tabs>
