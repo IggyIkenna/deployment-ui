@@ -3717,7 +3717,11 @@ function DataStatusTabInternal({
 
                       return (
                         <div key={catName} className="space-y-2">
-                          <div className="flex items-center justify-between">
+                          <div
+                            className="flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-secondary)] rounded px-1 -mx-1 transition-colors"
+                            onClick={() => setSelectedCategories([catName])}
+                            title={`Filter to ${catName}`}
+                          >
                             <div className="flex items-center gap-2">
                               {isComplete ? (
                                 <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />

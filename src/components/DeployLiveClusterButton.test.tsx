@@ -162,8 +162,8 @@ describe("DeployLiveClusterButton", () => {
       ).toBeInTheDocument(),
     );
     expect(spy).toHaveBeenCalledTimes(1);
-    const callArgs = spy.mock.calls[0]!;
-    const init = callArgs[1] as { body: string };
+    const callArgs = spy.mock.calls[0] as unknown as [string, { body: string }];
+    const init = callArgs[1];
     const body = JSON.parse(init.body) as Record<string, unknown>;
     expect(body.role).toBe("features-cross-cutting");
     expect(body.asset_group).toBeNull();

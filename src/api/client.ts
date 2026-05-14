@@ -1715,7 +1715,8 @@ export interface DataTypeCheckResponse {
           completion_percent: number;
         };
       };
-      feature_groups?: Record<string, DimensionStatus>;
+      feature_groups?: Record<string, TurboFeatureGroupStatus>;
+      feature_families?: { [family: string]: TurboFeatureFamilyStatus };
       timeframes?: Record<string, DimensionStatus>;
     };
   };
