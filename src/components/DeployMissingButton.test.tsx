@@ -300,4 +300,70 @@ describe("DeployMissingButton", () => {
     expect(screen.queryByText("Copy")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  describe("env-based tarball blocking", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function mockRegionFetch(deploymentEnv: string) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({ deployment_env: deploymentEnv }),
+        }),
+      );
+    }
+
+    it("disables tarball-from-local radio when deployment env is staging", async () => {
+      mockRegionFetch("staging");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(makeResponse());
+      render(
+        <DeployMissingButton service="mtds" assetGroup="cefi" rowKey={{ venue: "BINANCE" }} />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() => {
+        const radio = screen.getByLabelText(/tarball-from-local \(bundle my local code first\)/);
+        expect((radio as HTMLInputElement).disabled).toBe(true);
+      });
+    });
+
+    it("disables tarball-from-local radio when deployment env is production", async () => {
+      mockRegionFetch("production");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(makeResponse());
+      render(
+        <DeployMissingButton service="mtds" assetGroup="cefi" rowKey={{ venue: "BINANCE" }} />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() => {
+        const radio = screen.getByLabelText(/tarball-from-local \(bundle my local code first\)/);
+        expect((radio as HTMLInputElement).disabled).toBe(true);
+      });
+    });
+
+    it("leaves tarball-from-local radio enabled when deployment env is development", async () => {
+      mockRegionFetch("development");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(makeResponse());
+      render(
+        <DeployMissingButton service="mtds" assetGroup="cefi" rowKey={{ venue: "BINANCE" }} />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      const radio = screen.getByLabelText(/tarball-from-local \(bundle my local code first\)/);
+      expect((radio as HTMLInputElement).disabled).toBe(false);
+    });
+
+    it("shows blocked badge with env name when staging", async () => {
+      mockRegionFetch("staging");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(makeResponse());
+      render(
+        <DeployMissingButton service="mtds" assetGroup="cefi" rowKey={{ venue: "BINANCE" }} />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() => expect(screen.getByText(/blocked in staging/)).toBeTruthy());
+    });
+  });
 });

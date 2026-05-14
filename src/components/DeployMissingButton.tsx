@@ -16,13 +16,15 @@
  * (Phase 4) honors.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   type DeployMissingMode,
   type DeployMissingPreviewResponse,
   postDeployMissingPreview,
 } from "../api/client";
+
+const _TARBALL_BLOCKED_ENVS = new Set(["staging", "production", "prod"]);
 
 interface DeployMissingButtonProps {
   service: string;
@@ -43,6 +45,20 @@ export function DeployMissingButton({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<DeployMissingMode>("preview");
+  const [deploymentEnv, setDeploymentEnv] = useState<string>("development");
+
+  useEffect(() => {
+    fetch("/api/config/region")
+      .then((r) => r.json() as Promise<{ deployment_env?: string }>)
+      .then((data) => {
+        if (data.deployment_env) {
+          setDeploymentEnv(data.deployment_env);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const tarballBlocked = _TARBALL_BLOCKED_ENVS.has(deploymentEnv);
 
   const fetchPreview = useCallback(
     (nextMode: DeployMissingMode) => {
@@ -154,14 +170,38 @@ export function DeployMissingButton({
               />{" "}
               preview (current GCS tarball)
             </label>
-            <label style={{ cursor: "pointer" }}>
+            <label
+              style={{
+                cursor: tarballBlocked ? "not-allowed" : "pointer",
+                opacity: tarballBlocked ? 0.45 : 1,
+              }}
+              title={
+                tarballBlocked
+                  ? `Tarball deploy blocked in ${deploymentEnv} — use image deploy`
+                  : undefined
+              }
+            >
               <input
                 type="radio"
                 name={`deploy-missing-mode-${preview.shard_key}`}
                 checked={mode === "tarball-from-local"}
                 onChange={() => handleSwitchMode("tarball-from-local")}
+                disabled={tarballBlocked}
+                aria-label={`tarball-from-local (bundle my local code first)${tarballBlocked ? " — blocked" : ""}`}
               />{" "}
               tarball-from-local (bundle my local code first)
+              {tarballBlocked && (
+                <span
+                  style={{
+                    marginLeft: "6px",
+                    fontSize: "10px",
+                    color: "#ffcc66",
+                    fontWeight: "bold",
+                  }}
+                >
+                  blocked in {deploymentEnv}
+                </span>
+              )}
             </label>
           </div>
 
