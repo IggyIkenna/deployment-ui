@@ -34,16 +34,30 @@ describe("ExecutionBacktests", () => {
     expect(screen.getByTestId("launch-button")).toBeInTheDocument();
   });
 
-  it("shows error when tick interval is out of range", async () => {
+  it("shows inline error when tick interval is below minimum", () => {
     render(<ExecutionBacktests />);
-    fireEvent.change(screen.getByTestId("tick-interval-input"), {
-      target: { value: "30" },
-    });
-    fireEvent.click(screen.getByTestId("launch-button"));
-    await waitFor(() => {
-      expect(screen.getByTestId("launch-error")).toBeInTheDocument();
-      expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
-    });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
+  });
+
+  it("shows inline error when tick interval exceeds maximum", () => {
+    render(<ExecutionBacktests />);
+    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "99999" } });
+    expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
+  });
+
+  it("submit button disabled when tick interval is out of range", () => {
+    render(<ExecutionBacktests />);
+    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    expect(screen.getByTestId("launch-button")).toBeDisabled();
+  });
+
+  it("inline error disappears when tick interval is corrected", () => {
+    render(<ExecutionBacktests />);
+    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "300" } });
+    expect(screen.queryByText(/60 and 86400/i)).not.toBeInTheDocument();
   });
 
   it("calls launchExecutionBacktest with correct params and shows result", async () => {

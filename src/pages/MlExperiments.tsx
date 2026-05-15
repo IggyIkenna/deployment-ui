@@ -75,27 +75,27 @@ export function MlExperiments() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [instrumentsTouched, setInstrumentsTouched] = useState(false);
+
+  const instrumentsList = instruments
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const instrumentsError =
+    instrumentsList.length === 0 ? "At least one instrument is required." : null;
+  const isFormValid = !instrumentsError;
+  const showInstrumentsError = instrumentsTouched && !!instrumentsError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isFormValid) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
-    const instList = instruments
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (instList.length === 0) {
-      setError("At least one instrument is required.");
-      setLoading(false);
-      return;
-    }
-
     const params: MlExperimentParams = {
       asset_group: assetGroup,
-      instruments: instList,
+      instruments: instrumentsList,
       target_types: targetTypes
         .split(",")
         .map((s) => s.trim())
@@ -186,17 +186,26 @@ export function MlExperiments() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+          <label htmlFor="instruments-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
             Instruments <span className="text-[var(--color-text-muted)]">(comma-separated)</span>
           </label>
           <input
+            id="instruments-field"
             type="text"
             value={instruments}
-            onChange={(e) => setInstruments(e.target.value)}
+            onChange={(e) => { setInstruments(e.target.value); setInstrumentsTouched(true); }}
+            onBlur={() => setInstrumentsTouched(true)}
             placeholder="ETH-USDT, BTC-USDT"
-            className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
+            aria-invalid={showInstrumentsError || undefined}
+            aria-describedby={showInstrumentsError ? "instruments-error" : undefined}
+            className={`w-full rounded-md border ${showInstrumentsError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
             data-testid="instruments-input"
           />
+          {showInstrumentsError && (
+            <p id="instruments-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+              {instrumentsError}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -283,7 +292,7 @@ export function MlExperiments() {
         <div className="flex justify-end pt-2">
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             className="gap-2"
             data-testid="launch-button"
           >

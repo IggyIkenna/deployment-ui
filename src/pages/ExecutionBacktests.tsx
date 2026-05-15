@@ -69,14 +69,19 @@ export function ExecutionBacktests() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tickIntervalTouched, setTickIntervalTouched] = useState(false);
+
+  const tickIntervalNum = parseInt(tickInterval, 10);
+  const tickIntervalError =
+    isNaN(tickIntervalNum) || tickIntervalNum < 60 || tickIntervalNum > 86400
+      ? "Tick interval must be between 60 and 86400 seconds."
+      : null;
+  const isFormValid = !tickIntervalError;
+  const showTickIntervalError = tickIntervalTouched && !!tickIntervalError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tickIntervalNum = parseInt(tickInterval, 10);
-    if (isNaN(tickIntervalNum) || tickIntervalNum < 60 || tickIntervalNum > 86400) {
-      setError("Tick interval must be between 60 and 86400 seconds.");
-      return;
-    }
+    if (!isFormValid) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -145,18 +150,27 @@ export function ExecutionBacktests() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+          <label htmlFor="tick-interval-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
             Tick Interval (seconds){" "}
             <span className="text-[var(--color-text-muted)]">60–86400</span>
           </label>
           <input
+            id="tick-interval-field"
             type="number"
             value={tickInterval}
-            onChange={(e) => setTickInterval(e.target.value)}
+            onChange={(e) => { setTickInterval(e.target.value); setTickIntervalTouched(true); }}
+            onBlur={() => setTickIntervalTouched(true)}
             step={60}
-            className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
+            aria-invalid={showTickIntervalError || undefined}
+            aria-describedby={showTickIntervalError ? "tick-interval-error" : undefined}
+            className={`w-full rounded-md border ${showTickIntervalError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
             data-testid="tick-interval-input"
           />
+          {showTickIntervalError && (
+            <p id="tick-interval-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+              {tickIntervalError}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-6">
@@ -194,7 +208,7 @@ export function ExecutionBacktests() {
         <div className="flex justify-end pt-2">
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             className="gap-2"
             data-testid="launch-button"
           >

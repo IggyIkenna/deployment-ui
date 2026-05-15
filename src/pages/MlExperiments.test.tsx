@@ -33,13 +33,30 @@ describe("MlExperiments", () => {
     expect(screen.getByTestId("launch-button")).toBeInTheDocument();
   });
 
-  it("shows error when instruments field is empty on submit", async () => {
+  it("submit button is disabled when instruments field is empty", () => {
     render(<MlExperiments />);
-    fireEvent.click(screen.getByTestId("launch-button"));
-    await waitFor(() => {
-      expect(screen.getByTestId("launch-error")).toBeInTheDocument();
-      expect(screen.getByText(/at least one instrument/i)).toBeInTheDocument();
-    });
+    expect(screen.getByTestId("launch-button")).toBeDisabled();
+  });
+
+  it("shows inline error after blurring empty instruments field", () => {
+    render(<MlExperiments />);
+    fireEvent.blur(screen.getByTestId("instruments-input"));
+    expect(screen.getByText(/at least one instrument/i)).toBeInTheDocument();
+  });
+
+  it("inline error disappears once a valid instrument is entered", () => {
+    render(<MlExperiments />);
+    fireEvent.blur(screen.getByTestId("instruments-input"));
+    expect(screen.getByText(/at least one instrument/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("instruments-input"), { target: { value: "ETH-USDT" } });
+    expect(screen.queryByText(/at least one instrument/i)).not.toBeInTheDocument();
+  });
+
+  it("submit button re-enables after valid instrument is entered", () => {
+    render(<MlExperiments />);
+    expect(screen.getByTestId("launch-button")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("instruments-input"), { target: { value: "ETH-USDT" } });
+    expect(screen.getByTestId("launch-button")).not.toBeDisabled();
   });
 
   it("calls launchMlExperiment with correct params and shows result", async () => {

@@ -71,13 +71,22 @@ export function StrategyBacktests() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [startDateTouched, setStartDateTouched] = useState(false);
+  const [endDateTouched, setEndDateTouched] = useState(false);
+
+  const startDateError = !startDate ? "Start date is required." : null;
+  const endDateError = !endDate
+    ? "End date is required."
+    : startDate && endDate < startDate
+      ? "End date must be on or after start date."
+      : null;
+  const isFormValid = !startDateError && !endDateError;
+  const showStartDateError = startDateTouched && !!startDateError;
+  const showEndDateError = endDateTouched && !!endDateError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!startDate || !endDate) {
-      setError("Start date and end date are required.");
-      return;
-    }
+    if (!isFormValid) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -148,28 +157,46 @@ export function StrategyBacktests() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+            <label htmlFor="start-date-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
               Start Date
             </label>
             <input
+              id="start-date-field"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
+              onChange={(e) => { setStartDate(e.target.value); setStartDateTouched(true); }}
+              onBlur={() => setStartDateTouched(true)}
+              aria-invalid={showStartDateError || undefined}
+              aria-describedby={showStartDateError ? "start-date-error" : undefined}
+              className={`w-full rounded-md border ${showStartDateError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
               data-testid="start-date-input"
             />
+            {showStartDateError && (
+              <p id="start-date-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+                {startDateError}
+              </p>
+            )}
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+            <label htmlFor="end-date-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
               End Date
             </label>
             <input
+              id="end-date-field"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
+              onChange={(e) => { setEndDate(e.target.value); setEndDateTouched(true); }}
+              onBlur={() => setEndDateTouched(true)}
+              aria-invalid={showEndDateError || undefined}
+              aria-describedby={showEndDateError ? "end-date-error" : undefined}
+              className={`w-full rounded-md border ${showEndDateError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
               data-testid="end-date-input"
             />
+            {showEndDateError && (
+              <p id="end-date-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+                {endDateError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -216,7 +243,7 @@ export function StrategyBacktests() {
         <div className="flex justify-end pt-2">
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             className="gap-2"
             data-testid="launch-button"
           >

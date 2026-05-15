@@ -35,13 +35,36 @@ describe("StrategyBacktests", () => {
     expect(screen.getByTestId("launch-button")).toBeInTheDocument();
   });
 
-  it("shows error when dates are empty on submit", async () => {
+  it("submit button is disabled when dates are empty", () => {
     render(<StrategyBacktests />);
-    fireEvent.click(screen.getByTestId("launch-button"));
-    await waitFor(() => {
-      expect(screen.getByTestId("launch-error")).toBeInTheDocument();
-      expect(screen.getByText(/start date and end date/i)).toBeInTheDocument();
-    });
+    expect(screen.getByTestId("launch-button")).toBeDisabled();
+  });
+
+  it("shows inline start-date error after blurring empty start date", () => {
+    render(<StrategyBacktests />);
+    fireEvent.blur(screen.getByTestId("start-date-input"));
+    expect(screen.getByText(/start date is required/i)).toBeInTheDocument();
+  });
+
+  it("shows inline end-date error after blurring empty end date", () => {
+    render(<StrategyBacktests />);
+    fireEvent.blur(screen.getByTestId("end-date-input"));
+    expect(screen.getByText(/end date is required/i)).toBeInTheDocument();
+  });
+
+  it("shows inline error when end date is before start date", () => {
+    render(<StrategyBacktests />);
+    fireEvent.change(screen.getByTestId("start-date-input"), { target: { value: "2026-03-01" } });
+    fireEvent.change(screen.getByTestId("end-date-input"), { target: { value: "2026-01-01" } });
+    expect(screen.getByText(/on or after start date/i)).toBeInTheDocument();
+  });
+
+  it("submit button re-enables once both dates are valid", () => {
+    render(<StrategyBacktests />);
+    expect(screen.getByTestId("launch-button")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("start-date-input"), { target: { value: "2026-01-01" } });
+    fireEvent.change(screen.getByTestId("end-date-input"), { target: { value: "2026-03-31" } });
+    expect(screen.getByTestId("launch-button")).not.toBeDisabled();
   });
 
   it("calls launchStrategyBacktest with correct params and shows result", async () => {
