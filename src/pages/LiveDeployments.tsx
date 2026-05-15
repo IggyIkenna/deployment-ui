@@ -99,6 +99,9 @@ function VmEventPanel({ vmName }: { vmName: string }) {
         ) : (
           <div
             data-testid="vm-event-feed"
+            aria-live="polite"
+            aria-label="VM lifecycle events"
+            aria-atomic="false"
             className="font-mono text-xs space-y-1 max-h-64 overflow-y-auto"
           >
             {[...events].reverse().map((evt, i) => (
@@ -151,7 +154,7 @@ export function LiveDeployments() {
   }
 
   return (
-    <main className="mx-auto px-4 lg:px-6 py-6 max-w-[1920px]">
+    <main className="mx-auto px-4 lg:px-6 py-6 max-w-[1920px]" aria-busy={loading}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
@@ -163,18 +166,31 @@ export function LiveDeployments() {
         </div>
         <div className="flex items-center gap-3">
           {lastRefreshed && (
-            <span className="text-xs text-[var(--color-text-muted)]">
+            <span
+              aria-live="polite"
+              aria-atomic="true"
+              className="text-xs text-[var(--color-text-muted)]"
+            >
               Last updated: {lastRefreshed}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            aria-label="Refresh live deployments list"
+          >
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700"
+        >
           {error}
         </div>
       )}
@@ -190,7 +206,11 @@ export function LiveDeployments() {
         </CardHeader>
         <CardContent className="p-0">
           {loading && rows.length === 0 ? (
-            <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
+            <div
+              role="status"
+              aria-label="Loading live deployments"
+              className="py-12 text-center text-sm text-[var(--color-text-muted)]"
+            >
               Loading…
             </div>
           ) : rows.length === 0 ? (
@@ -199,7 +219,7 @@ export function LiveDeployments() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" aria-label="Live-mode VM deployments">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                     <th className="px-4 py-2 text-left font-medium text-[var(--color-text-muted)]">

@@ -19,8 +19,13 @@ vi.mock("../components/ui/card", () => ({
   ),
 }));
 vi.mock("../components/ui/button", () => ({
-  Button: (p: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
-    <button onClick={p.onClick} disabled={p.disabled}>
+  Button: (p: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    "aria-label"?: string;
+  }) => (
+    <button onClick={p.onClick} disabled={p.disabled} aria-label={p["aria-label"]}>
       {p.children}
     </button>
   ),
@@ -159,6 +164,53 @@ describe("LiveDeployments page", () => {
       expect(screen.getByText("Live Deployments")).toBeInTheDocument();
     });
     expect(screen.getByText(/auto-refreshes every 30s/)).toBeInTheDocument();
+  });
+});
+
+describe("LiveDeployments accessibility (ARIA)", () => {
+  beforeEach(() => {
+    mockFetchVmDeployments.mockReset();
+    mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("Refresh button has an accessible label", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([]));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /refresh live deployments/i })).toBeInTheDocument();
+    });
+  });
+
+  it("table has an accessible label when rows are present", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("table", { name: /live-mode vm deployments/i })).toBeInTheDocument();
+    });
+  });
+
+  it("error message uses role=alert for screen readers", async () => {
+    mockFetchVmDeployments.mockRejectedValueOnce(new Error("API down"));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
   });
 });
 
