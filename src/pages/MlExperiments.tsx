@@ -7,6 +7,7 @@ import {
 } from "../api/deploymentApi";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { useNotifications } from "../contexts/NotificationContext";
 
 const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 const OPERATIONS = ["train", "evaluate", "grid-search", "pipeline"] as const;
@@ -76,6 +77,7 @@ export function MlExperiments() {
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [instrumentsTouched, setInstrumentsTouched] = useState(false);
+  const { addToast } = useNotifications();
 
   const instrumentsList = instruments
     .split(",")
@@ -114,8 +116,15 @@ export function MlExperiments() {
     try {
       const res = await launchMlExperiment(params);
       setResult(res);
+      addToast(
+        `VM launched${res.dry_run ? " (dry run)" : ""}`,
+        "success",
+        res.vm_name,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Launch failed");
+      const msg = err instanceof Error ? err.message : "Launch failed";
+      setError(msg);
+      addToast("ML experiment launch failed", "error", msg);
     } finally {
       setLoading(false);
     }

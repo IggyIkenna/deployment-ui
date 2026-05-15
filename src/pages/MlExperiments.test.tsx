@@ -7,6 +7,10 @@ vi.mock("../api/deploymentApi", () => ({
   launchMlExperiment: vi.fn(),
 }));
 
+vi.mock("../contexts/NotificationContext", () => ({
+  useNotifications: () => ({ addToast: vi.fn(), dismissToast: vi.fn(), toasts: [] }),
+}));
+
 const mockResult = {
   vm_name: "ml-train-eth-usdt-20260515",
   zone: "asia-northeast1-b",

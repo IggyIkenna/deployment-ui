@@ -7,6 +7,7 @@ import {
 } from "../api/deploymentApi";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { useNotifications } from "../contexts/NotificationContext";
 
 const ARCHETYPES = ["carry_staked_basis", "arbitrage_price_dispersion"] as const;
 const GRID_DENSITIES = ["low", "medium", "high"] as const;
@@ -73,6 +74,7 @@ export function StrategyBacktests() {
   const [error, setError] = useState<string | null>(null);
   const [startDateTouched, setStartDateTouched] = useState(false);
   const [endDateTouched, setEndDateTouched] = useState(false);
+  const { addToast } = useNotifications();
 
   const startDateError = !startDate ? "Start date is required." : null;
   const endDateError = !endDate
@@ -103,8 +105,15 @@ export function StrategyBacktests() {
     try {
       const res = await launchStrategyBacktest(params);
       setResult(res);
+      addToast(
+        `Backtest VM launched${res.dry_run ? " (dry run)" : ""}`,
+        "success",
+        res.vm_name,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Launch failed");
+      const msg = err instanceof Error ? err.message : "Launch failed";
+      setError(msg);
+      addToast("Strategy backtest launch failed", "error", msg);
     } finally {
       setLoading(false);
     }

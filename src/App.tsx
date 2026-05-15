@@ -34,7 +34,9 @@ import { TreasuryTab } from "./components/TreasuryTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
 import { Dart } from "./pages/Dart";
@@ -113,7 +115,8 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <CloudProviderProvider>
-          <RequireAuth>
+          <NotificationProvider>
+            <RequireAuth>
             <div className="min-h-screen bg-[var(--color-bg-primary)]">
               <MockModeBanner />
               <Header />
@@ -488,8 +491,10 @@ function App() {
                   }
                 />
               </Routes>
+              <ToastStack />
             </div>
           </RequireAuth>
+          </NotificationProvider>
         </CloudProviderProvider>
       </BrowserRouter>
     </ErrorBoundary>

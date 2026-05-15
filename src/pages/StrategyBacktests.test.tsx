@@ -7,6 +7,10 @@ vi.mock("../api/deploymentApi", () => ({
   launchStrategyBacktest: vi.fn(),
 }));
 
+vi.mock("../contexts/NotificationContext", () => ({
+  useNotifications: () => ({ addToast: vi.fn(), dismissToast: vi.fn(), toasts: [] }),
+}));
+
 const mockResult = {
   vm_name: "strategy-backtest-grid-carry-20260515",
   zone: "asia-northeast1-b",
