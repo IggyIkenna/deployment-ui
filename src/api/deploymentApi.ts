@@ -463,3 +463,39 @@ export async function fetchDailyCosts(date?: string): Promise<DailyCostResponse>
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/daily${qs}`);
   return handleResponse<DailyCostResponse>(response);
 }
+
+// Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=
+export interface VMLifecycleEvent {
+  event: string;
+  service: string;
+  timestamp: string;
+  severity: string;
+  correlation_id: string | null;
+  details: Record<string, string> | null;
+}
+
+export interface VMEventListResult {
+  vm_name: string;
+  service: string;
+  date: string;
+  hours_scanned: number[];
+  total_events: number;
+  events: VMLifecycleEvent[];
+  truncated: boolean;
+  next_page_token: string | null;
+}
+
+export async function fetchVmFilteredEvents(
+  vmName: string,
+  opts: { since?: string; type?: string; limit?: number } = {},
+): Promise<VMEventListResult> {
+  const params = new URLSearchParams();
+  if (opts.since) params.set("since", opts.since);
+  if (opts.type) params.set("type", opts.type);
+  if (opts.limit != null) params.set("limit", String(opts.limit));
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`,
+  );
+  return handleResponse<VMEventListResult>(response);
+}
