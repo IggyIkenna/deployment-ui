@@ -4,6 +4,7 @@ export interface RepoReadiness {
   repo: string;
   deploy_ready: boolean;
   reason: string;
+  last_snapshot_date: string | null;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {

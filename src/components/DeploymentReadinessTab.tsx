@@ -34,6 +34,25 @@ function fmtReason(reason: string): string {
   return reason.replace(/_/g, " ").replace(/:/g, ": ");
 }
 
+function fmtSnapshotAge(lastSnapshotDate: string | null): string {
+  if (!lastSnapshotDate) return "—";
+  const ms = Date.now() - new Date(lastSnapshotDate).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  if (days === 0) return "today";
+  if (days === 1) return "1d ago";
+  return `${days}d ago`;
+}
+
+function SnapshotAgeBadge({ lastSnapshotDate }: { lastSnapshotDate: string | null }) {
+  if (!lastSnapshotDate) {
+    return <Badge variant="error">no snapshot</Badge>;
+  }
+  const ms = Date.now() - new Date(lastSnapshotDate).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  const variant = days >= 2 ? "error" : days === 1 ? "warning" : "success";
+  return <Badge variant={variant}>{fmtSnapshotAge(lastSnapshotDate)}</Badge>;
+}
+
 function fmtLastRefreshed(date: Date | null): string {
   if (!date) return "—";
   return date.toLocaleTimeString();
@@ -128,6 +147,7 @@ export function DeploymentReadinessTab() {
               <tr className="border-b border-[var(--color-border-primary)] text-[var(--color-text-secondary)]">
                 <th className="text-left py-2 pr-6">Repo</th>
                 <th className="text-left py-2 pr-6">Status</th>
+                <th className="text-left py-2 pr-6">Snapshot</th>
                 <th className="text-left py-2">Reason</th>
               </tr>
             </thead>
@@ -141,6 +161,9 @@ export function DeploymentReadinessTab() {
                   <td className="py-2 pr-6 font-mono text-xs">{row.repo}</td>
                   <td className="py-2 pr-6">
                     <ReadinessBadge ready={row.deploy_ready} />
+                  </td>
+                  <td className="py-2 pr-6" data-testid={`snapshot-age-${row.repo}`}>
+                    <SnapshotAgeBadge lastSnapshotDate={row.last_snapshot_date} />
                   </td>
                   <td className="py-2 text-[var(--color-text-secondary)] text-xs">
                     {fmtReason(row.reason)}

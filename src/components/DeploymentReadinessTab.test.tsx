@@ -20,21 +20,23 @@ import type { RepoReadiness } from "../api/repoReadiness";
 import { DeploymentReadinessTab } from "./DeploymentReadinessTab";
 
 const ALL_READY: RepoReadiness[] = [
-  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met" },
-  { repo: "deployment-ui", deploy_ready: true, reason: "all_criteria_met" },
+  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
+  { repo: "deployment-ui", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
 ];
 
 const MIXED: RepoReadiness[] = [
-  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met" },
+  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
   {
     repo: "strategy-service",
     deploy_ready: false,
     reason: "snapshot_failing: lint",
+    last_snapshot_date: "2026-05-14T06:00:00Z",
   },
   {
     repo: "unified-api-contracts",
     deploy_ready: false,
     reason: "in_flight_refactor",
+    last_snapshot_date: null,
   },
 ];
 
