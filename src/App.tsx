@@ -39,6 +39,7 @@ import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
+import { DailyCosts } from "./pages/DailyCosts";
 import { Dart } from "./pages/Dart";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
@@ -132,6 +133,7 @@ function App() {
                 />
                 <Route path="/chaos" element={<Chaos />} />
                 <Route path="/ops/live-deployments" element={<LiveDeployments />} />
+                <Route path="/ops/costs" element={<DailyCosts />} />
                 <Route path="/dart" element={<Dart />} />
                 <Route path="/research/ml-experiments" element={<MlExperiments />} />
                 <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />

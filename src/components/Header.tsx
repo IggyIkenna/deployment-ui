@@ -53,6 +53,7 @@ export function Header() {
     { to: "/client-subscriptions", label: "Subscriptions" },
     { to: "/chaos", label: "Chaos" },
     { to: "/ops/live-deployments", label: "Live Ops" },
+    { to: "/ops/costs", label: "Costs" },
     { to: "/dart", label: "DART" },
     { to: "/research/ml-experiments", label: "ML" },
     { to: "/research/strategy-backtests", label: "Strategy" },

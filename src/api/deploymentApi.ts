@@ -425,3 +425,41 @@ export async function fetchVmHealth(
   );
   return handleResponse<VmHealthResult>(response);
 }
+
+// Daily cost aggregation — GET /api/costs/daily
+export interface VmCostRow {
+  vm_name: string;
+  asset_group: string;
+  archetype: string;
+  machine_type: string;
+  runtime_hours: number;
+  compute_usd: number;
+  disk_usd: number;
+  total_usd: number;
+}
+
+export interface AssetGroupCostRow {
+  asset_group: string;
+  total_usd: number;
+  vm_count: number;
+}
+
+export interface ArchetypeCostRow {
+  archetype: string;
+  total_usd: number;
+  vm_count: number;
+}
+
+export interface DailyCostResponse {
+  date: string;
+  total_usd: number;
+  by_asset_group: AssetGroupCostRow[];
+  by_archetype: ArchetypeCostRow[];
+  by_vm: VmCostRow[];
+}
+
+export async function fetchDailyCosts(date?: string): Promise<DailyCostResponse> {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/daily${qs}`);
+  return handleResponse<DailyCostResponse>(response);
+}
