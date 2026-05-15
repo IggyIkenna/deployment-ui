@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
+import { LiveDeployments } from "./pages/LiveDeployments";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VmDeployments } from "./pages/VmDeployments";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
@@ -169,6 +170,7 @@ function App() {
                   element={<ClientSubscriptions />}
                 />
                 <Route path="/chaos" element={<Chaos />} />
+                <Route path="/ops/live-deployments" element={<LiveDeployments />} />
                 <Route
                   path="*"
                   element={
