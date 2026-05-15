@@ -98,7 +98,7 @@ export function Dart() {
             skeleton — live data wired in automation flip
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {["Net Position", "Unrealised PnL", "Last Signal"].map((label) => (
             <div
               key={label}
@@ -139,7 +139,7 @@ export function Dart() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4" data-testid="trade-form">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)]">
                   Archetype
@@ -190,7 +190,7 @@ export function Dart() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)]">
                   Side

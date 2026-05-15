@@ -158,7 +158,7 @@ export function MlExperiments() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Asset Group
@@ -218,7 +218,7 @@ export function MlExperiments() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Target Types <span className="text-[var(--color-text-muted)]">(comma-sep)</span>
@@ -243,7 +243,7 @@ export function MlExperiments() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Start Date <span className="text-[var(--color-text-muted)]">(optional)</span>
@@ -268,7 +268,7 @@ export function MlExperiments() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Machine Type

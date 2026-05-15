@@ -276,7 +276,7 @@ function SubscriptionForm({
               Choose SHARED or ISOLATED for each service. Only services that
               allow both policies in runtime-topology.yaml appear here.
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {OVERRIDABLE_SERVICES.map((svc) => {
                 const current =
                   overrides.find((o) => o.service_name === svc)?.isolation ??

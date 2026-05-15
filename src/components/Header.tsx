@@ -10,6 +10,8 @@ import {
   Cloud,
   Database,
   FlaskConical,
+  Menu,
+  X,
 } from "lucide-react";
 import { MOCK_MODE as FRONTEND_MOCK } from "../lib/mock-api";
 import { useHealth } from "../hooks/useHealth";
@@ -26,6 +28,7 @@ export function Header() {
   const { target, switchTarget, switching } = useCloudProvider();
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleClearCache = async () => {
     setClearingCache(true);
@@ -45,9 +48,20 @@ export function Header() {
     switchTarget(t);
   };
 
+  const NAV_LINKS = [
+    { to: "/vm-deployments", label: "VM Deployments" },
+    { to: "/client-subscriptions", label: "Subscriptions" },
+    { to: "/chaos", label: "Chaos" },
+    { to: "/ops/live-deployments", label: "Live Ops" },
+    { to: "/dart", label: "DART" },
+    { to: "/research/ml-experiments", label: "ML" },
+    { to: "/research/strategy-backtests", label: "Strategy" },
+    { to: "/research/execution-backtests", label: "Exec BT" },
+  ] as const;
+
   return (
     <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30">
             <Server className="h-5 w-5 text-[var(--color-accent-cyan)]" />
@@ -62,7 +76,17 @@ export function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          className="md:hidden p-2 rounded text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+          data-testid="mobile-menu-btn"
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+
+        <div className="hidden md:flex items-center gap-3">
           {/* Data-mode chip: surface frontend + backend mock state */}
           {(() => {
             const backendMock = Boolean(health?.mock_mode);
@@ -252,6 +276,25 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* Mobile nav dropdown */}
+      {mobileMenuOpen && (
+        <nav
+          className="md:hidden border-t border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 py-3 flex flex-col gap-2"
+          data-testid="mobile-nav"
+        >
+          {NAV_LINKS.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-sm font-medium py-2 px-3 rounded text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

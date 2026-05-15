@@ -96,6 +96,7 @@ export function DeploymentHistory() {
           No deployment history found.
         </p>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr>
@@ -180,6 +181,7 @@ export function DeploymentHistory() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
