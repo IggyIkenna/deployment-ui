@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { VmDeploymentsListResponse } from "../api/deploymentApi";
 
 const mockFetchVmDeployments = vi.fn();
+const mockUseVmWebSocket = vi.fn();
 
 vi.mock("../api/deploymentApi", () => ({
   fetchVmDeployments: (days: number) => mockFetchVmDeployments(days),
@@ -28,6 +29,10 @@ vi.mock("../components/ui/badge", () => ({
   Badge: (p: { children: React.ReactNode; variant?: string }) => (
     <span data-variant={p.variant}>{p.children}</span>
   ),
+}));
+
+vi.mock("../hooks/useVmWebSocket", () => ({
+  useVmWebSocket: (vmName: string | null) => mockUseVmWebSocket(vmName),
 }));
 
 import { LiveDeployments } from "./LiveDeployments";
@@ -67,6 +72,11 @@ function makeResponse(entries: typeof LIVE_ENTRY[]): VmDeploymentsListResponse {
 describe("LiveDeployments page", () => {
   beforeEach(() => {
     mockFetchVmDeployments.mockReset();
+    mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders live-mode services from active deployments", async () => {
@@ -149,5 +159,104 @@ describe("LiveDeployments page", () => {
       expect(screen.getByText("Live Deployments")).toBeInTheDocument();
     });
     expect(screen.getByText(/auto-refreshes every 30s/)).toBeInTheDocument();
+  });
+});
+
+describe("LiveDeployments WebSocket event panel", () => {
+  const VM_NAME = LIVE_ENTRY.vm_name;
+
+  beforeEach(() => {
+    mockFetchVmDeployments.mockReset();
+    mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows event panel when a VM row is clicked", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("strategy-service")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Event stream/)).toBeInTheDocument();
+    });
+  });
+
+  it("hides event panel when selected VM row is clicked again", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("strategy-service")).toBeInTheDocument();
+    });
+
+    const row = screen.getByTestId(`vm-row-${VM_NAME}`);
+    fireEvent.click(row);
+    await waitFor(() => expect(screen.getByText(/Event stream/)).toBeInTheDocument());
+
+    fireEvent.click(row);
+    await waitFor(() => expect(screen.queryByText(/Event stream/)).not.toBeInTheDocument());
+  });
+
+  it("displays streamed events in the event panel", async () => {
+    const fakeEvents = [
+      {
+        event: "STARTED",
+        service: "strategy-service",
+        timestamp: new Date().toISOString(),
+        severity: "INFO",
+        correlation_id: "cid-1",
+        details: null,
+      },
+    ];
+    mockUseVmWebSocket.mockReturnValue({ events: fakeEvents, connected: true, error: null });
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("strategy-service")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vm-event-feed")).toBeInTheDocument();
+      expect(screen.getAllByText("STARTED").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows live indicator when WebSocket is connected", async () => {
+    mockUseVmWebSocket.mockReturnValue({ events: [], connected: true, error: null });
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("strategy-service")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+
+    await waitFor(() => {
+      expect(screen.getByText("● live")).toBeInTheDocument();
+    });
   });
 });

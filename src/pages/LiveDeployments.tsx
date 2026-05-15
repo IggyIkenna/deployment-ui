@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { useVmWebSocket } from "../hooks/useVmWebSocket";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -62,11 +63,68 @@ function buildRows(active: VmDeploymentEntry[]): LiveServiceRow[] {
     .sort((a, b) => (a.stalenessS ?? Infinity) - (b.stalenessS ?? Infinity));
 }
 
+function severityColor(severity: string): string {
+  if (severity === "ERROR" || severity === "CRITICAL") return "text-red-500";
+  if (severity === "WARNING") return "text-yellow-500";
+  return "text-[var(--color-text-secondary)]";
+}
+
+function VmEventPanel({ vmName }: { vmName: string }) {
+  const { events, connected, error } = useVmWebSocket(vmName);
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">
+            Event stream — <span className="font-mono text-sm">{vmName}</span>
+          </CardTitle>
+          <span className="text-xs">
+            {connected ? (
+              <span className="text-green-600 font-medium">● live</span>
+            ) : (
+              <span className="text-[var(--color-text-muted)]">○ disconnected</span>
+            )}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <p className="text-sm text-red-600 mb-2">{error}</p>
+        )}
+        {events.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+            {connected ? "Waiting for events…" : "Connecting…"}
+          </p>
+        ) : (
+          <div
+            data-testid="vm-event-feed"
+            className="font-mono text-xs space-y-1 max-h-64 overflow-y-auto"
+          >
+            {[...events].reverse().map((evt, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <span className="text-[var(--color-text-muted)] shrink-0">
+                  {new Date(evt.timestamp).toLocaleTimeString()}
+                </span>
+                <span className={`shrink-0 font-semibold ${severityColor(evt.severity)}`}>
+                  {evt.event}
+                </span>
+                <span className="text-[var(--color-text-muted)]">{evt.service}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function LiveDeployments() {
   const [rows, setRows] = useState<LiveServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
+  const [selectedVmName, setSelectedVmName] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -87,6 +145,10 @@ export function LiveDeployments() {
     const id = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, [load]);
+
+  function toggleVm(vmName: string) {
+    setSelectedVmName((prev) => (prev === vmName ? null : vmName));
+  }
 
   return (
     <main className="mx-auto px-4 lg:px-6 py-6 max-w-[1920px]">
@@ -167,7 +229,13 @@ export function LiveDeployments() {
                   {rows.map(({ entry, stalenessS }) => (
                     <tr
                       key={entry.deployment_id}
-                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+                      data-testid={`vm-row-${entry.vm_name}`}
+                      onClick={() => toggleVm(entry.vm_name)}
+                      className={`border-b border-[var(--color-border)] cursor-pointer hover:bg-[var(--color-bg-hover)] ${
+                        selectedVmName === entry.vm_name
+                          ? "bg-[var(--color-bg-selected,#f0f4ff)]"
+                          : ""
+                      }`}
                     >
                       <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">
                         {entry.task}
@@ -200,6 +268,8 @@ export function LiveDeployments() {
           )}
         </CardContent>
       </Card>
+
+      {selectedVmName && <VmEventPanel vmName={selectedVmName} />}
     </main>
   );
 }
