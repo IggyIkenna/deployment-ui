@@ -118,6 +118,24 @@ export function Header() {
           >
             Live Ops
           </Link>
+          <Link
+            to="/research/ml-experiments"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            ML
+          </Link>
+          <Link
+            to="/research/strategy-backtests"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Strategy
+          </Link>
+          <Link
+            to="/research/execution-backtests"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Exec BT
+          </Link>
           {/* Cloud Provider Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--color-border-default)] overflow-hidden">
             <button

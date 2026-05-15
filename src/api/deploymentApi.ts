@@ -216,3 +216,88 @@ export async function getVmEvents(
   );
   return handleResponse<VmEventsResponse>(response);
 }
+
+// -------------------------------------------------------------------------
+// Research launch endpoints (POST /api/ml/experiment, /strategy/backtest,
+// /execution/backtest)
+// -------------------------------------------------------------------------
+
+export interface LaunchResult {
+  vm_name: string;
+  zone: string;
+  project_id: string;
+  launched_at: string;
+  correlation_id: string;
+  launcher_script: string;
+  dry_run: boolean;
+  events_uri: string;
+  argv: string[];
+}
+
+export interface MlExperimentParams {
+  asset_group: string;
+  instruments: string[];
+  target_types?: string[];
+  timeframes?: string[];
+  start_date?: string;
+  end_date?: string;
+  operation?: string;
+  machine?: string;
+  dry_run?: boolean;
+}
+
+export async function launchMlExperiment(
+  params: MlExperimentParams,
+): Promise<LaunchResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/ml/experiment/launch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return handleResponse<LaunchResult>(response);
+}
+
+export interface StrategyBacktestParams {
+  archetype: string;
+  start_date: string;
+  end_date: string;
+  grid_density?: string;
+  force?: boolean;
+  dry_run?: boolean;
+}
+
+export async function launchStrategyBacktest(
+  params: StrategyBacktestParams,
+): Promise<LaunchResult> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/strategy/backtest/launch`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    },
+  );
+  return handleResponse<LaunchResult>(response);
+}
+
+export interface ExecutionBacktestParams {
+  archetype: string;
+  tick_interval?: number;
+  continuous?: boolean;
+  force?: boolean;
+  dry_run?: boolean;
+}
+
+export async function launchExecutionBacktest(
+  params: ExecutionBacktestParams,
+): Promise<LaunchResult> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/execution/backtest/launch`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    },
+  );
+  return handleResponse<LaunchResult>(response);
+}

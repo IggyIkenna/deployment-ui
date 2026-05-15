@@ -36,7 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
+import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
+import { MlExperiments } from "./pages/MlExperiments";
+import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VmDeployments } from "./pages/VmDeployments";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
@@ -171,6 +174,12 @@ function App() {
                 />
                 <Route path="/chaos" element={<Chaos />} />
                 <Route path="/ops/live-deployments" element={<LiveDeployments />} />
+                <Route path="/research/ml-experiments" element={<MlExperiments />} />
+                <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
+                <Route
+                  path="/research/execution-backtests"
+                  element={<ExecutionBacktests />}
+                />
                 <Route
                   path="*"
                   element={
