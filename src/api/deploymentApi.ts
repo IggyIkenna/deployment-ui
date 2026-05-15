@@ -398,3 +398,30 @@ export async function fetchVmLogs(
   );
   return handleResponse<VmLogTailResult>(response);
 }
+
+export type VmHealthState = "green" | "amber" | "red" | "unknown";
+
+export interface VmHealthResult {
+  vm_name: string;
+  service: string;
+  state: VmHealthState;
+  last_started_at: string | null;
+  last_event_at: string | null;
+  last_event_type: string | null;
+  expected_next_heartbeat_at: string | null;
+  threshold_warn_seconds: number;
+  threshold_error_seconds: number;
+  is_terminal: boolean;
+  scanned_hours: number;
+  message: string;
+}
+
+export async function fetchVmHealth(
+  vmName: string,
+  scanHours = 24,
+): Promise<VmHealthResult> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/health?scan_hours=${scanHours}`,
+  );
+  return handleResponse<VmHealthResult>(response);
+}

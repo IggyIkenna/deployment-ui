@@ -5,11 +5,13 @@ import type { VmDeploymentsListResponse } from "../api/deploymentApi";
 
 const mockFetchVmDeployments = vi.fn();
 const mockFetchVmLogs = vi.fn();
+const mockFetchVmHealth = vi.fn();
 const mockUseVmWebSocket = vi.fn();
 
 vi.mock("../api/deploymentApi", () => ({
   fetchVmDeployments: (days: number) => mockFetchVmDeployments(days),
   fetchVmLogs: (vmName: string, tail?: number) => mockFetchVmLogs(vmName, tail),
+  fetchVmHealth: (vmName: string) => mockFetchVmHealth(vmName),
 }));
 
 vi.mock("../components/ui/card", () => ({
@@ -79,6 +81,7 @@ function makeResponse(entries: typeof LIVE_ENTRY[]): VmDeploymentsListResponse {
 describe("LiveDeployments page", () => {
   beforeEach(() => {
     mockFetchVmDeployments.mockReset();
+    mockFetchVmHealth.mockResolvedValue({ state: "unknown", message: "no events" });
     mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
   });
 
@@ -201,6 +204,7 @@ describe("LiveDeployments page", () => {
 describe("LiveDeployments accessibility (ARIA)", () => {
   beforeEach(() => {
     mockFetchVmDeployments.mockReset();
+    mockFetchVmHealth.mockResolvedValue({ state: "unknown", message: "no events" });
     mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
   });
 
@@ -250,6 +254,7 @@ describe("LiveDeployments WebSocket event panel", () => {
 
   beforeEach(() => {
     mockFetchVmDeployments.mockReset();
+    mockFetchVmHealth.mockResolvedValue({ state: "unknown", message: "no events" });
     mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
   });
 
@@ -351,6 +356,7 @@ describe("LiveDeployments VM log panel", () => {
   beforeEach(() => {
     mockFetchVmDeployments.mockReset();
     mockFetchVmLogs.mockReset();
+    mockFetchVmHealth.mockResolvedValue({ state: "unknown", message: "no events" });
     mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
   });
 

@@ -6,6 +6,7 @@ import {
   type VmLogLine,
   type VmLogTailResult,
 } from "../api/deploymentApi";
+import { VmHealthBadge } from "../components/VmHealthBadge";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -207,6 +208,7 @@ export function LiveDeployments() {
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
   const [selectedVmName, setSelectedVmName] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<"events" | "logs">("events");
+  const [healthRefreshKey, setHealthRefreshKey] = useState(0);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -215,6 +217,7 @@ export function LiveDeployments() {
       .then((data) => {
         setRows(buildRows(data.active));
         setLastRefreshed(new Date().toLocaleTimeString());
+        setHealthRefreshKey((k) => k + 1);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Failed to load live deployments");
@@ -332,6 +335,9 @@ export function LiveDeployments() {
                     <th className="px-4 py-2 text-left font-medium text-[var(--color-text-muted)]">
                       Staleness
                     </th>
+                    <th className="px-4 py-2 text-left font-medium text-[var(--color-text-muted)]">
+                      Health
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -368,6 +374,12 @@ export function LiveDeployments() {
                         <Badge variant={stalenessVariant(stalenessS)}>
                           {formatStaleness(stalenessS)}
                         </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <VmHealthBadge
+                          vmName={entry.vm_name}
+                          refreshKey={healthRefreshKey}
+                        />
                       </td>
                     </tr>
                   ))}
