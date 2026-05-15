@@ -8,6 +8,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useNotifications } from "../contexts/NotificationContext";
+import { VmCostEstimatePanel } from "../components/VmCostEstimatePanel";
 
 const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 const OPERATIONS = ["train", "evaluate", "grid-search", "pipeline"] as const;
@@ -297,6 +298,8 @@ export function MlExperiments() {
             </label>
           </div>
         </div>
+
+        <VmCostEstimatePanel />
 
         <div className="flex justify-end pt-2">
           <Button

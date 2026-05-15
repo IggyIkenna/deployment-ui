@@ -334,6 +334,44 @@ export async function fetchDeploymentDiff(
 }
 
 // -------------------------------------------------------------------------
+// VM cost estimate — POST /api/vm/cost-estimate
+// -------------------------------------------------------------------------
+
+export interface VmCostEstimateRequest {
+  machine_type: string;
+  runtime_hours: number;
+  disk_gb?: number;
+  count?: number;
+}
+
+export interface VmCostEstimateResponse {
+  machine_type: string;
+  runtime_hours: number;
+  disk_gb: number;
+  count: number;
+  compute_cost_usd: number;
+  disk_cost_usd: number;
+  total_cost_usd: number;
+  hourly_rate_usd: number;
+  currency: string;
+  region: string;
+  dry_run: boolean;
+  estimated_at: string;
+  unknown_machine_type: boolean;
+}
+
+export async function fetchVmCostEstimate(
+  req: VmCostEstimateRequest,
+): Promise<VmCostEstimateResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/cost-estimate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<VmCostEstimateResponse>(response);
+}
+
+// -------------------------------------------------------------------------
 // VM log tail — polls GET /api/vm/logs/{vm_name}?tail=N
 // -------------------------------------------------------------------------
 
