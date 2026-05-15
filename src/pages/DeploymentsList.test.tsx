@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DeploymentsList } from "./DeploymentsList";
 import type { ServiceStatus } from "../types/deploymentTypes";
@@ -47,13 +47,26 @@ vi.mock("../components/ui/button", () => ({
     onClick,
     variant,
     size,
+    disabled,
+    type,
+    "data-testid": testId,
   }: {
     children: React.ReactNode;
     onClick?: () => void;
     variant?: string;
     size?: string;
+    disabled?: boolean;
+    type?: "button" | "submit" | "reset";
+    "data-testid"?: string;
   }) => (
-    <button onClick={onClick} data-variant={variant} data-size={size}>
+    <button
+      onClick={onClick}
+      data-variant={variant}
+      data-size={size}
+      disabled={disabled}
+      type={type}
+      data-testid={testId}
+    >
       {children}
     </button>
   ),
@@ -94,14 +107,26 @@ const MOCK_SERVICES: ServiceStatus[] = [
 
 vi.mock("../api/deploymentApi", () => ({
   fetchServices: vi.fn(),
+  fetchDeploymentDiff: vi.fn(),
 }));
 
 let mockFetchServices: ReturnType<typeof vi.fn>;
+let mockFetchDeploymentDiff: ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
   const mod = await import("../api/deploymentApi");
   mockFetchServices = vi.mocked(mod.fetchServices);
+  mockFetchDeploymentDiff = vi.mocked(mod.fetchDeploymentDiff);
   mockFetchServices.mockResolvedValue(MOCK_SERVICES);
+  mockFetchDeploymentDiff.mockResolvedValue({
+    from_sha: "abc123",
+    to_sha: "def456",
+    added: [{ service: "risk-and-exposure-service", from_version: null, to_version: "0.4.0" }],
+    removed: [{ service: "strategy-service", from_version: "0.9.3", to_version: null }],
+    changed: [{ service: "execution-service", from_version: "0.14.2", to_version: "0.15.0" }],
+    total_changes: 3,
+    dry_run: true,
+  });
 });
 
 afterEach(() => {
@@ -299,6 +324,92 @@ describe("DeploymentsList -- institutional polish", () => {
       const replicaText = screen.getByText("3/3");
       const cell = replicaText.closest("td");
       expect(cell?.style.fontVariantNumeric).toBe("tabular-nums");
+    });
+  });
+});
+
+describe("DeploymentsList diff viewer", () => {
+  it("shows Compare SHAs toggle button", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+    expect(screen.getByTestId("toggle-diff-btn")).toBeInTheDocument();
+  });
+
+  it("clicking Compare SHAs reveals SHA inputs and Compare button", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("diff-from-sha")).toBeInTheDocument();
+      expect(screen.getByTestId("diff-to-sha")).toBeInTheDocument();
+      expect(screen.getByText("Compare")).toBeInTheDocument();
+    });
+  });
+
+  it("clicking Hide Diff hides the panel", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+    await waitFor(() => expect(screen.getByTestId("diff-from-sha")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+    await waitFor(() => expect(screen.queryByTestId("diff-from-sha")).not.toBeInTheDocument());
+  });
+
+  it("submitting SHA inputs calls fetchDeploymentDiff and shows diff result", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+    await waitFor(() => expect(screen.getByTestId("diff-from-sha")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId("diff-from-sha"), { target: { value: "abc123" } });
+    fireEvent.change(screen.getByTestId("diff-to-sha"), { target: { value: "def456" } });
+    fireEvent.submit(screen.getByTestId("diff-form"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("diff-result")).toBeInTheDocument();
+    });
+    expect(mockFetchDeploymentDiff).toHaveBeenCalledWith("abc123", "def456");
+  });
+
+  it("diff result shows added/removed/changed sections", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+    await waitFor(() => expect(screen.getByTestId("diff-from-sha")).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId("diff-from-sha"), { target: { value: "abc123" } });
+    fireEvent.change(screen.getByTestId("diff-to-sha"), { target: { value: "def456" } });
+    fireEvent.submit(screen.getByTestId("diff-form"));
+
+    await waitFor(() => expect(screen.getByTestId("diff-result")).toBeInTheDocument());
+    const diffEl = screen.getByTestId("diff-result");
+    expect(within(diffEl).getByText(/Added/)).toBeInTheDocument();
+    expect(within(diffEl).getByText(/Removed/)).toBeInTheDocument();
+    expect(within(diffEl).getByText(/Changed/)).toBeInTheDocument();
+    expect(within(diffEl).getByText("risk-and-exposure-service")).toBeInTheDocument();
+    expect(within(diffEl).getByText("strategy-service")).toBeInTheDocument();
+    expect(within(diffEl).getAllByText("execution-service").length).toBeGreaterThan(0);
+  });
+
+  it("shows error message when diff fetch fails", async () => {
+    mockFetchDeploymentDiff.mockRejectedValueOnce(new Error("Diff unavailable"));
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Deployments")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("toggle-diff-btn"));
+    await waitFor(() => expect(screen.getByTestId("diff-from-sha")).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId("diff-from-sha"), { target: { value: "abc123" } });
+    fireEvent.change(screen.getByTestId("diff-to-sha"), { target: { value: "def456" } });
+    fireEvent.submit(screen.getByTestId("diff-form"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("diff-error")).toBeInTheDocument();
+      expect(screen.getByText(/Diff unavailable/)).toBeInTheDocument();
     });
   });
 });

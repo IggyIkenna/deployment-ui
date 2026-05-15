@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchServices } from "../api/deploymentApi";
+import { fetchDeploymentDiff, fetchServices } from "../api/deploymentApi";
+import type {
+  DeploymentDiffResponse,
+  DiffEntry,
+} from "../api/deploymentApi";
 import type { ServiceStatus, ServiceHealth } from "../types/deploymentTypes";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -27,11 +31,146 @@ function formatTimestamp(): string {
   });
 }
 
+function diffRowClass(kind: "added" | "removed" | "changed"): string {
+  if (kind === "added") return "bg-green-50 text-green-800";
+  if (kind === "removed") return "bg-red-50 text-red-800";
+  return "bg-amber-50 text-amber-800";
+}
+
+function DiffSection({
+  title,
+  entries,
+  kind,
+}: {
+  title: string;
+  entries: DiffEntry[];
+  kind: "added" | "removed" | "changed";
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="mb-3">
+      <div className={`text-xs font-semibold px-3 py-1 rounded-t ${diffRowClass(kind)}`}>
+        {title} ({entries.length})
+      </div>
+      <table className="w-full text-xs border border-t-0 rounded-b overflow-hidden">
+        <thead className="bg-[var(--color-bg-secondary)]">
+          <tr>
+            <th className="px-3 py-1 text-left font-medium text-[var(--color-text-muted)]">Service</th>
+            <th className="px-3 py-1 text-left font-medium text-[var(--color-text-muted)]">From</th>
+            <th className="px-3 py-1 text-left font-medium text-[var(--color-text-muted)]">To</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => (
+            <tr key={e.service} className="border-t border-[var(--color-border)]">
+              <td className="px-3 py-1 font-mono">{e.service}</td>
+              <td className="px-3 py-1 font-mono text-[var(--color-text-muted)]">
+                {e.from_version ?? "—"}
+              </td>
+              <td className="px-3 py-1 font-mono text-[var(--color-text-muted)]">
+                {e.to_version ?? "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DeploymentDiffPanel() {
+  const [fromSha, setFromSha] = useState("");
+  const [toSha, setToSha] = useState("");
+  const [result, setResult] = useState<DeploymentDiffResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleCompare(e: React.FormEvent) {
+    e.preventDefault();
+    if (!fromSha.trim() || !toSha.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    fetchDeploymentDiff(fromSha.trim(), toSha.trim())
+      .then((r) => { setResult(r); setLoading(false); })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to fetch diff");
+        setLoading(false);
+      });
+  }
+
+  return (
+    <Card className="rounded-lg mt-4">
+      <CardHeader>
+        <CardTitle>Deployment Diff</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={handleCompare}
+          data-testid="diff-form"
+          className="flex flex-wrap gap-3 items-end mb-4"
+        >
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[var(--color-text-muted)]" htmlFor="diff-from-sha">
+              From SHA
+            </label>
+            <input
+              id="diff-from-sha"
+              data-testid="diff-from-sha"
+              type="text"
+              value={fromSha}
+              onChange={(e) => setFromSha(e.target.value)}
+              placeholder="e.g. abc1234"
+              className="px-2 py-1 text-sm font-mono border border-[var(--color-border)] rounded focus:outline-none focus:ring-1 focus:ring-blue-400 w-40"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[var(--color-text-muted)]" htmlFor="diff-to-sha">
+              To SHA
+            </label>
+            <input
+              id="diff-to-sha"
+              data-testid="diff-to-sha"
+              type="text"
+              value={toSha}
+              onChange={(e) => setToSha(e.target.value)}
+              placeholder="e.g. def5678"
+              className="px-2 py-1 text-sm font-mono border border-[var(--color-border)] rounded focus:outline-none focus:ring-1 focus:ring-blue-400 w-40"
+            />
+          </div>
+          <Button type="submit" variant="outline" size="sm" disabled={loading || !fromSha || !toSha}>
+            {loading ? "Comparing…" : "Compare"}
+          </Button>
+        </form>
+
+        {error && (
+          <p className="text-sm text-red-600 mb-3" data-testid="diff-error">{error}</p>
+        )}
+
+        {result && (
+          <div data-testid="diff-result">
+            {result.total_changes === 0 ? (
+              <p className="text-sm text-[var(--color-text-muted)]">No changes between these SHAs.</p>
+            ) : (
+              <>
+                <DiffSection title="Added" entries={result.added} kind="added" />
+                <DiffSection title="Removed" entries={result.removed} kind="removed" />
+                <DiffSection title="Changed" entries={result.changed} kind="changed" />
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DeploymentsList() {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState(formatTimestamp());
+  const [showDiff, setShowDiff] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -98,6 +237,14 @@ export function DeploymentsList() {
           </span>
           <Button variant="outline" size="sm" onClick={load}>
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDiff((v) => !v)}
+            data-testid="toggle-diff-btn"
+          >
+            {showDiff ? "Hide Diff" : "Compare SHAs"}
           </Button>
           <Link
             to="/deploy"
@@ -256,6 +403,8 @@ export function DeploymentsList() {
           </CardContent>
         </Card>
       )}
+
+      {showDiff && <DeploymentDiffPanel />}
     </div>
   );
 }

@@ -303,6 +303,37 @@ export async function launchExecutionBacktest(
 }
 
 // -------------------------------------------------------------------------
+// Deployment diff — GET /api/deployments/diff?from_sha=<sha>&to_sha=<sha>
+// -------------------------------------------------------------------------
+
+export interface DiffEntry {
+  service: string;
+  from_version: string | null;
+  to_version: string | null;
+}
+
+export interface DeploymentDiffResponse {
+  from_sha: string;
+  to_sha: string;
+  added: DiffEntry[];
+  removed: DiffEntry[];
+  changed: DiffEntry[];
+  total_changes: number;
+  dry_run: boolean;
+}
+
+export async function fetchDeploymentDiff(
+  fromSha: string,
+  toSha: string,
+): Promise<DeploymentDiffResponse> {
+  const params = new URLSearchParams({ from_sha: fromSha, to_sha: toSha });
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/deployments/diff?${params.toString()}`,
+  );
+  return handleResponse<DeploymentDiffResponse>(response);
+}
+
+// -------------------------------------------------------------------------
 // VM log tail — polls GET /api/vm/logs/{vm_name}?tail=N
 // -------------------------------------------------------------------------
 
