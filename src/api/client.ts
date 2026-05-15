@@ -3239,4 +3239,40 @@ export async function getHonestCoverage(
   }
 }
 
+// ===========================================================================
+// Recursive-borrow coverage — Phase 11 of defi_recursive_borrow_archetypes.
+// ===========================================================================
+
+export type CellStatus = "design-ready" | "coverage-ready" | "live-ready" | "paused";
+
+export interface RecursiveBorrowCell {
+  protocol: string;
+  chain: string;
+  collateral_asset: string;
+  debt_asset: string;
+  family: "lending-only" | "perp-hedged";
+  perp_venue: string | null;
+  lending_rate_coverage_pct: number;
+  funding_rate_coverage_pct: number;
+  spread_history_horizon_days: number;
+  last_observed_at: string | null;
+  cell_status: CellStatus;
+}
+
+export interface RecursiveBorrowCoverageResponse {
+  generated_at: string;
+  cache_ttl_seconds: number;
+  cells: RecursiveBorrowCell[];
+  summary: {
+    total_cells: number;
+    coverage_ready: number;
+    live_ready: number;
+    avg_lending_rate_coverage_pct: number;
+  };
+}
+
+export async function getRecursiveBorrowCoverage(): Promise<RecursiveBorrowCoverageResponse> {
+  return fetchJson<RecursiveBorrowCoverageResponse>("/data-status/recursive-borrow-coverage");
+}
+
 export { ApiError };
