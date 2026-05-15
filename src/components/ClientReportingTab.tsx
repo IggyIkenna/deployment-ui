@@ -1,17 +1,16 @@
 /**
- * ClientReportingTab — NAV / PnL / Positions / Attribution charts.
+ * ClientReportingTab — NAV / PnL / Positions / Attribution / HWM charts.
  *
  * Phase 5 of client_reporting_pnl_attribution_mvp_2026_05_10.md.
  *
- * Reads from the 4 Phase-4 client-reporting-api endpoints:
+ * Reads from the 5 client-reporting-api endpoints:
  *   GET /api/v1/clients/{client_id}/nav
  *   GET /api/v1/clients/{client_id}/pnl
  *   GET /api/v1/clients/{client_id}/positions
  *   GET /api/v1/clients/{client_id}/attribution
+ *   GET /api/v1/clients/{client_id}/hwm-timeline  (Phase 5.C2)
  *
  * Default client: "demo" (overridable via the client ID input).
- * 5.C2 (HWM crystallization) is deferred — depends on
- * wallet_treasury_client_flow_2026_05_10 Phase 4.C.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -29,12 +28,14 @@ import {
 } from "recharts";
 import {
   fetchAttribution,
+  fetchHwmTimeline,
   fetchNav,
   fetchPnL,
   fetchPositions,
 } from "../api/clientReporting";
 import type {
   AttributionRow,
+  HwmCrystallizationRow,
   NavSnapshot,
   PnLEntry,
   Position,
@@ -390,6 +391,67 @@ function PositionsTable({ positions }: { positions: Position[] }) {
   );
 }
 
+// HWM crystallization table — 5.C2
+function HwmTable({ rows }: { rows: HwmCrystallizationRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-[var(--color-text-secondary)] px-4 py-2">
+        No fee recognition events.
+      </p>
+    );
+  }
+  const sorted = [...rows].sort((a, b) =>
+    (a.recognized_at ?? "").localeCompare(b.recognized_at ?? ""),
+  );
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-[var(--color-border)]">
+            {[
+              "share_class",
+              "period_start",
+              "period_end",
+              "type",
+              "amount_usd",
+              "recognized_at",
+            ].map((h) => (
+              <th
+                key={h}
+                className="text-left px-2 py-1.5 font-medium text-[var(--color-text-secondary)]"
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row, i) => {
+            const amount = parseFloat(row.amount_usd ?? "0") || 0;
+            return (
+              <tr
+                key={i}
+                className="border-b border-[var(--color-border)]/40 hover:bg-[var(--color-bg-secondary)]"
+              >
+                <td className="px-2 py-1 font-mono">{row.share_class_id ?? "—"}</td>
+                <td className="px-2 py-1">{(row.period_start ?? "—").slice(0, 10)}</td>
+                <td className="px-2 py-1">{(row.period_end ?? "—").slice(0, 10)}</td>
+                <td className="px-2 py-1">{row.recognition_type ?? "—"}</td>
+                <td
+                  className={`px-2 py-1 tabular-nums ${amount > 0 ? "text-[var(--color-accent-green)]" : "text-[var(--color-text-secondary)]"}`}
+                >
+                  ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </td>
+                <td className="px-2 py-1">{(row.recognized_at ?? "—").slice(0, 19).replace("T", " ")}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main tab
 // ---------------------------------------------------------------------------
@@ -404,11 +466,13 @@ export function ClientReportingTab() {
   const [attributionRows, setAttributionRows] = useState<
     AttributionRow[] | null
   >(null);
+  const [hwmRows, setHwmRows] = useState<HwmCrystallizationRow[] | null>(null);
 
   const [navError, setNavError] = useState<string | null>(null);
   const [pnlError, setPnlError] = useState<string | null>(null);
   const [posError, setPosError] = useState<string | null>(null);
   const [attrError, setAttrError] = useState<string | null>(null);
+  const [hwmError, setHwmError] = useState<string | null>(null);
 
   const [selectedFactor, setSelectedFactor] = useState<string | null>(null);
 
@@ -417,10 +481,12 @@ export function ClientReportingTab() {
     setPnlData(null);
     setPositions(null);
     setAttributionRows(null);
+    setHwmRows(null);
     setNavError(null);
     setPnlError(null);
     setPosError(null);
     setAttrError(null);
+    setHwmError(null);
     setSelectedFactor(null);
 
     fetchNav(cid)
@@ -445,6 +511,12 @@ export function ClientReportingTab() {
       .then((r) => setAttributionRows(r.rows))
       .catch((e: unknown) =>
         setAttrError(e instanceof Error ? e.message : String(e)),
+      );
+
+    fetchHwmTimeline(cid)
+      .then((r) => setHwmRows(r.rows))
+      .catch((e: unknown) =>
+        setHwmError(e instanceof Error ? e.message : String(e)),
       );
   }, []);
 
@@ -597,21 +669,23 @@ export function ClientReportingTab() {
         </CardContent>
       </Card>
 
-      {/* HWM crystallization placeholder — 5.C2 */}
-      <Card className="opacity-60">
+      {/* HWM crystallization timeline — 5.C2 */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            HWM Crystallization Timeline
-            <Badge variant="outline" className="text-xs">
-              Deferred — Phase 5.C2
-            </Badge>
-          </CardTitle>
+          <CardTitle className="text-sm">HWM Crystallization Timeline</CardTitle>
           <CardDescription className="text-xs">
-            Depends on wallet_treasury_client_flow_2026_05_10 Phase 4.C
-            (FeeRecognitionRow emit). Will show HWM-vs-NAV chart with
-            crystallization-event markers once that plan lands.
+            Fee recognition events per share class — performance fee crystallizations + management fees.
           </CardDescription>
         </CardHeader>
+        <CardContent className="p-0 pb-4">
+          {hwmError ? (
+            <SectionError msg={hwmError} />
+          ) : hwmRows === null ? (
+            <SectionLoading />
+          ) : (
+            <HwmTable rows={hwmRows} />
+          )}
+        </CardContent>
       </Card>
     </div>
   );

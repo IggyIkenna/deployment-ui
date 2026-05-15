@@ -2,7 +2,7 @@
  * API client for client-reporting-api endpoints.
  *
  * Base URL: VITE_CLIENT_REPORTING_API_URL (default: http://localhost:8014).
- * Endpoints: /api/v1/clients/{client_id}/nav|pnl|positions|attribution
+ * Endpoints: /api/v1/clients/{client_id}/nav|pnl|positions|attribution|hwm-timeline
  *
  * Plan: client_reporting_pnl_attribution_mvp_2026_05_10.md Phase 5.
  */
@@ -135,5 +135,34 @@ export function fetchAttribution(
   const qs = params.toString() ? `?${params.toString()}` : "";
   return crFetch<AttributionResponse>(
     `/api/v1/clients/${encodeURIComponent(clientId)}/attribution${qs}`,
+  );
+}
+
+export interface HwmCrystallizationRow {
+  share_class_id: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  recognition_type: string | null;
+  amount_usd: string | null;
+  recognized_at: string | null;
+  source_event_id: string | null;
+}
+
+export interface HwmTimelineResponse {
+  client_id: string;
+  rows: HwmCrystallizationRow[];
+}
+
+export function fetchHwmTimeline(
+  clientId: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<HwmTimelineResponse> {
+  const params = new URLSearchParams();
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return crFetch<HwmTimelineResponse>(
+    `/api/v1/clients/${encodeURIComponent(clientId)}/hwm-timeline${qs}`,
   );
 }
