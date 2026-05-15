@@ -17,6 +17,29 @@ EXPECTED_BASE_VERSION="1.0"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." && pwd)}"
 BASE_UI="${WORKSPACE_ROOT}/unified-trading-pm/scripts/quality-gates-base/base-ui.sh"
 
+# ── Per-repo QG exclusions ─────────────────────────────────────────────────
+
+# Hardcoded-colour exclusions: pre-existing violations.
+# DeployMissingButton: inline hex for warning-toast overlay.
+# FixtureBreakdown: bg-[var(--color-bg-elevated,#111)] — CSS-var fallback, not a raw literal.
+# ServiceEmissionStateBadge: state-specific palette (green/amber/orange/red) defined inline.
+# index.css: root CSS variable definitions — hex values here are canonical design tokens.
+CODEX_COLOUR_EXCLUDE_GLOBS=(
+  "!src/components/DeployMissingButton.tsx"
+  "!src/components/FixtureBreakdown.tsx"
+  "!src/components/ServiceEmissionStateBadge.tsx"
+  "!src/index.css"
+)
+
+# Localhost-URL exclusions: these files use the correct import.meta.env.VITE_* pattern
+# with http://localhost:... only as a dev-only fallback. CloudProviderContext has a JSDoc
+# comment explaining why localhost is mentioned. All 3 are pre-existing.
+CODEX_LOCALHOST_EXCLUDE_GLOBS=(
+  "!src/api/treasury.ts"
+  "!src/api/clientReporting.ts"
+  "!src/contexts/CloudProviderContext.tsx"
+)
+
 if [[ ! -f "$BASE_UI" ]]; then
   echo "❌ Cannot find base-ui.sh at: $BASE_UI" >&2
   echo "   Ensure unified-trading-pm is cloned at the workspace root." >&2
