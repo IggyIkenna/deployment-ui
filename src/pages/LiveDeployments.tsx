@@ -189,9 +189,16 @@ export function LiveDeployments() {
       {error && (
         <div
           role="alert"
-          className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700"
+          className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center justify-between gap-3"
         >
-          {error}
+          <span>{error}</span>
+          <button
+            aria-label="Retry loading live deployments"
+            onClick={load}
+            className="shrink-0 px-2 py-1 rounded text-xs border border-red-300 bg-white text-red-700 hover:bg-red-50"
+          >
+            Retry
+          </button>
         </div>
       )}
 

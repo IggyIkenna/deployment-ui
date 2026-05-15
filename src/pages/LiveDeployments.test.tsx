@@ -153,6 +153,35 @@ describe("LiveDeployments page", () => {
     });
   });
 
+  it("shows inline Retry button on API failure", async () => {
+    mockFetchVmDeployments.mockRejectedValueOnce(new Error("Timeout"));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /retry loading live deployments/i })).toBeInTheDocument();
+    });
+  });
+
+  it("retry button re-triggers data load", async () => {
+    mockFetchVmDeployments.mockRejectedValueOnce(new Error("First fail"));
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /retry loading live deployments/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /retry loading live deployments/i }));
+    await waitFor(() => {
+      expect(screen.getByText("strategy-service")).toBeInTheDocument();
+    });
+  });
+
   it("renders page title and description", async () => {
     mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([]));
     render(

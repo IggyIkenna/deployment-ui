@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Trophy,
 } from "lucide-react";
-import { Component, type ReactNode, useState } from "react";
+import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { createDeployment } from "./api/client";
 import { RequireAuth } from "./auth/RequireAuth";
@@ -33,6 +33,7 @@ import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { TreasuryTab } from "./components/TreasuryTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
@@ -44,53 +45,6 @@ import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VmDeployments } from "./pages/VmDeployments";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
-
-// ---------------------------------------------------------------------------
-// Local ErrorBoundary (replaces @unified-trading/ui-kit ErrorBoundary)
-// ---------------------------------------------------------------------------
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class ErrorBoundary extends Component<
-  { children: ReactNode },
-  ErrorBoundaryState
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] p-8">
-          <div className="max-w-lg text-center">
-            <h1 className="text-xl font-semibold text-[var(--color-accent-red)] mb-2">
-              Something went wrong
-            </h1>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              {this.state.error?.message ?? "An unexpected error occurred."}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 text-sm rounded-md bg-[var(--color-accent-blue)] text-white hover:opacity-90"
-            >
-              Reload page
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 // ---------------------------------------------------------------------------
 
