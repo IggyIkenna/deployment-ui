@@ -24,11 +24,23 @@ BASE_UI="${WORKSPACE_ROOT}/unified-trading-pm/scripts/quality-gates-base/base-ui
 # FixtureBreakdown: bg-[var(--color-bg-elevated,#111)] — CSS-var fallback, not a raw literal.
 # ServiceEmissionStateBadge: state-specific palette (green/amber/orange/red) defined inline.
 # index.css: root CSS variable definitions — hex values here are canonical design tokens.
+# LiveDeployments: bg-[var(--color-bg-selected,#f0f4ff)] — CSS-var fallback, pre-existing.
+# HealthFactorMonitorTile: recharts StrokeProps use hex inline — pre-existing chart styling.
 CODEX_COLOUR_EXCLUDE_GLOBS=(
   "!src/components/DeployMissingButton.tsx"
   "!src/components/FixtureBreakdown.tsx"
   "!src/components/ServiceEmissionStateBadge.tsx"
   "!src/index.css"
+  "!src/pages/LiveDeployments.tsx"
+  "!src/components/widgets/strategy/HealthFactorMonitorTile.tsx"
+  "!src/components/widgets/strategy/RecursiveBorrowDrilldown.tsx"
+)
+
+# console.* exclusions: legitimate uses that cannot be replaced with structured logging.
+# ErrorBoundary: console.error is the only way to surface render errors to the browser devtools
+#                before the error boundary UI renders — no structured logger available here.
+CODEX_CONSOLE_EXCLUDE_GLOBS=(
+  "!src/components/ErrorBoundary.tsx"
 )
 
 # Localhost-URL exclusions: these files use the correct import.meta.env.VITE_* pattern

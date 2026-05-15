@@ -4,10 +4,12 @@ import { MemoryRouter } from "react-router-dom";
 import type { VmDeploymentsListResponse } from "../api/deploymentApi";
 
 const mockFetchVmDeployments = vi.fn();
+const mockFetchVmLogs = vi.fn();
 const mockUseVmWebSocket = vi.fn();
 
 vi.mock("../api/deploymentApi", () => ({
   fetchVmDeployments: (days: number) => mockFetchVmDeployments(days),
+  fetchVmLogs: (vmName: string, tail?: number) => mockFetchVmLogs(vmName, tail),
 }));
 
 vi.mock("../components/ui/card", () => ({
@@ -338,6 +340,108 @@ describe("LiveDeployments WebSocket event panel", () => {
 
     await waitFor(() => {
       expect(screen.getByText("● live")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("LiveDeployments VM log panel", () => {
+  const VM_NAME = LIVE_ENTRY.vm_name;
+  const EMPTY_LOGS = { vm_name: VM_NAME, service: "strategy-service", lines: [], total_lines: 0 };
+
+  beforeEach(() => {
+    mockFetchVmDeployments.mockReset();
+    mockFetchVmLogs.mockReset();
+    mockUseVmWebSocket.mockReturnValue({ events: [], connected: false, error: null });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows Events and Logs tab buttons when a VM row is selected", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    mockFetchVmLogs.mockResolvedValue(EMPTY_LOGS);
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("strategy-service")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /events/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /logs/i })).toBeInTheDocument();
+    });
+  });
+
+  it("clicking Logs tab shows log panel and hides event stream", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    mockFetchVmLogs.mockResolvedValue(EMPTY_LOGS);
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("strategy-service")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /logs/i })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("tab", { name: /logs/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Log tail/)).toBeInTheDocument();
+      expect(screen.queryByText(/Event stream/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("log panel displays fetched log lines", async () => {
+    const lines = [
+      {
+        timestamp: new Date().toISOString(),
+        event: "PROGRESS",
+        severity: "INFO",
+        message: "Processed 100 rows",
+      },
+    ];
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    mockFetchVmLogs.mockResolvedValue({ vm_name: VM_NAME, service: "strategy-service", lines, total_lines: 1 });
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("strategy-service")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /logs/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: /logs/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vm-log-feed")).toBeInTheDocument();
+      expect(screen.getByText("PROGRESS")).toBeInTheDocument();
+      expect(screen.getByText("Processed 100 rows")).toBeInTheDocument();
+    });
+  });
+
+  it("log panel shows error message when fetch fails", async () => {
+    mockFetchVmDeployments.mockResolvedValueOnce(makeResponse([LIVE_ENTRY]));
+    mockFetchVmLogs.mockRejectedValue(new Error("Logs unavailable"));
+    render(
+      <MemoryRouter>
+        <LiveDeployments />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText("strategy-service")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId(`vm-row-${VM_NAME}`));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /logs/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: /logs/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Logs unavailable/)).toBeInTheDocument();
     });
   });
 });

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchVmDeployments, type VmDeploymentEntry } from "../api/deploymentApi";
+import {
+  fetchVmDeployments,
+  fetchVmLogs,
+  type VmDeploymentEntry,
+  type VmLogLine,
+  type VmLogTailResult,
+} from "../api/deploymentApi";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -11,6 +17,7 @@ import {
 import { useVmWebSocket } from "../hooks/useVmWebSocket";
 
 const REFRESH_INTERVAL_MS = 30_000;
+const LOG_POLL_MS = 10_000;
 
 function formatTs(value: string | null): string {
   if (!value) return "—";
@@ -73,7 +80,7 @@ function VmEventPanel({ vmName }: { vmName: string }) {
   const { events, connected, error } = useVmWebSocket(vmName);
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">
@@ -122,12 +129,84 @@ function VmEventPanel({ vmName }: { vmName: string }) {
   );
 }
 
+function VmLogPanel({ vmName }: { vmName: string }) {
+  const [result, setResult] = useState<VmLogTailResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    function poll() {
+      fetchVmLogs(vmName)
+        .then((r) => {
+          if (active) {
+            setResult(r);
+            setError(null);
+            setLoading(false);
+          }
+        })
+        .catch((e: unknown) => {
+          if (active) {
+            setError(e instanceof Error ? e.message : "Failed to load logs");
+            setLoading(false);
+          }
+        });
+    }
+    poll();
+    const id = setInterval(poll, LOG_POLL_MS);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [vmName]);
+
+  return (
+    <Card className="mt-2">
+      <CardHeader>
+        <CardTitle className="text-base">
+          Log tail — <span className="font-mono text-sm">{vmName}</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {loading && !error ? (
+          <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+            Loading…
+          </p>
+        ) : result && result.lines.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+            No log lines available.
+          </p>
+        ) : result ? (
+          <div
+            data-testid="vm-log-feed"
+            className="font-mono text-xs space-y-1 max-h-64 overflow-y-auto"
+          >
+            {[...result.lines].reverse().map((line: VmLogLine, i: number) => (
+              <div key={i} className="flex gap-2 items-start">
+                <span className="text-[var(--color-text-muted)] shrink-0">
+                  {new Date(line.timestamp).toLocaleTimeString()}
+                </span>
+                <span className={`shrink-0 font-semibold ${severityColor(line.severity)}`}>
+                  {line.event}
+                </span>
+                <span className="text-[var(--color-text-secondary)]">{line.message}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function LiveDeployments() {
   const [rows, setRows] = useState<LiveServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
   const [selectedVmName, setSelectedVmName] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<"events" | "logs">("events");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -150,7 +229,10 @@ export function LiveDeployments() {
   }, [load]);
 
   function toggleVm(vmName: string) {
-    setSelectedVmName((prev) => (prev === vmName ? null : vmName));
+    setSelectedVmName((prev) => {
+      if (prev !== vmName) setActivePanel("events");
+      return prev === vmName ? null : vmName;
+    });
   }
 
   return (
@@ -296,7 +378,41 @@ export function LiveDeployments() {
         </CardContent>
       </Card>
 
-      {selectedVmName && <VmEventPanel vmName={selectedVmName} />}
+      {selectedVmName && (
+        <>
+          <div className="flex gap-2 mt-4" role="tablist" aria-label="VM panel view">
+            <button
+              role="tab"
+              aria-selected={activePanel === "events"}
+              onClick={() => setActivePanel("events")}
+              className={`px-3 py-1 text-sm rounded border transition-colors ${
+                activePanel === "events"
+                  ? "border-blue-400 bg-blue-50 font-medium text-blue-700"
+                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+              }`}
+            >
+              Events
+            </button>
+            <button
+              role="tab"
+              aria-selected={activePanel === "logs"}
+              onClick={() => setActivePanel("logs")}
+              className={`px-3 py-1 text-sm rounded border transition-colors ${
+                activePanel === "logs"
+                  ? "border-blue-400 bg-blue-50 font-medium text-blue-700"
+                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+              }`}
+            >
+              Logs
+            </button>
+          </div>
+          {activePanel === "events" ? (
+            <VmEventPanel vmName={selectedVmName} />
+          ) : (
+            <VmLogPanel vmName={selectedVmName} />
+          )}
+        </>
+      )}
     </main>
   );
 }

@@ -301,3 +301,31 @@ export async function launchExecutionBacktest(
   );
   return handleResponse<LaunchResult>(response);
 }
+
+// -------------------------------------------------------------------------
+// VM log tail — polls GET /api/vm/logs/{vm_name}?tail=N
+// -------------------------------------------------------------------------
+
+export interface VmLogLine {
+  timestamp: string;
+  event: string;
+  severity: string;
+  message: string;
+}
+
+export interface VmLogTailResult {
+  vm_name: string;
+  service: string;
+  lines: VmLogLine[];
+  total_lines: number;
+}
+
+export async function fetchVmLogs(
+  vmName: string,
+  tail = 100,
+): Promise<VmLogTailResult> {
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm/logs/${encodeURIComponent(vmName)}?tail=${tail}`,
+  );
+  return handleResponse<VmLogTailResult>(response);
+}
