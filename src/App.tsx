@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
+import { Dart } from "./pages/Dart";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
 import { MlExperiments } from "./pages/MlExperiments";
@@ -174,6 +175,7 @@ function App() {
                 />
                 <Route path="/chaos" element={<Chaos />} />
                 <Route path="/ops/live-deployments" element={<LiveDeployments />} />
+                <Route path="/dart" element={<Dart />} />
                 <Route path="/research/ml-experiments" element={<MlExperiments />} />
                 <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
                 <Route

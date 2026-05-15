@@ -119,6 +119,12 @@ export function Header() {
             Live Ops
           </Link>
           <Link
+            to="/dart"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
+          >
+            DART
+          </Link>
+          <Link
             to="/research/ml-experiments"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
