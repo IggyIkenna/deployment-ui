@@ -874,6 +874,50 @@ export async function getDeployMissingServices(opts?: {
   return res.services ?? [];
 }
 
+// ===========================================================================
+// Deploy-Missing auto-launch — deploy_missing_auto_launch_2026_05_07 Phase 2.
+// ===========================================================================
+
+/** Response from ``POST /api/data-status/deploy-missing-launch``. Mirrors
+ * the Python ``DeployMissingLaunchResult.to_dict()`` shape. */
+export interface DeployMissingLaunchResult {
+  service: string;
+  asset_group: string;
+  shard_key: string;
+  shard_key_hash: string;
+  vm_name: string;
+  correlation_id: string;
+  events_uri: string;
+  dry_run: boolean;
+  started_confirmed: boolean;
+  inflight_vm_name: string | null;
+}
+
+export async function postDeployMissingLaunch(params: {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  operator_id?: string;
+  dry_run?: boolean;
+  signal?: AbortSignal;
+}): Promise<DeployMissingLaunchResult> {
+  return fetchJson<DeployMissingLaunchResult>(
+    `/data-status/deploy-missing-launch`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service: params.service,
+        asset_group: params.asset_group,
+        row_key: params.row_key,
+        operator_id: params.operator_id ?? "ui-operator",
+        dry_run: params.dry_run ?? false,
+      }),
+      signal: params.signal,
+    },
+  );
+}
+
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
 export interface UpcomingFixture {
   fixture_id: string;
