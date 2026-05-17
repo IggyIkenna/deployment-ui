@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  BarChart2,
   Database,
   Hammer,
   Info,
@@ -30,6 +31,7 @@ import { ServiceList } from "./components/ServiceList";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
+import { RepoCoverageTab } from "./components/RepoCoverageTab";
 import { TreasuryTab } from "./components/TreasuryTab";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
@@ -337,6 +339,16 @@ function App() {
                                           QG Readiness
                                         </TabsTrigger>
                                       )}
+                                      {selectedService ===
+                                        "deployment-api" && (
+                                        <TabsTrigger
+                                          value="repo-coverage"
+                                          className="gap-2"
+                                        >
+                                          <BarChart2 className="h-4 w-4" />
+                                          Coverage
+                                        </TabsTrigger>
+                                      )}
                                     </TabsList>
                                     {!isInfra && (
                                       <TabsContent value="deploy">
@@ -458,6 +470,11 @@ function App() {
                                     {selectedService === "deployment-api" && (
                                       <TabsContent value="deploy-readiness">
                                         <DeploymentReadinessTab />
+                                      </TabsContent>
+                                    )}
+                                    {selectedService === "deployment-api" && (
+                                      <TabsContent value="repo-coverage">
+                                        <RepoCoverageTab />
                                       </TabsContent>
                                     )}
                                   </Tabs>
