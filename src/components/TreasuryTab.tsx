@@ -19,6 +19,7 @@
  * Default client: "demo" (overridable via client ID input).
  */
 
+import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchClientSubscriptions,
@@ -534,6 +535,17 @@ export function TreasuryTab() {
         <Button onClick={handleLookup} disabled={loading}>
           {loading ? "Loading…" : "Load"}
         </Button>
+        {treasury && (
+          <Button
+            variant="outline"
+            onClick={() => void loadData(clientId)}
+            disabled={loading}
+            aria-label="Refresh treasury data"
+            data-testid="treasury-refresh-btn"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        )}
       </div>
 
       {error && (

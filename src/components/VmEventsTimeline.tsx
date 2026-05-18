@@ -100,7 +100,14 @@ export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey =
         </div>
       )}
 
-      {!error && events.length === 0 && !loading && (
+      {loading && events.length === 0 && !error && (
+        <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          Loading…
+        </p>
+      )}
+
+      {!error && !loading && events.length === 0 && (
         <p className="text-sm text-[var(--color-text-muted)] py-2">No events found.</p>
       )}
 
@@ -110,6 +117,12 @@ export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey =
             <EventRow key={`${evt.event}-${evt.timestamp}-${i}`} evt={evt} />
           ))}
         </ul>
+      )}
+
+      {totalEvents > events.length && (
+        <p className="text-xs text-[var(--color-text-muted)] text-center pt-2">
+          Showing {events.length} of {totalEvents} events — increase limit to see more
+        </p>
       )}
     </div>
   );

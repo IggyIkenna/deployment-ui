@@ -186,6 +186,17 @@ export function DailyCosts() {
         </div>
       )}
 
+      {/* Loading skeleton */}
+      {loading && !data && (
+        <div role="status" aria-label="Loading cost data" className="space-y-4">
+          <div className="h-24 rounded-lg bg-[var(--color-bg-secondary)] animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="h-40 rounded-lg bg-[var(--color-bg-secondary)] animate-pulse" />
+            <div className="h-40 rounded-lg bg-[var(--color-bg-secondary)] animate-pulse" />
+          </div>
+        </div>
+      )}
+
       {/* Total */}
       {data && (
         <Card>

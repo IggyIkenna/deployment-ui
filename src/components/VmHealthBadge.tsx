@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { fetchVmHealth, type VmHealthResult, type VmHealthState } from "../api/deploymentApi";
 
 const STATE_CLASSES: Record<VmHealthState, string> = {
-  green: "bg-green-100 text-green-800 border-green-200",
-  amber: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  red: "bg-red-100 text-red-800 border-red-200",
-  unknown: "bg-gray-100 text-gray-600 border-gray-200",
+  green: "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-accent-green)]/40",
+  amber: "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/40",
+  red: "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-accent-red)]/40",
+  unknown: "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]",
 };
 
 const STATE_LABEL: Record<VmHealthState, string> = {
@@ -51,7 +51,7 @@ export function VmHealthBadge({ vmName, refreshKey = 0 }: Props) {
     return (
       <span
         data-testid={`health-badge-loading-${vmName}`}
-        className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-gray-50 text-gray-400 border-gray-200"
+        className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"
       >
         …
       </span>
@@ -62,7 +62,7 @@ export function VmHealthBadge({ vmName, refreshKey = 0 }: Props) {
     return (
       <span
         data-testid={`health-badge-error-${vmName}`}
-        className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-gray-100 text-gray-500 border-gray-200"
+        className="inline-flex items-center px-2 py-0.5 rounded border text-xs font-medium bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"
         title="Health check unavailable"
       >
         —

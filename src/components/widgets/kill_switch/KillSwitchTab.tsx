@@ -89,10 +89,14 @@ export function KillSwitchTab(): ReactElement {
     }
   }, []);
 
-  // Initial load + polling
+  // Initial load on mount
   useEffect(() => {
     setState({ kind: "loading" });
     void load();
+  }, [load]);
+
+  // Polling — only active when the active-switches sub-view is visible
+  useEffect(() => {
     if (subView !== "active") return;
     const handle = setInterval(() => {
       void load();
