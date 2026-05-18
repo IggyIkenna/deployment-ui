@@ -23,12 +23,23 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import * as api from "../api/client";
 
+type EnvTier = "dev" | "staging" | "prod";
+
+function resolveEnvTier(): EnvTier {
+  const h = window.location.hostname;
+  if (h === "localhost" || h === "127.0.0.1") return "dev";
+  if (h.startsWith("staging.")) return "staging";
+  return "prod";
+}
+
 export function Header() {
   const { health, isHealthy, error } = useHealth();
   const { target, switchTarget, switching } = useCloudProvider();
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [envTooltipOpen, setEnvTooltipOpen] = useState(false);
+  const envTier = resolveEnvTier();
 
   const handleClearCache = async () => {
     setClearingCache(true);
@@ -167,6 +178,43 @@ export function Header() {
           >
             Exec BT
           </Link>
+          {/* Env tier badge — read-only, computed from hostname. NEVER a toggle. */}
+          <div className="relative">
+            <button
+              onClick={() => setEnvTooltipOpen((v) => !v)}
+              onBlur={() => setTimeout(() => setEnvTooltipOpen(false), 150)}
+              className={`px-2 py-1 text-xs font-mono font-semibold rounded border transition-colors ${
+                envTier === "dev"
+                  ? "bg-green-500/10 border-green-500/30 text-green-400 hover:border-green-400"
+                  : envTier === "staging"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:border-amber-400"
+                    : "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-400"
+              }`}
+              aria-label={`Environment: ${envTier}`}
+            >
+              {envTier.toUpperCase()}
+            </button>
+            {envTooltipOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-48 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-3 shadow-xl text-xs">
+                <div className="font-semibold text-[var(--color-text-primary)] mb-2">Environment</div>
+                <div className="flex flex-col gap-1 font-mono">
+                  <span>
+                    <span className="text-[var(--color-text-tertiary)]">env: </span>
+                    <span className="text-[var(--color-text-secondary)]">{envTier}</span>
+                  </span>
+                  <span>
+                    <span className="text-[var(--color-text-tertiary)]">api: </span>
+                    <span className="text-[var(--color-text-secondary)]">{window.location.origin}/api</span>
+                  </span>
+                  <span>
+                    <span className="text-[var(--color-text-tertiary)]">cloud: </span>
+                    <span className="text-[var(--color-text-secondary)]">{target}</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Cloud Provider Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--color-border-default)] overflow-hidden">
             <button
