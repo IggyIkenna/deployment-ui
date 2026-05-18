@@ -9,6 +9,18 @@ import type { ServiceStatus, ServiceHealth } from "../types/deploymentTypes";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import {
+  BTN_COMPARE,
+  BTN_COMPARING,
+  BTN_COMPARE_SHAS,
+  BTN_HIDE_DIFF,
+  ERR_FAILED_TO_FETCH_DIFF,
+  ERR_FAILED_TO_LOAD_SERVICES,
+  LABEL_DEGRADED,
+  LABEL_HEALTHY,
+  LABEL_LAST_DEPLOY,
+  LABEL_TOTAL_SERVICES,
+} from "../lib/strings";
 
 const HEALTH_VARIANT: Record<
   ServiceHealth,
@@ -94,7 +106,7 @@ function DeploymentDiffPanel() {
     fetchDeploymentDiff(fromSha.trim(), toSha.trim())
       .then((r) => { setResult(r); setLoading(false); })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to fetch diff");
+        setError(err instanceof Error ? err.message : ERR_FAILED_TO_FETCH_DIFF);
         setLoading(false);
       });
   }
@@ -139,7 +151,7 @@ function DeploymentDiffPanel() {
             />
           </div>
           <Button type="submit" variant="outline" size="sm" disabled={loading || !fromSha || !toSha}>
-            {loading ? "Comparing…" : "Compare"}
+            {loading ? BTN_COMPARING : BTN_COMPARE}
           </Button>
         </form>
 
@@ -181,7 +193,7 @@ export function DeploymentsList() {
       })
       .catch((err: unknown) =>
         setError(
-          err instanceof Error ? err.message : "Failed to load services",
+          err instanceof Error ? err.message : ERR_FAILED_TO_LOAD_SERVICES,
         ),
       )
       .finally(() => setLoading(false));
@@ -244,7 +256,7 @@ export function DeploymentsList() {
             onClick={() => setShowDiff((v) => !v)}
             data-testid="toggle-diff-btn"
           >
-            {showDiff ? "Hide Diff" : "Compare SHAs"}
+            {showDiff ? BTN_HIDE_DIFF : BTN_COMPARE_SHAS}
           </Button>
           <Link
             to="/deploy"
@@ -268,12 +280,12 @@ export function DeploymentsList() {
       >
         {[
           {
-            label: "Total Services",
+            label: LABEL_TOTAL_SERVICES,
             value: String(total),
             accent: "var(--color-accent-blue)",
           },
           {
-            label: "Healthy",
+            label: LABEL_HEALTHY,
             value: `${healthy}/${total}`,
             accent:
               healthy === total
@@ -281,7 +293,7 @@ export function DeploymentsList() {
                 : "var(--color-accent-amber)",
           },
           {
-            label: "Degraded",
+            label: LABEL_DEGRADED,
             value: String(degraded),
             accent:
               degraded > 0
@@ -289,7 +301,7 @@ export function DeploymentsList() {
                 : "var(--color-accent-green)",
           },
           {
-            label: "Last Deploy",
+            label: LABEL_LAST_DEPLOY,
             value: lastDeploy,
             accent: "var(--color-accent-purple)",
           },
