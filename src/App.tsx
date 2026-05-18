@@ -352,6 +352,15 @@ function App() {
                                     </TabsList>
                                     {!isInfra && (
                                       <TabsContent value="deploy">
+                                        {/* b3: fresh deployments only — re-deploys live in Monitor */}
+                                        <div className="mb-3 flex items-center gap-2 rounded-md border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                                          <Info className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-blue)]" />
+                                          <span>
+                                            Fresh deployments only. To re-run a job with
+                                            the same parameters, use{" "}
+                                            <strong>Monitor → Backfill / Experiments / Live / Scheduled</strong>.
+                                          </span>
+                                        </div>
                                         <DeployForm
                                           serviceName={selectedService}
                                           selectedOperation={selectedOperation}

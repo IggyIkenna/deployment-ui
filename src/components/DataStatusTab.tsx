@@ -126,6 +126,20 @@ function getTodayAt8am(): string {
   return `${y}-${m}-${day}T08:00:00`;
 }
 
+// b4: Services whose manifest correctness is tracked in Data Status.
+// Services NOT in this list (execution, risk, pnl, alerting…) are runtime
+// services — their health belongs in Monitor → Live / Experiments, not here.
+const DATA_PIPELINE_SERVICES = new Set([
+  "instruments-service",
+  "market-tick-data-service",
+  "market-data-processing-service",
+  "features-cefi-service",
+  "features-defi-service",
+  "features-tradfi-service",
+  "features-sports-service",
+  "features-prediction-service",
+]);
+
 // Sub-dimension label mapping — keyed by the response key from manifest_reader
 const SUB_DIMENSION_LABELS: Record<string, string> = {
   venues: "Venues",
@@ -1685,6 +1699,19 @@ function DataStatusTabInternal({
 
   return (
     <div className="space-y-4">
+      {/* b4: out-of-scope banner for runtime services (execution, risk, pnl, alerting…) */}
+      {!DATA_PIPELINE_SERVICES.has(serviceName) && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+          <span>
+            <strong>{serviceName}</strong> is a runtime service — its health is
+            tracked in <strong>Monitor → Live</strong> or{" "}
+            <strong>Monitor → Experiments</strong>. Data Status shows
+            manifest-driven coverage for data-pipeline services only (instruments,
+            MTDS, MDPS, features-*).
+          </span>
+        </div>
+      )}
       {/* Data Status View Mode Toggle (B4 + B5) */}
       <Tabs
         value={dataStatusViewMode}

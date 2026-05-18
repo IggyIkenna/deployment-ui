@@ -14,9 +14,14 @@ interface PrefetchCacheState {
   fetchedAt: number | null;
 }
 
+// b7: all four Monitor sub-tabs prefetched on mount + cloud-target change.
+// experiments + scheduled slots are wired; their backend endpoints land in
+// Phase C (c2 / c4) — until then, fetch() will 404 → error state (graceful).
 interface LifecyclePrefetchState {
   backfill: PrefetchCacheState;
   live: PrefetchCacheState;
+  experiments: PrefetchCacheState;
+  scheduled: PrefetchCacheState;
 }
 
 type PrefetchAction =
@@ -30,21 +35,24 @@ type PrefetchAction =
       type: "LIVE_SUCCESS";
       payload: LiveStatusResponse;
     }
-  | { type: "LIVE_ERROR"; payload: Error };
+  | { type: "LIVE_ERROR"; payload: Error }
+  | { type: "EXPERIMENTS_SUCCESS"; payload: unknown }
+  | { type: "EXPERIMENTS_ERROR"; payload: Error }
+  | { type: "SCHEDULED_SUCCESS"; payload: unknown }
+  | { type: "SCHEDULED_ERROR"; payload: Error };
+
+const EMPTY_SLOT: PrefetchCacheState = {
+  data: null,
+  loading: false,
+  error: null,
+  fetchedAt: null,
+};
 
 const initialState: LifecyclePrefetchState = {
-  backfill: {
-    data: null,
-    loading: false,
-    error: null,
-    fetchedAt: null,
-  },
-  live: {
-    data: null,
-    loading: false,
-    error: null,
-    fetchedAt: null,
-  },
+  backfill: EMPTY_SLOT,
+  live: EMPTY_SLOT,
+  experiments: EMPTY_SLOT,
+  scheduled: EMPTY_SLOT,
 };
 
 function reducer(
@@ -56,6 +64,8 @@ function reducer(
       return {
         backfill: { ...state.backfill, loading: true },
         live: { ...state.live, loading: true },
+        experiments: { ...state.experiments, loading: true },
+        scheduled: { ...state.scheduled, loading: true },
       };
     case "BACKFILL_SUCCESS":
       return {
@@ -70,12 +80,7 @@ function reducer(
     case "BACKFILL_ERROR":
       return {
         ...state,
-        backfill: {
-          data: null,
-          loading: false,
-          error: action.payload,
-          fetchedAt: null,
-        },
+        backfill: { data: null, loading: false, error: action.payload, fetchedAt: null },
       };
     case "LIVE_SUCCESS":
       return {
@@ -90,12 +95,37 @@ function reducer(
     case "LIVE_ERROR":
       return {
         ...state,
-        live: {
-          data: null,
+        live: { data: null, loading: false, error: action.payload, fetchedAt: null },
+      };
+    case "EXPERIMENTS_SUCCESS":
+      return {
+        ...state,
+        experiments: {
+          data: action.payload,
           loading: false,
-          error: action.payload,
-          fetchedAt: null,
+          error: null,
+          fetchedAt: Date.now(),
         },
+      };
+    case "EXPERIMENTS_ERROR":
+      return {
+        ...state,
+        experiments: { data: null, loading: false, error: action.payload, fetchedAt: null },
+      };
+    case "SCHEDULED_SUCCESS":
+      return {
+        ...state,
+        scheduled: {
+          data: action.payload,
+          loading: false,
+          error: null,
+          fetchedAt: Date.now(),
+        },
+      };
+    case "SCHEDULED_ERROR":
+      return {
+        ...state,
+        scheduled: { data: null, loading: false, error: action.payload, fetchedAt: null },
       };
     default:
       return state;
@@ -111,6 +141,14 @@ const LifecyclePrefetchContext = createContext<
 >(undefined);
 
 const CACHE_TTL_MS = 60000;
+
+const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
+
+async function fetchMonitorEndpoint(path: string): Promise<unknown> {
+  const resp = await fetch(`${DEPLOYMENT_API}${path}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
 
 interface LifecyclePrefetchProviderProps {
   children: React.ReactNode;
@@ -130,7 +168,9 @@ export function LifecyclePrefetchProvider({
 
     if (
       isCacheFresh(state.backfill.fetchedAt) &&
-      isCacheFresh(state.live.fetchedAt)
+      isCacheFresh(state.live.fetchedAt) &&
+      isCacheFresh(state.experiments.fetchedAt) &&
+      isCacheFresh(state.scheduled.fetchedAt)
     ) {
       return;
     }
@@ -138,11 +178,16 @@ export function LifecyclePrefetchProvider({
     let isMounted = true;
     dispatch({ type: "FETCH_START" });
 
+    const cloud = target === "aws" ? "aws" : "gcp";
+
     const fetchData = async () => {
-      const [backfillResult, liveResult] = await Promise.allSettled([
-        fetchVmDeployments(7),
-        getLiveStatus(),
-      ]);
+      const [backfillResult, liveResult, experimentsResult, scheduledResult] =
+        await Promise.allSettled([
+          fetchVmDeployments(7),
+          getLiveStatus(),
+          fetchMonitorEndpoint(`/api/monitor/experiments?cloud=${cloud}`),
+          fetchMonitorEndpoint(`/api/monitor/scheduled?cloud=${cloud}`),
+        ]);
 
       if (!isMounted) return;
 
@@ -165,6 +210,26 @@ export function LifecyclePrefetchProvider({
             : new Error(String(liveResult.reason));
         dispatch({ type: "LIVE_ERROR", payload: error });
       }
+
+      if (experimentsResult.status === "fulfilled") {
+        dispatch({ type: "EXPERIMENTS_SUCCESS", payload: experimentsResult.value });
+      } else {
+        const error =
+          experimentsResult.reason instanceof Error
+            ? experimentsResult.reason
+            : new Error(String(experimentsResult.reason));
+        dispatch({ type: "EXPERIMENTS_ERROR", payload: error });
+      }
+
+      if (scheduledResult.status === "fulfilled") {
+        dispatch({ type: "SCHEDULED_SUCCESS", payload: scheduledResult.value });
+      } else {
+        const error =
+          scheduledResult.reason instanceof Error
+            ? scheduledResult.reason
+            : new Error(String(scheduledResult.reason));
+        dispatch({ type: "SCHEDULED_ERROR", payload: error });
+      }
     };
 
     fetchData();
@@ -172,7 +237,7 @@ export function LifecyclePrefetchProvider({
     return () => {
       isMounted = false;
     };
-  }, [target, state.backfill.fetchedAt, state.live.fetchedAt]);
+  }, [target, state.backfill.fetchedAt, state.live.fetchedAt, state.experiments.fetchedAt, state.scheduled.fetchedAt]);
 
   return (
     <LifecyclePrefetchContext.Provider value={{ state }}>
