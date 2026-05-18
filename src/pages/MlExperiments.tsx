@@ -166,6 +166,7 @@ export function MlExperiments() {
             <select
               value={assetGroup}
               onChange={(e) => setAssetGroup(e.target.value)}
+              aria-label="Asset Group"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
               data-testid="asset-group-select"
             >
@@ -184,6 +185,7 @@ export function MlExperiments() {
             <select
               value={operation}
               onChange={(e) => setOperation(e.target.value)}
+              aria-label="Operation"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             >
               {OPERATIONS.map((op) => (
@@ -227,6 +229,7 @@ export function MlExperiments() {
               type="text"
               value={targetTypes}
               onChange={(e) => setTargetTypes(e.target.value)}
+              aria-label="Target Types"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             />
           </div>
@@ -238,6 +241,7 @@ export function MlExperiments() {
               type="text"
               value={timeframes}
               onChange={(e) => setTimeframes(e.target.value)}
+              aria-label="Timeframes"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             />
           </div>
@@ -252,6 +256,7 @@ export function MlExperiments() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
+              aria-label="Start Date"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             />
           </div>
@@ -263,6 +268,7 @@ export function MlExperiments() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
+              aria-label="End Date"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             />
           </div>
@@ -276,6 +282,7 @@ export function MlExperiments() {
             <select
               value={machine}
               onChange={(e) => setMachine(e.target.value)}
+              aria-label="Machine Type"
               className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             >
               {MACHINES.map((m) => (

@@ -153,6 +153,7 @@ export function StrategyBacktests() {
           <select
             value={archetype}
             onChange={(e) => setArchetype(e.target.value)}
+            aria-label="Archetype"
             className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             data-testid="archetype-select"
           >
@@ -216,6 +217,7 @@ export function StrategyBacktests() {
           <select
             value={gridDensity}
             onChange={(e) => setGridDensity(e.target.value)}
+            aria-label="Grid Density"
             className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
             data-testid="grid-density-select"
           >

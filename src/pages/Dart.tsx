@@ -147,6 +147,7 @@ export function Dart() {
                 <select
                   value={entry.archetype}
                   onChange={(e) => setEntry((p) => ({ ...p, archetype: e.target.value }))}
+                  aria-label="Archetype"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="archetype-select"
                 >
@@ -164,6 +165,7 @@ export function Dart() {
                 <select
                   value={entry.venue}
                   onChange={(e) => setEntry((p) => ({ ...p, venue: e.target.value }))}
+                  aria-label="Venue"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="venue-select"
                 >
@@ -200,6 +202,7 @@ export function Dart() {
                   onChange={(e) =>
                     setEntry((p) => ({ ...p, side: e.target.value as "buy" | "sell" }))
                   }
+                  aria-label="Side"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="side-select"
                 >
