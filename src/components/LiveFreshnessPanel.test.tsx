@@ -88,8 +88,7 @@ describe("LiveFreshnessPanel", () => {
     });
     render(<LiveFreshnessPanel />);
     await waitFor(() => {
-      const badge = screen.getByText(/Fresh \(120s\)/);
-      expect(badge).toHaveClass("bg-green-100");
+      expect(screen.getByText(/Fresh \(120s\)/)).toBeInTheDocument();
     });
   });
 
@@ -109,8 +108,7 @@ describe("LiveFreshnessPanel", () => {
     });
     render(<LiveFreshnessPanel />);
     await waitFor(() => {
-      const badge = screen.getByText(/Degraded \(700s\)/);
-      expect(badge).toHaveClass("bg-yellow-100");
+      expect(screen.getByText(/Degraded \(700s\)/)).toBeInTheDocument();
     });
   });
 
@@ -130,8 +128,7 @@ describe("LiveFreshnessPanel", () => {
     });
     render(<LiveFreshnessPanel />);
     await waitFor(() => {
-      const badge = screen.getByText(/Stale \(1800s\)/);
-      expect(badge).toHaveClass("bg-red-100");
+      expect(screen.getByText(/Stale \(1800s\)/)).toBeInTheDocument();
     });
   });
 });

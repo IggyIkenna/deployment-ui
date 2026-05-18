@@ -85,17 +85,17 @@ export function HealthFactorMonitorTile({
   const latest = points[points.length - 1];
   const hfColor =
     latest && latest.hf < 1.05
-      ? "text-red-600"
+      ? "text-[var(--color-accent-red)]"
       : latest && latest.hf < 1.10
-        ? "text-yellow-600"
-        : "text-green-600";
+        ? "text-[var(--color-accent-amber)]"
+        : "text-[var(--color-accent-green)]";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
           Health Factor Monitor
-          <span className="ml-2 text-xs font-normal text-gray-500">chain: {chain}</span>
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">chain: {chain}</span>
         </h3>
         {latest && (
           <span className={`text-lg font-bold tabular-nums ${hfColor}`}>
@@ -127,7 +127,7 @@ export function HealthFactorMonitorTile({
         </LineChart>
       </ResponsiveContainer>
 
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
         Thresholds: 1.10 partial-unwind (yellow) · 1.05 flash-close (red). UI-throttled {pollIntervalMs / 1000}s.
         SSE stream endpoint pending (Phase 11 P1 sub-todo).
       </p>

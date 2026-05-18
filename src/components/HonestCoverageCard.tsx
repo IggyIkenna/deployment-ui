@@ -45,7 +45,7 @@ function CoverageBar({
         title={`attempted_failed: ${attempted_failed}`}
       />
       <div
-        className="bg-gray-300"
+        className="bg-[var(--color-bg-tertiary)]"
         style={{ width: pct(expected_unattempted) }}
         title={`expected_unattempted: ${expected_unattempted}`}
       />
@@ -168,7 +168,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                 attempted_failed
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-gray-300" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-[var(--color-bg-tertiary)]" />
                 expected_unattempted
               </span>
             </div>

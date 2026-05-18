@@ -37,9 +37,9 @@ export function LiveFreshnessPanel() {
   }, []);
 
   const getStalenessColor = (stalenessSec: number): string => {
-    if (stalenessSec < 300) return "bg-green-100 text-green-800";
-    if (stalenessSec < 900) return "bg-yellow-100 text-yellow-800";
-    return "bg-red-100 text-red-800";
+    if (stalenessSec < 300) return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]";
+    if (stalenessSec < 900) return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]";
+    return "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]";
   };
 
   const getStalenessLabel = (stalenessSec: number): string => {
@@ -53,12 +53,12 @@ export function LiveFreshnessPanel() {
   }
 
   if (error) {
-    return <div className="p-4 text-red-600">Error: {error.message}</div>;
+    return <div className="p-4 text-[var(--color-accent-red)]">Error: {error.message}</div>;
   }
 
   if (rows.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="p-4 text-center text-[var(--color-text-muted)]">
         Live pipeline not yet active — awaiting live MTDS/MDPS producers
       </div>
     );
@@ -69,14 +69,14 @@ export function LiveFreshnessPanel() {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Live Data Freshness</h3>
         {refreshedAt && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-[var(--color-text-muted)]">
             Last refreshed: {new Date(refreshedAt).toLocaleTimeString()}
           </span>
         )}
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-100 p-3 grid grid-cols-5 gap-2 font-semibold text-sm">
+      <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
+        <div className="bg-[var(--color-bg-secondary)] p-3 grid grid-cols-5 gap-2 font-semibold text-sm">
           <div>Asset Group</div>
           <div>Data Type</div>
           <div>Venue / Chain</div>
@@ -87,7 +87,7 @@ export function LiveFreshnessPanel() {
           {rows.map((row, idx) => (
             <div
               key={idx}
-              className="p-3 grid grid-cols-5 gap-2 items-center text-sm hover:bg-gray-50"
+              className="p-3 grid grid-cols-5 gap-2 items-center text-sm hover:bg-[var(--color-bg-secondary)]"
             >
               <div className="font-medium">{row.asset_group}</div>
               <div>{row.data_type}</div>

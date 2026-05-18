@@ -26,10 +26,10 @@ import {
 // Badge colours
 // ---------------------------------------------------------------------------
 const _STATUS_CLASSES: Record<RecursiveBorrowCell["cell_status"], string> = {
-  "design-ready": "bg-gray-100 text-gray-700",
-  "coverage-ready": "bg-blue-100 text-blue-700",
-  "live-ready": "bg-green-100 text-green-700",
-  paused: "bg-yellow-100 text-yellow-800",
+  "design-ready": "bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]",
+  "coverage-ready": "bg-[var(--color-status-info-bg)] text-[var(--color-accent-blue)]",
+  "live-ready": "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]",
+  paused: "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]",
 };
 
 function StatusBadge({ status }: { status: RecursiveBorrowCell["cell_status"] }): ReactElement {
@@ -48,8 +48,8 @@ function StatusBadge({ status }: { status: RecursiveBorrowCell["cell_status"] })
 function CellRow({ cell }: { cell: RecursiveBorrowCell }): ReactElement {
   const family = cell.family === "perp-hedged" ? "F2" : "F1";
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50">
-      <td className="px-3 py-2 text-xs font-mono text-gray-500">{family}</td>
+    <tr className="border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-secondary)]">
+      <td className="px-3 py-2 text-xs font-mono text-[var(--color-text-muted)]">{family}</td>
       <td className="px-3 py-2 text-xs">{cell.protocol}</td>
       <td className="px-3 py-2 text-xs">{cell.chain}</td>
       <td className="px-3 py-2 text-xs">{cell.collateral_asset}</td>
@@ -92,34 +92,34 @@ export function ArchetypeMatrix(): ReactElement {
   }, [fetchData]);
 
   if (loading) {
-    return <div className="p-4 text-sm text-gray-500">Loading archetype matrix…</div>;
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">Loading archetype matrix…</div>;
   }
   if (error) {
-    return <div className="p-4 text-sm text-red-600">Error: {error}</div>;
+    return <div className="p-4 text-sm text-[var(--color-accent-red)]">Error: {error}</div>;
   }
   if (!data) {
-    return <div className="p-4 text-sm text-gray-400">No data</div>;
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">No data</div>;
   }
 
   const { cells, summary } = data;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-900">
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] shadow-sm">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-4 py-3">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
           Recursive-Borrow Cell Coverage
-          <span className="ml-2 text-xs font-normal text-gray-500">
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
             ({summary.total_cells} cells · {summary.live_ready} live-ready)
           </span>
         </h3>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-[var(--color-text-muted)]">
           Refreshes every 60s
         </span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50 text-xs text-gray-600">
+            <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-xs text-[var(--color-text-secondary)]">
               <th className="px-3 py-2">Fam</th>
               <th className="px-3 py-2">Protocol</th>
               <th className="px-3 py-2">Chain</th>
