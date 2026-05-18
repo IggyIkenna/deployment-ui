@@ -91,6 +91,12 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           <Badge variant="outline" className="text-[10px]">
             MANIFEST
           </Badge>
+          <span
+            className="text-[10px] text-[var(--color-text-muted)] cursor-help"
+            title="captured / (captured + attempted_failed + expected_unattempted) — empty_confirmed excluded (legitimate absence)"
+          >
+            reachable
+          </span>
           {data?.date && (
             <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">
               {data.date}

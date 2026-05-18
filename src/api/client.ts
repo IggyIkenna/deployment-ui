@@ -3252,7 +3252,10 @@ export interface HonestCoverageStatusCounts {
   attempted_failed: number;
   expected_unattempted: number;
   total: number;
+  /** Reachable coverage: captured / (captured + attempted_failed + expected_unattempted). */
   coverage_pct: number;
+  /** Legacy all-shards formula including empty_confirmed in denominator. */
+  all_shards_coverage_pct?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
