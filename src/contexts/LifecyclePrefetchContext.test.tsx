@@ -133,4 +133,59 @@ describe("LifecyclePrefetchContext", () => {
       "useLifecyclePrefetch must be used within LifecyclePrefetchProvider",
     );
   });
+
+  it("F.2 — no re-fetch when all caches are warm (simulates sub-tab navigation)", async () => {
+    // Initial data returned on first fetch.
+    const mockVmDeployments = { active: [], recent: [], archive_days: 7 };
+    const mockLiveStatus = { rows: [], refreshed_at: new Date().toISOString() };
+
+    const fetchVmSpy = vi
+      .spyOn(deploymentApi, "fetchVmDeployments")
+      .mockResolvedValue(mockVmDeployments);
+    const getLiveSpy = vi
+      .spyOn(deploymentApi, "getLiveStatus")
+      .mockResolvedValue(mockLiveStatus);
+
+    // Stub global fetch for monitor endpoints (experiments + scheduled).
+    const globalFetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ jobs: [], total: 0, queried_at: "", cloud: "gcp", env: "dev" }),
+    } as Response);
+
+    const { rerender } = render(
+      <LifecyclePrefetchProvider>
+        <TestComponent />
+      </LifecyclePrefetchProvider>,
+    );
+
+    // Wait until the initial load completes for backfill + live (experiments +
+    // scheduled come through global fetch and land in EXPERIMENTS_SUCCESS /
+    // SCHEDULED_SUCCESS, so we just wait for the api spies to be called).
+    await waitFor(() => {
+      expect(fetchVmSpy).toHaveBeenCalledTimes(1);
+      expect(getLiveSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const fetchCount = globalFetchSpy.mock.calls.length;
+    const vmCount = fetchVmSpy.mock.calls.length;
+    const liveCount = getLiveSpy.mock.calls.length;
+
+    // Re-render without changing cloud target — this simulates navigating
+    // between Monitor sub-tabs (a purely local state change).
+    rerender(
+      <LifecyclePrefetchProvider>
+        <TestComponent />
+      </LifecyclePrefetchProvider>,
+    );
+
+    // Give React one tick to process any effects.
+    await new Promise<void>((r) => setTimeout(r, 30));
+
+    // Cache is warm: no additional fetches should have fired.
+    expect(globalFetchSpy.mock.calls.length).toBe(fetchCount);
+    expect(fetchVmSpy).toHaveBeenCalledTimes(vmCount);
+    expect(getLiveSpy).toHaveBeenCalledTimes(liveCount);
+
+    globalFetchSpy.mockRestore();
+  });
 });

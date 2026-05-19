@@ -1,11 +1,27 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Skeleton } from "./ui/skeleton";
 import { Zap, FlaskConical, Radio, CalendarClock } from "lucide-react";
 import { BackfillMonitorSubTab } from "./monitor/BackfillMonitorSubTab";
 import { ExperimentsSubTab } from "./monitor/ExperimentsSubTab";
 import { LiveClusterSubTab } from "./monitor/LiveClusterSubTab";
 import { ScheduledSubTab } from "./monitor/ScheduledSubTab";
+import { useCloudProvider } from "../contexts/CloudProviderContext";
+
+function CloudSwitchingSkeleton() {
+  return (
+    <div className="space-y-3 pt-1" aria-label="Loading cloud data">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-3/4" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-5/6" />
+    </div>
+  );
+}
 
 export function MonitorTab() {
+  const { switching } = useCloudProvider();
+
   return (
     <Tabs defaultValue="backfill" className="w-full">
       <TabsList className="grid w-full grid-cols-4">
@@ -28,19 +44,19 @@ export function MonitorTab() {
       </TabsList>
 
       <TabsContent value="backfill" className="mt-4">
-        <BackfillMonitorSubTab />
+        {switching ? <CloudSwitchingSkeleton /> : <BackfillMonitorSubTab />}
       </TabsContent>
 
       <TabsContent value="experiments" className="mt-4">
-        <ExperimentsSubTab />
+        {switching ? <CloudSwitchingSkeleton /> : <ExperimentsSubTab />}
       </TabsContent>
 
       <TabsContent value="live" className="mt-4">
-        <LiveClusterSubTab />
+        {switching ? <CloudSwitchingSkeleton /> : <LiveClusterSubTab />}
       </TabsContent>
 
       <TabsContent value="scheduled" className="mt-4">
-        <ScheduledSubTab />
+        {switching ? <CloudSwitchingSkeleton /> : <ScheduledSubTab />}
       </TabsContent>
     </Tabs>
   );

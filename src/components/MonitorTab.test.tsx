@@ -3,12 +3,29 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MonitorTab } from "./MonitorTab";
 import * as deploymentApi from "../api/deploymentApi";
 import * as cloudContext from "../contexts/CloudProviderContext";
+import * as lifecyclePrefetchCtx from "../contexts/LifecyclePrefetchContext";
 
 vi.mock("../api/deploymentApi");
 vi.mock("../contexts/CloudProviderContext");
+// Partial mock: keep real LifecyclePrefetchProvider (used by LiveClusterSubTab)
+// but replace the hook so ExperimentsSubTab doesn't throw outside a provider.
+vi.mock("../contexts/LifecyclePrefetchContext", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("../contexts/LifecyclePrefetchContext")
+    >();
+  return { ...actual, useLifecyclePrefetch: vi.fn() };
+});
 vi.mock("./DeploymentHistory", () => ({
   DeploymentHistory: () => <div>Deployment History</div>,
 }));
+
+const _emptyPrefetchState = {
+  backfill: { data: null, loading: false, error: null, fetchedAt: null },
+  live: { data: null, loading: false, error: null, fetchedAt: null },
+  experiments: { data: null, loading: false, error: null, fetchedAt: null },
+  scheduled: { data: null, loading: false, error: null, fetchedAt: null },
+};
 
 describe("MonitorTab", () => {
   beforeEach(() => {
@@ -19,6 +36,9 @@ describe("MonitorTab", () => {
       apiBaseUrl: "http://localhost:8004",
       switching: false,
     });
+    vi.mocked(lifecyclePrefetchCtx.useLifecyclePrefetch).mockReturnValue(
+      _emptyPrefetchState,
+    );
     vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue({
       active: [],
       recent: [],
