@@ -1,5 +1,12 @@
 {
   "typeCheckingMode": "strict",
   "reportMissingModuleSource": false,
-  "exclude": ["tests"]
+  "exclude": [
+    "tests",
+    "node_modules",
+    "dist",
+    "build",
+    ".venv*",
+    "**/__pycache__"
+  ]
 }
