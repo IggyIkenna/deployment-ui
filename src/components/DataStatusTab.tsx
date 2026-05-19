@@ -68,6 +68,7 @@ import {
 } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
 import { HonestCoverageCard } from "./HonestCoverageCard";
+import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
@@ -1744,6 +1745,10 @@ function DataStatusTabInternal({
           <TabsTrigger value="live">Live</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* b6: Live mode shows freshness panel; Batch/Scheduled show manifest coverage below */}
+      {dataStatusViewMode === "live" && <LiveFreshnessPanel />}
+      {dataStatusViewMode !== "live" && (<>
 
       {serviceName === "instruments-service" && <UpcomingFixtures />}
 
@@ -6112,6 +6117,7 @@ function DataStatusTabInternal({
           onClose={() => setLeafSchemaCoord(null)}
         />
       )}
+      </>)}
     </div>
   );
 }
