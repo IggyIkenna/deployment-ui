@@ -75,7 +75,7 @@ describe("RepoCoverageTab", () => {
       expect(screen.getByTestId("coverage-error")).toBeDefined();
     });
     expect(screen.getByTestId("coverage-error").textContent).toContain(
-      "Network error"
+      "Network error",
     );
   });
 
@@ -86,7 +86,7 @@ describe("RepoCoverageTab", () => {
       expect(screen.queryByTestId("coverage-table-body")).toBeNull();
     });
     expect(screen.getByTestId("repo-coverage-tab").textContent).toContain(
-      "No data"
+      "No data",
     );
   });
 });

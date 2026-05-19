@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { CalendarClock } from "lucide-react";
 
 export function ScheduledSubTab() {
@@ -15,8 +21,8 @@ export function ScheduledSubTab() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-gray-600">
-          This feature will display all scheduled backfill jobs, their next run times,
-          and allow you to manage the scheduler configuration.
+          This feature will display all scheduled backfill jobs, their next run
+          times, and allow you to manage the scheduler configuration.
         </p>
       </CardContent>
     </Card>

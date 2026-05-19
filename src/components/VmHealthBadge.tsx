@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
-import { fetchVmHealth, type VmHealthResult, type VmHealthState } from "../api/deploymentApi";
+import {
+  fetchVmHealth,
+  type VmHealthResult,
+  type VmHealthState,
+} from "../api/deploymentApi";
 
 const STATE_CLASSES: Record<VmHealthState, string> = {
-  green: "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-accent-green)]/40",
-  amber: "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/40",
+  green:
+    "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-accent-green)]/40",
+  amber:
+    "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/40",
   red: "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-accent-red)]/40",
-  unknown: "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]",
+  unknown:
+    "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]",
 };
 
 const STATE_LABEL: Record<VmHealthState, string> = {

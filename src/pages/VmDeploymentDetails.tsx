@@ -65,9 +65,11 @@ export function VmDeploymentDetails() {
     setError(null);
     Promise.all([
       fetchVmDeployment(deploymentId),
-      fetchVmDeploymentEvents(deploymentId).catch(
-        () => ({ deployment_id: deploymentId, events: [], count: 0 }),
-      ),
+      fetchVmDeploymentEvents(deploymentId).catch(() => ({
+        deployment_id: deploymentId,
+        events: [],
+        count: 0,
+      })),
     ])
       .then(([e, ev]) => {
         setEntry(e);
@@ -75,9 +77,7 @@ export function VmDeploymentDetails() {
       })
       .catch((err: unknown) =>
         setError(
-          err instanceof Error
-            ? err.message
-            : ERR_FAILED_TO_LOAD_DETAILS,
+          err instanceof Error ? err.message : ERR_FAILED_TO_LOAD_DETAILS,
         ),
       )
       .finally(() => setLoading(false));

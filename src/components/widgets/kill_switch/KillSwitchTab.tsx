@@ -119,26 +119,20 @@ export function KillSwitchTab(): ReactElement {
             <CardTitle className="flex items-center gap-3">
               Kill switches
               {state.kind === "loaded" && armedCount > 0 ? (
-                <Badge
-                  variant="error"
-                  data-testid="kill-switch-armed-count"
-                >
+                <Badge variant="error" data-testid="kill-switch-armed-count">
                   {armedCount} ARMED
                 </Badge>
               ) : null}
               {state.kind === "loaded" && armedCount === 0 ? (
-                <Badge
-                  variant="success"
-                  data-testid="kill-switch-armed-count"
-                >
+                <Badge variant="success" data-testid="kill-switch-armed-count">
                   0 armed
                 </Badge>
               ) : null}
             </CardTitle>
             <CardDescription>
               Per-switch arm / disarm + audit-log view. Polls{" "}
-              <code>/api/kill-switch/state</code> every {POLL_INTERVAL_MS / 1000}s
-              for real-time arming state.
+              <code>/api/kill-switch/state</code> every{" "}
+              {POLL_INTERVAL_MS / 1000}s for real-time arming state.
             </CardDescription>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -220,8 +214,8 @@ function ActiveSwitchesView({
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Kill-switch registry seeds on deployment-api boot. If you expect
           switches to be present, verify the
-          <code className="mx-1">/api/kill-switch/state</code> endpoint is
-          wired per Phase 7.A.
+          <code className="mx-1">/api/kill-switch/state</code> endpoint is wired
+          per Phase 7.A.
         </p>
       </div>
     );
@@ -236,11 +230,7 @@ function ActiveSwitchesView({
         </time>
       </p>
       {state.response.switches.map((sw) => (
-        <KillSwitchPanel
-          key={sw.switch_id}
-          state={sw}
-          onAction={onAction}
-        />
+        <KillSwitchPanel key={sw.switch_id} state={sw} onAction={onAction} />
       ))}
     </div>
   );

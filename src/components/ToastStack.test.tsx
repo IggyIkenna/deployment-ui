@@ -1,18 +1,33 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { ToastStack } from "./ToastStack";
-import { NotificationProvider, useNotifications } from "../contexts/NotificationContext";
+import {
+  NotificationProvider,
+  useNotifications,
+} from "../contexts/NotificationContext";
 
-function AddToastButton({ message, variant = "success" }: { message: string; variant?: "success" | "error" | "info" }) {
+function AddToastButton({
+  message,
+  variant = "success",
+}: {
+  message: string;
+  variant?: "success" | "error" | "info";
+}) {
   const { addToast } = useNotifications();
   return (
-    <button onClick={() => addToast(message, variant, "detail-text")} data-testid="add-btn">
+    <button
+      onClick={() => addToast(message, variant, "detail-text")}
+      data-testid="add-btn"
+    >
       add
     </button>
   );
 }
 
-function TestApp({ message = "VM launched", variant = "success" as "success" | "error" | "info" }) {
+function TestApp({
+  message = "VM launched",
+  variant = "success" as "success" | "error" | "info",
+}) {
   return (
     <NotificationProvider>
       <AddToastButton message={message} variant={variant} />
@@ -50,7 +65,9 @@ describe("ToastStack", () => {
     render(<TestApp />);
     fireEvent.click(screen.getByTestId("add-btn"));
     expect(screen.getByText("VM launched")).toBeInTheDocument();
-    const dismissBtn = screen.getByRole("button", { name: /dismiss notification/i });
+    const dismissBtn = screen.getByRole("button", {
+      name: /dismiss notification/i,
+    });
     fireEvent.click(dismissBtn);
     expect(screen.queryByText("VM launched")).not.toBeInTheDocument();
   });
@@ -66,7 +83,10 @@ describe("ToastStack", () => {
   it("toast-stack has aria-live=polite", () => {
     render(<TestApp />);
     fireEvent.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("toast-stack")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByTestId("toast-stack")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
   });
 
   it("multiple toasts rendered when multiple added", () => {

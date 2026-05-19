@@ -20,12 +20,27 @@ import type { RepoReadiness } from "../api/repoReadiness";
 import { DeploymentReadinessTab } from "./DeploymentReadinessTab";
 
 const ALL_READY: RepoReadiness[] = [
-  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
-  { repo: "deployment-ui", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
+  {
+    repo: "deployment-api",
+    deploy_ready: true,
+    reason: "all_criteria_met",
+    last_snapshot_date: "2026-05-15T06:00:00Z",
+  },
+  {
+    repo: "deployment-ui",
+    deploy_ready: true,
+    reason: "all_criteria_met",
+    last_snapshot_date: "2026-05-15T06:00:00Z",
+  },
 ];
 
 const MIXED: RepoReadiness[] = [
-  { repo: "deployment-api", deploy_ready: true, reason: "all_criteria_met", last_snapshot_date: "2026-05-15T06:00:00Z" },
+  {
+    repo: "deployment-api",
+    deploy_ready: true,
+    reason: "all_criteria_met",
+    last_snapshot_date: "2026-05-15T06:00:00Z",
+  },
   {
     repo: "strategy-service",
     deploy_ready: false,
@@ -52,7 +67,10 @@ describe("DeploymentReadinessTab", () => {
   it("shows loading state while fetch is in flight", async () => {
     let resolve!: (v: RepoReadiness[]) => void;
     vi.spyOn(api, "fetchRepoReadiness").mockImplementation(
-      () => new Promise<RepoReadiness[]>((r) => { resolve = r; }),
+      () =>
+        new Promise<RepoReadiness[]>((r) => {
+          resolve = r;
+        }),
     );
 
     render(<DeploymentReadinessTab />);

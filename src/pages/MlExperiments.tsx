@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { FlaskConical, Loader2, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import {
+  FlaskConical,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+} from "lucide-react";
 import {
   launchMlExperiment,
   type LaunchResult,
@@ -10,11 +16,23 @@ import { Badge } from "../components/ui/badge";
 import { useNotifications } from "../contexts/NotificationContext";
 import { VmCostEstimatePanel } from "../components/VmCostEstimatePanel";
 
-const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
+const ASSET_GROUPS = [
+  "cefi",
+  "defi",
+  "tradfi",
+  "sports",
+  "prediction",
+] as const;
 const OPERATIONS = ["train", "evaluate", "grid-search", "pipeline"] as const;
 const MACHINES = ["cpu", "gpu", "high"] as const;
 
-function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: () => void }) {
+function ResultPanel({
+  result,
+  onDismiss,
+}: {
+  result: LaunchResult;
+  onDismiss: () => void;
+}) {
   return (
     <div
       data-testid="launch-result"
@@ -27,7 +45,10 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
             VM launched
           </span>
           {result.dry_run && (
-            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-300">
+            <Badge
+              variant="outline"
+              className="text-xs border-amber-500/40 text-amber-300"
+            >
               DRY RUN
             </Badge>
           )}
@@ -45,9 +66,13 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
         <dt className="text-[var(--color-text-muted)]">Zone</dt>
         <dd className="text-[var(--color-text-primary)]">{result.zone}</dd>
         <dt className="text-[var(--color-text-muted)]">Launched</dt>
-        <dd className="text-[var(--color-text-primary)]">{result.launched_at}</dd>
+        <dd className="text-[var(--color-text-primary)]">
+          {result.launched_at}
+        </dd>
         <dt className="text-[var(--color-text-muted)]">Correlation</dt>
-        <dd className="text-[var(--color-text-primary)] truncate">{result.correlation_id}</dd>
+        <dd className="text-[var(--color-text-primary)] truncate">
+          {result.correlation_id}
+        </dd>
       </dl>
       {result.events_uri && (
         <a
@@ -85,7 +110,9 @@ export function MlExperiments() {
     .map((s) => s.trim())
     .filter(Boolean);
   const instrumentsError =
-    instrumentsList.length === 0 ? "At least one instrument is required." : null;
+    instrumentsList.length === 0
+      ? "At least one instrument is required."
+      : null;
   const isFormValid = !instrumentsError;
   const showInstrumentsError = instrumentsTouched && !!instrumentsError;
 
@@ -138,14 +165,18 @@ export function MlExperiments() {
           <FlaskConical className="h-5 w-5 text-[var(--color-accent-cyan)]" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">ML Experiments</h1>
+          <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">
+            ML Experiments
+          </h1>
           <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
             Launch ML training / evaluation VMs
           </p>
         </div>
       </div>
 
-      {result && <ResultPanel result={result} onDismiss={() => setResult(null)} />}
+      {result && (
+        <ResultPanel result={result} onDismiss={() => setResult(null)} />
+      )}
 
       {error && (
         <div
@@ -198,23 +229,37 @@ export function MlExperiments() {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="instruments-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
-            Instruments <span className="text-[var(--color-text-muted)]">(comma-separated)</span>
+          <label
+            htmlFor="instruments-field"
+            className="text-xs font-medium text-[var(--color-text-secondary)]"
+          >
+            Instruments{" "}
+            <span className="text-[var(--color-text-muted)]">
+              (comma-separated)
+            </span>
           </label>
           <input
             id="instruments-field"
             type="text"
             value={instruments}
-            onChange={(e) => { setInstruments(e.target.value); setInstrumentsTouched(true); }}
+            onChange={(e) => {
+              setInstruments(e.target.value);
+              setInstrumentsTouched(true);
+            }}
             onBlur={() => setInstrumentsTouched(true)}
             placeholder="ETH-USDT, BTC-USDT"
             aria-invalid={showInstrumentsError || undefined}
-            aria-describedby={showInstrumentsError ? "instruments-error" : undefined}
+            aria-describedby={
+              showInstrumentsError ? "instruments-error" : undefined
+            }
             className={`w-full rounded-md border ${showInstrumentsError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
             data-testid="instruments-input"
           />
           {showInstrumentsError && (
-            <p id="instruments-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+            <p
+              id="instruments-error"
+              className="text-xs text-[var(--color-accent-red)] mt-0.5"
+            >
               {instrumentsError}
             </p>
           )}
@@ -223,7 +268,10 @@ export function MlExperiments() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Target Types <span className="text-[var(--color-text-muted)]">(comma-sep)</span>
+              Target Types{" "}
+              <span className="text-[var(--color-text-muted)]">
+                (comma-sep)
+              </span>
             </label>
             <input
               type="text"
@@ -235,7 +283,10 @@ export function MlExperiments() {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Timeframes <span className="text-[var(--color-text-muted)]">(comma-sep)</span>
+              Timeframes{" "}
+              <span className="text-[var(--color-text-muted)]">
+                (comma-sep)
+              </span>
             </label>
             <input
               type="text"
@@ -250,7 +301,8 @@ export function MlExperiments() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Start Date <span className="text-[var(--color-text-muted)]">(optional)</span>
+              Start Date{" "}
+              <span className="text-[var(--color-text-muted)]">(optional)</span>
             </label>
             <input
               type="date"
@@ -262,7 +314,8 @@ export function MlExperiments() {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-              End Date <span className="text-[var(--color-text-muted)]">(optional)</span>
+              End Date{" "}
+              <span className="text-[var(--color-text-muted)]">(optional)</span>
             </label>
             <input
               type="date"
@@ -301,7 +354,9 @@ export function MlExperiments() {
                 className="h-4 w-4 rounded border-[var(--color-border-default)]"
                 data-testid="dry-run-checkbox"
               />
-              <span className="text-sm text-[var(--color-text-secondary)]">Dry run</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                Dry run
+              </span>
             </label>
           </div>
         </div>

@@ -32,7 +32,12 @@ import type {
   VenueCheckResponse,
 } from "../api/client";
 import * as api from "../api/client";
-import { UPSTREAM_CHECK_SERVICES, buildFixturesCsvDownloadUrl, buildShardDownloadUrl, searchInstruments } from "../api/client";
+import {
+  UPSTREAM_CHECK_SERVICES,
+  buildFixturesCsvDownloadUrl,
+  buildShardDownloadUrl,
+  searchInstruments,
+} from "../api/client";
 import { getAssetGroupBreakdown } from "../lib/data-status-helpers";
 import {
   cn,
@@ -40,7 +45,12 @@ import {
   formatRatePerDay,
   isRateMetricRow,
 } from "../lib/utils";
-import type { AssetGroupVenuesResponse, AssetGroupStatus as CategoryStatus, CreateDeploymentResponse, DataStatusResponse } from "../types";
+import type {
+  AssetGroupVenuesResponse,
+  AssetGroupStatus as CategoryStatus,
+  CreateDeploymentResponse,
+  DataStatusResponse,
+} from "../types";
 import { BreakdownsAccordion } from "./BreakdownsAccordion";
 import {
   BucketCountsBadge,
@@ -57,10 +67,7 @@ import {
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
-import {
-  LeafSchemaModal,
-  type LeafSchemaModalCoord,
-} from "./LeafSchemaModal";
+import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import {
   ShardDetailModal,
@@ -229,13 +236,19 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
           type="text"
           placeholder="Search venues..."
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setExpanded(false); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setExpanded(false);
+          }}
           className="w-full px-2 py-1 rounded text-[10px] bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
         />
       )}
       <div className="flex flex-wrap gap-1">
         {visible.map(([venue, count]) => (
-          <span key={venue} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
+          <span
+            key={venue}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
+          >
             {venue} <strong>{count.toLocaleString()}</strong>
           </span>
         ))}
@@ -289,7 +302,9 @@ function DateList({
             <a
               href={downloadUrl(date)}
               className="inline-flex items-center justify-center px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] focus:outline-none"
-              title={downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`}
+              title={
+                downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`
+              }
               download
               onClick={(e) => e.stopPropagation()}
               data-testid={`${testIdPrefix}-${date}-download`}
@@ -342,7 +357,9 @@ function DataStatusTabInternal({
   );
 
   // Data status view mode toggle (batch/scheduled-today/live) - separate from table/calendar display mode
-  const [dataStatusViewMode, setDataStatusViewMode] = useState<"batch" | "scheduled-today" | "live">("batch");
+  const [dataStatusViewMode, setDataStatusViewMode] = useState<
+    "batch" | "scheduled-today" | "live"
+  >("batch");
 
   // NOTE: Removed debounced dates - no longer auto-fetching on date change
   // Users must click "Check Status" button to fetch data
@@ -405,12 +422,18 @@ function DataStatusTabInternal({
   const [venueDetailLoading, setVenueDetailLoading] = useState(false);
 
   // Schema / per-day instrument drill-down modals
-  const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
-  const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
+  const [instrumentsModal, setInstrumentsModal] =
+    useState<ShardCoordinate | null>(null);
+  const [schemaModal, setSchemaModal] = useState<Omit<
+    ShardCoordinate,
+    "day"
+  > | null>(null);
   // DEFI per-pool drill-down modal — backed by /api/data-status/pools/breakdown.
-  const [poolBreakdownModal, setPoolBreakdownModal] = useState<
-    { venue: string; chain: string; day: string } | null
-  >(null);
+  const [poolBreakdownModal, setPoolBreakdownModal] = useState<{
+    venue: string;
+    chain: string;
+    day: string;
+  } | null>(null);
   // Unified shard-detail modal (4 tabs: schema / sample / payload / download)
   const [shardDetailCoord, setShardDetailCoord] =
     useState<ShardDetailCoordInput | null>(null);
@@ -428,12 +451,21 @@ function DataStatusTabInternal({
 
   // SPORTS fixture-level breakdown — toggled per (league, day, readOnly) key.
   // readOnly flag disables per-fixture download buttons for red (missing) dates.
-  const [fixtureBreakdownKey, setFixtureBreakdownKey] = useState<
-    { day: string; league_id: string; readOnly: boolean } | null
-  >(null);
-  const toggleFixtureBreakdown = (day: string, league_id: string, readOnly: boolean) => {
+  const [fixtureBreakdownKey, setFixtureBreakdownKey] = useState<{
+    day: string;
+    league_id: string;
+    readOnly: boolean;
+  } | null>(null);
+  const toggleFixtureBreakdown = (
+    day: string,
+    league_id: string,
+    readOnly: boolean,
+  ) => {
     setFixtureBreakdownKey((prev) =>
-      prev && prev.day === day && prev.league_id === league_id && prev.readOnly === readOnly
+      prev &&
+      prev.day === day &&
+      prev.league_id === league_id &&
+      prev.readOnly === readOnly
         ? null
         : { day, league_id, readOnly },
     );
@@ -455,10 +487,10 @@ function DataStatusTabInternal({
       const result =
         category === "DEFI"
           ? await api.fetchVenueDetailV2({
-            service: serviceName,
-            asset_group: category,
-            venue,
-          })
+              service: serviceName,
+              asset_group: category,
+              venue,
+            })
           : await api.fetchVenueDetail(serviceName, category, venue);
       setVenueDetailData(result);
     } catch {
@@ -521,7 +553,7 @@ function DataStatusTabInternal({
         setBackendRegion(region);
         setDeployMissingRegion(region);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -534,7 +566,10 @@ function DataStatusTabInternal({
     const controller = new AbortController();
     setCoverageSummaryLoading(true);
     api
-      .getDataCoverageSummary({ service: serviceName, signal: controller.signal })
+      .getDataCoverageSummary({
+        service: serviceName,
+        signal: controller.signal,
+      })
       .then((result) => setCoverageSummary(result))
       .catch(() => setCoverageSummary(null))
       .finally(() => setCoverageSummaryLoading(false));
@@ -1123,12 +1158,24 @@ function DataStatusTabInternal({
         } else {
           // Service has no category dimension (e.g., features-calendar-service)
           // Default to all categories for backward compatibility
-          setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
+          setAvailableCategories([
+            "CEFI",
+            "DEFI",
+            "TRADFI",
+            "SPORTS",
+            "PREDICTION",
+          ]);
         }
       })
       .catch(() => {
         // On error, default to all categories
-        setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
+        setAvailableCategories([
+          "CEFI",
+          "DEFI",
+          "TRADFI",
+          "SPORTS",
+          "PREDICTION",
+        ]);
       })
       .finally(() => {
         setCategoriesLoading(false);
@@ -1335,7 +1382,11 @@ function DataStatusTabInternal({
       }
       // Fallback: if overall_completion_pct < 100, there IS missing data
       if ((turboData.overall_completion_pct ?? 0) < 99.99) {
-        return Math.max(1, (turboData.overall_dates_expected ?? 0) - (turboData.overall_dates_found ?? 0));
+        return Math.max(
+          1,
+          (turboData.overall_dates_expected ?? 0) -
+            (turboData.overall_dates_found ?? 0),
+        );
       }
       return 0;
     }
@@ -1708,8 +1759,8 @@ function DataStatusTabInternal({
             <strong>{serviceName}</strong> is a runtime service — its health is
             tracked in <strong>Monitor → Live</strong> or{" "}
             <strong>Monitor → Experiments</strong>. Data Status shows
-            manifest-driven coverage for data-pipeline services only (instruments,
-            MTDS, MDPS, features-*).
+            manifest-driven coverage for data-pipeline services only
+            (instruments, MTDS, MDPS, features-*).
           </span>
         </div>
       )}
@@ -1762,7 +1813,9 @@ function DataStatusTabInternal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                <CardTitle className="text-base">Instrument Coverage Summary</CardTitle>
+                <CardTitle className="text-base">
+                  Instrument Coverage Summary
+                </CardTitle>
                 <Badge
                   variant="outline"
                   className="text-[10px]"
@@ -1772,7 +1825,9 @@ function DataStatusTabInternal({
                       : "Served from live manifest scan."
                   }
                 >
-                  {coverageSummary?.totals_source === "rollup" ? "ROLLUP" : "MANIFEST"}
+                  {coverageSummary?.totals_source === "rollup"
+                    ? "ROLLUP"
+                    : "MANIFEST"}
                 </Badge>
               </div>
               {coverageSummary?.totals && (
@@ -1780,7 +1835,9 @@ function DataStatusTabInternal({
                   <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
                     {coverageSummary.totals.latest_day_instruments.toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">instruments (latest day, sum across asset groups)</div>
+                  <div className="text-[10px] text-[var(--color-text-muted)]">
+                    instruments (latest day, sum across asset groups)
+                  </div>
                 </div>
               )}
             </div>
@@ -1796,64 +1853,111 @@ function DataStatusTabInternal({
                 {/* Grand totals row */}
                 <div className="grid grid-cols-4 gap-3 text-center">
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.shards ?? 0).toLocaleString()}</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Total Shards</div>
+                    <div className="text-lg font-mono font-bold">
+                      {(coverageSummary.totals.shards ?? 0).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Total Shards
+                    </div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{((coverageSummary.totals.instrument_rows ?? 0) / 1_000_000).toFixed(1)}M</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Instrument Rows</div>
+                    <div className="text-lg font-mono font-bold">
+                      {(
+                        (coverageSummary.totals.instrument_rows ?? 0) /
+                        1_000_000
+                      ).toFixed(1)}
+                      M
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Instrument Rows
+                    </div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{(coverageSummary.totals.dates_across_asset_groups ?? 0).toLocaleString()}</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all asset groups)</div>
+                    <div className="text-lg font-mono font-bold">
+                      {(
+                        coverageSummary.totals.dates_across_asset_groups ?? 0
+                      ).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Dates (all asset groups)
+                    </div>
                   </div>
                   <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">{Object.keys(coverageSummary.asset_groups ?? {}).length}</div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">Asset Groups</div>
+                    <div className="text-lg font-mono font-bold">
+                      {Object.keys(coverageSummary.asset_groups ?? {}).length}
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      Asset Groups
+                    </div>
                   </div>
                 </div>
 
                 {/* Per asset group breakdown (CeFi / DeFi / TradFi / …) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {Object.entries(coverageSummary.asset_groups ?? {}).map(([cat, catData]) => {
-                    // Phase 3 (data_status_multi_axis_shard_propagation): pull
-                    // per-(service, asset_group) breakdown axes from UAC SSOT
-                    // via deployment-api /api/config/shard-axis-matrix. Empty
-                    // axes (writer hasn't populated the column yet) still
-                    // render with a "no data yet" placeholder by design — UI
-                    // shape leads, writers follow.
-                    const axisKey = cat.toLowerCase();
-                    const breakdownAxes =
-                      shardAxisMatrix?.breakdown_axes?.[serviceName]?.[axisKey] ?? [];
-                    const breakdowns = catData.breakdowns ?? {};
-                    return (
-                      <div key={cat} className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline" className="text-[10px] font-mono">{cat}</Badge>
-                          <span className="text-xs text-[var(--color-text-muted)]">{catData.unique_venues} {catData.sub_dimension_label ?? "venues"}</span>
-                        </div>
-                        <div className="text-sm font-mono font-bold">{catData.latest_day_total.toLocaleString()} instruments (latest day)</div>
-                        <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
-                          {catData.unique_dates.toLocaleString()} dates &middot; {catData.total_shards.toLocaleString()} shards
-                          {catData.date_range && (
-                            <> &middot; {catData.date_range.start} to {catData.date_range.end}</>
-                          )}
-                        </div>
-                        {/* Instrument type pills — show first 8 with expandable overflow */}
-                        <VenuePillList venues={catData.latest_day_instruments} />
-                        {breakdownAxes.length > 0 ? (
-                          <div className="mt-3">
-                            <BreakdownsAccordion
-                              axes={breakdownAxes}
-                              breakdowns={breakdowns}
-                              title="Breakdowns"
-                              onSelectValue={(axis, value) =>
-                                setManifestFilter({ axis, value })
-                              }
-                            />
+                  {Object.entries(coverageSummary.asset_groups ?? {}).map(
+                    ([cat, catData]) => {
+                      // Phase 3 (data_status_multi_axis_shard_propagation): pull
+                      // per-(service, asset_group) breakdown axes from UAC SSOT
+                      // via deployment-api /api/config/shard-axis-matrix. Empty
+                      // axes (writer hasn't populated the column yet) still
+                      // render with a "no data yet" placeholder by design — UI
+                      // shape leads, writers follow.
+                      const axisKey = cat.toLowerCase();
+                      const breakdownAxes =
+                        shardAxisMatrix?.breakdown_axes?.[serviceName]?.[
+                          axisKey
+                        ] ?? [];
+                      const breakdowns = catData.breakdowns ?? {};
+                      return (
+                        <div
+                          key={cat}
+                          className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-mono"
+                            >
+                              {cat}
+                            </Badge>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              {catData.unique_venues}{" "}
+                              {catData.sub_dimension_label ?? "venues"}
+                            </span>
                           </div>
-                        ) : null}
-                        {/* Drilldown plan Phase 2: hierarchical shard-atom
+                          <div className="text-sm font-mono font-bold">
+                            {catData.latest_day_total.toLocaleString()}{" "}
+                            instruments (latest day)
+                          </div>
+                          <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                            {catData.unique_dates.toLocaleString()} dates
+                            &middot; {catData.total_shards.toLocaleString()}{" "}
+                            shards
+                            {catData.date_range && (
+                              <>
+                                {" "}
+                                &middot; {catData.date_range.start} to{" "}
+                                {catData.date_range.end}
+                              </>
+                            )}
+                          </div>
+                          {/* Instrument type pills — show first 8 with expandable overflow */}
+                          <VenuePillList
+                            venues={catData.latest_day_instruments}
+                          />
+                          {breakdownAxes.length > 0 ? (
+                            <div className="mt-3">
+                              <BreakdownsAccordion
+                                axes={breakdownAxes}
+                                breakdowns={breakdowns}
+                                title="Breakdowns"
+                                onSelectValue={(axis, value) =>
+                                  setManifestFilter({ axis, value })
+                                }
+                              />
+                            </div>
+                          ) : null}
+                          {/* Drilldown plan Phase 2: hierarchical shard-atom
                           drill-down. Tree shape comes from the codex
                           per-(service, asset_group) shard-axis matrix
                           (UAC SSOT). Each leaf row exposes a per-shard
@@ -1862,23 +1966,24 @@ function DataStatusTabInternal({
                           for missing shards. Default-collapsed inside
                           a <details> so the page doesn't fan out
                           5000 instruments by default. */}
-                        <details className="mt-3">
-                          <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
-                            Hierarchical drill-down (shard atom)
-                          </summary>
-                          <div className="mt-2">
-                            <HierarchicalShardDrilldown
-                              service={serviceName}
-                              assetGroup={axisKey}
-                              startDate={startDate}
-                              endDate={endDate}
-                              initialDepth={1}
-                            />
-                          </div>
-                        </details>
-                      </div>
-                    );
-                  })}
+                          <details className="mt-3">
+                            <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
+                              Hierarchical drill-down (shard atom)
+                            </summary>
+                            <div className="mt-2">
+                              <HierarchicalShardDrilldown
+                                service={serviceName}
+                                assetGroup={axisKey}
+                                startDate={startDate}
+                                endDate={endDate}
+                                initialDepth={1}
+                              />
+                            </div>
+                          </details>
+                        </div>
+                      );
+                    },
+                  )}
                 </div>
               </div>
             ) : null}
@@ -1896,7 +2001,8 @@ function DataStatusTabInternal({
             <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
             <CardTitle className="text-base">Symbol search</CardTitle>
             <span className="text-[10px] text-[var(--color-text-muted)] ml-2">
-              cross-category &middot; canonical IDs &middot; whitespace = AND-match
+              cross-category &middot; canonical IDs &middot; whitespace =
+              AND-match
             </span>
           </div>
         </CardHeader>
@@ -1922,8 +2028,8 @@ function DataStatusTabInternal({
               {symbolSearchResults.length === 0 && !symbolSearchLoading && (
                 <div className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
                   No matches. Try a partial substring (e.g. ``btc``,
-                  ``eigenlayer``, ``epl``) or two-token AND-match
-                  (``usdc weth``).
+                  ``eigenlayer``, ``epl``) or two-token AND-match (``usdc
+                  weth``).
                 </div>
               )}
               {symbolSearchResults.map((m) => (
@@ -1956,7 +2062,8 @@ function DataStatusTabInternal({
               ))}
               {symbolSearchTruncated && (
                 <div className="px-3 py-1.5 text-[10px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
-                  Showing first 50 matches — refine your query for narrower results.
+                  Showing first 50 matches — refine your query for narrower
+                  results.
                 </div>
               )}
             </div>
@@ -2570,23 +2677,23 @@ function DataStatusTabInternal({
                             {/* Instrument Availability Window */}
                             {(selectedInstrument.available_from_datetime ||
                               selectedInstrument.available_to_datetime) && (
-                                <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                                  <span className="text-[var(--color-accent-amber)]">
-                                    Available:{" "}
-                                  </span>
-                                  {selectedInstrument.available_from_datetime
-                                    ? selectedInstrument.available_from_datetime.split(
+                              <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                <span className="text-[var(--color-accent-amber)]">
+                                  Available:{" "}
+                                </span>
+                                {selectedInstrument.available_from_datetime
+                                  ? selectedInstrument.available_from_datetime.split(
                                       "T",
                                     )[0]
-                                    : "..."}
-                                  {" → "}
-                                  {selectedInstrument.available_to_datetime
-                                    ? selectedInstrument.available_to_datetime.split(
+                                  : "..."}
+                                {" → "}
+                                {selectedInstrument.available_to_datetime
+                                  ? selectedInstrument.available_to_datetime.split(
                                       "T",
                                     )[0]
-                                    : "ongoing"}
-                                </div>
-                              )}
+                                  : "ongoing"}
+                              </div>
+                            )}
                           </div>
                           <Button
                             size="sm"
@@ -2690,24 +2797,24 @@ function DataStatusTabInternal({
                                 dates
                                 {instrumentAvailability.availability_window
                                   .instrument_from && (
-                                    <span className="block mt-1">
-                                      <span className="text-[var(--color-text-muted)]">
-                                        Instrument available:{" "}
-                                      </span>
-                                      {
-                                        instrumentAvailability.availability_window.instrument_from.split(
-                                          "T",
-                                        )[0]
-                                      }
-                                      {" → "}
-                                      {instrumentAvailability.availability_window
-                                        .instrument_to
-                                        ? instrumentAvailability.availability_window.instrument_to.split(
-                                          "T",
-                                        )[0]
-                                        : "ongoing"}
+                                  <span className="block mt-1">
+                                    <span className="text-[var(--color-text-muted)]">
+                                      Instrument available:{" "}
                                     </span>
-                                  )}
+                                    {
+                                      instrumentAvailability.availability_window.instrument_from.split(
+                                        "T",
+                                      )[0]
+                                    }
+                                    {" → "}
+                                    {instrumentAvailability.availability_window
+                                      .instrument_to
+                                      ? instrumentAvailability.availability_window.instrument_to.split(
+                                          "T",
+                                        )[0]
+                                      : "ongoing"}
+                                  </span>
+                                )}
                               </>
                             ) : (
                               <>
@@ -2722,11 +2829,11 @@ function DataStatusTabInternal({
                             )}
                             {instrumentAvailability.date_range
                               .first_day_of_month_only && (
-                                <span className="text-[var(--color-accent-cyan)]">
-                                  {" "}
-                                  (first day of month only)
-                                </span>
-                              )}
+                              <span className="text-[var(--color-accent-cyan)]">
+                                {" "}
+                                (first day of month only)
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -2959,7 +3066,7 @@ function DataStatusTabInternal({
                       const end = new Date(endDate);
                       const months = Math.ceil(
                         (end.getTime() - start.getTime()) /
-                        (1000 * 60 * 60 * 24 * 30),
+                          (1000 * 60 * 60 * 24 * 30),
                       );
                       const etaSeconds =
                         months > 6
@@ -3215,14 +3322,14 @@ function DataStatusTabInternal({
                       </div>
                       {heatmapData.find((d) => d.date === selectedCalendarDate)
                         ?.tooltip && (
-                          <p className="text-sm text-[var(--color-text-secondary)]">
-                            {
-                              heatmapData.find(
-                                (d) => d.date === selectedCalendarDate,
-                              )?.tooltip
-                            }
-                          </p>
-                        )}
+                        <p className="text-sm text-[var(--color-text-secondary)]">
+                          {
+                            heatmapData.find(
+                              (d) => d.date === selectedCalendarDate,
+                            )?.tooltip
+                          }
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -3404,7 +3511,8 @@ function DataStatusTabInternal({
                               fallback for legacy / non-features rows. */}
                             {isExpanded &&
                               venueData.feature_families &&
-                              Object.keys(venueData.feature_families || {}).length > 0 && (
+                              Object.keys(venueData.feature_families || {})
+                                .length > 0 && (
                                 <FeatureFamilyBreakdown
                                   feature_families={venueData.feature_families}
                                 />
@@ -3428,7 +3536,8 @@ function DataStatusTabInternal({
                               pre-Phase-8B view for legacy rows. */}
                             {isExpanded &&
                               venueData.feature_groups &&
-                              Object.keys(venueData.feature_groups || {}).length > 0 &&
+                              Object.keys(venueData.feature_groups || {})
+                                .length > 0 &&
                               !venueData.feature_families &&
                               !Object.values(venueData.feature_groups).some(
                                 (fg) => Boolean(fg.feature_family),
@@ -3438,37 +3547,46 @@ function DataStatusTabInternal({
                                     Feature Groups
                                   </div>
                                   <div className="grid gap-2">
-                                    {Object.entries(venueData.feature_groups || {}).map(
-                                      ([fgName, fgData]) => {
-                                        const fgComplete = fgData.completion_pct === 100;
-                                        return (
-                                          <div
-                                            key={fgName}
-                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              {fgComplete ? (
-                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                                              ) : (
-                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                              )}
-                                              <span className="font-mono text-sm">{fgName}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                              <span
-                                                className="text-sm font-medium"
-                                                style={{ color: getCompletionColor(fgData.completion_pct) }}
-                                              >
-                                                {fgData.completion_pct.toFixed(0)}%
-                                              </span>
-                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                                {fgData.dates_found}/{fgData.dates_expected}
-                                              </span>
-                                            </div>
+                                    {Object.entries(
+                                      venueData.feature_groups || {},
+                                    ).map(([fgName, fgData]) => {
+                                      const fgComplete =
+                                        fgData.completion_pct === 100;
+                                      return (
+                                        <div
+                                          key={fgName}
+                                          className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            {fgComplete ? (
+                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                            ) : (
+                                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                            )}
+                                            <span className="font-mono text-sm">
+                                              {fgName}
+                                            </span>
                                           </div>
-                                        );
-                                      },
-                                    )}
+                                          <div className="flex items-center gap-3">
+                                            <span
+                                              className="text-sm font-medium"
+                                              style={{
+                                                color: getCompletionColor(
+                                                  fgData.completion_pct,
+                                                ),
+                                              }}
+                                            >
+                                              {fgData.completion_pct.toFixed(0)}
+                                              %
+                                            </span>
+                                            <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                              {fgData.dates_found}/
+                                              {fgData.dates_expected}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -3476,43 +3594,53 @@ function DataStatusTabInternal({
                             {/* Expanded: Timeframe breakdown (features-* services). */}
                             {isExpanded &&
                               venueData.timeframes &&
-                              Object.keys(venueData.timeframes || {}).length > 0 && (
+                              Object.keys(venueData.timeframes || {}).length >
+                                0 && (
                                 <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
                                   <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
                                     Timeframes
                                   </div>
                                   <div className="grid gap-2">
-                                    {Object.entries(venueData.timeframes || {}).map(
-                                      ([tfName, tfData]) => {
-                                        const tfComplete = tfData.completion_pct === 100;
-                                        return (
-                                          <div
-                                            key={tfName}
-                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              {tfComplete ? (
-                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                                              ) : (
-                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                              )}
-                                              <span className="font-mono text-sm">{tfName}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                              <span
-                                                className="text-sm font-medium"
-                                                style={{ color: getCompletionColor(tfData.completion_pct) }}
-                                              >
-                                                {tfData.completion_pct.toFixed(0)}%
-                                              </span>
-                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                                {tfData.dates_found}/{tfData.dates_expected}
-                                              </span>
-                                            </div>
+                                    {Object.entries(
+                                      venueData.timeframes || {},
+                                    ).map(([tfName, tfData]) => {
+                                      const tfComplete =
+                                        tfData.completion_pct === 100;
+                                      return (
+                                        <div
+                                          key={tfName}
+                                          className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            {tfComplete ? (
+                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                            ) : (
+                                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                            )}
+                                            <span className="font-mono text-sm">
+                                              {tfName}
+                                            </span>
                                           </div>
-                                        );
-                                      },
-                                    )}
+                                          <div className="flex items-center gap-3">
+                                            <span
+                                              className="text-sm font-medium"
+                                              style={{
+                                                color: getCompletionColor(
+                                                  tfData.completion_pct,
+                                                ),
+                                              }}
+                                            >
+                                              {tfData.completion_pct.toFixed(0)}
+                                              %
+                                            </span>
+                                            <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                              {tfData.dates_found}/
+                                              {tfData.dates_expected}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -3546,7 +3674,9 @@ function DataStatusTabInternal({
           data-testid="manifest-filter-banner"
         >
           <span className="font-mono">
-            <span className="text-[var(--color-text-muted)]">Filter active:</span>{" "}
+            <span className="text-[var(--color-text-muted)]">
+              Filter active:
+            </span>{" "}
             <strong>{manifestFilter.axis}</strong>
             <span className="text-[var(--color-text-muted)]">=</span>
             <strong>{manifestFilter.value}</strong>
@@ -3598,8 +3728,12 @@ function DataStatusTabInternal({
                     {turboData.overall_completion_pct.toFixed(1)}%
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
-                    {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards
+                    {turboData.overall_shards_found ??
+                      turboData.overall_dates_found}{" "}
+                    /{" "}
+                    {turboData.overall_shards_expected ??
+                      turboData.overall_dates_expected}{" "}
+                    shards
                   </div>
                   {turboData.overall_dates_found_asset_group !== undefined && (
                     <div className="text-xs text-[var(--color-text-muted)] opacity-70">
@@ -3660,7 +3794,9 @@ function DataStatusTabInternal({
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Asset group breakdown</CardTitle>
+                <CardTitle className="text-base">
+                  Asset group breakdown
+                </CardTitle>
                 {/* Phase C: scope to shards with failure_rate > 0 */}
                 <label
                   className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer"
@@ -3680,9 +3816,7 @@ function DataStatusTabInternal({
             </CardHeader>
             <CardContent>
               {(() => {
-                const allEntries = Object.entries(
-                  turboData.asset_groups || {},
-                );
+                const allEntries = Object.entries(turboData.asset_groups || {});
                 const hasFailureData = allEntries.some(([, c]) => {
                   const fr = (c as { failure_rate?: number }).failure_rate;
                   return typeof fr === "number" && fr > 0;
@@ -3690,10 +3824,10 @@ function DataStatusTabInternal({
                 const visibleEntries =
                   showOnlyFailures && hasFailureData
                     ? allEntries.filter(([, c]) => {
-                      const fr = (c as { failure_rate?: number })
-                        .failure_rate;
-                      return typeof fr === "number" && fr > 0;
-                    })
+                        const fr = (c as { failure_rate?: number })
+                          .failure_rate;
+                        return typeof fr === "number" && fr > 0;
+                      })
                     : allEntries;
                 if (
                   showOnlyFailures &&
@@ -3709,10 +3843,7 @@ function DataStatusTabInternal({
                     </p>
                   );
                 }
-                if (
-                  showOnlyFailures &&
-                  !hasFailureData
-                ) {
+                if (showOnlyFailures && !hasFailureData) {
                   return (
                     <p
                       className="text-xs text-[var(--color-text-muted)] italic mb-3"
@@ -3729,9 +3860,8 @@ function DataStatusTabInternal({
                 {Object.entries(turboData.asset_groups || {})
                   .filter(([, catData]) => {
                     if (!showOnlyFailures) return true;
-                    const fr = (
-                      catData as { failure_rate?: number }
-                    ).failure_rate;
+                    const fr = (catData as { failure_rate?: number })
+                      .failure_rate;
                     // When no failure data exists anywhere, preserve the full
                     // list so the user isn't staring at an empty page.
                     const anyFailures = Object.values(
@@ -3743,734 +3873,1060 @@ function DataStatusTabInternal({
                     if (!anyFailures) return true;
                     return typeof fr === "number" && fr > 0;
                   })
-                  .map(
-                    ([catName, catData]) => {
-                      const isComplete = catData.completion_pct >= 100;
+                  .map(([catName, catData]) => {
+                    const isComplete = catData.completion_pct >= 100;
 
-                      return (
-                        <div key={catName} className="space-y-2">
-                          <div
-                            className="flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-secondary)] rounded px-1 -mx-1 transition-colors"
-                            onClick={() => setSelectedCategories([catName])}
-                            title={`Filter to ${catName}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {isComplete ? (
-                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                              ) : catData.error ? (
-                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                              ) : (
-                                <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                              )}
-                              <span className="font-medium">{catName}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {catData.error ? (
-                                <span className="text-sm text-[var(--color-accent-red)]">
-                                  {catData.error}
-                                </span>
-                              ) : catData.coverage_semantics ===
-                                "event_driven" ? (
-                                (() => {
-                                  const eventLabel =
-                                    formatEventDrivenCoverageLabel(
-                                      catData.attempt_coverage_pct,
-                                      catData.capture_coverage_pct,
-                                      catData.empty_rate_estimate ?? null,
-                                    );
-                                  return (
-                                    <>
-                                      <span className="text-sm text-[var(--color-text-muted)]">
-                                        {catData.overall_shards_found ?? catData.venue_dates_found ??
-                                          catData.dates_found}{" "}
-                                        /{" "}
-                                        {catData.overall_shards_expected ?? catData.venue_dates_expected ??
-                                          catData.dates_expected}{" "}
-                                        shards
-                                      </span>
-                                      <span
-                                        className="text-sm font-mono font-medium"
-                                        style={{
-                                          // Event-driven row colour follows
-                                          // captured% (real data on disk),
-                                          // not attempted%. Pre-2026-04-29
-                                          // this used completion_pct which
-                                          // for SPORTS aliases to attempted%
-                                          // and made the row look healthier
-                                          // than reality.
-                                          color: getCompletionColor(
-                                            catData.capture_coverage_pct ??
-                                            catData.completion_pct,
-                                          ),
-                                        }}
-                                        title={eventLabel.tooltip}
-                                        data-testid={`event-driven-label-${catName}`}
-                                      >
-                                        {eventLabel.text}
-                                      </span>
-                                    </>
-                                  );
-                                })()
-                              ) : (
-                                <>
-                                  <span className="text-sm text-[var(--color-text-muted)]">
-                                    {catData.overall_shards_found ?? catData.venue_dates_found ??
-                                      catData.dates_found}{" "}
-                                    /{" "}
-                                    {catData.overall_shards_expected ?? catData.venue_dates_expected ??
-                                      catData.dates_expected}{" "}
-                                    shards
-                                  </span>
-                                  <span
-                                    className="text-sm font-mono font-medium"
-                                    style={{
-                                      color: getCompletionColor(
-                                        catData.completion_pct,
-                                      ),
-                                    }}
-                                  >
-                                    {catData.completion_pct.toFixed(1)}%
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {!catData.error && (
-                            <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                              <div
-                                className="h-full transition-all duration-500"
-                                style={{
-                                  // Bar reflects captured% (real data) for
-                                  // event-driven categories so the visual
-                                  // matches the headline. Dense categories
-                                  // fall through to completion_pct since
-                                  // captured == attempted there.
-                                  width: `${catData.coverage_semantics ===
-                                      "event_driven"
-                                      ? catData.capture_coverage_pct ??
-                                      catData.completion_pct
-                                      : catData.completion_pct
-                                    }%`,
-                                  backgroundColor: getCompletionColor(
-                                    catData.coverage_semantics ===
-                                      "event_driven"
-                                      ? catData.capture_coverage_pct ??
-                                      catData.completion_pct
-                                      : catData.completion_pct,
-                                  ),
-                                }}
-                              />
-                            </div>
-                          )}
-                          {catData.dates_missing > 0 &&
-                            !catData.error &&
-                            !catData.bulk_service && (
-                              <p className="text-xs text-[var(--color-text-muted)]">
-                                {catData.dates_missing} date
-                                {catData.dates_missing !== 1 ? "s" : ""} missing
-                                {Array.isArray(catData.missing_dates) &&
-                                  catData.missing_dates.length > 0 && (
-                                    <span className="ml-1">
-                                      (e.g.,{" "}
-                                      {catData.missing_dates
-                                        .slice(0, 3)
-                                        .join(", ")}
-                                      {catData.missing_dates.length > 3
-                                        ? "..."
-                                        : ""}
-                                      )
-                                    </span>
-                                  )}
-                              </p>
+                    return (
+                      <div key={catName} className="space-y-2">
+                        <div
+                          className="flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-secondary)] rounded px-1 -mx-1 transition-colors"
+                          onClick={() => setSelectedCategories([catName])}
+                          title={`Filter to ${catName}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isComplete ? (
+                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                            ) : catData.error ? (
+                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                            ) : (
+                              <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                             )}
-                          {catData.bulk_service && (
-                            <p className="text-xs text-[var(--color-text-muted)] italic">
-                              Bulk download service — {catData.dates_found} of{" "}
-                              {catData.dates_expected} dates have data.
-                              {catData.dates_missing > 0 &&
-                                " Run the service to populate all dates."}
+                            <span className="font-medium">{catName}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {catData.error ? (
+                              <span className="text-sm text-[var(--color-accent-red)]">
+                                {catData.error}
+                              </span>
+                            ) : catData.coverage_semantics ===
+                              "event_driven" ? (
+                              (() => {
+                                const eventLabel =
+                                  formatEventDrivenCoverageLabel(
+                                    catData.attempt_coverage_pct,
+                                    catData.capture_coverage_pct,
+                                    catData.empty_rate_estimate ?? null,
+                                  );
+                                return (
+                                  <>
+                                    <span className="text-sm text-[var(--color-text-muted)]">
+                                      {catData.overall_shards_found ??
+                                        catData.venue_dates_found ??
+                                        catData.dates_found}{" "}
+                                      /{" "}
+                                      {catData.overall_shards_expected ??
+                                        catData.venue_dates_expected ??
+                                        catData.dates_expected}{" "}
+                                      shards
+                                    </span>
+                                    <span
+                                      className="text-sm font-mono font-medium"
+                                      style={{
+                                        // Event-driven row colour follows
+                                        // captured% (real data on disk),
+                                        // not attempted%. Pre-2026-04-29
+                                        // this used completion_pct which
+                                        // for SPORTS aliases to attempted%
+                                        // and made the row look healthier
+                                        // than reality.
+                                        color: getCompletionColor(
+                                          catData.capture_coverage_pct ??
+                                            catData.completion_pct,
+                                        ),
+                                      }}
+                                      title={eventLabel.tooltip}
+                                      data-testid={`event-driven-label-${catName}`}
+                                    >
+                                      {eventLabel.text}
+                                    </span>
+                                  </>
+                                );
+                              })()
+                            ) : (
+                              <>
+                                <span className="text-sm text-[var(--color-text-muted)]">
+                                  {catData.overall_shards_found ??
+                                    catData.venue_dates_found ??
+                                    catData.dates_found}{" "}
+                                  /{" "}
+                                  {catData.overall_shards_expected ??
+                                    catData.venue_dates_expected ??
+                                    catData.dates_expected}{" "}
+                                  shards
+                                </span>
+                                <span
+                                  className="text-sm font-mono font-medium"
+                                  style={{
+                                    color: getCompletionColor(
+                                      catData.completion_pct,
+                                    ),
+                                  }}
+                                >
+                                  {catData.completion_pct.toFixed(1)}%
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {!catData.error && (
+                          <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                            <div
+                              className="h-full transition-all duration-500"
+                              style={{
+                                // Bar reflects captured% (real data) for
+                                // event-driven categories so the visual
+                                // matches the headline. Dense categories
+                                // fall through to completion_pct since
+                                // captured == attempted there.
+                                width: `${
+                                  catData.coverage_semantics === "event_driven"
+                                    ? (catData.capture_coverage_pct ??
+                                      catData.completion_pct)
+                                    : catData.completion_pct
+                                }%`,
+                                backgroundColor: getCompletionColor(
+                                  catData.coverage_semantics === "event_driven"
+                                    ? (catData.capture_coverage_pct ??
+                                        catData.completion_pct)
+                                    : catData.completion_pct,
+                                ),
+                              }}
+                            />
+                          </div>
+                        )}
+                        {catData.dates_missing > 0 &&
+                          !catData.error &&
+                          !catData.bulk_service && (
+                            <p className="text-xs text-[var(--color-text-muted)]">
+                              {catData.dates_missing} date
+                              {catData.dates_missing !== 1 ? "s" : ""} missing
+                              {Array.isArray(catData.missing_dates) &&
+                                catData.missing_dates.length > 0 && (
+                                  <span className="ml-1">
+                                    (e.g.,{" "}
+                                    {catData.missing_dates
+                                      .slice(0, 3)
+                                      .join(", ")}
+                                    {catData.missing_dates.length > 3
+                                      ? "..."
+                                      : ""}
+                                    )
+                                  </span>
+                                )}
                             </p>
                           )}
+                        {catData.bulk_service && (
+                          <p className="text-xs text-[var(--color-text-muted)] italic">
+                            Bulk download service — {catData.dates_found} of{" "}
+                            {catData.dates_expected} dates have data.
+                            {catData.dates_missing > 0 &&
+                              " Run the service to populate all dates."}
+                          </p>
+                        )}
 
-                          {/* Category-level date dropdowns (for services without sub-dimensions) */}
-                          {!getSubDimensionData(catData).data &&
-                            !catData.error && (
-                              <div className="flex gap-4 mt-2">
-                                {/* Available dates dropdown (green) */}
-                                {catData.dates_found_list &&
-                                  catData.dates_found_list.length > 0 && (
-                                    <details className="flex-1">
-                                      <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                        {catData.dates_found ?? catData.dates_found_list.length} available shards
-                                      </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                          {catData.dates_found_list?.map(
-                                            (date: string) => (
-                                              <span
-                                                key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                              >
-                                                {date}
-                                              </span>
-                                            ),
-                                          )}
-                                          {catData.dates_found_truncated && (
-                                            <>
-                                              <span className="text-[9px] text-[var(--color-text-muted)]">
-                                                ...
-                                              </span>
-                                              {catData.dates_found_list_tail?.map(
-                                                (date: string) => (
-                                                  <span
-                                                    key={date}
-                                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                                  >
-                                                    {date}
-                                                  </span>
-                                                ),
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
+                        {/* Category-level date dropdowns (for services without sub-dimensions) */}
+                        {!getSubDimensionData(catData).data &&
+                          !catData.error && (
+                            <div className="flex gap-4 mt-2">
+                              {/* Available dates dropdown (green) */}
+                              {catData.dates_found_list &&
+                                catData.dates_found_list.length > 0 && (
+                                  <details className="flex-1">
+                                    <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                      {catData.dates_found ??
+                                        catData.dates_found_list.length}{" "}
+                                      available shards
+                                    </summary>
+                                    <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
+                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                        {catData.dates_found_list?.map(
+                                          (date: string) => (
+                                            <span
+                                              key={date}
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                            >
+                                              {date}
+                                            </span>
+                                          ),
+                                        )}
+                                        {catData.dates_found_truncated && (
+                                          <>
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                              ...
+                                            </span>
+                                            {catData.dates_found_list_tail?.map(
+                                              (date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ),
+                                            )}
+                                          </>
+                                        )}
                                       </div>
-                                    </details>
-                                  )}
-                                {/* Missing dates dropdown (red) */}
-                                {catData.dates_missing_list &&
-                                  catData.dates_missing_list.length > 0 && (
-                                    <details className="flex-1">
-                                      <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                        {catData.dates_missing ?? catData.dates_missing_list.length} missing shards
-                                      </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                          {catData.dates_missing_list?.map(
-                                            (date: string) => (
-                                              <span
-                                                key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                              >
-                                                {date}
-                                              </span>
-                                            ),
-                                          )}
-                                          {catData.dates_missing_truncated && (
-                                            <>
-                                              <span className="text-[9px] text-[var(--color-text-muted)]">
-                                                ...
-                                              </span>
-                                              {catData.dates_missing_list_tail?.map(
-                                                (date: string) => (
-                                                  <span
-                                                    key={date}
-                                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                                  >
-                                                    {date}
-                                                  </span>
-                                                ),
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
+                                    </div>
+                                  </details>
+                                )}
+                              {/* Missing dates dropdown (red) */}
+                              {catData.dates_missing_list &&
+                                catData.dates_missing_list.length > 0 && (
+                                  <details className="flex-1">
+                                    <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                      {catData.dates_missing ??
+                                        catData.dates_missing_list.length}{" "}
+                                      missing shards
+                                    </summary>
+                                    <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
+                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                        {catData.dates_missing_list?.map(
+                                          (date: string) => (
+                                            <span
+                                              key={date}
+                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                            >
+                                              {date}
+                                            </span>
+                                          ),
+                                        )}
+                                        {catData.dates_missing_truncated && (
+                                          <>
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                              ...
+                                            </span>
+                                            {catData.dates_missing_list_tail?.map(
+                                              (date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ),
+                                            )}
+                                          </>
+                                        )}
                                       </div>
-                                    </details>
-                                  )}
-                              </div>
-                            )}
+                                    </div>
+                                  </details>
+                                )}
+                            </div>
+                          )}
 
-                          {/* Sub-dimension breakdown (venues, data_types, feature_groups, strategies, models, etc.) */}
-                          {getSubDimensionData(catData).data && (
-                            <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
-                              {/* Folders/Instrument Types section - own bordered container */}
-                              {catData.folders &&
-                                Object.keys(catData.folders).length > 0 && (
-                                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                    <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                      Instrument Types (Folders)
-                                    </p>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                      {Object.entries(catData.folders).map(
-                                        ([folderName, folderData]) => (
-                                          <div
-                                            key={folderName}
-                                            className="bg-[var(--color-bg-tertiary)] rounded p-2"
-                                          >
-                                            <div className="flex items-center justify-between">
-                                              <span
-                                                className="text-xs font-mono truncate"
-                                                title={folderName}
-                                              >
-                                                {folderName}
-                                              </span>
-                                              <span
-                                                className="text-xs font-mono font-medium ml-1"
-                                                style={{
-                                                  color: getCompletionColor(
+                        {/* Sub-dimension breakdown (venues, data_types, feature_groups, strategies, models, etc.) */}
+                        {getSubDimensionData(catData).data && (
+                          <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
+                            {/* Folders/Instrument Types section - own bordered container */}
+                            {catData.folders &&
+                              Object.keys(catData.folders).length > 0 && (
+                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                    Instrument Types (Folders)
+                                  </p>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {Object.entries(catData.folders).map(
+                                      ([folderName, folderData]) => (
+                                        <div
+                                          key={folderName}
+                                          className="bg-[var(--color-bg-tertiary)] rounded p-2"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span
+                                              className="text-xs font-mono truncate"
+                                              title={folderName}
+                                            >
+                                              {folderName}
+                                            </span>
+                                            <span
+                                              className="text-xs font-mono font-medium ml-1"
+                                              style={{
+                                                color: getCompletionColor(
+                                                  folderData.completion_pct,
+                                                ),
+                                              }}
+                                            >
+                                              {folderData.completion_pct.toFixed(
+                                                0,
+                                              )}
+                                              %
+                                            </span>
+                                          </div>
+                                          <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1">
+                                            <div
+                                              className="h-full"
+                                              style={{
+                                                width: `${folderData.completion_pct}%`,
+                                                backgroundColor:
+                                                  getCompletionColor(
                                                     folderData.completion_pct,
                                                   ),
-                                                }}
-                                              >
-                                                {folderData.completion_pct.toFixed(
-                                                  0,
-                                                )}
-                                                %
-                                              </span>
-                                            </div>
-                                            <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1">
-                                              <div
-                                                className="h-full"
-                                                style={{
-                                                  width: `${folderData.completion_pct}%`,
-                                                  backgroundColor:
-                                                    getCompletionColor(
-                                                      folderData.completion_pct,
-                                                    ),
-                                                }}
-                                              />
-                                            </div>
-                                            <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                                              {folderData.dates_found}/
-                                              {folderData.dates_expected} shards
-                                            </div>
+                                              }}
+                                            />
                                           </div>
-                                        ),
-                                      )}
-                                    </div>
+                                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                            {folderData.dates_found}/
+                                            {folderData.dates_expected} shards
+                                          </div>
+                                        </div>
+                                      ),
+                                    )}
                                   </div>
-                                )}
+                                </div>
+                              )}
 
-                              {/* Chain breakdown for DeFi (v4) — replaces flat venue list */}
-                              {catData.chains && Object.keys(catData.chains).length > 0 && (
+                            {/* Chain breakdown for DeFi (v4) — replaces flat venue list */}
+                            {catData.chains &&
+                              Object.keys(catData.chains).length > 0 && (
                                 <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                                   <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
                                     Chains
                                   </p>
                                   <div className="space-y-0.5">
-                                    {Object.entries(catData.chains).map(([chainName, chainData]) => {
-                                      const cd = chainData as { dates_found: number; dates_expected: number; completion_pct: number; venues: string[]; venue_count: number; shards_found?: number; shards_expected?: number };
-                                      // Get per-venue data for venues in this chain
-                                      const venueData = getSubDimensionData(catData).data || {};
-                                      return (
-                                        <details key={chainName} className="group/chain">
-                                          <summary className="flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/chain:rotate-90" />
-                                            <span className="text-xs font-mono font-medium">{chainName}</span>
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">({cd.venue_count} protocols)</span>
-                                            <div className="flex-1" />
-                                            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{cd.shards_found ?? cd.dates_found}/{cd.shards_expected ?? cd.dates_expected}</span>
-                                            <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                              <div className="h-full" style={{ width: `${cd.completion_pct}%`, backgroundColor: getCompletionColor(cd.completion_pct) }} />
-                                            </div>
-                                            <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(cd.completion_pct) }}>
-                                              {formatPct(cd.completion_pct)}%
-                                            </span>
-                                          </summary>
-                                          <div className="ml-5 pl-3 border-l-2 border-[var(--color-border-subtle)] py-1 space-y-0.5">
-                                            {cd.venues.map((v: string) => {
-                                              const vd = venueData[v];
-                                              if (!vd) {
+                                    {Object.entries(catData.chains).map(
+                                      ([chainName, chainData]) => {
+                                        const cd = chainData as {
+                                          dates_found: number;
+                                          dates_expected: number;
+                                          completion_pct: number;
+                                          venues: string[];
+                                          venue_count: number;
+                                          shards_found?: number;
+                                          shards_expected?: number;
+                                        };
+                                        // Get per-venue data for venues in this chain
+                                        const venueData =
+                                          getSubDimensionData(catData).data ||
+                                          {};
+                                        return (
+                                          <details
+                                            key={chainName}
+                                            className="group/chain"
+                                          >
+                                            <summary className="flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                              <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/chain:rotate-90" />
+                                              <span className="text-xs font-mono font-medium">
+                                                {chainName}
+                                              </span>
+                                              <span className="text-[9px] text-[var(--color-text-muted)]">
+                                                ({cd.venue_count} protocols)
+                                              </span>
+                                              <div className="flex-1" />
+                                              <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                {cd.shards_found ??
+                                                  cd.dates_found}
+                                                /
+                                                {cd.shards_expected ??
+                                                  cd.dates_expected}
+                                              </span>
+                                              <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                <div
+                                                  className="h-full"
+                                                  style={{
+                                                    width: `${cd.completion_pct}%`,
+                                                    backgroundColor:
+                                                      getCompletionColor(
+                                                        cd.completion_pct,
+                                                      ),
+                                                  }}
+                                                />
+                                              </div>
+                                              <span
+                                                className="text-xs font-mono font-medium w-10 text-right"
+                                                style={{
+                                                  color: getCompletionColor(
+                                                    cd.completion_pct,
+                                                  ),
+                                                }}
+                                              >
+                                                {formatPct(cd.completion_pct)}%
+                                              </span>
+                                            </summary>
+                                            <div className="ml-5 pl-3 border-l-2 border-[var(--color-border-subtle)] py-1 space-y-0.5">
+                                              {cd.venues.map((v: string) => {
+                                                const vd = venueData[v];
+                                                if (!vd) {
+                                                  return (
+                                                    <div
+                                                      key={v}
+                                                      className="flex items-center gap-2 py-0.5 px-1.5"
+                                                    >
+                                                      <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
+                                                        {v}
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                }
+                                                const vdTyped =
+                                                  vd as TurboSubDimension;
+                                                // ``v`` is the composite "<PROTOCOL>-<CHAIN>" (e.g.
+                                                // ``EIGENLAYER-ETHEREUM``). We strip the trailing
+                                                // ``-{chainName}`` to recover the protocol — the
+                                                // /api/data-status/pools/breakdown endpoint expects
+                                                // ``venue`` (protocol) + ``chain`` separately.
+                                                const defiProtocol = v.endsWith(
+                                                  `-${chainName}`,
+                                                )
+                                                  ? v.slice(
+                                                      0,
+                                                      v.length -
+                                                        chainName.length -
+                                                        1,
+                                                    )
+                                                  : v;
+                                                // Pick the most-recent day with data — last entry of
+                                                // ``dates_found_list_tail`` (most-recent slice) or
+                                                // ``dates_found_list``. Falls back to undefined when
+                                                // the venue has zero captured days; the button is
+                                                // hidden in that case.
+                                                const defiPoolsDay =
+                                                  vdTyped
+                                                    .dates_found_list_tail?.[
+                                                    (vdTyped
+                                                      .dates_found_list_tail
+                                                      ?.length ?? 0) - 1
+                                                  ] ??
+                                                  vdTyped.dates_found_list?.[
+                                                    (vdTyped.dates_found_list
+                                                      ?.length ?? 0) - 1
+                                                  ];
                                                 return (
-                                                  <div key={v} className="flex items-center gap-2 py-0.5 px-1.5">
-                                                    <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">{v}</span>
-                                                  </div>
-                                                );
-                                              }
-                                              const vdTyped = vd as TurboSubDimension;
-                                              // ``v`` is the composite "<PROTOCOL>-<CHAIN>" (e.g.
-                                              // ``EIGENLAYER-ETHEREUM``). We strip the trailing
-                                              // ``-{chainName}`` to recover the protocol — the
-                                              // /api/data-status/pools/breakdown endpoint expects
-                                              // ``venue`` (protocol) + ``chain`` separately.
-                                              const defiProtocol = v.endsWith(`-${chainName}`)
-                                                ? v.slice(0, v.length - chainName.length - 1)
-                                                : v;
-                                              // Pick the most-recent day with data — last entry of
-                                              // ``dates_found_list_tail`` (most-recent slice) or
-                                              // ``dates_found_list``. Falls back to undefined when
-                                              // the venue has zero captured days; the button is
-                                              // hidden in that case.
-                                              const defiPoolsDay =
-                                                vdTyped.dates_found_list_tail?.[
-                                                (vdTyped.dates_found_list_tail?.length ?? 0) - 1
-                                                ] ??
-                                                vdTyped.dates_found_list?.[
-                                                (vdTyped.dates_found_list?.length ?? 0) - 1
-                                                ];
-                                              return (
-                                                <details key={v} className="group/cv">
-                                                  <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                    <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
-                                                    <span className="text-[10px] font-mono">{v}</span>
-                                                    {vdTyped.venue_start_date && (
-                                                      <span className="text-[8px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline" title={`Data starts: ${vdTyped.venue_start_date}`}>
-                                                        from {String(vdTyped.venue_start_date).substring(0, 7)}
+                                                  <details
+                                                    key={v}
+                                                    className="group/cv"
+                                                  >
+                                                    <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                      <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
+                                                      <span className="text-[10px] font-mono">
+                                                        {v}
                                                       </span>
-                                                    )}
-                                                    <div className="flex-1" />
-                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono">{vdTyped.dates_found}/{vdTyped.dates_expected_venue || vdTyped.dates_expected}</span>
-                                                    <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                                                      <div className="h-full" style={{ width: `${vdTyped.completion_pct}%`, backgroundColor: getCompletionColor(vdTyped.completion_pct) }} />
-                                                    </div>
-                                                    <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(vdTyped.completion_pct) }}>
-                                                      {formatPct(vdTyped.completion_pct)}%
-                                                    </span>
-                                                    {defiPoolsDay && (
-                                                      <button
-                                                        type="button"
-                                                        className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                        title={`View per-pool coverage breakdown for ${v} on ${defiPoolsDay}`}
-                                                        data-testid={`defi-pools-button-${v}`}
-                                                        onClick={(e) => {
-                                                          e.preventDefault();
-                                                          e.stopPropagation();
-                                                          setPoolBreakdownModal({
-                                                            venue: defiProtocol,
-                                                            chain: chainName,
-                                                            day: defiPoolsDay,
-                                                          });
-                                                        }}
-                                                      >
-                                                        pools
-                                                      </button>
-                                                    )}
-                                                  </summary>
-                                                  <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
-                                                    {/* Data types breakdown */}
-                                                    {vdTyped.data_types && Object.keys(vdTyped.data_types).length > 0 && (
-                                                      <div className="space-y-0.5">
-                                                        {Object.entries(vdTyped.data_types).map(([dtName, dtData]) => (
-                                                          <div key={dtName} className="flex items-center gap-2 py-0.5 px-1">
-                                                            <span className="text-[9px] font-mono" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
-                                                            <div className="flex-1" />
-                                                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
-                                                            <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
-                                                          </div>
-                                                        ))}
-                                                      </div>
-                                                    )}
-                                                    {/* Available / missing dates — clickable for DeFi chain→protocol. */}
-                                                    {(() => {
-                                                      const cvFoundList: string[] = vdTyped.dates_found_list ?? [];
-                                                      const cvMissingList: string[] = vdTyped.missing_dates ?? vdTyped.dates_missing_list ?? [];
-                                                      const cvMissingCount = vdTyped.dates_missing ?? cvMissingList.length;
-                                                      if (cvFoundList.length === 0 && cvMissingList.length === 0) return null;
-                                                      // For DeFi the composite venue is "<PROTOCOL>-<CHAIN>" (e.g. AAVE_V3-ETHEREUM).
-                                                      // We reach this branch under catData.chains → protocol tree so ``v`` is the
-                                                      // composite. ``data_type`` is the first known data_type for this protocol;
-                                                      // ``instrument_type`` is left as ``"AUTO"`` so the deployment-api resolves
-                                                      // it from the UAC SchemaContract registry (the click site doesn't have
-                                                      // ``instrument_type`` in scope, only ``data_type``).
-                                                      const firstDt = vdTyped.data_types
-                                                        ? Object.keys(vdTyped.data_types)[0]
-                                                        : undefined;
-                                                      const dataTypeHint = firstDt ?? "AUTO_DETECT_FAIL";
-                                                      const makeOnClick = (date: string) => () =>
-                                                        openShardDetail({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          instrument_type: "AUTO",
-                                                          data_type: dataTypeHint,
-                                                          day: date,
-                                                          venue: v,
-                                                        });
-                                                      return (
-                                                        <div className="flex gap-3 pt-0.5 border-t border-[var(--color-border-subtle)]">
-                                                          {cvFoundList.length > 0 && (
-                                                            <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                {vdTyped.dates_found} available dates
-                                                              </summary>
-                                                              <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                                {cvFoundList.map((date: string) => (
-                                                                  <button
-                                                                    key={date}
-                                                                    type="button"
-                                                                    onClick={makeOnClick(date)}
-                                                                    title={`Show shard details for ${date}`}
-                                                                    data-testid={`defi-date-found-${v}-${date}`}
-                                                                    className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                  >
-                                                                    {date}
-                                                                  </button>
-                                                                ))}
-                                                                {vdTyped.dates_found > cvFoundList.length && (
-                                                                  <span className="text-[7px] text-[var(--color-text-muted)]">
-                                                                    +{vdTyped.dates_found - cvFoundList.length} more
-                                                                  </span>
-                                                                )}
-                                                              </div>
-                                                            </details>
-                                                          )}
-                                                          {cvMissingList.length > 0 && (
-                                                            <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                {cvMissingCount} missing dates
-                                                              </summary>
-                                                              <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                                {cvMissingList.map((date: string) => (
-                                                                  <button
-                                                                    key={date}
-                                                                    type="button"
-                                                                    onClick={makeOnClick(date)}
-                                                                    title={`Show shard details (missing) for ${date}`}
-                                                                    data-testid={`defi-date-missing-${v}-${date}`}
-                                                                    className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                  >
-                                                                    {date}
-                                                                  </button>
-                                                                ))}
-                                                                {cvMissingCount > cvMissingList.length && (
-                                                                  <span className="text-[7px] text-[var(--color-text-muted)]">
-                                                                    +{cvMissingCount - cvMissingList.length} more
-                                                                  </span>
-                                                                )}
-                                                              </div>
-                                                            </details>
-                                                          )}
-                                                        </div>
-                                                      );
-                                                    })()}
-                                                    {/* Instrument breakdown link — renders inline under this protocol */}
-                                                    <div className="pt-0.5">
-                                                      <span
-                                                        className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
-                                                        onClick={() => handleVenueClick(catName, v)}
-                                                        data-testid={`defi-instrument-breakdown-toggle-${v}`}
-                                                      >
-                                                        Instrument breakdown
+                                                      {vdTyped.venue_start_date && (
+                                                        <span
+                                                          className="text-[8px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
+                                                          title={`Data starts: ${vdTyped.venue_start_date}`}
+                                                        >
+                                                          from{" "}
+                                                          {String(
+                                                            vdTyped.venue_start_date,
+                                                          ).substring(0, 7)}
+                                                        </span>
+                                                      )}
+                                                      <div className="flex-1" />
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                                                        {vdTyped.dates_found}/
+                                                        {vdTyped.dates_expected_venue ||
+                                                          vdTyped.dates_expected}
                                                       </span>
-                                                    </div>
-                                                    {venueDetailKey === `${catName}:${v}` && (
-                                                      <div className="mt-1">
-                                                        <VenueDetailPanel
-                                                          loading={venueDetailLoading}
-                                                          data={venueDetailData}
+                                                      <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                                                        <div
+                                                          className="h-full"
+                                                          style={{
+                                                            width: `${vdTyped.completion_pct}%`,
+                                                            backgroundColor:
+                                                              getCompletionColor(
+                                                                vdTyped.completion_pct,
+                                                              ),
+                                                          }}
                                                         />
                                                       </div>
-                                                    )}
-                                                  </div>
-                                                </details>
-                                              );
-                                            })}
-                                          </div>
-                                        </details>
-                                      );
-                                    })}
+                                                      <span
+                                                        className="text-[9px] font-mono w-8 text-right"
+                                                        style={{
+                                                          color:
+                                                            getCompletionColor(
+                                                              vdTyped.completion_pct,
+                                                            ),
+                                                        }}
+                                                      >
+                                                        {formatPct(
+                                                          vdTyped.completion_pct,
+                                                        )}
+                                                        %
+                                                      </span>
+                                                      {defiPoolsDay && (
+                                                        <button
+                                                          type="button"
+                                                          className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                          title={`View per-pool coverage breakdown for ${v} on ${defiPoolsDay}`}
+                                                          data-testid={`defi-pools-button-${v}`}
+                                                          onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setPoolBreakdownModal(
+                                                              {
+                                                                venue:
+                                                                  defiProtocol,
+                                                                chain:
+                                                                  chainName,
+                                                                day: defiPoolsDay,
+                                                              },
+                                                            );
+                                                          }}
+                                                        >
+                                                          pools
+                                                        </button>
+                                                      )}
+                                                    </summary>
+                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
+                                                      {/* Data types breakdown */}
+                                                      {vdTyped.data_types &&
+                                                        Object.keys(
+                                                          vdTyped.data_types,
+                                                        ).length > 0 && (
+                                                          <div className="space-y-0.5">
+                                                            {Object.entries(
+                                                              vdTyped.data_types,
+                                                            ).map(
+                                                              ([
+                                                                dtName,
+                                                                dtData,
+                                                              ]) => (
+                                                                <div
+                                                                  key={dtName}
+                                                                  className="flex items-center gap-2 py-0.5 px-1"
+                                                                >
+                                                                  <span
+                                                                    className="text-[9px] font-mono"
+                                                                    style={{
+                                                                      color:
+                                                                        getCompletionColor(
+                                                                          dtData.completion_pct,
+                                                                        ),
+                                                                    }}
+                                                                  >
+                                                                    {dtName}
+                                                                  </span>
+                                                                  <div className="flex-1" />
+                                                                  <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                    {
+                                                                      dtData.dates_found
+                                                                    }
+                                                                    /
+                                                                    {
+                                                                      dtData.dates_expected
+                                                                    }
+                                                                  </span>
+                                                                  <span
+                                                                    className="text-[8px] font-mono w-7 text-right"
+                                                                    style={{
+                                                                      color:
+                                                                        getCompletionColor(
+                                                                          dtData.completion_pct,
+                                                                        ),
+                                                                    }}
+                                                                  >
+                                                                    {formatPct(
+                                                                      dtData.completion_pct,
+                                                                    )}
+                                                                    %
+                                                                  </span>
+                                                                </div>
+                                                              ),
+                                                            )}
+                                                          </div>
+                                                        )}
+                                                      {/* Available / missing dates — clickable for DeFi chain→protocol. */}
+                                                      {(() => {
+                                                        const cvFoundList: string[] =
+                                                          vdTyped.dates_found_list ??
+                                                          [];
+                                                        const cvMissingList: string[] =
+                                                          vdTyped.missing_dates ??
+                                                          vdTyped.dates_missing_list ??
+                                                          [];
+                                                        const cvMissingCount =
+                                                          vdTyped.dates_missing ??
+                                                          cvMissingList.length;
+                                                        if (
+                                                          cvFoundList.length ===
+                                                            0 &&
+                                                          cvMissingList.length ===
+                                                            0
+                                                        )
+                                                          return null;
+                                                        // For DeFi the composite venue is "<PROTOCOL>-<CHAIN>" (e.g. AAVE_V3-ETHEREUM).
+                                                        // We reach this branch under catData.chains → protocol tree so ``v`` is the
+                                                        // composite. ``data_type`` is the first known data_type for this protocol;
+                                                        // ``instrument_type`` is left as ``"AUTO"`` so the deployment-api resolves
+                                                        // it from the UAC SchemaContract registry (the click site doesn't have
+                                                        // ``instrument_type`` in scope, only ``data_type``).
+                                                        const firstDt =
+                                                          vdTyped.data_types
+                                                            ? Object.keys(
+                                                                vdTyped.data_types,
+                                                              )[0]
+                                                            : undefined;
+                                                        const dataTypeHint =
+                                                          firstDt ??
+                                                          "AUTO_DETECT_FAIL";
+                                                        const makeOnClick =
+                                                          (date: string) =>
+                                                          () =>
+                                                            openShardDetail({
+                                                              service:
+                                                                serviceName,
+                                                              asset_group:
+                                                                catName,
+                                                              instrument_type:
+                                                                "AUTO",
+                                                              data_type:
+                                                                dataTypeHint,
+                                                              day: date,
+                                                              venue: v,
+                                                            });
+                                                        return (
+                                                          <div className="flex gap-3 pt-0.5 border-t border-[var(--color-border-subtle)]">
+                                                            {cvFoundList.length >
+                                                              0 && (
+                                                              <details>
+                                                                <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                  {
+                                                                    vdTyped.dates_found
+                                                                  }{" "}
+                                                                  available
+                                                                  dates
+                                                                </summary>
+                                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                                  {cvFoundList.map(
+                                                                    (
+                                                                      date: string,
+                                                                    ) => (
+                                                                      <button
+                                                                        key={
+                                                                          date
+                                                                        }
+                                                                        type="button"
+                                                                        onClick={makeOnClick(
+                                                                          date,
+                                                                        )}
+                                                                        title={`Show shard details for ${date}`}
+                                                                        data-testid={`defi-date-found-${v}-${date}`}
+                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                      >
+                                                                        {date}
+                                                                      </button>
+                                                                    ),
+                                                                  )}
+                                                                  {vdTyped.dates_found >
+                                                                    cvFoundList.length && (
+                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                      +
+                                                                      {vdTyped.dates_found -
+                                                                        cvFoundList.length}{" "}
+                                                                      more
+                                                                    </span>
+                                                                  )}
+                                                                </div>
+                                                              </details>
+                                                            )}
+                                                            {cvMissingList.length >
+                                                              0 && (
+                                                              <details>
+                                                                <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                  {
+                                                                    cvMissingCount
+                                                                  }{" "}
+                                                                  missing dates
+                                                                </summary>
+                                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                                  {cvMissingList.map(
+                                                                    (
+                                                                      date: string,
+                                                                    ) => (
+                                                                      <button
+                                                                        key={
+                                                                          date
+                                                                        }
+                                                                        type="button"
+                                                                        onClick={makeOnClick(
+                                                                          date,
+                                                                        )}
+                                                                        title={`Show shard details (missing) for ${date}`}
+                                                                        data-testid={`defi-date-missing-${v}-${date}`}
+                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                      >
+                                                                        {date}
+                                                                      </button>
+                                                                    ),
+                                                                  )}
+                                                                  {cvMissingCount >
+                                                                    cvMissingList.length && (
+                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                      +
+                                                                      {cvMissingCount -
+                                                                        cvMissingList.length}{" "}
+                                                                      more
+                                                                    </span>
+                                                                  )}
+                                                                </div>
+                                                              </details>
+                                                            )}
+                                                          </div>
+                                                        );
+                                                      })()}
+                                                      {/* Instrument breakdown link — renders inline under this protocol */}
+                                                      <div className="pt-0.5">
+                                                        <span
+                                                          className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                                          onClick={() =>
+                                                            handleVenueClick(
+                                                              catName,
+                                                              v,
+                                                            )
+                                                          }
+                                                          data-testid={`defi-instrument-breakdown-toggle-${v}`}
+                                                        >
+                                                          Instrument breakdown
+                                                        </span>
+                                                      </div>
+                                                      {venueDetailKey ===
+                                                        `${catName}:${v}` && (
+                                                        <div className="mt-1">
+                                                          <VenueDetailPanel
+                                                            loading={
+                                                              venueDetailLoading
+                                                            }
+                                                            data={
+                                                              venueDetailData
+                                                            }
+                                                          />
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </details>
+                                                );
+                                              })}
+                                            </div>
+                                          </details>
+                                        );
+                                      },
+                                    )}
                                   </div>
                                 </div>
                               )}
 
-                              {/* Feature group breakdown (v4) */}
-                              {catData.feature_groups && Object.keys(catData.feature_groups).length > 0 && (
+                            {/* Feature group breakdown (v4) */}
+                            {catData.feature_groups &&
+                              Object.keys(catData.feature_groups).length >
+                                0 && (
                                 <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                                   <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
                                     Feature Groups
                                   </p>
                                   <div className="space-y-0.5">
-                                    {Object.entries(catData.feature_groups).map(([fgName, fgData]) => {
-                                      const fg = fgData as { dates_found: number; dates_expected: number; completion_pct: number; timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> };
-                                      return (
-                                        <details key={fgName} className="group/fg">
-                                          <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/fg:rotate-90" />
-                                            <span className="text-xs font-mono">{fgName}</span>
-                                            <div className="flex-1" />
-                                            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{fg.dates_found}/{fg.dates_expected}</span>
-                                            <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                              <div className="h-full" style={{ width: `${fg.completion_pct}%`, backgroundColor: getCompletionColor(fg.completion_pct) }} />
-                                            </div>
-                                            <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(fg.completion_pct) }}>
-                                              {formatPct(fg.completion_pct)}%
-                                            </span>
-                                          </summary>
-                                          {fg.timeframes && Object.keys(fg.timeframes).length > 0 && (
-                                            <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
-                                              {Object.entries(fg.timeframes).map(([tf, tfData]) => (
-                                                <div key={tf} className="flex items-center gap-2 py-0.5 px-1.5">
-                                                  <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">{tf}</span>
-                                                  <div className="flex-1" />
-                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono">{tfData.dates_found}/{tfData.dates_expected}</span>
-                                                  <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                                    <div className="h-full" style={{ width: `${tfData.completion_pct}%`, backgroundColor: getCompletionColor(tfData.completion_pct) }} />
-                                                  </div>
-                                                  <span className="text-[9px] font-mono w-8 text-right" style={{ color: getCompletionColor(tfData.completion_pct) }}>
-                                                    {formatPct(tfData.completion_pct)}%
-                                                  </span>
+                                    {Object.entries(catData.feature_groups).map(
+                                      ([fgName, fgData]) => {
+                                        const fg = fgData as {
+                                          dates_found: number;
+                                          dates_expected: number;
+                                          completion_pct: number;
+                                          timeframes?: Record<
+                                            string,
+                                            {
+                                              dates_found: number;
+                                              dates_expected: number;
+                                              completion_pct: number;
+                                            }
+                                          >;
+                                        };
+                                        return (
+                                          <details
+                                            key={fgName}
+                                            className="group/fg"
+                                          >
+                                            <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                              <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/fg:rotate-90" />
+                                              <span className="text-xs font-mono">
+                                                {fgName}
+                                              </span>
+                                              <div className="flex-1" />
+                                              <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                {fg.dates_found}/
+                                                {fg.dates_expected}
+                                              </span>
+                                              <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                <div
+                                                  className="h-full"
+                                                  style={{
+                                                    width: `${fg.completion_pct}%`,
+                                                    backgroundColor:
+                                                      getCompletionColor(
+                                                        fg.completion_pct,
+                                                      ),
+                                                  }}
+                                                />
+                                              </div>
+                                              <span
+                                                className="text-xs font-mono font-medium w-10 text-right"
+                                                style={{
+                                                  color: getCompletionColor(
+                                                    fg.completion_pct,
+                                                  ),
+                                                }}
+                                              >
+                                                {formatPct(fg.completion_pct)}%
+                                              </span>
+                                            </summary>
+                                            {fg.timeframes &&
+                                              Object.keys(fg.timeframes)
+                                                .length > 0 && (
+                                                <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
+                                                  {Object.entries(
+                                                    fg.timeframes,
+                                                  ).map(([tf, tfData]) => (
+                                                    <div
+                                                      key={tf}
+                                                      className="flex items-center gap-2 py-0.5 px-1.5"
+                                                    >
+                                                      <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
+                                                        {tf}
+                                                      </span>
+                                                      <div className="flex-1" />
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                                                        {tfData.dates_found}/
+                                                        {tfData.dates_expected}
+                                                      </span>
+                                                      <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                        <div
+                                                          className="h-full"
+                                                          style={{
+                                                            width: `${tfData.completion_pct}%`,
+                                                            backgroundColor:
+                                                              getCompletionColor(
+                                                                tfData.completion_pct,
+                                                              ),
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      <span
+                                                        className="text-[9px] font-mono w-8 text-right"
+                                                        style={{
+                                                          color:
+                                                            getCompletionColor(
+                                                              tfData.completion_pct,
+                                                            ),
+                                                        }}
+                                                      >
+                                                        {formatPct(
+                                                          tfData.completion_pct,
+                                                        )}
+                                                        %
+                                                      </span>
+                                                    </div>
+                                                  ))}
                                                 </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </details>
-                                      );
-                                    })}
+                                              )}
+                                          </details>
+                                        );
+                                      },
+                                    )}
                                   </div>
                                 </div>
                               )}
 
-                              {/* Sub-dimension section - own bordered container (hidden when chains present — chain view replaces it) */}
-                              {!(catData.chains && Object.keys(catData.chains).length > 0) && (
-                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
-                                      {getSubDimensionData(catData).label}
-                                    </p>
-                                    {/* Venue Summary Badges */}
-                                    {catData.venue_summary && (
-                                      <div className="flex items-center gap-2 text-xs">
-                                        {catData.venue_summary
-                                          .expected_coverage_pct === 100 ? (
-                                          <Badge
-                                            variant="outline"
-                                            className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                            {/* Sub-dimension section - own bordered container (hidden when chains present — chain view replaces it) */}
+                            {!(
+                              catData.chains &&
+                              Object.keys(catData.chains).length > 0
+                            ) && (
+                              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
+                                    {getSubDimensionData(catData).label}
+                                  </p>
+                                  {/* Venue Summary Badges */}
+                                  {catData.venue_summary && (
+                                    <div className="flex items-center gap-2 text-xs">
+                                      {catData.venue_summary
+                                        .expected_coverage_pct === 100 ? (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                        >
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          All{" "}
+                                          {catData.venue_summary.expected_count}{" "}
+                                          expected
+                                        </Badge>
+                                      ) : (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)] cursor-help"
+                                          title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
+                                        >
+                                          <XCircle className="h-3 w-3 mr-1" />
+                                          {
+                                            catData.venue_summary
+                                              .expected_but_missing.length
+                                          }{" "}
+                                          expected missing
+                                        </Badge>
+                                      )}
+                                      {catData.venue_summary
+                                        .unexpected_but_found.length > 0 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                        >
+                                          +
+                                          {
+                                            catData.venue_summary
+                                              .unexpected_but_found.length
+                                          }{" "}
+                                          bonus
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Show missing venues inline */}
+                                {catData.venue_summary &&
+                                  catData.venue_summary.expected_but_missing
+                                    .length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                      <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
+                                        Missing:
+                                      </span>
+                                      {catData.venue_summary.expected_but_missing.map(
+                                        (venue: string) => (
+                                          <span
+                                            key={venue}
+                                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                           >
-                                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                                            All{" "}
-                                            {catData.venue_summary.expected_count}{" "}
-                                            expected
-                                          </Badge>
-                                        ) : (
-                                          <Badge
-                                            variant="outline"
-                                            className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)] cursor-help"
-                                            title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
-                                          >
-                                            <XCircle className="h-3 w-3 mr-1" />
-                                            {
-                                              catData.venue_summary
-                                                .expected_but_missing.length
-                                            }{" "}
-                                            expected missing
-                                          </Badge>
-                                        )}
-                                        {catData.venue_summary.unexpected_but_found
-                                          .length > 0 && (
-                                            <Badge
-                                              variant="outline"
-                                              className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
-                                            >
-                                              +
-                                              {
-                                                catData.venue_summary
-                                                  .unexpected_but_found.length
-                                              }{" "}
-                                              bonus
-                                            </Badge>
-                                          )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {/* Show missing venues inline */}
-                                  {catData.venue_summary &&
-                                    catData.venue_summary.expected_but_missing
-                                      .length > 0 && (
-                                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                        <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
-                                          Missing:
-                                        </span>
-                                        {catData.venue_summary.expected_but_missing.map(
-                                          (venue: string) => (
-                                            <span
-                                              key={venue}
-                                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                            >
-                                              {venue}
-                                            </span>
-                                          ),
-                                        )}
-                                      </div>
-                                    )}
+                                            {venue}
+                                          </span>
+                                        ),
+                                      )}
+                                    </div>
+                                  )}
 
-                                  <div className="space-y-0.5">
-                                    {Object.entries(
-                                      getSubDimensionData(catData).data || {},
-                                    ).map(([name, subData]) => {
-                                      const expectedDates =
-                                        subData.dates_expected_venue ||
-                                        subData.dates_expected;
-                                      const venueStartDate =
-                                        subData.venue_start_date;
-                                      const foundList =
-                                        subData.dates_found_list ?? [];
-                                      const missingList =
-                                        subData.missing_dates ??
-                                        subData.dates_missing_list ??
-                                        [];
-                                      const missingCount =
-                                        subData.dates_missing ??
-                                        subData.dates_missing_count ??
-                                        missingList.length;
-                                      const hasDataTypes = subData.data_types && Object.keys(subData.data_types).length > 0;
-                                      const hasInstrumentTypes = subData.instrument_types && Object.keys(subData.instrument_types).length > 0;
-                                      const hasLeagues = subData.leagues && Object.keys(subData.leagues).length > 0;
-                                      // MTDS honest-coverage — deployment-api's `_apply_mtds_honest_coverage`
-                                      // emits `missing_data_types` / `expected_data_types` / `honest_data_types`
-                                      // per venue. These are UAC-declared data types this venue should
-                                      // publish but where we observed zero shards, independent of day-level
-                                      // coverage. Absent for non-MTDS services.
-                                      const missingDataTypes = subData.missing_data_types ?? [];
-                                      const expectedDataTypes = subData.expected_data_types ?? [];
-                                      const honestDataTypes = subData.honest_data_types ?? {};
-                                      const honestDataTypeEntries = Object.entries(honestDataTypes);
-                                      const hasMissingDataTypes = missingDataTypes.length > 0;
-                                      const hasHonestDataTypes = honestDataTypeEntries.length > 0;
-                                      // Phase-1 four-state aggregation across this venue's data_types
-                                      // (deployment-api commit c73c732). Blocked-on-raw counts are
-                                      // non-actionable for this row (the fix is upstream raw); the
-                                      // out-of-scope flag lets us gray rows where every dt is
-                                      // EXPECTED_COVERAGE-omitted (e.g. NASDAQ trades on TradFi).
-                                      const dtEntries = Object.entries(subData.data_types ?? {});
-                                      const blockedOnRawTotal = dtEntries.reduce(
-                                        (acc, [, dt]) => acc + (dt.dates_blocked_on_raw ?? 0),
-                                        0,
+                                <div className="space-y-0.5">
+                                  {Object.entries(
+                                    getSubDimensionData(catData).data || {},
+                                  ).map(([name, subData]) => {
+                                    const expectedDates =
+                                      subData.dates_expected_venue ||
+                                      subData.dates_expected;
+                                    const venueStartDate =
+                                      subData.venue_start_date;
+                                    const foundList =
+                                      subData.dates_found_list ?? [];
+                                    const missingList =
+                                      subData.missing_dates ??
+                                      subData.dates_missing_list ??
+                                      [];
+                                    const missingCount =
+                                      subData.dates_missing ??
+                                      subData.dates_missing_count ??
+                                      missingList.length;
+                                    const hasDataTypes =
+                                      subData.data_types &&
+                                      Object.keys(subData.data_types).length >
+                                        0;
+                                    const hasInstrumentTypes =
+                                      subData.instrument_types &&
+                                      Object.keys(subData.instrument_types)
+                                        .length > 0;
+                                    const hasLeagues =
+                                      subData.leagues &&
+                                      Object.keys(subData.leagues).length > 0;
+                                    // MTDS honest-coverage — deployment-api's `_apply_mtds_honest_coverage`
+                                    // emits `missing_data_types` / `expected_data_types` / `honest_data_types`
+                                    // per venue. These are UAC-declared data types this venue should
+                                    // publish but where we observed zero shards, independent of day-level
+                                    // coverage. Absent for non-MTDS services.
+                                    const missingDataTypes =
+                                      subData.missing_data_types ?? [];
+                                    const expectedDataTypes =
+                                      subData.expected_data_types ?? [];
+                                    const honestDataTypes =
+                                      subData.honest_data_types ?? {};
+                                    const honestDataTypeEntries =
+                                      Object.entries(honestDataTypes);
+                                    const hasMissingDataTypes =
+                                      missingDataTypes.length > 0;
+                                    const hasHonestDataTypes =
+                                      honestDataTypeEntries.length > 0;
+                                    // Phase-1 four-state aggregation across this venue's data_types
+                                    // (deployment-api commit c73c732). Blocked-on-raw counts are
+                                    // non-actionable for this row (the fix is upstream raw); the
+                                    // out-of-scope flag lets us gray rows where every dt is
+                                    // EXPECTED_COVERAGE-omitted (e.g. NASDAQ trades on TradFi).
+                                    const dtEntries = Object.entries(
+                                      subData.data_types ?? {},
+                                    );
+                                    const blockedOnRawTotal = dtEntries.reduce(
+                                      (acc, [, dt]) =>
+                                        acc + (dt.dates_blocked_on_raw ?? 0),
+                                      0,
+                                    );
+                                    const allOutOfScope =
+                                      dtEntries.length > 0 &&
+                                      dtEntries.every(
+                                        ([, dt]) => dt.out_of_scope === true,
                                       );
-                                      const allOutOfScope =
-                                        dtEntries.length > 0 &&
-                                        dtEntries.every(([, dt]) => dt.out_of_scope === true);
-                                      const hasBlockedOnRaw = blockedOnRawTotal > 0;
+                                    const hasBlockedOnRaw =
+                                      blockedOnRawTotal > 0;
 
-                                      return (
-                                        <details key={name} className="group/venue rounded bg-[var(--color-bg-tertiary)]">
-                                          <summary
-                                            className={cn(
-                                              "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
-                                              subData.status === "bonus" && "opacity-60 border border-dashed border-[var(--color-border)]",
-                                              allOutOfScope && "opacity-50 grayscale",
-                                            )}
+                                    return (
+                                      <details
+                                        key={name}
+                                        className="group/venue rounded bg-[var(--color-bg-tertiary)]"
+                                      >
+                                        <summary
+                                          className={cn(
+                                            "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
+                                            subData.status === "bonus" &&
+                                              "opacity-60 border border-dashed border-[var(--color-border)]",
+                                            allOutOfScope &&
+                                              "opacity-50 grayscale",
+                                          )}
+                                        >
+                                          <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
+                                          <span
+                                            className="text-xs font-mono truncate min-w-0"
+                                            title={name}
                                           >
-                                            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
-                                            <span className="text-xs font-mono truncate min-w-0" title={name}>{name}</span>
-                                            {subData.status === "bonus" && (
-                                              <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">bonus</span>
-                                            )}
-                                            {allOutOfScope && (
-                                              <span
-                                                className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-                                                title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
-                                                data-testid="out-of-scope-badge"
-                                              >
-                                                out of scope
-                                              </span>
-                                            )}
-                                            {hasMissingDataTypes && (
-                                              <span
-                                                className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                                title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
-                                                data-testid="missing-data-types-badge"
-                                              >
-                                                {missingDataTypes.length} data {missingDataTypes.length === 1 ? "type" : "types"} missing
-                                              </span>
-                                            )}
-                                            {hasBlockedOnRaw && (
-                                              <span
-                                                className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
-                                                title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
-                                                data-testid="blocked-on-raw-badge"
-                                              >
-                                                {blockedOnRawTotal} blocked on raw
-                                              </span>
-                                            )}
-                                            {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
+                                            {name}
+                                          </span>
+                                          {subData.status === "bonus" && (
+                                            <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
+                                              bonus
+                                            </span>
+                                          )}
+                                          {allOutOfScope && (
+                                            <span
+                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                              title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
+                                              data-testid="out-of-scope-badge"
+                                            >
+                                              out of scope
+                                            </span>
+                                          )}
+                                          {hasMissingDataTypes && (
+                                            <span
+                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                              title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
+                                              data-testid="missing-data-types-badge"
+                                            >
+                                              {missingDataTypes.length} data{" "}
+                                              {missingDataTypes.length === 1
+                                                ? "type"
+                                                : "types"}{" "}
+                                              missing
+                                            </span>
+                                          )}
+                                          {hasBlockedOnRaw && (
+                                            <span
+                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
+                                              title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
+                                              data-testid="blocked-on-raw-badge"
+                                            >
+                                              {blockedOnRawTotal} blocked on raw
+                                            </span>
+                                          )}
+                                          {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
                                                 empty_reasons closed taxonomies) + failure-pillar stacked
                                                 bar. Both auto-suppress when every count is zero so the
                                                 summary line stays compact for healthy venues. Click on a
@@ -4478,189 +4934,255 @@ function DataStatusTabInternal({
                                                 representative leaf parquet (most-recent captured day,
                                                 first data_type, AUTO instrument_type — deployment-api's
                                                 /leaf-stats resolves via _gcs_path_for_shard). */}
-                                            <TypedReasonBadges
-                                              emptyReasons={subData.empty_reasons}
-                                              failurePillars={subData.failure_pillars}
-                                              testIdPrefix={`venue-${name}`}
-                                              onBadgeClick={() => {
-                                                const firstDt = subData.data_types
-                                                  ? Object.keys(subData.data_types)[0]
-                                                  : undefined;
-                                                const anchorDay =
-                                                  foundList.length > 0
-                                                    ? foundList[foundList.length - 1]
-                                                    : null;
-                                                if (!firstDt || !anchorDay) return;
-                                                setLeafSchemaCoord({
-                                                  service: serviceName,
-                                                  asset_group: catName,
-                                                  instrument_type: "AUTO",
-                                                  data_type: firstDt,
-                                                  day: anchorDay,
-                                                  venue: name,
-                                                });
-                                              }}
-                                            />
-                                            <FailurePillarStack
-                                              failurePillars={subData.failure_pillars}
-                                              testIdPrefix={`venue-${name}`}
-                                            />
-                                            {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
-                                            {(() => {
-                                              const firstDt =
-                                                subData.data_types &&
-                                                Object.keys(subData.data_types)[0];
+                                          <TypedReasonBadges
+                                            emptyReasons={subData.empty_reasons}
+                                            failurePillars={
+                                              subData.failure_pillars
+                                            }
+                                            testIdPrefix={`venue-${name}`}
+                                            onBadgeClick={() => {
+                                              const firstDt = subData.data_types
+                                                ? Object.keys(
+                                                    subData.data_types,
+                                                  )[0]
+                                                : undefined;
                                               const anchorDay =
-                                                (foundList.length > 0
-                                                  ? foundList[foundList.length - 1]
-                                                  : null) ?? null;
-                                              if (!firstDt || !anchorDay) return null;
-                                              return (
-                                                <BucketCountsBadge
-                                                  service={serviceName}
-                                                  asset_group={catName}
-                                                  venue={name}
-                                                  day={anchorDay}
-                                                  data_type={firstDt}
-                                                />
+                                                foundList.length > 0
+                                                  ? foundList[
+                                                      foundList.length - 1
+                                                    ]
+                                                  : null;
+                                              if (!firstDt || !anchorDay)
+                                                return;
+                                              setLeafSchemaCoord({
+                                                service: serviceName,
+                                                asset_group: catName,
+                                                instrument_type: "AUTO",
+                                                data_type: firstDt,
+                                                day: anchorDay,
+                                                venue: name,
+                                              });
+                                            }}
+                                          />
+                                          <FailurePillarStack
+                                            failurePillars={
+                                              subData.failure_pillars
+                                            }
+                                            testIdPrefix={`venue-${name}`}
+                                          />
+                                          {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
+                                          {(() => {
+                                            const firstDt =
+                                              subData.data_types &&
+                                              Object.keys(
+                                                subData.data_types,
+                                              )[0];
+                                            const anchorDay =
+                                              (foundList.length > 0
+                                                ? foundList[
+                                                    foundList.length - 1
+                                                  ]
+                                                : null) ?? null;
+                                            if (!firstDt || !anchorDay)
+                                              return null;
+                                            return (
+                                              <BucketCountsBadge
+                                                service={serviceName}
+                                                asset_group={catName}
+                                                venue={name}
+                                                day={anchorDay}
+                                                data_type={firstDt}
+                                              />
+                                            );
+                                          })()}
+                                          <div className="flex-1" />
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            {venueStartDate && (
+                                              <span
+                                                className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
+                                                title={`Data starts: ${venueStartDate}`}
+                                              >
+                                                from{" "}
+                                                {venueStartDate.substring(0, 7)}
+                                              </span>
+                                            )}
+                                            {(() => {
+                                              const isRate = isRateMetricRow(
+                                                subData.dates_found,
+                                                expectedDates,
                                               );
-                                            })()}
-                                            <div className="flex-1" />
-                                            <div className="flex items-center gap-2 shrink-0">
-                                              {venueStartDate && (
-                                                <span className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline" title={`Data starts: ${venueStartDate}`}>
-                                                  from {venueStartDate.substring(0, 7)}
-                                                </span>
-                                              )}
-                                              {(() => {
-                                                const isRate = isRateMetricRow(subData.dates_found, expectedDates);
-                                                if (isRate) {
-                                                  // Numerator is row count; denominator is day count.
-                                                  // Show rate-per-day instead of a bogus 100% bar.
-                                                  return (
-                                                    <>
-                                                      <span
-                                                        className="text-[10px] text-[var(--color-text-muted)] font-mono"
-                                                        title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
-                                                      >
-                                                        {subData.dates_found.toLocaleString()} rows / {expectedDates} days
-                                                      </span>
-                                                      <div
-                                                        className="w-16 h-1.5 rounded-full overflow-hidden"
-                                                        style={{
-                                                          backgroundImage:
-                                                            "repeating-linear-gradient(45deg, var(--color-bg-secondary) 0 4px, var(--color-border-subtle) 4px 8px)",
-                                                        }}
-                                                        data-rate-metric="true"
-                                                      />
-                                                      <span
-                                                        className="text-xs font-mono font-medium w-14 text-right"
-                                                        style={{ color: getRateMetricColor() }}
-                                                        data-rate-metric="true"
-                                                      >
-                                                        {formatRatePerDay(subData.dates_found, expectedDates)}
-                                                      </span>
-                                                    </>
-                                                  );
-                                                }
+                                              if (isRate) {
+                                                // Numerator is row count; denominator is day count.
+                                                // Show rate-per-day instead of a bogus 100% bar.
                                                 return (
                                                   <>
-                                                    <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                                                      {subData.dates_found}/{expectedDates}
+                                                    <span
+                                                      className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                                                      title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
+                                                    >
+                                                      {subData.dates_found.toLocaleString()}{" "}
+                                                      rows / {expectedDates}{" "}
+                                                      days
                                                     </span>
-                                                    <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                                      <div className="h-full" style={{ width: `${subData.completion_pct}%`, backgroundColor: getCompletionColor(subData.completion_pct) }} />
-                                                    </div>
-                                                    <span className="text-xs font-mono font-medium w-10 text-right" style={{ color: getCompletionColor(subData.completion_pct) }}>
-                                                      {formatPct(subData.completion_pct)}%
+                                                    <div
+                                                      className="w-16 h-1.5 rounded-full overflow-hidden"
+                                                      style={{
+                                                        backgroundImage:
+                                                          "repeating-linear-gradient(45deg, var(--color-bg-secondary) 0 4px, var(--color-border-subtle) 4px 8px)",
+                                                      }}
+                                                      data-rate-metric="true"
+                                                    />
+                                                    <span
+                                                      className="text-xs font-mono font-medium w-14 text-right"
+                                                      style={{
+                                                        color:
+                                                          getRateMetricColor(),
+                                                      }}
+                                                      data-rate-metric="true"
+                                                    >
+                                                      {formatRatePerDay(
+                                                        subData.dates_found,
+                                                        expectedDates,
+                                                      )}
                                                     </span>
                                                   </>
                                                 );
-                                              })()}
-                                              {(() => {
-                                                const firstDt = subData.data_types ? Object.keys(subData.data_types)[0] : undefined;
-                                                // Empty data_type triggers the backend's
-                                                // ``instrument_catalogue`` synthesis branch for
-                                                // instruments-service so the venue-level click
-                                                // resolves to the registered
-                                                // ``CONTRACT_REGISTRY[("tradfi",
-                                                // "instrument_catalogue", "instrument_catalogue")]``
-                                                // contract. The previous "AUTO" placeholder
-                                                // literal broke the synthesis and made every
-                                                // instruments-service venue schema view return
-                                                // "no schema yet".
-                                                const schemaDt = catName === "SPORTS" ? name : (firstDt ?? "");
-                                                const schemaVenue = catName === "SPORTS" ? "" : name;
-                                                return (
-                                                  <button
-                                                    type="button"
-                                                    className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                    title={catName === "SPORTS"
+                                              }
+                                              return (
+                                                <>
+                                                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                    {subData.dates_found}/
+                                                    {expectedDates}
+                                                  </span>
+                                                  <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                    <div
+                                                      className="h-full"
+                                                      style={{
+                                                        width: `${subData.completion_pct}%`,
+                                                        backgroundColor:
+                                                          getCompletionColor(
+                                                            subData.completion_pct,
+                                                          ),
+                                                      }}
+                                                    />
+                                                  </div>
+                                                  <span
+                                                    className="text-xs font-mono font-medium w-10 text-right"
+                                                    style={{
+                                                      color: getCompletionColor(
+                                                        subData.completion_pct,
+                                                      ),
+                                                    }}
+                                                  >
+                                                    {formatPct(
+                                                      subData.completion_pct,
+                                                    )}
+                                                    %
+                                                  </span>
+                                                </>
+                                              );
+                                            })()}
+                                            {(() => {
+                                              const firstDt = subData.data_types
+                                                ? Object.keys(
+                                                    subData.data_types,
+                                                  )[0]
+                                                : undefined;
+                                              // Empty data_type triggers the backend's
+                                              // ``instrument_catalogue`` synthesis branch for
+                                              // instruments-service so the venue-level click
+                                              // resolves to the registered
+                                              // ``CONTRACT_REGISTRY[("tradfi",
+                                              // "instrument_catalogue", "instrument_catalogue")]``
+                                              // contract. The previous "AUTO" placeholder
+                                              // literal broke the synthesis and made every
+                                              // instruments-service venue schema view return
+                                              // "no schema yet".
+                                              const schemaDt =
+                                                catName === "SPORTS"
+                                                  ? name
+                                                  : (firstDt ?? "");
+                                              const schemaVenue =
+                                                catName === "SPORTS"
+                                                  ? ""
+                                                  : name;
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                  title={
+                                                    catName === "SPORTS"
                                                       ? `View ${name} schema`
                                                       : firstDt
                                                         ? `View ${name} schema (${firstDt})`
-                                                        : `View ${name} schema`}
-                                                    onClick={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      setSchemaModal({
-                                                        service: serviceName,
-                                                        asset_group: catName,
-                                                        venue: schemaVenue,
-                                                        instrument_type: "",
-                                                        data_type: schemaDt,
-                                                      });
-                                                    }}
-                                                  >
-                                                    schema
-                                                  </button>
-                                                );
-                                              })()}
-                                            </div>
-                                          </summary>
+                                                        : `View ${name} schema`
+                                                  }
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setSchemaModal({
+                                                      service: serviceName,
+                                                      asset_group: catName,
+                                                      venue: schemaVenue,
+                                                      instrument_type: "",
+                                                      data_type: schemaDt,
+                                                    });
+                                                  }}
+                                                >
+                                                  schema
+                                                </button>
+                                              );
+                                            })()}
+                                          </div>
+                                        </summary>
 
-                                          {/* Expanded: hierarchical sub-breakdown */}
-                                          <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
-                                            {/* MTDS honest-coverage per-data-type panel (deployment-api 9d21ac8):
+                                        {/* Expanded: hierarchical sub-breakdown */}
+                                        <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
+                                          {/* MTDS honest-coverage per-data-type panel (deployment-api 9d21ac8):
                                             lists declared data types with zero found shards + a
                                             per-data-type table showing found/expected shards and
                                             completion. Additive — does not replace the legacy
                                             `data_types` block below. */}
-                                            {(hasMissingDataTypes || hasHonestDataTypes) && (
-                                              <div
-                                                className="space-y-1 pt-1 pb-1 border-b border-[var(--color-border-subtle)]"
-                                                data-testid="honest-coverage-panel"
-                                              >
-                                                <div className="flex items-baseline gap-2">
-                                                  <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                    Honest coverage (data types)
-                                                  </span>
-                                                  {subData.honest_axis && (
-                                                    <span
-                                                      className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
-                                                      title={`Shards are counted along ${subData.honest_axis}`}
-                                                    >
-                                                      {subData.honest_axis}
-                                                    </span>
-                                                  )}
-                                                  {expectedDataTypes.length > 0 && (
-                                                    <span
-                                                      className="text-[8px] text-[var(--color-text-muted)] opacity-70"
-                                                      title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
-                                                    >
-                                                      {expectedDataTypes.length} declared
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                {hasMissingDataTypes && (
-                                                  <div
-                                                    className="flex flex-wrap items-center gap-1"
-                                                    data-testid="missing-data-types-list"
+                                          {(hasMissingDataTypes ||
+                                            hasHonestDataTypes) && (
+                                            <div
+                                              className="space-y-1 pt-1 pb-1 border-b border-[var(--color-border-subtle)]"
+                                              data-testid="honest-coverage-panel"
+                                            >
+                                              <div className="flex items-baseline gap-2">
+                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                  Honest coverage (data types)
+                                                </span>
+                                                {subData.honest_axis && (
+                                                  <span
+                                                    className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
+                                                    title={`Shards are counted along ${subData.honest_axis}`}
                                                   >
-                                                    <span className="text-[9px] text-[var(--color-accent-red)]">
-                                                      Missing ({missingDataTypes.length}):
-                                                    </span>
-                                                    {missingDataTypes.map((dt) => (
+                                                    {subData.honest_axis}
+                                                  </span>
+                                                )}
+                                                {expectedDataTypes.length >
+                                                  0 && (
+                                                  <span
+                                                    className="text-[8px] text-[var(--color-text-muted)] opacity-70"
+                                                    title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
+                                                  >
+                                                    {expectedDataTypes.length}{" "}
+                                                    declared
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {hasMissingDataTypes && (
+                                                <div
+                                                  className="flex flex-wrap items-center gap-1"
+                                                  data-testid="missing-data-types-list"
+                                                >
+                                                  <span className="text-[9px] text-[var(--color-accent-red)]">
+                                                    Missing (
+                                                    {missingDataTypes.length}):
+                                                  </span>
+                                                  {missingDataTypes.map(
+                                                    (dt) => (
                                                       <span
                                                         key={dt}
                                                         className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
@@ -4668,53 +5190,86 @@ function DataStatusTabInternal({
                                                       >
                                                         {dt}
                                                       </span>
-                                                    ))}
-                                                  </div>
-                                                )}
-                                                {hasHonestDataTypes && (
-                                                  <div
-                                                    className="space-y-0.5"
-                                                    data-testid="honest-data-types-table"
-                                                  >
-                                                    {honestDataTypeEntries.map(([dtName, dtData]) => {
-                                                      const found = dtData.found_shards;
-                                                      const expected = dtData.expected_shards;
-                                                      const pct = dtData.completion_pct;
+                                                    ),
+                                                  )}
+                                                </div>
+                                              )}
+                                              {hasHonestDataTypes && (
+                                                <div
+                                                  className="space-y-0.5"
+                                                  data-testid="honest-data-types-table"
+                                                >
+                                                  {honestDataTypeEntries.map(
+                                                    ([dtName, dtData]) => {
+                                                      const found =
+                                                        dtData.found_shards;
+                                                      const expected =
+                                                        dtData.expected_shards;
+                                                      const pct =
+                                                        dtData.completion_pct;
                                                       // Phase 8H: unit discriminator — distinguishes
                                                       // per-instrument Tier-3 shards from venue-level
                                                       // shards and legacy pre-Phase-8C denominators.
-                                                      const rawUnit = dtData.unit ?? "shard_days";
-                                                      const isPerInstrument = rawUnit === "shard_instrument_days";
-                                                      const isLegacy = rawUnit === "shard_days_legacy";
-                                                      const unitLabel = isPerInstrument
-                                                        ? "per-instrument"
-                                                        : isLegacy
-                                                          ? "legacy"
-                                                          : "venue-level";
-                                                      const unitBadgeClass = isPerInstrument
-                                                        ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                                                        : isLegacy
-                                                          ? "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
-                                                          : "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
-                                                      const unitBadgeTitle = isLegacy
-                                                        ? "pre-Phase-8C manifest — migration in progress (denominator degraded to venue-level shard_days until ManifestWriter backfills instrument_id)"
-                                                        : isPerInstrument
-                                                          ? `Tier-3 per-instrument data_type — shards counted per (venue, instrument, date)${typeof dtData.legacy_row_count === "number" ? ` (legacy_row_count=${dtData.legacy_row_count})` : ""}`
-                                                          : "Venue-level data_type — shards counted per (venue, date)";
-                                                      const missingInstruments = dtData.missing_instruments ?? [];
-                                                      const expectedInstruments = dtData.expected_instruments ?? [];
-                                                      const perInstrument = dtData.per_instrument;
-                                                      const perInstrumentEntries = perInstrument
-                                                        ? Object.entries(perInstrument)
-                                                        : [];
-                                                      const hasMissingInstruments = missingInstruments.length > 0;
-                                                      const hasPerInstrument = perInstrumentEntries.length > 0;
-                                                      const hasPhase8Detail = hasMissingInstruments || hasPerInstrument;
+                                                      const rawUnit =
+                                                        dtData.unit ??
+                                                        "shard_days";
+                                                      const isPerInstrument =
+                                                        rawUnit ===
+                                                        "shard_instrument_days";
+                                                      const isLegacy =
+                                                        rawUnit ===
+                                                        "shard_days_legacy";
+                                                      const unitLabel =
+                                                        isPerInstrument
+                                                          ? "per-instrument"
+                                                          : isLegacy
+                                                            ? "legacy"
+                                                            : "venue-level";
+                                                      const unitBadgeClass =
+                                                        isPerInstrument
+                                                          ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                                          : isLegacy
+                                                            ? "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                                            : "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
+                                                      const unitBadgeTitle =
+                                                        isLegacy
+                                                          ? "pre-Phase-8C manifest — migration in progress (denominator degraded to venue-level shard_days until ManifestWriter backfills instrument_id)"
+                                                          : isPerInstrument
+                                                            ? `Tier-3 per-instrument data_type — shards counted per (venue, instrument, date)${typeof dtData.legacy_row_count === "number" ? ` (legacy_row_count=${dtData.legacy_row_count})` : ""}`
+                                                            : "Venue-level data_type — shards counted per (venue, date)";
+                                                      const missingInstruments =
+                                                        dtData.missing_instruments ??
+                                                        [];
+                                                      const expectedInstruments =
+                                                        dtData.expected_instruments ??
+                                                        [];
+                                                      const perInstrument =
+                                                        dtData.per_instrument;
+                                                      const perInstrumentEntries =
+                                                        perInstrument
+                                                          ? Object.entries(
+                                                              perInstrument,
+                                                            )
+                                                          : [];
+                                                      const hasMissingInstruments =
+                                                        missingInstruments.length >
+                                                        0;
+                                                      const hasPerInstrument =
+                                                        perInstrumentEntries.length >
+                                                        0;
+                                                      const hasPhase8Detail =
+                                                        hasMissingInstruments ||
+                                                        hasPerInstrument;
                                                       const dtRowCore = (
                                                         <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
                                                           <span
                                                             className="text-[10px] font-mono truncate min-w-0"
-                                                            style={{ color: getCompletionColor(pct) }}
+                                                            style={{
+                                                              color:
+                                                                getCompletionColor(
+                                                                  pct,
+                                                                ),
+                                                            }}
                                                             title={dtName}
                                                           >
                                                             {dtName}
@@ -4724,7 +5279,9 @@ function DataStatusTabInternal({
                                                               "text-[8px] font-mono px-1 py-px rounded border shrink-0",
                                                               unitBadgeClass,
                                                             )}
-                                                            title={unitBadgeTitle}
+                                                            title={
+                                                              unitBadgeTitle
+                                                            }
                                                             data-testid="honest-dt-unit-badge"
                                                             data-unit={rawUnit}
                                                           >
@@ -4736,29 +5293,49 @@ function DataStatusTabInternal({
                                                               title={`Instruments with zero captured shards: ${missingInstruments.join(", ")}`}
                                                               data-testid="honest-dt-missing-instruments-badge"
                                                             >
-                                                              {missingInstruments.length} {missingInstruments.length === 1 ? "instrument" : "instruments"} missing
+                                                              {
+                                                                missingInstruments.length
+                                                              }{" "}
+                                                              {missingInstruments.length ===
+                                                              1
+                                                                ? "instrument"
+                                                                : "instruments"}{" "}
+                                                              missing
                                                             </span>
                                                           )}
                                                           <div className="flex-1" />
                                                           <span
                                                             className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0"
                                                             title={
-                                                              expectedInstruments.length > 0
+                                                              expectedInstruments.length >
+                                                              0
                                                                 ? `Denominator: ${expectedInstruments.length} instrument(s) × window`
                                                                 : undefined
                                                             }
                                                           >
-                                                            {found}/{expected} {rawUnit}
+                                                            {found}/{expected}{" "}
+                                                            {rawUnit}
                                                           </span>
                                                           <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
                                                             <div
                                                               className="h-full"
-                                                              style={{ width: `${pct}%`, backgroundColor: getCompletionColor(pct) }}
+                                                              style={{
+                                                                width: `${pct}%`,
+                                                                backgroundColor:
+                                                                  getCompletionColor(
+                                                                    pct,
+                                                                  ),
+                                                              }}
                                                             />
                                                           </div>
                                                           <span
                                                             className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                            style={{ color: getCompletionColor(pct) }}
+                                                            style={{
+                                                              color:
+                                                                getCompletionColor(
+                                                                  pct,
+                                                                ),
+                                                            }}
                                                           >
                                                             {formatPct(pct)}%
                                                           </span>
@@ -4792,17 +5369,23 @@ function DataStatusTabInternal({
                                                                 data-testid="honest-dt-missing-instruments-list"
                                                               >
                                                                 <span className="text-[9px] text-[var(--color-accent-red)] shrink-0">
-                                                                  Missing ({missingInstruments.length}):
+                                                                  Missing (
+                                                                  {
+                                                                    missingInstruments.length
+                                                                  }
+                                                                  ):
                                                                 </span>
-                                                                {missingInstruments.map((iid) => (
-                                                                  <span
-                                                                    key={iid}
-                                                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                                                    title={`Instrument '${iid}' has zero captured shards in window`}
-                                                                  >
-                                                                    {iid}
-                                                                  </span>
-                                                                ))}
+                                                                {missingInstruments.map(
+                                                                  (iid) => (
+                                                                    <span
+                                                                      key={iid}
+                                                                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                                      title={`Instrument '${iid}' has zero captured shards in window`}
+                                                                    >
+                                                                      {iid}
+                                                                    </span>
+                                                                  ),
+                                                                )}
                                                               </div>
                                                             )}
                                                             {hasPerInstrument && (
@@ -4810,211 +5393,560 @@ function DataStatusTabInternal({
                                                                 className="space-y-0.5"
                                                                 data-testid="honest-dt-per-instrument-table"
                                                               >
-                                                                {perInstrumentEntries.map(([iid, idata]) => {
-                                                                  const instMissing = idata.missing_dates ?? [];
-                                                                  const instHasMissing = instMissing.length > 0;
-                                                                  const instRowCore = (
-                                                                    <div className="flex items-center gap-2 py-0.5 px-1.5">
-                                                                      <span
-                                                                        className="text-[9px] font-mono truncate min-w-0"
-                                                                        style={{ color: getCompletionColor(idata.completion_pct) }}
-                                                                        title={iid}
-                                                                      >
-                                                                        {iid}
-                                                                      </span>
-                                                                      <div className="flex-1" />
-                                                                      <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                                        {idata.found_shards}/{idata.expected_shards}
-                                                                      </span>
-                                                                      <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
-                                                                        <div
-                                                                          className="h-full"
-                                                                          style={{
-                                                                            width: `${idata.completion_pct}%`,
-                                                                            backgroundColor: getCompletionColor(idata.completion_pct),
-                                                                          }}
-                                                                        />
-                                                                      </div>
-                                                                      <span
-                                                                        className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
-                                                                        style={{ color: getCompletionColor(idata.completion_pct) }}
-                                                                      >
-                                                                        {formatPct(idata.completion_pct)}%
-                                                                      </span>
-                                                                    </div>
-                                                                  );
-                                                                  if (!instHasMissing) {
-                                                                    return (
-                                                                      <div
-                                                                        key={iid}
-                                                                        data-testid="honest-dt-per-instrument-row"
-                                                                        data-instrument={iid}
-                                                                      >
-                                                                        {instRowCore}
-                                                                      </div>
-                                                                    );
-                                                                  }
-                                                                  return (
-                                                                    <details
-                                                                      key={iid}
-                                                                      data-testid="honest-dt-per-instrument-row"
-                                                                      data-instrument={iid}
-                                                                    >
-                                                                      <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                                                                        {instRowCore}
-                                                                      </summary>
-                                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
-                                                                        <details>
-                                                                          <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                            {instMissing.length} missing dates
-                                                                          </summary>
-                                                                          <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                            <DateList
-                                                                              dates={instMissing}
-                                                                              btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                              testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
-                                                                              onClickDate={(date) => openShardDetail({
-                                                                                service: serviceName,
-                                                                                asset_group: catName,
-                                                                                venue: name,
-                                                                                day: date,
-                                                                                instrument_type: "AUTO",
-                                                                                data_type: dtName,
-                                                                                instrument_id: iid,
-                                                                              })}
+                                                                {perInstrumentEntries.map(
+                                                                  ([
+                                                                    iid,
+                                                                    idata,
+                                                                  ]) => {
+                                                                    const instMissing =
+                                                                      idata.missing_dates ??
+                                                                      [];
+                                                                    const instHasMissing =
+                                                                      instMissing.length >
+                                                                      0;
+                                                                    const instRowCore =
+                                                                      (
+                                                                        <div className="flex items-center gap-2 py-0.5 px-1.5">
+                                                                          <span
+                                                                            className="text-[9px] font-mono truncate min-w-0"
+                                                                            style={{
+                                                                              color:
+                                                                                getCompletionColor(
+                                                                                  idata.completion_pct,
+                                                                                ),
+                                                                            }}
+                                                                            title={
+                                                                              iid
+                                                                            }
+                                                                          >
+                                                                            {
+                                                                              iid
+                                                                            }
+                                                                          </span>
+                                                                          <div className="flex-1" />
+                                                                          <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                            {
+                                                                              idata.found_shards
+                                                                            }
+                                                                            /
+                                                                            {
+                                                                              idata.expected_shards
+                                                                            }
+                                                                          </span>
+                                                                          <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                            <div
+                                                                              className="h-full"
+                                                                              style={{
+                                                                                width: `${idata.completion_pct}%`,
+                                                                                backgroundColor:
+                                                                                  getCompletionColor(
+                                                                                    idata.completion_pct,
+                                                                                  ),
+                                                                              }}
                                                                             />
                                                                           </div>
-                                                                        </details>
-                                                                        {idata.found_shards > 0 && (
-                                                                          <a
-                                                                            href={buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date: "ALL", data_type: dtName, instrument_type: "AUTO" }) + `&instrument_ids=${encodeURIComponent(iid)}`}
-                                                                            className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
-                                                                            title={`Download ${dtName} CSV for ${iid} across the full window`}
-                                                                            download
-                                                                            data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
+                                                                          <span
+                                                                            className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
+                                                                            style={{
+                                                                              color:
+                                                                                getCompletionColor(
+                                                                                  idata.completion_pct,
+                                                                                ),
+                                                                            }}
                                                                           >
-                                                                            <Download className="h-3 w-3" />
-                                                                            <span className="font-mono">{iid} all-window CSV</span>
-                                                                          </a>
-                                                                        )}
-                                                                      </div>
-                                                                    </details>
-                                                                  );
-                                                                })}
+                                                                            {formatPct(
+                                                                              idata.completion_pct,
+                                                                            )}
+                                                                            %
+                                                                          </span>
+                                                                        </div>
+                                                                      );
+                                                                    if (
+                                                                      !instHasMissing
+                                                                    ) {
+                                                                      return (
+                                                                        <div
+                                                                          key={
+                                                                            iid
+                                                                          }
+                                                                          data-testid="honest-dt-per-instrument-row"
+                                                                          data-instrument={
+                                                                            iid
+                                                                          }
+                                                                        >
+                                                                          {
+                                                                            instRowCore
+                                                                          }
+                                                                        </div>
+                                                                      );
+                                                                    }
+                                                                    return (
+                                                                      <details
+                                                                        key={
+                                                                          iid
+                                                                        }
+                                                                        data-testid="honest-dt-per-instrument-row"
+                                                                        data-instrument={
+                                                                          iid
+                                                                        }
+                                                                      >
+                                                                        <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                          {
+                                                                            instRowCore
+                                                                          }
+                                                                        </summary>
+                                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                          <details>
+                                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                              {
+                                                                                instMissing.length
+                                                                              }{" "}
+                                                                              missing
+                                                                              dates
+                                                                            </summary>
+                                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                              <DateList
+                                                                                dates={
+                                                                                  instMissing
+                                                                                }
+                                                                                btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                                testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
+                                                                                onClickDate={(
+                                                                                  date,
+                                                                                ) =>
+                                                                                  openShardDetail(
+                                                                                    {
+                                                                                      service:
+                                                                                        serviceName,
+                                                                                      asset_group:
+                                                                                        catName,
+                                                                                      venue:
+                                                                                        name,
+                                                                                      day: date,
+                                                                                      instrument_type:
+                                                                                        "AUTO",
+                                                                                      data_type:
+                                                                                        dtName,
+                                                                                      instrument_id:
+                                                                                        iid,
+                                                                                    },
+                                                                                  )
+                                                                                }
+                                                                              />
+                                                                            </div>
+                                                                          </details>
+                                                                          {idata.found_shards >
+                                                                            0 && (
+                                                                            <a
+                                                                              href={
+                                                                                buildShardDownloadUrl(
+                                                                                  {
+                                                                                    service:
+                                                                                      serviceName,
+                                                                                    asset_group:
+                                                                                      catName,
+                                                                                    venue:
+                                                                                      name,
+                                                                                    date: "ALL",
+                                                                                    data_type:
+                                                                                      dtName,
+                                                                                    instrument_type:
+                                                                                      "AUTO",
+                                                                                  },
+                                                                                ) +
+                                                                                `&instrument_ids=${encodeURIComponent(iid)}`
+                                                                              }
+                                                                              className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
+                                                                              title={`Download ${dtName} CSV for ${iid} across the full window`}
+                                                                              download
+                                                                              data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
+                                                                            >
+                                                                              <Download className="h-3 w-3" />
+                                                                              <span className="font-mono">
+                                                                                {
+                                                                                  iid
+                                                                                }{" "}
+                                                                                all-window
+                                                                                CSV
+                                                                              </span>
+                                                                            </a>
+                                                                          )}
+                                                                        </div>
+                                                                      </details>
+                                                                    );
+                                                                  },
+                                                                )}
                                                               </div>
                                                             )}
                                                           </div>
                                                         </details>
                                                       );
-                                                    })}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
+                                                    },
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
 
-                                            {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
-                                            {hasInstrumentTypes && (
-                                              <div className="space-y-0.5 pt-1">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                  Instrument Types
-                                                </span>
-                                                {Object.entries(subData.instrument_types!).map(([itName, itData]) => {
-                                                  const it = itData as { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>; underlyings?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number; data_types?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }> }> };
-                                                  return (
-                                                    <details key={itName} className="group/itype">
-                                                      <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                        <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
-                                                        <span className="text-[10px] font-mono truncate">{itName}</span>
-                                                        <div className="flex-1" />
-                                                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">{it.dates_found}/{it.dates_expected}</span>
-                                                        <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                          <div className="h-full" style={{ width: `${it.completion_pct}%`, backgroundColor: getCompletionColor(it.completion_pct) }} />
-                                                        </div>
-                                                        <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(it.completion_pct) }}>
-                                                          {formatPct(it.completion_pct)}%
-                                                        </span>
-                                                      </summary>
-                                                      {/* Per-underlying breakdown (options_chain / futures_chain) */}
-                                                      {it.underlyings && Object.keys(it.underlyings).length > 0 && (
+                                          {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
+                                          {hasInstrumentTypes && (
+                                            <div className="space-y-0.5 pt-1">
+                                              <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                Instrument Types
+                                              </span>
+                                              {Object.entries(
+                                                subData.instrument_types!,
+                                              ).map(([itName, itData]) => {
+                                                const it = itData as {
+                                                  dates_found: number;
+                                                  dates_expected: number;
+                                                  completion_pct: number;
+                                                  data_types?: Record<
+                                                    string,
+                                                    {
+                                                      dates_found: number;
+                                                      dates_expected: number;
+                                                      completion_pct: number;
+                                                    }
+                                                  >;
+                                                  underlyings?: Record<
+                                                    string,
+                                                    {
+                                                      dates_found: number;
+                                                      dates_expected: number;
+                                                      completion_pct: number;
+                                                      data_types?: Record<
+                                                        string,
+                                                        {
+                                                          dates_found: number;
+                                                          dates_expected: number;
+                                                          completion_pct: number;
+                                                        }
+                                                      >;
+                                                    }
+                                                  >;
+                                                };
+                                                return (
+                                                  <details
+                                                    key={itName}
+                                                    className="group/itype"
+                                                  >
+                                                    <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                      <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
+                                                      <span className="text-[10px] font-mono truncate">
+                                                        {itName}
+                                                      </span>
+                                                      <div className="flex-1" />
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                        {it.dates_found}/
+                                                        {it.dates_expected}
+                                                      </span>
+                                                      <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                        <div
+                                                          className="h-full"
+                                                          style={{
+                                                            width: `${it.completion_pct}%`,
+                                                            backgroundColor:
+                                                              getCompletionColor(
+                                                                it.completion_pct,
+                                                              ),
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      <span
+                                                        className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                        style={{
+                                                          color:
+                                                            getCompletionColor(
+                                                              it.completion_pct,
+                                                            ),
+                                                        }}
+                                                      >
+                                                        {formatPct(
+                                                          it.completion_pct,
+                                                        )}
+                                                        %
+                                                      </span>
+                                                    </summary>
+                                                    {/* Per-underlying breakdown (options_chain / futures_chain) */}
+                                                    {it.underlyings &&
+                                                      Object.keys(
+                                                        it.underlyings,
+                                                      ).length > 0 && (
                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
                                                           <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                             Underlyings
                                                           </span>
-                                                          {Object.entries(it.underlyings).map(([ulName, ulData]) => (
-                                                            <details key={ulName} className="group/ul">
-                                                              <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                                <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
-                                                                <span className="text-[10px] font-mono truncate">{ulName}</span>
-                                                                <div className="flex-1" />
-                                                                <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">{ulData.dates_found}/{ulData.dates_expected}</span>
-                                                                <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
-                                                                  <div className="h-full" style={{ width: `${ulData.completion_pct}%`, backgroundColor: getCompletionColor(ulData.completion_pct) }} />
-                                                                </div>
-                                                                <span className="text-[9px] font-mono w-8 text-right shrink-0" style={{ color: getCompletionColor(ulData.completion_pct) }}>
-                                                                  {formatPct(ulData.completion_pct)}%
-                                                                </span>
-                                                              </summary>
-                                                              {ulData.data_types && Object.keys(ulData.data_types).length > 0 && (
-                                                                <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                                  {Object.entries(ulData.data_types).map(([dtName, dtData]) => (
-                                                                    <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5">
-                                                                      <span className="text-[9px] font-mono text-[var(--color-text-secondary)]" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
-                                                                      <div className="flex-1" />
-                                                                      <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
-                                                                      <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
+                                                          {Object.entries(
+                                                            it.underlyings,
+                                                          ).map(
+                                                            ([
+                                                              ulName,
+                                                              ulData,
+                                                            ]) => (
+                                                              <details
+                                                                key={ulName}
+                                                                className="group/ul"
+                                                              >
+                                                                <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                  <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
+                                                                  <span className="text-[10px] font-mono truncate">
+                                                                    {ulName}
+                                                                  </span>
+                                                                  <div className="flex-1" />
+                                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                    {
+                                                                      ulData.dates_found
+                                                                    }
+                                                                    /
+                                                                    {
+                                                                      ulData.dates_expected
+                                                                    }
+                                                                  </span>
+                                                                  <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                    <div
+                                                                      className="h-full"
+                                                                      style={{
+                                                                        width: `${ulData.completion_pct}%`,
+                                                                        backgroundColor:
+                                                                          getCompletionColor(
+                                                                            ulData.completion_pct,
+                                                                          ),
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <span
+                                                                    className="text-[9px] font-mono w-8 text-right shrink-0"
+                                                                    style={{
+                                                                      color:
+                                                                        getCompletionColor(
+                                                                          ulData.completion_pct,
+                                                                        ),
+                                                                    }}
+                                                                  >
+                                                                    {formatPct(
+                                                                      ulData.completion_pct,
+                                                                    )}
+                                                                    %
+                                                                  </span>
+                                                                </summary>
+                                                                {ulData.data_types &&
+                                                                  Object.keys(
+                                                                    ulData.data_types,
+                                                                  ).length >
+                                                                    0 && (
+                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                      {Object.entries(
+                                                                        ulData.data_types,
+                                                                      ).map(
+                                                                        ([
+                                                                          dtName,
+                                                                          dtData,
+                                                                        ]) => (
+                                                                          <div
+                                                                            key={
+                                                                              dtName
+                                                                            }
+                                                                            className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                          >
+                                                                            <span
+                                                                              className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                              style={{
+                                                                                color:
+                                                                                  getCompletionColor(
+                                                                                    dtData.completion_pct,
+                                                                                  ),
+                                                                              }}
+                                                                            >
+                                                                              {
+                                                                                dtName
+                                                                              }
+                                                                            </span>
+                                                                            <div className="flex-1" />
+                                                                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                              {
+                                                                                dtData.dates_found
+                                                                              }
+                                                                              /
+                                                                              {
+                                                                                dtData.dates_expected
+                                                                              }
+                                                                            </span>
+                                                                            <span
+                                                                              className="text-[8px] font-mono w-7 text-right"
+                                                                              style={{
+                                                                                color:
+                                                                                  getCompletionColor(
+                                                                                    dtData.completion_pct,
+                                                                                  ),
+                                                                              }}
+                                                                            >
+                                                                              {formatPct(
+                                                                                dtData.completion_pct,
+                                                                              )}
+                                                                              %
+                                                                            </span>
+                                                                          </div>
+                                                                        ),
+                                                                      )}
                                                                     </div>
-                                                                  ))}
-                                                                </div>
-                                                              )}
-                                                            </details>
-                                                          ))}
+                                                                  )}
+                                                              </details>
+                                                            ),
+                                                          )}
                                                         </div>
                                                       )}
-                                                      {/* Direct data_types (when no underlyings) */}
-                                                      {it.data_types && Object.keys(it.data_types).length > 0 && !(it.underlyings && Object.keys(it.underlyings).length > 0) && (
+                                                    {/* Direct data_types (when no underlyings) */}
+                                                    {it.data_types &&
+                                                      Object.keys(it.data_types)
+                                                        .length > 0 &&
+                                                      !(
+                                                        it.underlyings &&
+                                                        Object.keys(
+                                                          it.underlyings,
+                                                        ).length > 0
+                                                      ) && (
                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                          {Object.entries(it.data_types).map(([dtName, dtData]) => (
-                                                            <div key={dtName} className="flex items-center gap-2 py-0.5 px-1.5">
-                                                              <span className="text-[9px] font-mono text-[var(--color-text-secondary)]" style={{ color: getCompletionColor(dtData.completion_pct) }}>{dtName}</span>
-                                                              <div className="flex-1" />
-                                                              <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{dtData.dates_found}/{dtData.dates_expected}</span>
-                                                              <span className="text-[8px] font-mono w-7 text-right" style={{ color: getCompletionColor(dtData.completion_pct) }}>{formatPct(dtData.completion_pct)}%</span>
-                                                            </div>
-                                                          ))}
+                                                          {Object.entries(
+                                                            it.data_types,
+                                                          ).map(
+                                                            ([
+                                                              dtName,
+                                                              dtData,
+                                                            ]) => (
+                                                              <div
+                                                                key={dtName}
+                                                                className="flex items-center gap-2 py-0.5 px-1.5"
+                                                              >
+                                                                <span
+                                                                  className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                  style={{
+                                                                    color:
+                                                                      getCompletionColor(
+                                                                        dtData.completion_pct,
+                                                                      ),
+                                                                  }}
+                                                                >
+                                                                  {dtName}
+                                                                </span>
+                                                                <div className="flex-1" />
+                                                                <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                  {
+                                                                    dtData.dates_found
+                                                                  }
+                                                                  /
+                                                                  {
+                                                                    dtData.dates_expected
+                                                                  }
+                                                                </span>
+                                                                <span
+                                                                  className="text-[8px] font-mono w-7 text-right"
+                                                                  style={{
+                                                                    color:
+                                                                      getCompletionColor(
+                                                                        dtData.completion_pct,
+                                                                      ),
+                                                                  }}
+                                                                >
+                                                                  {formatPct(
+                                                                    dtData.completion_pct,
+                                                                  )}
+                                                                  %
+                                                                </span>
+                                                              </div>
+                                                            ),
+                                                          )}
                                                         </div>
                                                       )}
-                                                    </details>
-                                                  );
-                                                })}
-                                              </div>
-                                            )}
+                                                  </details>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
 
-                                            {/* Data types / Markets breakdown — expandable with date lists */}
-                                            {hasDataTypes && !hasInstrumentTypes && (
+                                          {/* Data types / Markets breakdown — expandable with date lists */}
+                                          {hasDataTypes &&
+                                            !hasInstrumentTypes && (
                                               <div className="space-y-0.5 pt-1">
                                                 <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                  {catName === "PREDICTION" ? "Markets" : "Data Types"}
+                                                  {catName === "PREDICTION"
+                                                    ? "Markets"
+                                                    : "Data Types"}
                                                 </span>
-                                                {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
-                                                  const dtFoundList: string[] = (dtData as unknown as Record<string, unknown>).dates_found_list as string[] ?? [];
-                                                  const dtMissingList: string[] = (dtData as unknown as Record<string, unknown>).missing_dates as string[] ?? [];
-                                                  const hasDates = dtFoundList.length > 0 || dtMissingList.length > 0;
+                                                {Object.entries(
+                                                  subData.data_types!,
+                                                ).map(([dtName, dtData]) => {
+                                                  const dtFoundList: string[] =
+                                                    ((
+                                                      dtData as unknown as Record<
+                                                        string,
+                                                        unknown
+                                                      >
+                                                    )
+                                                      .dates_found_list as string[]) ??
+                                                    [];
+                                                  const dtMissingList: string[] =
+                                                    ((
+                                                      dtData as unknown as Record<
+                                                        string,
+                                                        unknown
+                                                      >
+                                                    )
+                                                      .missing_dates as string[]) ??
+                                                    [];
+                                                  const hasDates =
+                                                    dtFoundList.length > 0 ||
+                                                    dtMissingList.length > 0;
                                                   return (
-                                                    <details key={dtName} className="group/dt">
+                                                    <details
+                                                      key={dtName}
+                                                      className="group/dt"
+                                                    >
                                                       <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
-                                                        <span className="text-[10px] font-mono truncate min-w-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
+                                                        <span
+                                                          className="text-[10px] font-mono truncate min-w-0"
+                                                          style={{
+                                                            color:
+                                                              getCompletionColor(
+                                                                dtData.completion_pct,
+                                                              ),
+                                                          }}
+                                                        >
                                                           {dtName}
                                                         </span>
                                                         <div className="flex-1" />
                                                         <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                          {dtData.dates_found}/{dtData.dates_expected}
+                                                          {dtData.dates_found}/
+                                                          {
+                                                            dtData.dates_expected
+                                                          }
                                                         </span>
                                                         <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                          <div className="h-full" style={{ width: `${dtData.completion_pct}%`, backgroundColor: getCompletionColor(dtData.completion_pct) }} />
+                                                          <div
+                                                            className="h-full"
+                                                            style={{
+                                                              width: `${dtData.completion_pct}%`,
+                                                              backgroundColor:
+                                                                getCompletionColor(
+                                                                  dtData.completion_pct,
+                                                                ),
+                                                            }}
+                                                          />
                                                         </div>
-                                                        <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(dtData.completion_pct) }}>
-                                                          {formatPct(dtData.completion_pct)}%
+                                                        <span
+                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                          style={{
+                                                            color:
+                                                              getCompletionColor(
+                                                                dtData.completion_pct,
+                                                              ),
+                                                          }}
+                                                        >
+                                                          {formatPct(
+                                                            dtData.completion_pct,
+                                                          )}
+                                                          %
                                                         </span>
                                                         <button
                                                           type="button"
@@ -5024,10 +5956,13 @@ function DataStatusTabInternal({
                                                             e.preventDefault();
                                                             e.stopPropagation();
                                                             setSchemaModal({
-                                                              service: serviceName,
-                                                              asset_group: catName,
+                                                              service:
+                                                                serviceName,
+                                                              asset_group:
+                                                                catName,
                                                               venue: name,
-                                                              instrument_type: "",
+                                                              instrument_type:
+                                                                "",
                                                               data_type: dtName,
                                                             });
                                                           }}
@@ -5038,59 +5973,113 @@ function DataStatusTabInternal({
                                                       {hasDates && (
                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
                                                           <div className="flex gap-3">
-                                                            {dtFoundList.length > 0 && (
+                                                            {dtFoundList.length >
+                                                              0 && (
                                                               <details>
                                                                 <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                  {dtData.dates_found} available — click a day to drill down
+                                                                  {
+                                                                    dtData.dates_found
+                                                                  }{" "}
+                                                                  available —
+                                                                  click a day to
+                                                                  drill down
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                                   <DateList
-                                                                    dates={dtFoundList}
+                                                                    dates={
+                                                                      dtFoundList
+                                                                    }
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-found-${name}-${dtName}`}
-                                                                    onClickDate={(date) => {
+                                                                    onClickDate={(
+                                                                      date,
+                                                                    ) => {
                                                                       const itGuess =
-                                                                        name.toUpperCase() === "POLYMARKET"
+                                                                        name.toUpperCase() ===
+                                                                        "POLYMARKET"
                                                                           ? "OTHER"
                                                                           : "AUTO";
-                                                                      openShardDetail({
-                                                                        service: serviceName,
-                                                                        asset_group: catName,
-                                                                        venue: name,
-                                                                        day: date,
-                                                                        instrument_type: itGuess,
-                                                                        data_type: dtName,
-                                                                      });
+                                                                      openShardDetail(
+                                                                        {
+                                                                          service:
+                                                                            serviceName,
+                                                                          asset_group:
+                                                                            catName,
+                                                                          venue:
+                                                                            name,
+                                                                          day: date,
+                                                                          instrument_type:
+                                                                            itGuess,
+                                                                          data_type:
+                                                                            dtName,
+                                                                        },
+                                                                      );
                                                                     }}
-                                                                    downloadUrl={(date) => buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date, data_type: dtName })}
-                                                                    downloadTitle={(date) => `Download ${dtName} CSV for ${name} on ${date}`}
+                                                                    downloadUrl={(
+                                                                      date,
+                                                                    ) =>
+                                                                      buildShardDownloadUrl(
+                                                                        {
+                                                                          service:
+                                                                            serviceName,
+                                                                          asset_group:
+                                                                            catName,
+                                                                          venue:
+                                                                            name,
+                                                                          date,
+                                                                          data_type:
+                                                                            dtName,
+                                                                        },
+                                                                      )
+                                                                    }
+                                                                    downloadTitle={(
+                                                                      date,
+                                                                    ) =>
+                                                                      `Download ${dtName} CSV for ${name} on ${date}`
+                                                                    }
                                                                   />
                                                                 </div>
                                                               </details>
                                                             )}
-                                                            {dtMissingList.length > 0 && (
+                                                            {dtMissingList.length >
+                                                              0 && (
                                                               <details>
                                                                 <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                  {dtMissingList.length} missing
+                                                                  {
+                                                                    dtMissingList.length
+                                                                  }{" "}
+                                                                  missing
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
                                                                   <DateList
-                                                                    dates={dtMissingList}
+                                                                    dates={
+                                                                      dtMissingList
+                                                                    }
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
-                                                                    onClickDate={(date) => {
+                                                                    onClickDate={(
+                                                                      date,
+                                                                    ) => {
                                                                       const itGuess =
-                                                                        name.toUpperCase() === "POLYMARKET"
+                                                                        name.toUpperCase() ===
+                                                                        "POLYMARKET"
                                                                           ? "OTHER"
                                                                           : "AUTO";
-                                                                      openShardDetail({
-                                                                        service: serviceName,
-                                                                        asset_group: catName,
-                                                                        venue: name,
-                                                                        day: date,
-                                                                        instrument_type: itGuess,
-                                                                        data_type: dtName,
-                                                                      });
+                                                                      openShardDetail(
+                                                                        {
+                                                                          service:
+                                                                            serviceName,
+                                                                          asset_group:
+                                                                            catName,
+                                                                          venue:
+                                                                            name,
+                                                                          day: date,
+                                                                          instrument_type:
+                                                                            itGuess,
+                                                                          data_type:
+                                                                            dtName,
+                                                                        },
+                                                                      );
                                                                     }}
                                                                   />
                                                                 </div>
@@ -5105,21 +6094,25 @@ function DataStatusTabInternal({
                                               </div>
                                             )}
 
-                                            {/* Leagues breakdown (SPORTS / PREDICTION) */}
-                                            {hasLeagues && (
-                                              <div className="space-y-0.5 pt-1">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                    {catName === "PREDICTION" ? "Markets" : "Leagues"}
-                                                  </span>
-                                                  {catName === "SPORTS" && name === "FIXTURES" && (
+                                          {/* Leagues breakdown (SPORTS / PREDICTION) */}
+                                          {hasLeagues && (
+                                            <div className="space-y-0.5 pt-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                  {catName === "PREDICTION"
+                                                    ? "Markets"
+                                                    : "Leagues"}
+                                                </span>
+                                                {catName === "SPORTS" &&
+                                                  name === "FIXTURES" && (
                                                     <button
                                                       type="button"
                                                       className="text-[9px] text-[var(--color-accent-cyan)] hover:underline"
                                                       title="View the FIXTURES parquet schema from unified-api-contracts — date-independent"
                                                       onClick={() =>
                                                         setSchemaModal({
-                                                          service: "instruments-service",
+                                                          service:
+                                                            "instruments-service",
                                                           asset_group: "SPORTS",
                                                           venue: "",
                                                           instrument_type: "",
@@ -5130,217 +6123,413 @@ function DataStatusTabInternal({
                                                       View schema
                                                     </button>
                                                   )}
-                                                </div>
-                                                {Object.entries(subData.leagues!).map(([leagueName, leagueData]) => {
-                                                  const ld = leagueData as TurboLeagueStatus;
+                                              </div>
+                                              {Object.entries(
+                                                subData.leagues!,
+                                              ).map(
+                                                ([leagueName, leagueData]) => {
+                                                  const ld =
+                                                    leagueData as TurboLeagueStatus;
                                                   // v5 honest-coverage fields are canonical; legacy `dates_*` kept as fallback.
-                                                  const foundCount = ld.found_shards ?? ld.dates_found;
-                                                  const expectedCount = ld.expected_shards ?? ld.dates_expected;
+                                                  const foundCount =
+                                                    ld.found_shards ??
+                                                    ld.dates_found;
+                                                  const expectedCount =
+                                                    ld.expected_shards ??
+                                                    ld.dates_expected;
                                                   const missingCount =
-                                                    ld.missing_count ?? ld.missing_shards ?? ld.dates_missing ?? ld.missing_dates?.length;
-                                                  const foundDatesList = ld.found_dates_list ?? ld.dates_found_list ?? [];
-                                                  const missingDatesList = ld.missing_dates ?? [];
+                                                    ld.missing_count ??
+                                                    ld.missing_shards ??
+                                                    ld.dates_missing ??
+                                                    ld.missing_dates?.length;
+                                                  const foundDatesList =
+                                                    ld.found_dates_list ??
+                                                    ld.dates_found_list ??
+                                                    [];
+                                                  const missingDatesList =
+                                                    ld.missing_dates ?? [];
                                                   const missingIsSample =
-                                                    missingCount !== undefined &&
-                                                    missingDatesList.length > 0 &&
-                                                    missingDatesList.length < missingCount;
-                                                  const unitLabel = formatUnitLabel(ld.unit);
+                                                    missingCount !==
+                                                      undefined &&
+                                                    missingDatesList.length >
+                                                      0 &&
+                                                    missingDatesList.length <
+                                                      missingCount;
+                                                  const unitLabel =
+                                                    formatUnitLabel(ld.unit);
                                                   const countDisplay =
-                                                    foundCount === undefined || expectedCount === undefined
+                                                    foundCount === undefined ||
+                                                    expectedCount === undefined
                                                       ? "—"
                                                       : `${foundCount}/${expectedCount} ${unitLabel}`;
                                                   if (ld.not_applicable) {
                                                     return (
-                                                      <div key={leagueName} className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50">
+                                                      <div
+                                                        key={leagueName}
+                                                        className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50"
+                                                      >
                                                         <span className="h-2.5 w-2.5 shrink-0" />
-                                                        <span className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]" title={leagueName}>{leagueName}</span>
+                                                        <span
+                                                          className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]"
+                                                          title={leagueName}
+                                                        >
+                                                          {leagueName}
+                                                        </span>
                                                         <div className="flex-1" />
-                                                        <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">N/A</span>
+                                                        <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">
+                                                          N/A
+                                                        </span>
                                                       </div>
                                                     );
                                                   }
                                                   return (
-                                                    <details key={leagueName} className="group/league">
+                                                    <details
+                                                      key={leagueName}
+                                                      className="group/league"
+                                                    >
                                                       <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
-                                                        <span className="text-[10px] font-mono truncate min-w-0" title={leagueName}>{leagueName}</span>
+                                                        <span
+                                                          className="text-[10px] font-mono truncate min-w-0"
+                                                          title={leagueName}
+                                                        >
+                                                          {leagueName}
+                                                        </span>
                                                         <div className="flex-1" />
                                                         <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                           {countDisplay}
                                                         </span>
                                                         <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                          <div className="h-full" style={{ width: `${ld.completion_pct}%`, backgroundColor: getCompletionColor(ld.completion_pct) }} />
+                                                          <div
+                                                            className="h-full"
+                                                            style={{
+                                                              width: `${ld.completion_pct}%`,
+                                                              backgroundColor:
+                                                                getCompletionColor(
+                                                                  ld.completion_pct,
+                                                                ),
+                                                            }}
+                                                          />
                                                         </div>
-                                                        <span className="text-[9px] font-mono font-medium w-8 text-right shrink-0" style={{ color: getCompletionColor(ld.completion_pct) }}>
-                                                          {formatPct(ld.completion_pct)}%
+                                                        <span
+                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                          style={{
+                                                            color:
+                                                              getCompletionColor(
+                                                                ld.completion_pct,
+                                                              ),
+                                                          }}
+                                                        >
+                                                          {formatPct(
+                                                            ld.completion_pct,
+                                                          )}
+                                                          %
                                                         </span>
                                                       </summary>
                                                       {/* League date details */}
                                                       <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
                                                         <div className="flex gap-3">
-                                                          {foundDatesList.length > 0 && (
+                                                          {foundDatesList.length >
+                                                            0 && (
                                                             <details>
                                                               <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                {foundCount ?? foundDatesList.length} available
-                                                                {catName === "SPORTS" && name === "FIXTURES" && (
-                                                                  <span className="ml-1 text-[var(--color-text-muted)]">· click date to expand fixtures · CSV icon downloads league-day CSV</span>
-                                                                )}
+                                                                {foundCount ??
+                                                                  foundDatesList.length}{" "}
+                                                                available
+                                                                {catName ===
+                                                                  "SPORTS" &&
+                                                                  name ===
+                                                                    "FIXTURES" && (
+                                                                    <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                      · click
+                                                                      date to
+                                                                      expand
+                                                                      fixtures ·
+                                                                      CSV icon
+                                                                      downloads
+                                                                      league-day
+                                                                      CSV
+                                                                    </span>
+                                                                  )}
                                                               </summary>
                                                               <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                {catName ===
+                                                                  "SPORTS" &&
+                                                                name ===
+                                                                  "FIXTURES" ? (
                                                                   <DateList
-                                                                    dates={foundDatesList}
+                                                                    dates={
+                                                                      foundDatesList
+                                                                    }
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
                                                                     testIdPrefix={`fixture-date-toggle-${leagueName}`}
-                                                                    onClickDate={(date) => toggleFixtureBreakdown(date, leagueName, false)}
-                                                                    downloadUrl={(date) => buildFixturesCsvDownloadUrl({ day: date, league_id: leagueName })}
-                                                                    downloadTitle={(date) => `Download league-day FIXTURES CSV for ${leagueName} on ${date}`}
+                                                                    onClickDate={(
+                                                                      date,
+                                                                    ) =>
+                                                                      toggleFixtureBreakdown(
+                                                                        date,
+                                                                        leagueName,
+                                                                        false,
+                                                                      )
+                                                                    }
+                                                                    downloadUrl={(
+                                                                      date,
+                                                                    ) =>
+                                                                      buildFixturesCsvDownloadUrl(
+                                                                        {
+                                                                          day: date,
+                                                                          league_id:
+                                                                            leagueName,
+                                                                        },
+                                                                      )
+                                                                    }
+                                                                    downloadTitle={(
+                                                                      date,
+                                                                    ) =>
+                                                                      `Download league-day FIXTURES CSV for ${leagueName} on ${date}`
+                                                                    }
                                                                   />
                                                                 ) : (
-                                                                  foundDatesList.map((date: string) => (
-                                                                    <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]">
-                                                                      {date}
-                                                                    </span>
-                                                                  ))
+                                                                  foundDatesList.map(
+                                                                    (
+                                                                      date: string,
+                                                                    ) => (
+                                                                      <span
+                                                                        key={
+                                                                          date
+                                                                        }
+                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                                      >
+                                                                        {date}
+                                                                      </span>
+                                                                    ),
+                                                                  )
                                                                 )}
                                                               </div>
                                                             </details>
                                                           )}
-                                                          {missingDatesList.length > 0 && (
+                                                          {missingDatesList.length >
+                                                            0 && (
                                                             <details>
                                                               <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                {missingCount ?? missingDatesList.length} missing
+                                                                {missingCount ??
+                                                                  missingDatesList.length}{" "}
+                                                                missing
                                                                 {missingIsSample && (
                                                                   <span className="ml-1 text-[var(--color-text-muted)]">
-                                                                    (sample of {missingDatesList.length})
+                                                                    (sample of{" "}
+                                                                    {
+                                                                      missingDatesList.length
+                                                                    }
+                                                                    )
                                                                   </span>
                                                                 )}
-                                                                {catName === "SPORTS" && name === "FIXTURES" && (
-                                                                  <span className="ml-1 text-[var(--color-text-muted)]">· click to see expected fixtures (read-only)</span>
-                                                                )}
+                                                                {catName ===
+                                                                  "SPORTS" &&
+                                                                  name ===
+                                                                    "FIXTURES" && (
+                                                                    <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                      · click to
+                                                                      see
+                                                                      expected
+                                                                      fixtures
+                                                                      (read-only)
+                                                                    </span>
+                                                                  )}
                                                               </summary>
                                                               <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                {catName ===
+                                                                  "SPORTS" &&
+                                                                name ===
+                                                                  "FIXTURES" ? (
                                                                   <DateList
-                                                                    dates={missingDatesList}
+                                                                    dates={
+                                                                      missingDatesList
+                                                                    }
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
                                                                     testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
-                                                                    onClickDate={(date) => toggleFixtureBreakdown(date, leagueName, true)}
+                                                                    onClickDate={(
+                                                                      date,
+                                                                    ) =>
+                                                                      toggleFixtureBreakdown(
+                                                                        date,
+                                                                        leagueName,
+                                                                        true,
+                                                                      )
+                                                                    }
                                                                   />
                                                                 ) : (
-                                                                  missingDatesList.map((date: string) => (
-                                                                    <span key={date} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]">
-                                                                      {date}
-                                                                    </span>
-                                                                  ))
+                                                                  missingDatesList.map(
+                                                                    (
+                                                                      date: string,
+                                                                    ) => (
+                                                                      <span
+                                                                        key={
+                                                                          date
+                                                                        }
+                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                                      >
+                                                                        {date}
+                                                                      </span>
+                                                                    ),
+                                                                  )
                                                                 )}
                                                               </div>
                                                             </details>
                                                           )}
-                                                          {catName === "SPORTS" && name === "FIXTURES" &&
+                                                          {catName ===
+                                                            "SPORTS" &&
+                                                            name ===
+                                                              "FIXTURES" &&
                                                             fixtureBreakdownKey &&
-                                                            fixtureBreakdownKey.league_id === leagueName && (
+                                                            fixtureBreakdownKey.league_id ===
+                                                              leagueName && (
                                                               <FixtureBreakdown
-                                                                day={fixtureBreakdownKey.day}
-                                                                league_id={fixtureBreakdownKey.league_id}
-                                                                readOnly={fixtureBreakdownKey.readOnly}
+                                                                day={
+                                                                  fixtureBreakdownKey.day
+                                                                }
+                                                                league_id={
+                                                                  fixtureBreakdownKey.league_id
+                                                                }
+                                                                readOnly={
+                                                                  fixtureBreakdownKey.readOnly
+                                                                }
                                                               />
                                                             )}
                                                         </div>
                                                       </div>
                                                     </details>
                                                   );
-                                                })}
-                                              </div>
-                                            )}
-
-                                            {/* Venue-level available/missing dates */}
-                                            {(missingList.length > 0 || foundList.length > 0) && (
-                                              <div className={cn("flex gap-3 pt-0.5", (hasDataTypes || hasLeagues) && "mt-1 border-t border-[var(--color-border-subtle)]")}>
-                                                {foundList.length > 0 && (
-                                                  <details>
-                                                    <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                      {subData.dates_found} available {catName === "SPORTS" ? "fixtures" : "dates"}
-                                                    </summary>
-                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                      <DateList
-                                                        dates={foundList}
-                                                        btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                        testIdPrefix={`shard-csv-date-found-${name}`}
-                                                        onClickDate={(date) => openShardDetail({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          instrument_type: "AUTO",
-                                                          data_type: "AUTO",
-                                                          day: date,
-                                                          venue: name,
-                                                        })}
-                                                        downloadUrl={(date) => buildShardDownloadUrl({ service: serviceName, asset_group: catName, venue: name, date })}
-                                                        downloadTitle={(date) => (serviceName === "market-tick-data-service" || serviceName === "market-data-processing-service")
-                                                          ? `Download availability catalog CSV for ${name} on ${date}`
-                                                          : `Download shard CSV for ${name} on ${date}`}
-                                                      />
-                                                    </div>
-                                                  </details>
-                                                )}
-                                                {missingList.length > 0 && (
-                                                  <details>
-                                                    <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                      {missingCount} missing {catName === "SPORTS" ? "fixtures" : "dates"}
-                                                    </summary>
-                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                      <DateList
-                                                        dates={missingList}
-                                                        btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                        testIdPrefix={`shard-csv-date-missing-${name}`}
-                                                        onClickDate={(date) => openShardDetail({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          instrument_type: "AUTO",
-                                                          data_type: "AUTO",
-                                                          day: date,
-                                                          venue: name,
-                                                        })}
-                                                      />
-                                                      {missingCount > missingList.length && (
-                                                        <span className="text-[8px] text-[var(--color-text-muted)]">
-                                                          +{missingCount - missingList.length} more
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                  </details>
-                                                )}
-                                              </div>
-                                            )}
-
-                                            {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
-                                            <div className="pt-0.5">
-                                              <span
-                                                className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
-                                                onClick={() => handleVenueClick(catName, name)}
-                                              >
-                                                Instrument breakdown
-                                              </span>
+                                                },
+                                              )}
                                             </div>
-                                            {venueDetailKey === `${catName}:${name}` && (
-                                              <VenueDetailPanel
-                                                loading={venueDetailLoading}
-                                                data={venueDetailData}
-                                              />
-                                            )}
+                                          )}
+
+                                          {/* Venue-level available/missing dates */}
+                                          {(missingList.length > 0 ||
+                                            foundList.length > 0) && (
+                                            <div
+                                              className={cn(
+                                                "flex gap-3 pt-0.5",
+                                                (hasDataTypes || hasLeagues) &&
+                                                  "mt-1 border-t border-[var(--color-border-subtle)]",
+                                              )}
+                                            >
+                                              {foundList.length > 0 && (
+                                                <details>
+                                                  <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                    {subData.dates_found}{" "}
+                                                    available{" "}
+                                                    {catName === "SPORTS"
+                                                      ? "fixtures"
+                                                      : "dates"}
+                                                  </summary>
+                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                    <DateList
+                                                      dates={foundList}
+                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                      testIdPrefix={`shard-csv-date-found-${name}`}
+                                                      onClickDate={(date) =>
+                                                        openShardDetail({
+                                                          service: serviceName,
+                                                          asset_group: catName,
+                                                          instrument_type:
+                                                            "AUTO",
+                                                          data_type: "AUTO",
+                                                          day: date,
+                                                          venue: name,
+                                                        })
+                                                      }
+                                                      downloadUrl={(date) =>
+                                                        buildShardDownloadUrl({
+                                                          service: serviceName,
+                                                          asset_group: catName,
+                                                          venue: name,
+                                                          date,
+                                                        })
+                                                      }
+                                                      downloadTitle={(date) =>
+                                                        serviceName ===
+                                                          "market-tick-data-service" ||
+                                                        serviceName ===
+                                                          "market-data-processing-service"
+                                                          ? `Download availability catalog CSV for ${name} on ${date}`
+                                                          : `Download shard CSV for ${name} on ${date}`
+                                                      }
+                                                    />
+                                                  </div>
+                                                </details>
+                                              )}
+                                              {missingList.length > 0 && (
+                                                <details>
+                                                  <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                    {missingCount} missing{" "}
+                                                    {catName === "SPORTS"
+                                                      ? "fixtures"
+                                                      : "dates"}
+                                                  </summary>
+                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                    <DateList
+                                                      dates={missingList}
+                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                      testIdPrefix={`shard-csv-date-missing-${name}`}
+                                                      onClickDate={(date) =>
+                                                        openShardDetail({
+                                                          service: serviceName,
+                                                          asset_group: catName,
+                                                          instrument_type:
+                                                            "AUTO",
+                                                          data_type: "AUTO",
+                                                          day: date,
+                                                          venue: name,
+                                                        })
+                                                      }
+                                                    />
+                                                    {missingCount >
+                                                      missingList.length && (
+                                                      <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                        +
+                                                        {missingCount -
+                                                          missingList.length}{" "}
+                                                        more
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </details>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
+                                          <div className="pt-0.5">
+                                            <span
+                                              className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                              onClick={() =>
+                                                handleVenueClick(catName, name)
+                                              }
+                                            >
+                                              Instrument breakdown
+                                            </span>
                                           </div>
-                                        </details>
-                                      );
-                                    })}
-                                  </div>
+                                          {venueDetailKey ===
+                                            `${catName}:${name}` && (
+                                            <VenueDetailPanel
+                                              loading={venueDetailLoading}
+                                              data={venueDetailData}
+                                            />
+                                          )}
+                                        </div>
+                                      </details>
+                                    );
+                                  })}
                                 </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    },
-                  )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             </CardContent>
           </Card>
@@ -5458,14 +6647,14 @@ function DataStatusTabInternal({
                     </div>
                     {heatmapData.find((d) => d.date === selectedCalendarDate)
                       ?.tooltip && (
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                          {
-                            heatmapData.find(
-                              (d) => d.date === selectedCalendarDate,
-                            )?.tooltip
-                          }
-                        </p>
-                      )}
+                      <p className="text-sm text-[var(--color-text-secondary)]">
+                        {
+                          heatmapData.find(
+                            (d) => d.date === selectedCalendarDate,
+                          )?.tooltip
+                        }
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -5476,138 +6665,143 @@ function DataStatusTabInternal({
           {viewMode === "table" && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Asset group breakdown</CardTitle>
+                <CardTitle className="text-base">
+                  Asset group breakdown
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y divide-[var(--color-border-subtle)]">
-                  {Object.entries(data.asset_groups).map(([catName, catData]) => {
-                    const completion = getCategoryCompletion(catData);
-                    const missing = getMissingCount(catData);
-                    const isExpanded = expandedCategories.has(catName);
+                  {Object.entries(data.asset_groups).map(
+                    ([catName, catData]) => {
+                      const completion = getCategoryCompletion(catData);
+                      const missing = getMissingCount(catData);
+                      const isExpanded = expandedCategories.has(catName);
 
-                    return (
-                      <div key={catName}>
-                        {/* Category Row */}
-                        <Button
-                          variant="ghost"
-                          onClick={() => toggleCategory(catName)}
-                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
-                        >
-                          <div className="flex items-center gap-3">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                            )}
-                            <span className="font-medium">{catName}</span>
-                            <span className="text-xs text-[var(--color-text-muted)]">
-                              ({Object.keys(catData.venues || {}).length} venues)
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            {missing > 0 && (
+                      return (
+                        <div key={catName}>
+                          {/* Category Row */}
+                          <Button
+                            variant="ghost"
+                            onClick={() => toggleCategory(catName)}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                          >
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                              )}
+                              <span className="font-medium">{catName}</span>
+                              <span className="text-xs text-[var(--color-text-muted)]">
+                                ({Object.keys(catData.venues || {}).length}{" "}
+                                venues)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              {missing > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
+                                >
+                                  {missing} missing
+                                </Badge>
+                              )}
                               <Badge
                                 variant="outline"
-                                className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
+                                className={getCompletionBadgeClass(completion)}
                               >
-                                {missing} missing
+                                {completion.toFixed(1)}%
                               </Badge>
-                            )}
-                            <Badge
-                              variant="outline"
-                              className={getCompletionBadgeClass(completion)}
-                            >
-                              {completion.toFixed(1)}%
-                            </Badge>
-                            <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                              <div
-                                className="h-full transition-all"
-                                style={{
-                                  width: `${completion}%`,
-                                  backgroundColor:
-                                    getCompletionColor(completion),
-                                }}
-                              />
+                              <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                                <div
+                                  className="h-full transition-all"
+                                  style={{
+                                    width: `${completion}%`,
+                                    backgroundColor:
+                                      getCompletionColor(completion),
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </Button>
+                          </Button>
 
-                        {/* Expanded Venue Table */}
-                        {isExpanded && (
-                          <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="text-xs text-[var(--color-text-muted)]">
-                                  <th className="text-left py-2 font-medium">
-                                    Venue
-                                  </th>
-                                  <th className="text-right py-2 font-medium">
-                                    Complete
-                                  </th>
-                                  <th className="text-right py-2 font-medium">
-                                    Total
-                                  </th>
-                                  <th className="text-right py-2 font-medium">
-                                    Coverage
-                                  </th>
-                                  <th className="text-right py-2 font-medium">
-                                    Status
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                                {Object.entries(catData.venues).map(
-                                  ([venueName, venueData]) => {
-                                    const venuePct =
-                                      venueData.completion_percent;
-                                    const venueMissing =
-                                      venueData.total - venueData.complete;
+                          {/* Expanded Venue Table */}
+                          {isExpanded && (
+                            <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-xs text-[var(--color-text-muted)]">
+                                    <th className="text-left py-2 font-medium">
+                                      Venue
+                                    </th>
+                                    <th className="text-right py-2 font-medium">
+                                      Complete
+                                    </th>
+                                    <th className="text-right py-2 font-medium">
+                                      Total
+                                    </th>
+                                    <th className="text-right py-2 font-medium">
+                                      Coverage
+                                    </th>
+                                    <th className="text-right py-2 font-medium">
+                                      Status
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                                  {Object.entries(catData.venues).map(
+                                    ([venueName, venueData]) => {
+                                      const venuePct =
+                                        venueData.completion_percent;
+                                      const venueMissing =
+                                        venueData.total - venueData.complete;
 
-                                    return (
-                                      <tr
-                                        key={venueName}
-                                        className="hover:bg-[var(--color-bg-tertiary)]"
-                                      >
-                                        <td className="py-2 font-mono text-xs">
-                                          {venueName}
-                                        </td>
-                                        <td className="py-2 text-right font-mono">
-                                          {venueData.complete}
-                                        </td>
-                                        <td className="py-2 text-right font-mono text-[var(--color-text-muted)]">
-                                          {venueData.total}
-                                        </td>
-                                        <td className="py-2 text-right">
-                                          <span
-                                            className="font-mono"
-                                            style={{
-                                              color:
-                                                getCompletionColor(venuePct),
-                                            }}
-                                          >
-                                            {venuePct.toFixed(1)}%
-                                          </span>
-                                        </td>
-                                        <td className="py-2 text-right">
-                                          {venueMissing === 0 ? (
-                                            <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] inline" />
-                                          ) : (
-                                            <span className="text-xs text-[var(--color-accent-red)]">
-                                              {venueMissing} missing
+                                      return (
+                                        <tr
+                                          key={venueName}
+                                          className="hover:bg-[var(--color-bg-tertiary)]"
+                                        >
+                                          <td className="py-2 font-mono text-xs">
+                                            {venueName}
+                                          </td>
+                                          <td className="py-2 text-right font-mono">
+                                            {venueData.complete}
+                                          </td>
+                                          <td className="py-2 text-right font-mono text-[var(--color-text-muted)]">
+                                            {venueData.total}
+                                          </td>
+                                          <td className="py-2 text-right">
+                                            <span
+                                              className="font-mono"
+                                              style={{
+                                                color:
+                                                  getCompletionColor(venuePct),
+                                              }}
+                                            >
+                                              {venuePct.toFixed(1)}%
                                             </span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  },
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                                          </td>
+                                          <td className="py-2 text-right">
+                                            {venueMissing === 0 ? (
+                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] inline" />
+                                            ) : (
+                                              <span className="text-xs text-[var(--color-accent-red)]">
+                                                {venueMissing} missing
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    },
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    },
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -6019,7 +7213,7 @@ function DataStatusTabInternal({
                             className={cn(
                               "border-t border-[var(--color-border-subtle)]",
                               dayResult.file_count === 0 &&
-                              "bg-[var(--color-accent-red)]/5",
+                                "bg-[var(--color-accent-red)]/5",
                             )}
                           >
                             <td className="px-3 py-2 font-mono">
@@ -6031,19 +7225,19 @@ function DataStatusTabInternal({
                             <td className="px-3 py-2 text-right font-mono text-[var(--color-text-muted)]">
                               {dayResult.total_size_bytes > 0
                                 ? (
-                                  dayResult.total_size_bytes /
-                                  (1024 * 1024)
-                                ).toFixed(1) + " MB"
+                                    dayResult.total_size_bytes /
+                                    (1024 * 1024)
+                                  ).toFixed(1) + " MB"
                                 : "-"}
                             </td>
                             <td className="px-3 py-2 font-mono text-[var(--color-text-muted)] text-xs">
                               {dayResult.last_modified
                                 ? new Date(
-                                  dayResult.last_modified,
-                                ).toLocaleString(undefined, {
-                                  dateStyle: "short",
-                                  timeStyle: "short",
-                                })
+                                    dayResult.last_modified,
+                                  ).toLocaleString(undefined, {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  })
                                 : "-"}
                             </td>
                             <td className="px-3 py-2">

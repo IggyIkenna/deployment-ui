@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 export type ToastVariant = "success" | "error" | "info";
@@ -12,11 +18,18 @@ export interface Toast {
 
 interface NotificationContextValue {
   toasts: Toast[];
-  addToast: (message: string, variant?: ToastVariant, detail?: string, autoDismissMs?: number) => void;
+  addToast: (
+    message: string,
+    variant?: ToastVariant,
+    detail?: string,
+    autoDismissMs?: number,
+  ) => void;
   dismissToast: (id: string) => void;
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(null);
+const NotificationContext = createContext<NotificationContextValue | null>(
+  null,
+);
 
 let _seq = 0;
 
@@ -57,6 +70,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
 export function useNotifications(): NotificationContextValue {
   const ctx = useContext(NotificationContext);
-  if (!ctx) throw new Error("useNotifications must be used inside NotificationProvider");
+  if (!ctx)
+    throw new Error(
+      "useNotifications must be used inside NotificationProvider",
+    );
   return ctx;
 }

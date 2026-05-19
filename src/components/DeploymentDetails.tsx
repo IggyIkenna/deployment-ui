@@ -842,7 +842,7 @@ export function DeploymentDetails({
               setLogs([]);
               setLogsMessage(
                 data.message ||
-                "Cloud Logging rate limit exceeded. Wait a minute and try again.",
+                  "Cloud Logging rate limit exceeded. Wait a minute and try again.",
               );
             }
             return;
@@ -931,7 +931,7 @@ export function DeploymentDetails({
         if (response.status === 429) {
           setShardLogsMessage(
             data.message ||
-            "Cloud Logging rate limit exceeded. Wait a minute and try again.",
+              "Cloud Logging rate limit exceeded. Wait a minute and try again.",
           );
           return;
         }
@@ -1242,21 +1242,23 @@ export function DeploymentDetails({
               )}
               {(status.gcs_fuse_active !== undefined ||
                 status.gcs_fuse_reason) && (
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status.gcs_fuse_active
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    status.gcs_fuse_active
                       ? "bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)]"
                       : "bg-[var(--color-accent-red)]/20 text-[var(--color-accent-red)]"
-                      }`}
-                    title={status.gcs_fuse_reason}
-                  >
-                    {status.gcs_fuse_active ? "GCS Fuse" : "GCS API"}
-                  </span>
-                )}
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${sseConnected
-                  ? "bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)]"
-                  : "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]"
                   }`}
+                  title={status.gcs_fuse_reason}
+                >
+                  {status.gcs_fuse_active ? "GCS Fuse" : "GCS API"}
+                </span>
+              )}
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  sseConnected
+                    ? "bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)]"
+                    : "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]"
+                }`}
                 title={
                   sseConnected
                     ? "Live event stream connected -- updates arrive in real-time"
@@ -1406,10 +1408,11 @@ export function DeploymentDetails({
             {/* Live health indicator for live-mode deployments */}
             {status.deploy_mode === "live" && liveHealth && (
               <span
-                className={`text-xs flex items-center gap-1 ${liveHealth.healthy
-                  ? "text-[var(--color-accent-green)]"
-                  : "text-[var(--color-accent-red)]"
-                  }`}
+                className={`text-xs flex items-center gap-1 ${
+                  liveHealth.healthy
+                    ? "text-[var(--color-accent-green)]"
+                    : "text-[var(--color-accent-red)]"
+                }`}
                 title={`Health check at ${liveHealth.checked_at}${liveHealth.status_code ? ` — HTTP ${liveHealth.status_code}` : ""}`}
               >
                 <span
@@ -1771,40 +1774,40 @@ export function DeploymentDetails({
             {/* Log Quality (Tier 2) */}
             {((status.classification_counts?.COMPLETED_WITH_ERRORS ?? 0) > 0 ||
               (status.classification_counts?.COMPLETED_WITH_WARNINGS ?? 0) >
-              0) && (
-                <div className="mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                    Log Quality
-                  </p>
-                  <div className="grid grid-cols-5 gap-2">
-                    {(
-                      [
-                        {
-                          key: "COMPLETED_WITH_ERRORS",
-                          label: "With Errors",
-                          color: "var(--color-class-error)",
-                        },
-                        {
-                          key: "COMPLETED_WITH_WARNINGS",
-                          label: "With Warnings",
-                          color: "var(--color-class-warning)",
-                        },
-                      ] as const
-                    ).map((c) => {
-                      const count = status.classification_counts?.[c.key] ?? 0;
-                      return count > 0 ? (
-                        <StatBox
-                          key={c.key}
-                          label={c.label}
-                          value={count}
-                          color={c.color}
-                          onClick={() => setShardStatusFilter(c.key)}
-                        />
-                      ) : null;
-                    })}
-                  </div>
+                0) && (
+              <div className="mb-2">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+                  Log Quality
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {(
+                    [
+                      {
+                        key: "COMPLETED_WITH_ERRORS",
+                        label: "With Errors",
+                        color: "var(--color-class-error)",
+                      },
+                      {
+                        key: "COMPLETED_WITH_WARNINGS",
+                        label: "With Warnings",
+                        color: "var(--color-class-warning)",
+                      },
+                    ] as const
+                  ).map((c) => {
+                    const count = status.classification_counts?.[c.key] ?? 0;
+                    return count > 0 ? (
+                      <StatBox
+                        key={c.key}
+                        label={c.label}
+                        value={count}
+                        color={c.color}
+                        onClick={() => setShardStatusFilter(c.key)}
+                      />
+                    ) : null;
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Job Lifecycle Failures (Tier 1) */}
             {((status.classification_counts?.INFRA_FAILURE ?? 0) > 0 ||
@@ -1812,91 +1815,91 @@ export function DeploymentDetails({
               (status.classification_counts?.CODE_FAILURE ?? 0) > 0 ||
               (status.classification_counts?.VM_DIED ?? 0) > 0 ||
               (status.classification_counts?.NEVER_RAN ?? 0) > 0) && (
-                <div className="mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                    Job Failures
-                  </p>
-                  <div className="grid grid-cols-5 gap-2">
-                    {(
-                      [
-                        {
-                          key: "INFRA_FAILURE",
-                          label: "Infra Failure",
-                          color: "var(--color-class-warning)",
-                        },
-                        {
-                          key: "TIMEOUT_FAILURE",
-                          label: "Timeout",
-                          color: "var(--color-class-warning)",
-                        },
-                        {
-                          key: "CODE_FAILURE",
-                          label: "Code Failure",
-                          color: "var(--color-class-error)",
-                        },
-                        {
-                          key: "VM_DIED",
-                          label: "VM Died",
-                          color: "var(--color-class-error)",
-                        },
-                        {
-                          key: "NEVER_RAN",
-                          label: "Never Ran",
-                          color: "var(--color-class-unverified)",
-                        },
-                      ] as const
-                    ).map((c) => {
-                      const count = status.classification_counts?.[c.key] ?? 0;
-                      return count > 0 ? (
-                        <StatBox
-                          key={c.key}
-                          label={c.label}
-                          value={count}
-                          color={c.color}
-                          onClick={() => setShardStatusFilter(c.key)}
-                        />
-                      ) : null;
-                    })}
-                  </div>
+              <div className="mb-2">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+                  Job Failures
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {(
+                    [
+                      {
+                        key: "INFRA_FAILURE",
+                        label: "Infra Failure",
+                        color: "var(--color-class-warning)",
+                      },
+                      {
+                        key: "TIMEOUT_FAILURE",
+                        label: "Timeout",
+                        color: "var(--color-class-warning)",
+                      },
+                      {
+                        key: "CODE_FAILURE",
+                        label: "Code Failure",
+                        color: "var(--color-class-error)",
+                      },
+                      {
+                        key: "VM_DIED",
+                        label: "VM Died",
+                        color: "var(--color-class-error)",
+                      },
+                      {
+                        key: "NEVER_RAN",
+                        label: "Never Ran",
+                        color: "var(--color-class-unverified)",
+                      },
+                    ] as const
+                  ).map((c) => {
+                    const count = status.classification_counts?.[c.key] ?? 0;
+                    return count > 0 ? (
+                      <StatBox
+                        key={c.key}
+                        label={c.label}
+                        value={count}
+                        color={c.color}
+                        onClick={() => setShardStatusFilter(c.key)}
+                      />
+                    ) : null;
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Still running / cancelled (informational) */}
             {((status.classification_counts?.STILL_RUNNING ?? 0) > 0 ||
               (status.classification_counts?.CANCELLED ?? 0) > 0) && (
-                <div className="mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                    In Progress
-                  </p>
-                  <div className="grid grid-cols-5 gap-2">
-                    {(
-                      [
-                        {
-                          key: "STILL_RUNNING",
-                          label: "Running",
-                          color: "var(--color-class-expected-skip)",
-                        },
-                        {
-                          key: "CANCELLED",
-                          label: "Cancelled",
-                          color: "var(--color-class-unverified)",
-                        },
-                      ] as const
-                    ).map((c) => {
-                      const count = status.classification_counts?.[c.key] ?? 0;
-                      return count > 0 ? (
-                        <StatBox
-                          key={c.key}
-                          label={c.label}
-                          value={count}
-                          color={c.color}
-                          onClick={() => setShardStatusFilter(c.key)}
-                        />
-                      ) : null;
-                    })}
-                  </div>
+              <div className="mb-2">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+                  In Progress
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {(
+                    [
+                      {
+                        key: "STILL_RUNNING",
+                        label: "Running",
+                        color: "var(--color-class-expected-skip)",
+                      },
+                      {
+                        key: "CANCELLED",
+                        label: "Cancelled",
+                        color: "var(--color-class-unverified)",
+                      },
+                    ] as const
+                  ).map((c) => {
+                    const count = status.classification_counts?.[c.key] ?? 0;
+                    return count > 0 ? (
+                      <StatBox
+                        key={c.key}
+                        label={c.label}
+                        value={count}
+                        color={c.color}
+                        onClick={() => setShardStatusFilter(c.key)}
+                      />
+                    ) : null;
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
             <div className="mt-2">
               <Button
@@ -1968,7 +1971,7 @@ export function DeploymentDetails({
             {(status.completed_with_verification ?? null) == null && (
               <p className="text-xs text-[var(--color-text-muted)] mt-2">
                 {(status.running_shards ?? 0) === 0 &&
-                  (status.pending_shards ?? 0) === 0
+                (status.pending_shards ?? 0) === 0
                   ? "Verification is running automatically in the background. Refresh in a moment, or click Verify."
                   : "Click Verify to check how many completed shards have created output files."}
               </p>
@@ -2233,23 +2236,23 @@ export function DeploymentDetails({
                     {CLASSIFICATION_FILTERS.includes(
                       shardStatusFilter as (typeof CLASSIFICATION_FILTERS)[number],
                     ) && (
-                        <div className="flex items-center gap-2 px-2 py-1 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
-                          <span className="text-xs text-[var(--color-text-secondary)]">
-                            Filtered by classification:{" "}
-                            <span className="font-medium text-[var(--color-text-primary)]">
-                              {shardStatusFilter.replace(/_/g, " ")}
-                            </span>
+                      <div className="flex items-center gap-2 px-2 py-1 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
+                        <span className="text-xs text-[var(--color-text-secondary)]">
+                          Filtered by classification:{" "}
+                          <span className="font-medium text-[var(--color-text-primary)]">
+                            {shardStatusFilter.replace(/_/g, " ")}
                           </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShardStatusFilter("all")}
-                            className="text-xs text-[var(--color-accent-cyan)] hover:underline h-auto p-0"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      )}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShardStatusFilter("all")}
+                          className="text-xs text-[var(--color-accent-cyan)] hover:underline h-auto p-0"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Result count */}
                     <div className="text-xs text-[var(--color-text-muted)]">
@@ -2362,7 +2365,7 @@ export function DeploymentDetails({
 
             <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
               {shardsForDisplay.length === 0 &&
-                (allShards || status?.shards) ? (
+              (allShards || status?.shards) ? (
                 // No results after filtering
                 <div className="p-6 text-center text-sm text-[var(--color-text-muted)]">
                   {shardSearchText.trim() ? (
@@ -2381,98 +2384,96 @@ export function DeploymentDetails({
               ) : viewMode === "grouped" && shardsForDisplay.length > 0 ? (
                 // Grouped view by asset group
                 <div className="max-h-[500px] overflow-y-auto">
-                  {Object.entries(groupShardsByAssetGroup(shardsForDisplay)).map(
-                    ([ag, agShards]) => {
-                      const stats = getAssetGroupStats(agShards);
-                      const isExpanded = expandedAssetGroups.has(ag);
-                      return (
-                        <div
-                          key={ag}
-                          className="border-b border-[var(--color-border-subtle)] last:border-b-0"
+                  {Object.entries(
+                    groupShardsByAssetGroup(shardsForDisplay),
+                  ).map(([ag, agShards]) => {
+                    const stats = getAssetGroupStats(agShards);
+                    const isExpanded = expandedAssetGroups.has(ag);
+                    return (
+                      <div
+                        key={ag}
+                        className="border-b border-[var(--color-border-subtle)] last:border-b-0"
+                      >
+                        {/* Asset group header */}
+                        <Button
+                          variant="ghost"
+                          onClick={() => toggleAssetGroup(ag)}
+                          className="w-full p-2 flex items-center justify-between hover:bg-[var(--color-bg-hover)] transition-colors h-auto"
                         >
-                          {/* Asset group header */}
-                          <Button
-                            variant="ghost"
-                            onClick={() => toggleAssetGroup(ag)}
-                            className="w-full p-2 flex items-center justify-between hover:bg-[var(--color-bg-hover)] transition-colors h-auto"
-                          >
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <FolderOpen className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                              ) : (
-                                <Folder className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                              )}
-                              <span className="font-medium text-sm">
-                                {ag}
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <FolderOpen className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                            ) : (
+                              <Folder className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                            )}
+                            <span className="font-medium text-sm">{ag}</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              ({stats.total} shards)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* Status summary badges */}
+                            {stats.completed > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-success-bg-tag)] text-[var(--color-accent-green)]">
+                                {stats.completed} ✓
                               </span>
-                              <span className="text-xs text-[var(--color-text-muted)]">
-                                ({stats.total} shards)
+                            )}
+                            {stats.running > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-running-bg-tag)] text-[var(--color-accent-cyan)]">
+                                {stats.running} ⟳
                               </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {/* Status summary badges */}
-                              {stats.completed > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-success-bg-tag)] text-[var(--color-accent-green)]">
-                                  {stats.completed} ✓
-                                </span>
+                            )}
+                            {stats.failed > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-error-bg-tag)] text-[var(--color-accent-red)]">
+                                {stats.failed} ✗
+                              </span>
+                            )}
+                            {stats.pending > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-muted-bg-tag)] text-[var(--color-text-muted)]">
+                                {stats.pending} ○
+                              </span>
+                            )}
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-[var(--color-text-muted)] transition-transform",
+                                isExpanded && "rotate-90",
                               )}
-                              {stats.running > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-running-bg-tag)] text-[var(--color-accent-cyan)]">
-                                  {stats.running} ⟳
-                                </span>
-                              )}
-                              {stats.failed > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-error-bg-tag)] text-[var(--color-accent-red)]">
-                                  {stats.failed} ✗
-                                </span>
-                              )}
-                              {stats.pending > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--color-status-muted-bg-tag)] text-[var(--color-text-muted)]">
-                                  {stats.pending} ○
-                                </span>
-                              )}
-                              <ChevronRight
-                                className={cn(
-                                  "h-4 w-4 text-[var(--color-text-muted)] transition-transform",
-                                  isExpanded && "rotate-90",
+                            />
+                          </div>
+                        </Button>
+                        {/* Shards in this asset group */}
+                        {isExpanded && (
+                          <div className="divide-y divide-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
+                            {agShards.map((shard) => (
+                              <ShardRow
+                                key={shard.shard_id}
+                                shard={shard}
+                                selected={selectedShards.has(shard.shard_id)}
+                                onSelect={() =>
+                                  toggleShardSelection(shard.shard_id)
+                                }
+                                onCancel={() =>
+                                  handleCancelShard(shard.shard_id)
+                                }
+                                onViewLogs={() => openShardLogs(shard)}
+                                cancelling={
+                                  actionLoading === `shard-${shard.shard_id}`
+                                }
+                                classification={
+                                  status?.shard_classifications?.[
+                                    shard.shard_id
+                                  ]
+                                }
+                                vmEvents={events.filter(
+                                  (e) => e.shard_id === shard.shard_id,
                                 )}
                               />
-                            </div>
-                          </Button>
-                          {/* Shards in this asset group */}
-                          {isExpanded && (
-                            <div className="divide-y divide-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
-                              {agShards.map((shard) => (
-                                <ShardRow
-                                  key={shard.shard_id}
-                                  shard={shard}
-                                  selected={selectedShards.has(shard.shard_id)}
-                                  onSelect={() =>
-                                    toggleShardSelection(shard.shard_id)
-                                  }
-                                  onCancel={() =>
-                                    handleCancelShard(shard.shard_id)
-                                  }
-                                  onViewLogs={() => openShardLogs(shard)}
-                                  cancelling={
-                                    actionLoading === `shard-${shard.shard_id}`
-                                  }
-                                  classification={
-                                    status?.shard_classifications?.[
-                                    shard.shard_id
-                                    ]
-                                  }
-                                  vmEvents={events.filter(
-                                    (e) => e.shard_id === shard.shard_id,
-                                  )}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    },
-                  )}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 // Flat view
@@ -2572,28 +2573,28 @@ export function DeploymentDetails({
                         ? logs
                         : logSeverityFilter === "ERROR"
                           ? logs.filter(
-                            (l) =>
-                              l.severity === "ERROR" ||
-                              l.severity === "CRITICAL",
-                          )
-                          : logSeverityFilter === "WARNING"
-                            ? logs.filter(
                               (l) =>
                                 l.severity === "ERROR" ||
-                                l.severity === "CRITICAL" ||
-                                l.severity === "WARNING",
+                                l.severity === "CRITICAL",
                             )
+                          : logSeverityFilter === "WARNING"
+                            ? logs.filter(
+                                (l) =>
+                                  l.severity === "ERROR" ||
+                                  l.severity === "CRITICAL" ||
+                                  l.severity === "WARNING",
+                              )
                             : logs;
                     const searchLower = logSearch.toLowerCase().trim();
                     const count = searchLower
                       ? sevFiltered.filter(
-                        (l) =>
-                          l.message.toLowerCase().includes(searchLower) ||
-                          (l.logger &&
-                            l.logger.toLowerCase().includes(searchLower)) ||
-                          (l.shard &&
-                            l.shard.toLowerCase().includes(searchLower)),
-                      ).length
+                          (l) =>
+                            l.message.toLowerCase().includes(searchLower) ||
+                            (l.logger &&
+                              l.logger.toLowerCase().includes(searchLower)) ||
+                            (l.shard &&
+                              l.shard.toLowerCase().includes(searchLower)),
+                        ).length
                       : sevFiltered.length;
                     return logSearch || logSeverityFilter !== "ALL"
                       ? `${count}/${logs.length}`
@@ -2638,7 +2639,7 @@ export function DeploymentDetails({
                   className={cn(
                     "h-8 text-xs",
                     followLogs &&
-                    "bg-[var(--color-accent-green)] hover:bg-[var(--color-accent-green)]/80",
+                      "bg-[var(--color-accent-green)] hover:bg-[var(--color-accent-green)]/80",
                   )}
                   title={
                     followLogs
@@ -2682,7 +2683,7 @@ export function DeploymentDetails({
                       View shard:
                     </span>
                     {(allShards ?? status?.shards ?? shardPage ?? []).length >
-                      0 ? (
+                    0 ? (
                       <>
                         <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto flex-1">
                           {(allShards ?? status?.shards ?? shardPage ?? [])
@@ -2707,10 +2708,10 @@ export function DeploymentDetails({
                             ))}
                           {(allShards ?? status?.shards ?? shardPage ?? [])
                             .length > 50 && (
-                              <span className="text-[10px] self-center text-[var(--color-text-muted)]">
-                                + more in Shards tab
-                              </span>
-                            )}
+                            <span className="text-[10px] self-center text-[var(--color-text-muted)]">
+                              + more in Shards tab
+                            </span>
+                          )}
                         </div>
                         {logs.length === 0 && (
                           <Button
@@ -2811,38 +2812,38 @@ export function DeploymentDetails({
                         ? logs
                         : logSeverityFilter === "ERROR"
                           ? logs.filter(
-                            (l) =>
-                              l.severity === "ERROR" ||
-                              l.severity === "CRITICAL",
-                          )
-                          : logSeverityFilter === "WARNING"
-                            ? logs.filter(
                               (l) =>
                                 l.severity === "ERROR" ||
-                                l.severity === "CRITICAL" ||
-                                l.severity === "WARNING",
+                                l.severity === "CRITICAL",
                             )
+                          : logSeverityFilter === "WARNING"
+                            ? logs.filter(
+                                (l) =>
+                                  l.severity === "ERROR" ||
+                                  l.severity === "CRITICAL" ||
+                                  l.severity === "WARNING",
+                              )
                             : logs; // INFO+ = all
 
                     // Step 2: Text search on message, logger, shard — NOT on severity
                     const searchLower = logSearch.toLowerCase().trim();
                     const filteredLogs = searchLower
                       ? severityFiltered.filter((log) => {
-                        return (
-                          (log.message &&
-                            log.message
-                              .toLowerCase()
-                              .includes(searchLower)) ||
-                          (log.logger &&
-                            log.logger.toLowerCase().includes(searchLower)) ||
-                          (log.execution_name &&
-                            log.execution_name
-                              .toLowerCase()
-                              .includes(searchLower)) ||
-                          (log.shard &&
-                            log.shard.toLowerCase().includes(searchLower))
-                        );
-                      })
+                          return (
+                            (log.message &&
+                              log.message
+                                .toLowerCase()
+                                .includes(searchLower)) ||
+                            (log.logger &&
+                              log.logger.toLowerCase().includes(searchLower)) ||
+                            (log.execution_name &&
+                              log.execution_name
+                                .toLowerCase()
+                                .includes(searchLower)) ||
+                            (log.shard &&
+                              log.shard.toLowerCase().includes(searchLower))
+                          );
+                        })
                       : severityFiltered;
 
                     if (
@@ -2885,24 +2886,24 @@ export function DeploymentDetails({
                           className={cn(
                             "py-1 px-2 rounded hover:bg-[var(--color-bg-tertiary)]",
                             isRegionSwitch &&
-                            "bg-[var(--color-status-tradfi-bg)] border-l-2 border-[var(--color-accent-purple)]",
+                              "bg-[var(--color-status-tradfi-bg)] border-l-2 border-[var(--color-accent-purple)]",
                             isZoneExhausted &&
-                            "bg-[var(--color-status-warning-bg-subtle)]",
+                              "bg-[var(--color-status-warning-bg-subtle)]",
                             isQuotaExhausted &&
-                            "bg-[var(--color-status-warning-bg)] border-l-2 border-[var(--color-accent-amber)]",
+                              "bg-[var(--color-status-warning-bg)] border-l-2 border-[var(--color-accent-amber)]",
                             isAllExhausted &&
-                            "bg-[var(--color-status-error-bg)] border-l-2 border-[var(--color-accent-red)]",
+                              "bg-[var(--color-status-error-bg)] border-l-2 border-[var(--color-accent-red)]",
                           )}
                         >
                           <span
                             className={cn(
                               "font-bold",
                               log.severity === "ERROR" &&
-                              "text-[var(--color-accent-red)]",
+                                "text-[var(--color-accent-red)]",
                               log.severity === "WARNING" &&
-                              "text-[var(--color-accent-amber)]",
+                                "text-[var(--color-accent-amber)]",
                               log.severity === "INFO" &&
-                              "text-[var(--color-accent-cyan)]",
+                                "text-[var(--color-accent-cyan)]",
                             )}
                           >
                             [{log.severity}]
@@ -2922,13 +2923,13 @@ export function DeploymentDetails({
                                 className={cn(
                                   "px-1 rounded text-[10px] font-semibold",
                                   isRegionSwitch &&
-                                  "bg-[var(--color-accent-purple)] text-white",
+                                    "bg-[var(--color-accent-purple)] text-white",
                                   isZoneExhausted &&
-                                  "bg-[var(--color-accent-amber)] text-black",
+                                    "bg-[var(--color-accent-amber)] text-black",
                                   isQuotaExhausted &&
-                                  "bg-[var(--color-accent-amber)] text-black",
+                                    "bg-[var(--color-accent-amber)] text-black",
                                   isAllExhausted &&
-                                  "bg-[var(--color-accent-red)] text-white",
+                                    "bg-[var(--color-accent-red)] text-white",
                                 )}
                               >
                                 {isRegionSwitch
@@ -3196,10 +3197,11 @@ export function DeploymentDetails({
                           {ev.shard_id}
                         </code>
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${isVm
-                            ? "bg-[var(--color-status-warning-bg-tag)] text-[var(--color-accent-amber)]"
-                            : "bg-[var(--color-status-running-bg-alt)] text-[var(--color-accent-cyan)]"
-                            }`}
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                            isVm
+                              ? "bg-[var(--color-status-warning-bg-tag)] text-[var(--color-accent-amber)]"
+                              : "bg-[var(--color-status-running-bg-alt)] text-[var(--color-accent-cyan)]"
+                          }`}
                         >
                           {ev.event_type.replace(/_/g, " ")}
                         </span>
@@ -3215,51 +3217,51 @@ export function DeploymentDetails({
             {/* Collapsible: aggregate VM error summary */}
             {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length >
               0 && (
-                <div className="mt-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] h-auto p-0"
-                    onClick={() => setEventsExpanded((v) => !v)}
-                  >
-                    {eventsExpanded ? (
-                      <ChevronUp className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                    VM Event Summary (
-                    {
-                      events.filter((e) => VM_EVENT_TYPES.has(e.event_type))
-                        .length
-                    }{" "}
-                    events)
-                  </Button>
-                  {eventsExpanded && (
-                    <div className="mt-2 pl-4 space-y-1">
-                      {Object.entries(
-                        events
-                          .filter((e) => VM_EVENT_TYPES.has(e.event_type))
-                          .reduce<Record<string, number>>((acc, e) => {
-                            acc[e.event_type] = (acc[e.event_type] ?? 0) + 1;
-                            return acc;
-                          }, {}),
-                      ).map(([type, count]) => (
-                        <div
-                          key={type}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          <span className="text-[var(--color-accent-amber)]">
-                            {type.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-[var(--color-text-muted)]">
-                            ×{count}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              <div className="mt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] h-auto p-0"
+                  onClick={() => setEventsExpanded((v) => !v)}
+                >
+                  {eventsExpanded ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
                   )}
-                </div>
-              )}
+                  VM Event Summary (
+                  {
+                    events.filter((e) => VM_EVENT_TYPES.has(e.event_type))
+                      .length
+                  }{" "}
+                  events)
+                </Button>
+                {eventsExpanded && (
+                  <div className="mt-2 pl-4 space-y-1">
+                    {Object.entries(
+                      events
+                        .filter((e) => VM_EVENT_TYPES.has(e.event_type))
+                        .reduce<Record<string, number>>((acc, e) => {
+                          acc[e.event_type] = (acc[e.event_type] ?? 0) + 1;
+                          return acc;
+                        }, {}),
+                    ).map(([type, count]) => (
+                      <div
+                        key={type}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <span className="text-[var(--color-accent-amber)]">
+                          {type.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[var(--color-text-muted)]">
+                          ×{count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -3305,13 +3307,13 @@ export function DeploymentDetails({
                     className={cn(
                       "py-1 border-b border-[var(--color-border-subtle)] last:border-0",
                       log.severity === "ERROR" &&
-                      "text-[var(--color-accent-red)]",
+                        "text-[var(--color-accent-red)]",
                       log.severity === "WARNING" &&
-                      "text-[var(--color-accent-amber)]",
+                        "text-[var(--color-accent-amber)]",
                       log.severity === "INFO" &&
-                      "text-[var(--color-text-secondary)]",
+                        "text-[var(--color-text-secondary)]",
                       log.severity === "DEBUG" &&
-                      "text-[var(--color-text-muted)]",
+                        "text-[var(--color-text-muted)]",
                     )}
                   >
                     <span className="text-[var(--color-text-muted)] mr-2">
@@ -3322,11 +3324,11 @@ export function DeploymentDetails({
                       className={cn(
                         "px-1 rounded text-xs mr-2",
                         log.severity === "ERROR" &&
-                        "bg-[var(--color-status-error-bg-tag)]",
+                          "bg-[var(--color-status-error-bg-tag)]",
                         log.severity === "WARNING" &&
-                        "bg-[var(--color-status-warning-bg-tag)]",
+                          "bg-[var(--color-status-warning-bg-tag)]",
                         log.severity === "INFO" &&
-                        "bg-[var(--color-status-success-bg-tag)]",
+                          "bg-[var(--color-status-success-bg-tag)]",
                       )}
                     >
                       {log.severity}
@@ -3378,7 +3380,7 @@ function StatBox({
       className={cn(
         "p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-center",
         onClick &&
-        "cursor-pointer hover:bg-[var(--color-bg-hover)] hover:border-[var(--color-border)] transition-colors",
+          "cursor-pointer hover:bg-[var(--color-bg-hover)] hover:border-[var(--color-border)] transition-colors",
       )}
       onClick={onClick}
       title={onClick ? `Filter shards by: ${label}` : undefined}

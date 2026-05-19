@@ -75,7 +75,9 @@ describe("ServiceEmissionStateBadge", () => {
     expect(badge.className).toContain("text-[9px]");
     expect(badge.getAttribute("data-state")).toBe("PUBLISHED_OK");
 
-    rerender(<ServiceEmissionStateBadge state="PUBLISHED_OK" compact={false} />);
+    rerender(
+      <ServiceEmissionStateBadge state="PUBLISHED_OK" compact={false} />,
+    );
     const badgeDefault = screen.getByTestId("service-emission-state-badge");
     expect(badgeDefault.className).toContain("px-1.5");
     expect(badgeDefault.className).toContain("text-[10px]");

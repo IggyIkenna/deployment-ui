@@ -8,7 +8,11 @@ vi.mock("../api/deploymentApi", () => ({
 }));
 
 vi.mock("../contexts/NotificationContext", () => ({
-  useNotifications: () => ({ addToast: vi.fn(), dismissToast: vi.fn(), toasts: [] }),
+  useNotifications: () => ({
+    addToast: vi.fn(),
+    dismissToast: vi.fn(),
+    toasts: [],
+  }),
 }));
 
 const mockResult = {
@@ -19,7 +23,8 @@ const mockResult = {
   correlation_id: "corr-abc-123",
   launcher_script: "launch-ml-training-vm.sh",
   dry_run: true,
-  events_uri: "gs://central-element-323112-events/events/ml/2026-05-15/ml-train-eth-usdt-20260515/",
+  events_uri:
+    "gs://central-element-323112-events/events/ml/2026-05-15/ml-train-eth-usdt-20260515/",
   argv: ["--asset-group", "defi"],
 };
 
@@ -52,14 +57,20 @@ describe("MlExperiments", () => {
     render(<MlExperiments />);
     fireEvent.blur(screen.getByTestId("instruments-input"));
     expect(screen.getByText(/at least one instrument/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId("instruments-input"), { target: { value: "ETH-USDT" } });
-    expect(screen.queryByText(/at least one instrument/i)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("instruments-input"), {
+      target: { value: "ETH-USDT" },
+    });
+    expect(
+      screen.queryByText(/at least one instrument/i),
+    ).not.toBeInTheDocument();
   });
 
   it("submit button re-enables after valid instrument is entered", () => {
     render(<MlExperiments />);
     expect(screen.getByTestId("launch-button")).toBeDisabled();
-    fireEvent.change(screen.getByTestId("instruments-input"), { target: { value: "ETH-USDT" } });
+    fireEvent.change(screen.getByTestId("instruments-input"), {
+      target: { value: "ETH-USDT" },
+    });
     expect(screen.getByTestId("launch-button")).not.toBeDisabled();
   });
 
@@ -94,7 +105,9 @@ describe("MlExperiments", () => {
     });
     fireEvent.click(screen.getByTestId("launch-button"));
 
-    await waitFor(() => expect(screen.getByText("DRY RUN")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("DRY RUN")).toBeInTheDocument(),
+    );
   });
 
   it("shows error panel on API failure", async () => {
@@ -123,7 +136,9 @@ describe("MlExperiments", () => {
     });
     fireEvent.click(screen.getByTestId("launch-button"));
 
-    await waitFor(() => expect(screen.getByTestId("launch-result")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("launch-result")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByText("Dismiss"));
     expect(screen.queryByTestId("launch-result")).not.toBeInTheDocument();
   });

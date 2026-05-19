@@ -49,7 +49,9 @@ function getCompletionColor(pct: number): string {
 export function groupFeatureGroupsByFamily(
   feature_groups: Record<string, TurboFeatureGroupStatus>,
 ): Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus> {
-  const result: Partial<Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus>> = {};
+  const result: Partial<
+    Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus>
+  > = {};
 
   // Initialise empty rollups for every UAC family + the unknown bucket;
   // empty entries get filtered out at render time.
@@ -91,8 +93,10 @@ export function groupFeatureGroupsByFamily(
   }
 
   // Strip empty buckets so the parent doesn't render blank rows.
-  const filtered: Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus> =
-    {} as Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus>;
+  const filtered: Record<
+    FeatureFamily | "__unknown__",
+    TurboFeatureFamilyStatus
+  > = {} as Record<FeatureFamily | "__unknown__", TurboFeatureFamilyStatus>;
   for (const family of [...FEATURE_FAMILIES, "__unknown__" as const]) {
     const bucket = result[family];
     if (bucket && Object.keys(bucket.feature_groups).length > 0) {
@@ -212,7 +216,9 @@ export function FeatureFamilyBreakdown({
                 <div className="flex items-center gap-3">
                   <span
                     className="text-sm font-medium"
-                    style={{ color: getCompletionColor(familyData.completion_pct) }}
+                    style={{
+                      color: getCompletionColor(familyData.completion_pct),
+                    }}
                   >
                     {familyData.completion_pct.toFixed(0)}%
                   </span>
@@ -235,7 +241,9 @@ export function FeatureFamilyBreakdown({
                           type="button"
                           key={fgName}
                           className="flex items-center justify-between px-3 py-1.5 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-hover)] text-left"
-                          onClick={() => onFeatureGroupClick?.(familyName, fgName)}
+                          onClick={() =>
+                            onFeatureGroupClick?.(familyName, fgName)
+                          }
                           data-testid={`feature-group-row-${familyName}-${fgName}`}
                         >
                           <div className="flex items-center gap-2">
@@ -250,7 +258,9 @@ export function FeatureFamilyBreakdown({
                             <span
                               className="text-xs font-medium"
                               style={{
-                                color: getCompletionColor(fgData.completion_pct),
+                                color: getCompletionColor(
+                                  fgData.completion_pct,
+                                ),
                               }}
                             >
                               {fgData.completion_pct.toFixed(0)}%

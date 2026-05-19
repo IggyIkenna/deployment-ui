@@ -2,7 +2,12 @@ import { useParams } from "react-router-dom";
 import { Server } from "lucide-react";
 import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { VmHealthBadge } from "../components/VmHealthBadge";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 
 export function VmDetail() {
   const { vmName } = useParams<{ vmName: string }>();
@@ -10,7 +15,9 @@ export function VmDetail() {
   if (!vmName) {
     return (
       <main className="mx-auto px-4 py-6 max-w-[1280px]">
-        <p className="text-sm text-[var(--color-text-muted)]">No VM name specified.</p>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          No VM name specified.
+        </p>
       </main>
     );
   }

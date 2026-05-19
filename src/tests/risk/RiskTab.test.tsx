@@ -77,7 +77,9 @@ describe("RiskTab", () => {
     const preflightBtn = screen.getByTestId("risk-tab-nav-preflight");
     const rulesBtn = screen.getByTestId("risk-tab-nav-rules");
     expect(preflightBtn.className).toContain("bg-[var(--color-accent-blue)]");
-    expect(rulesBtn.className).toContain("border-[var(--color-border-default)]");
+    expect(rulesBtn.className).toContain(
+      "border-[var(--color-border-default)]",
+    );
   });
 
   it("switches back to Rules when the Rules nav button is clicked", () => {

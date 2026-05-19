@@ -57,7 +57,9 @@ describe("ErrorBoundary", () => {
         <ThrowNullError shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByText(/an unexpected error occurred/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/an unexpected error occurred/i),
+    ).toBeInTheDocument();
   });
 
   it("provides a Try again button that resets error state", () => {
@@ -84,7 +86,9 @@ describe("ErrorBoundary", () => {
         <ThrowingChild shouldThrow={true} />
       </ErrorBoundary>,
     );
-    expect(screen.getByRole("button", { name: /reload the page/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /reload the page/i }),
+    ).toBeInTheDocument();
   });
 
   it("accepts a custom fallback title", () => {

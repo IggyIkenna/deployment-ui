@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { fetchVmCostEstimate, type VmCostEstimateResponse } from "../api/deploymentApi";
+import {
+  fetchVmCostEstimate,
+  type VmCostEstimateResponse,
+} from "../api/deploymentApi";
 
 const MACHINE_TYPES = [
   "n1-standard-1",
@@ -26,7 +29,13 @@ export function VmCostEstimatePanel() {
   const hours = parseFloat(runtimeHours);
   const disk = parseInt(diskGb, 10);
   const cnt = parseInt(count, 10);
-  const isValid = !isNaN(hours) && hours > 0 && !isNaN(disk) && disk >= 10 && !isNaN(cnt) && cnt >= 1;
+  const isValid =
+    !isNaN(hours) &&
+    hours > 0 &&
+    !isNaN(disk) &&
+    disk >= 10 &&
+    !isNaN(cnt) &&
+    cnt >= 1;
 
   function handleCalculate(e: React.FormEvent) {
     e.preventDefault();
@@ -34,10 +43,20 @@ export function VmCostEstimatePanel() {
     setLoading(true);
     setError(null);
     setResult(null);
-    fetchVmCostEstimate({ machine_type: machineType, runtime_hours: hours, disk_gb: disk, count: cnt })
-      .then((r) => { setResult(r); setLoading(false); })
+    fetchVmCostEstimate({
+      machine_type: machineType,
+      runtime_hours: hours,
+      disk_gb: disk,
+      count: cnt,
+    })
+      .then((r) => {
+        setResult(r);
+        setLoading(false);
+      })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to estimate cost");
+        setError(
+          err instanceof Error ? err.message : "Failed to estimate cost",
+        );
         setLoading(false);
       });
   }
@@ -51,9 +70,16 @@ export function VmCostEstimatePanel() {
         Cost Estimate
       </p>
 
-      <form onSubmit={handleCalculate} data-testid="cost-estimate-form" className="grid grid-cols-2 gap-3">
+      <form
+        onSubmit={handleCalculate}
+        data-testid="cost-estimate-form"
+        className="grid grid-cols-2 gap-3"
+      >
         <div className="space-y-1">
-          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-machine-type">
+          <label
+            className="text-xs text-[var(--color-text-muted)]"
+            htmlFor="ce-machine-type"
+          >
             Machine type
           </label>
           <select
@@ -64,13 +90,18 @@ export function VmCostEstimatePanel() {
             className="w-full rounded border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-2 py-1 text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
           >
             {MACHINE_TYPES.map((mt) => (
-              <option key={mt} value={mt}>{mt}</option>
+              <option key={mt} value={mt}>
+                {mt}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-hours">
+          <label
+            className="text-xs text-[var(--color-text-muted)]"
+            htmlFor="ce-hours"
+          >
             Runtime hours
           </label>
           <input
@@ -87,7 +118,10 @@ export function VmCostEstimatePanel() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-disk">
+          <label
+            className="text-xs text-[var(--color-text-muted)]"
+            htmlFor="ce-disk"
+          >
             Disk (GB)
           </label>
           <input
@@ -104,7 +138,10 @@ export function VmCostEstimatePanel() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-count">
+          <label
+            className="text-xs text-[var(--color-text-muted)]"
+            htmlFor="ce-count"
+          >
             Count
           </label>
           <input
@@ -133,7 +170,10 @@ export function VmCostEstimatePanel() {
       </form>
 
       {error && (
-        <p className="text-xs text-[var(--color-error)]" data-testid="cost-estimate-error">
+        <p
+          className="text-xs text-[var(--color-error)]"
+          data-testid="cost-estimate-error"
+        >
           {error}
         </p>
       )}
@@ -150,14 +190,22 @@ export function VmCostEstimatePanel() {
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             <dt className="text-[var(--color-text-muted)]">Compute</dt>
-            <dd data-testid="cost-compute" className="text-[var(--color-text-primary)]">
+            <dd
+              data-testid="cost-compute"
+              className="text-[var(--color-text-primary)]"
+            >
               ${result.compute_cost_usd.toFixed(4)} USD
             </dd>
             <dt className="text-[var(--color-text-muted)]">Disk</dt>
-            <dd data-testid="cost-disk" className="text-[var(--color-text-primary)]">
+            <dd
+              data-testid="cost-disk"
+              className="text-[var(--color-text-primary)]"
+            >
               ${result.disk_cost_usd.toFixed(4)} USD
             </dd>
-            <dt className="text-[var(--color-text-muted)] font-semibold">Total</dt>
+            <dt className="text-[var(--color-text-muted)] font-semibold">
+              Total
+            </dt>
             <dd
               data-testid="cost-total"
               className="text-[var(--color-accent-green)] font-semibold"

@@ -7,7 +7,9 @@ function Harness() {
   return (
     <div>
       <button
-        onClick={() => addToast("VM launched", "success", "ml-train-eth-20260515")}
+        onClick={() =>
+          addToast("VM launched", "success", "ml-train-eth-20260515")
+        }
         data-testid="add-success"
       >
         add success
@@ -29,7 +31,10 @@ function Harness() {
           <span data-testid="toast-message">{t.message}</span>
           {t.detail && <span data-testid="toast-detail">{t.detail}</span>}
           <span data-testid="toast-variant">{t.variant}</span>
-          <button onClick={() => dismissToast(t.id)} data-testid={`dismiss-${t.id}`}>
+          <button
+            onClick={() => dismissToast(t.id)}
+            data-testid={`dismiss-${t.id}`}
+          >
             dismiss
           </button>
         </div>
@@ -48,7 +53,9 @@ afterEach(() => {
 
 describe("NotificationContext", () => {
   it("throws when used outside NotificationProvider", () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     expect(() => render(<Harness />)).toThrow(/NotificationProvider/);
     consoleError.mockRestore();
   });
@@ -61,7 +68,9 @@ describe("NotificationContext", () => {
     );
     fireEvent.click(screen.getByTestId("add-success"));
     expect(screen.getByTestId("toast-message").textContent).toBe("VM launched");
-    expect(screen.getByTestId("toast-detail").textContent).toBe("ml-train-eth-20260515");
+    expect(screen.getByTestId("toast-detail").textContent).toBe(
+      "ml-train-eth-20260515",
+    );
     expect(screen.getByTestId("toast-variant").textContent).toBe("success");
   });
 
@@ -73,7 +82,9 @@ describe("NotificationContext", () => {
     );
     fireEvent.click(screen.getByTestId("add-error"));
     expect(screen.getByTestId("toast-variant").textContent).toBe("error");
-    expect(screen.getByTestId("toast-message").textContent).toBe("Launch failed");
+    expect(screen.getByTestId("toast-message").textContent).toBe(
+      "Launch failed",
+    );
   });
 
   it("adds multiple toasts and shows correct count", () => {
@@ -108,7 +119,9 @@ describe("NotificationContext", () => {
     );
     fireEvent.click(screen.getByTestId("add-success"));
     expect(screen.getByTestId("toast-count").textContent).toBe("1");
-    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
     expect(screen.getByTestId("toast-count").textContent).toBe("0");
   });
 
@@ -119,7 +132,9 @@ describe("NotificationContext", () => {
       </NotificationProvider>,
     );
     fireEvent.click(screen.getByTestId("add-success"));
-    act(() => { vi.advanceTimersByTime(4999); });
+    act(() => {
+      vi.advanceTimersByTime(4999);
+    });
     expect(screen.getByTestId("toast-count").textContent).toBe("1");
   });
 });

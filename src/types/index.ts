@@ -10,11 +10,11 @@ export interface Service {
 export interface ServiceDimension {
   name: string;
   type:
-  | "fixed"
-  | "hierarchical"
-  | "date_range"
-  | "gcs_dynamic"
-  | "monthly_rolling";
+    | "fixed"
+    | "hierarchical"
+    | "date_range"
+    | "gcs_dynamic"
+    | "monthly_rolling";
   description: string;
   values?: string[];
   values_by_parent?: Record<string, string[]>;

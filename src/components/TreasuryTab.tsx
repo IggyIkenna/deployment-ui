@@ -43,12 +43,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
@@ -170,9 +165,8 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
         </DialogHeader>
         <DialogContent>
           <p className="text-xs text-[var(--color-text-secondary)] mb-3">
-            Submit a withdrawal request for client{" "}
-            <strong>{clientId}</strong>. Amounts above threshold require 2-of-N
-            operator approval.
+            Submit a withdrawal request for client <strong>{clientId}</strong>.
+            Amounts above threshold require 2-of-N operator approval.
           </p>
 
           {status === "success" ? (
@@ -514,8 +508,7 @@ export function TreasuryTab() {
     if (trimmed) setClientId(trimmed);
   };
 
-  const onboardingState =
-    _subscriptions?.onboarding_state ?? "—";
+  const onboardingState = _subscriptions?.onboarding_state ?? "—";
 
   return (
     <div className="space-y-6 p-4" data-testid="treasury-tab">
@@ -598,9 +591,7 @@ export function TreasuryTab() {
           {/* Allocations */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                Archetype Allocations
-              </CardTitle>
+              <CardTitle className="text-base">Archetype Allocations</CardTitle>
             </CardHeader>
             <CardContent>
               <AllocationsTable allocations={treasury.allocations} />
@@ -649,7 +640,9 @@ export function TreasuryTab() {
                     </span>
                     <Badge
                       variant={
-                        treasury.last_settled.side === "buy" ? "info" : "warning"
+                        treasury.last_settled.side === "buy"
+                          ? "info"
+                          : "warning"
                       }
                     >
                       {treasury.last_settled.side.toUpperCase()}
@@ -661,8 +654,7 @@ export function TreasuryTab() {
                   </div>
                   <div className="flex gap-4 text-xs text-[var(--color-text-secondary)]">
                     <span>
-                      Qty:{" "}
-                      <strong>{treasury.last_settled.quantity}</strong>
+                      Qty: <strong>{treasury.last_settled.quantity}</strong>
                     </span>
                     <span>
                       Fill:{" "}

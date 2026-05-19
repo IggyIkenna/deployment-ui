@@ -238,9 +238,9 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-payload")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-payload"));
-    expect(screen.getByTestId("shard-detail-truncation-note").textContent).toContain(
-      "500",
-    );
+    expect(
+      screen.getByTestId("shard-detail-truncation-note").textContent,
+    ).toContain("500");
   });
 
   it("renders fixtures payload with home/away/kickoff columns", async () => {
@@ -320,22 +320,22 @@ describe("ShardDetailModal", () => {
 
   it("download tab — csv button calls fetch", async () => {
     fetchSpy.mockResolvedValue(baseResponse());
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response("col1,col2\n1,2\n", {
-          status: 200,
-          headers: { "content-type": "text/csv" },
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("col1,col2\n1,2\n", {
+        status: 200,
+        headers: { "content-type": "text/csv" },
+      }),
+    );
     // jsdom lacks createObjectURL / revokeObjectURL
     if (!URL.createObjectURL) {
-      (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL =
-        () => "blob:fake";
+      (
+        URL as unknown as { createObjectURL: (b: Blob) => string }
+      ).createObjectURL = () => "blob:fake";
     }
     if (!URL.revokeObjectURL) {
-      (URL as unknown as { revokeObjectURL: (u: string) => void }).revokeObjectURL =
-        () => {};
+      (
+        URL as unknown as { revokeObjectURL: (u: string) => void }
+      ).revokeObjectURL = () => {};
     }
 
     render(

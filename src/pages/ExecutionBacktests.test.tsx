@@ -36,32 +36,44 @@ describe("ExecutionBacktests", () => {
 
   it("shows inline error when tick interval is below minimum", () => {
     render(<ExecutionBacktests />);
-    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), {
+      target: { value: "30" },
+    });
     expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
   });
 
   it("shows inline error when tick interval exceeds maximum", () => {
     render(<ExecutionBacktests />);
-    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "99999" } });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), {
+      target: { value: "99999" },
+    });
     expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
   });
 
   it("submit button disabled when tick interval is out of range", () => {
     render(<ExecutionBacktests />);
-    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), {
+      target: { value: "30" },
+    });
     expect(screen.getByTestId("launch-button")).toBeDisabled();
   });
 
   it("inline error disappears when tick interval is corrected", () => {
     render(<ExecutionBacktests />);
-    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "30" } });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), {
+      target: { value: "30" },
+    });
     expect(screen.getByText(/60 and 86400/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId("tick-interval-input"), { target: { value: "300" } });
+    fireEvent.change(screen.getByTestId("tick-interval-input"), {
+      target: { value: "300" },
+    });
     expect(screen.queryByText(/60 and 86400/i)).not.toBeInTheDocument();
   });
 
   it("calls launchExecutionBacktest with correct params and shows result", async () => {
-    vi.mocked(deploymentApi.launchExecutionBacktest).mockResolvedValue(mockResult);
+    vi.mocked(deploymentApi.launchExecutionBacktest).mockResolvedValue(
+      mockResult,
+    );
     render(<ExecutionBacktests />);
 
     fireEvent.change(screen.getByTestId("tick-interval-input"), {
@@ -79,7 +91,9 @@ describe("ExecutionBacktests", () => {
       );
     });
     expect(screen.getByTestId("launch-result")).toBeInTheDocument();
-    expect(screen.getByText("strategy-paper-carry-20260515")).toBeInTheDocument();
+    expect(
+      screen.getByText("strategy-paper-carry-20260515"),
+    ).toBeInTheDocument();
   });
 
   it("toggles continuous mode checkbox", () => {
@@ -91,11 +105,15 @@ describe("ExecutionBacktests", () => {
   });
 
   it("shows DRY RUN badge when result.dry_run is true", async () => {
-    vi.mocked(deploymentApi.launchExecutionBacktest).mockResolvedValue(mockResult);
+    vi.mocked(deploymentApi.launchExecutionBacktest).mockResolvedValue(
+      mockResult,
+    );
     render(<ExecutionBacktests />);
 
     fireEvent.click(screen.getByTestId("launch-button"));
-    await waitFor(() => expect(screen.getByText("DRY RUN")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("DRY RUN")).toBeInTheDocument(),
+    );
   });
 
   it("shows error panel on API failure", async () => {

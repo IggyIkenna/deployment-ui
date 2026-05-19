@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { LifecyclePrefetchProvider, useLifecyclePrefetch } from "./LifecyclePrefetchContext";
+import {
+  LifecyclePrefetchProvider,
+  useLifecyclePrefetch,
+} from "./LifecyclePrefetchContext";
 import * as deploymentApi from "../api/deploymentApi";
 import * as cloudContext from "./CloudProviderContext";
 
@@ -12,7 +15,9 @@ const TestComponent = () => {
   return (
     <>
       {state.backfill.loading && <div>Backfill loading</div>}
-      {state.backfill.error && <div>Backfill error: {state.backfill.error.message}</div>}
+      {state.backfill.error && (
+        <div>Backfill error: {state.backfill.error.message}</div>
+      )}
       {state.backfill.data && <div>Backfill loaded</div>}
       {state.live.loading && <div>Live loading</div>}
       {state.live.error && <div>Live error: {state.live.error.message}</div>}
@@ -56,9 +61,7 @@ describe("LifecyclePrefetchContext", () => {
     vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(
       mockVmDeployments,
     );
-    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(
-      mockLiveStatus,
-    );
+    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(mockLiveStatus);
 
     render(
       <LifecyclePrefetchProvider>
@@ -79,9 +82,7 @@ describe("LifecyclePrefetchContext", () => {
     vi.spyOn(deploymentApi, "fetchVmDeployments").mockRejectedValue(
       backfillError,
     );
-    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(
-      mockLiveStatus,
-    );
+    vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(mockLiveStatus);
 
     render(
       <LifecyclePrefetchProvider>

@@ -232,10 +232,7 @@ export interface TypedReasonBadgesProps {
   emptyReasons?: Record<string, number>;
   failurePillars?: Record<string, number>;
   /** Optional click-through — fires (kind, key) when a badge is clicked. */
-  onBadgeClick?: (
-    kind: "empty_reason" | "failure_pillar",
-    key: string,
-  ) => void;
+  onBadgeClick?: (kind: "empty_reason" | "failure_pillar", key: string) => void;
   /** Test scope — disambiguates multiple instances on the same row. */
   testIdPrefix?: string;
 }

@@ -37,8 +37,10 @@ export function LiveFreshnessPanel() {
   }, []);
 
   const getStalenessColor = (stalenessSec: number): string => {
-    if (stalenessSec < 300) return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]";
-    if (stalenessSec < 900) return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]";
+    if (stalenessSec < 300)
+      return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]";
+    if (stalenessSec < 900)
+      return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]";
     return "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]";
   };
 
@@ -53,7 +55,11 @@ export function LiveFreshnessPanel() {
   }
 
   if (error) {
-    return <div className="p-4 text-[var(--color-accent-red)]">Error: {error.message}</div>;
+    return (
+      <div className="p-4 text-[var(--color-accent-red)]">
+        Error: {error.message}
+      </div>
+    );
   }
 
   if (rows.length === 0) {

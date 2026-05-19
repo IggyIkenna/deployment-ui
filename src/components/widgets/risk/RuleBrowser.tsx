@@ -76,7 +76,8 @@ async function defaultFetcher(params: {
 }
 
 const CONSEQUENCE_BADGE_CLASS: Record<RiskRuleConsequence, string> = {
-  BLOCK: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  BLOCK:
+    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
   SCALE_DOWN:
     "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
   MONITOR:
@@ -135,9 +136,7 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
             disabled={loading}
             aria-label="Reload risk rules"
           >
-            <RefreshCw
-              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -197,10 +196,7 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
             No rules match the current filters.
           </div>
         ) : (
-          <div
-            data-testid="rule-browser-table"
-            className="overflow-x-auto"
-          >
+          <div data-testid="rule-browser-table" className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border-default)] text-xs uppercase text-[var(--color-text-secondary)]">
@@ -283,7 +279,9 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
               {expanded.rule_id}
             </h3>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <Badge className={`border ${CONSEQUENCE_BADGE_CLASS[expanded.consequence]}`}>
+              <Badge
+                className={`border ${CONSEQUENCE_BADGE_CLASS[expanded.consequence]}`}
+              >
                 {expanded.consequence}
               </Badge>
               <Badge

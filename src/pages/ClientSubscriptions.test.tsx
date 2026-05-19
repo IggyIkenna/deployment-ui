@@ -109,9 +109,7 @@ describe("ClientSubscriptions page", () => {
       expect(screen.getByText("alpha")).toBeInTheDocument();
     });
     expect(screen.getByText("premium")).toBeInTheDocument();
-    expect(
-      screen.getByText(/risk-and-exposure-service/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/risk-and-exposure-service/)).toBeInTheDocument();
   });
 
   it("shows empty state when there are no subscriptions", async () => {

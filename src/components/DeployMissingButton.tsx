@@ -30,7 +30,8 @@ import {
 } from "../api/client";
 
 const _TARBALL_BLOCKED_ENVS = new Set(["staging", "production", "prod"]);
-const _AUTO_LAUNCH_PREF_KEY = "deployment-ui/deploy-missing-auto-launch-enabled";
+const _AUTO_LAUNCH_PREF_KEY =
+  "deployment-ui/deploy-missing-auto-launch-enabled";
 
 function _readAutoLaunchPref(): boolean {
   try {
@@ -62,7 +63,9 @@ export function DeployMissingButton({
   rowKey,
   label = "Deploy Missing",
 }: DeployMissingButtonProps) {
-  const [preview, setPreview] = useState<DeployMissingPreviewResponse | null>(null);
+  const [preview, setPreview] = useState<DeployMissingPreviewResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -70,12 +73,14 @@ export function DeployMissingButton({
   const [deploymentEnv, setDeploymentEnv] = useState<string>("development");
 
   // Auto-launch preference (item 6): persisted in localStorage, default false.
-  const [autoLaunchEnabled, setAutoLaunchEnabled] = useState<boolean>(_readAutoLaunchPref);
+  const [autoLaunchEnabled, setAutoLaunchEnabled] =
+    useState<boolean>(_readAutoLaunchPref);
 
   // Auto-launch state (item 5).
   const [confirmPending, setConfirmPending] = useState(false);
   const [launchLoading, setLaunchLoading] = useState(false);
-  const [launchResult, setLaunchResult] = useState<DeployMissingLaunchResult | null>(null);
+  const [launchResult, setLaunchResult] =
+    useState<DeployMissingLaunchResult | null>(null);
   const [launchError, setLaunchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,10 +214,19 @@ export function DeployMissingButton({
       )}
 
       {preview && (
-        <div className="deploy-missing-preview" role="dialog" aria-label="Deploy-Missing preview">
+        <div
+          className="deploy-missing-preview"
+          role="dialog"
+          aria-label="Deploy-Missing preview"
+        >
           <div className="deploy-missing-header">
             <span className="title">Surgical recovery command</span>
-            <button type="button" onClick={handleClose} aria-label="Close" className="close">
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close"
+              className="close"
+            >
               ×
             </button>
           </div>
@@ -305,7 +319,11 @@ export function DeployMissingButton({
 
             {/* Auto-launch section (Phase 2). Toggle defaults to false for new operators. */}
             <label
-              style={{ fontSize: "11px", cursor: "pointer", marginLeft: "12px" }}
+              style={{
+                fontSize: "11px",
+                cursor: "pointer",
+                marginLeft: "12px",
+              }}
               title="Enable to launch a GCE VM directly from the UI instead of copying the command"
             >
               <input
@@ -368,7 +386,9 @@ export function DeployMissingButton({
               <strong style={{ display: "block", marginBottom: "4px" }}>
                 ⚠ Launch GCE VM for shard:
               </strong>
-              <code style={{ fontSize: "10px", wordBreak: "break-all" }}>{preview.shard_key}</code>
+              <code style={{ fontSize: "10px", wordBreak: "break-all" }}>
+                {preview.shard_key}
+              </code>
               <div style={{ marginTop: "6px", display: "flex", gap: "8px" }}>
                 <button
                   type="button"
@@ -421,7 +441,13 @@ export function DeployMissingButton({
                 marginTop: "6px",
               }}
             >
-              <strong style={{ display: "block", marginBottom: "4px", color: "#66cc66" }}>
+              <strong
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  color: "#66cc66",
+                }}
+              >
                 {launchResult.inflight_vm_name
                   ? "↻ Existing in-flight VM returned"
                   : launchResult.started_confirmed
@@ -431,7 +457,9 @@ export function DeployMissingButton({
               <div style={{ color: "#ccc" }}>
                 <div>
                   <span style={{ color: "#888" }}>VM: </span>
-                  <code style={{ fontSize: "10px" }}>{launchResult.vm_name}</code>
+                  <code style={{ fontSize: "10px" }}>
+                    {launchResult.vm_name}
+                  </code>
                 </div>
                 <div style={{ marginTop: "2px" }}>
                   <span style={{ color: "#888" }}>Events: </span>
@@ -440,7 +468,9 @@ export function DeployMissingButton({
                   </code>
                 </div>
                 {launchResult.dry_run && (
-                  <div style={{ marginTop: "2px", color: "#ffcc66" }}>dry_run=true</div>
+                  <div style={{ marginTop: "2px", color: "#ffcc66" }}>
+                    dry_run=true
+                  </div>
                 )}
               </div>
             </div>
@@ -475,7 +505,8 @@ export function DeployMissingButton({
                 fontSize: "10px",
                 padding: "1px 6px",
                 borderRadius: "3px",
-                background: mode === "tarball-from-local" ? "#8a5a00" : "#1f3a5a",
+                background:
+                  mode === "tarball-from-local" ? "#8a5a00" : "#1f3a5a",
                 color: "#fff",
               }}
             >

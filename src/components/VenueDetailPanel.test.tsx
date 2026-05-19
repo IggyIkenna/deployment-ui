@@ -1,9 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type {
-  VenueDetailResult,
-  VenueDetailV2Response,
-} from "../api/client";
+import type { VenueDetailResult, VenueDetailV2Response } from "../api/client";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 
 describe("VenueDetailPanel", () => {
@@ -56,7 +53,9 @@ describe("VenueDetailPanel", () => {
       day: null,
     };
     render(<VenueDetailPanel loading={false} data={data} />);
-    expect(screen.getByTestId("venue-detail-panel-defi-protocols")).toBeTruthy();
+    expect(
+      screen.getByTestId("venue-detail-panel-defi-protocols"),
+    ).toBeTruthy();
     expect(screen.getByTestId("defi-protocol-row-AAVE_V3")).toBeTruthy();
     expect(screen.getByTestId("defi-protocol-row-UNISWAP_V3")).toBeTruthy();
   });

@@ -17,7 +17,9 @@ describe("Dart", () => {
     expect(screen.getByText("DART Terminal")).toBeInTheDocument();
     expect(screen.getByTestId("operator-monitored-banner")).toBeInTheDocument();
     expect(
-      screen.getByText(/operator-monitored window — required before automation flip/i),
+      screen.getByText(
+        /operator-monitored window — required before automation flip/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -46,7 +48,9 @@ describe("Dart", () => {
     renderDart();
     fireEvent.click(screen.getByTestId("submit-trade-button"));
     expect(screen.getByTestId("trade-submitted")).toBeInTheDocument();
-    expect(screen.getByText(/trade submitted via execution-service/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/trade submitted via execution-service/i),
+    ).toBeInTheDocument();
   });
 
   it("shows all 5 operator checklist items", () => {

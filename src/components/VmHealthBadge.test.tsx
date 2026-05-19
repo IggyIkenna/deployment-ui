@@ -5,7 +5,8 @@ import type { VmHealthResult } from "../api/deploymentApi";
 const mockFetchVmHealth = vi.fn();
 
 vi.mock("../api/deploymentApi", () => ({
-  fetchVmHealth: (vmName: string, scanHours?: number) => mockFetchVmHealth(vmName, scanHours),
+  fetchVmHealth: (vmName: string, scanHours?: number) =>
+    mockFetchVmHealth(vmName, scanHours),
 }));
 
 import { VmHealthBadge } from "./VmHealthBadge";
@@ -39,7 +40,9 @@ describe("VmHealthBadge", () => {
   it("shows loading indicator initially", () => {
     mockFetchVmHealth.mockReturnValue(new Promise(() => {}));
     render(<VmHealthBadge vmName="cefi-vm-1" />);
-    expect(screen.getByTestId("health-badge-loading-cefi-vm-1")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("health-badge-loading-cefi-vm-1"),
+    ).toBeInTheDocument();
   });
 
   it("renders green badge for healthy state", async () => {
@@ -87,7 +90,9 @@ describe("VmHealthBadge", () => {
     mockFetchVmHealth.mockRejectedValueOnce(new Error("Network error"));
     render(<VmHealthBadge vmName="cefi-vm-5" />);
     await waitFor(() => {
-      expect(screen.getByTestId("health-badge-error-cefi-vm-5")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("health-badge-error-cefi-vm-5"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -109,7 +114,9 @@ describe("VmHealthBadge LiveDeployments integration", () => {
   it("re-fetches when refreshKey changes", async () => {
     mockFetchVmHealth.mockResolvedValue(makeHealth("green"));
     const { rerender } = render(<VmHealthBadge vmName="vm-1" refreshKey={0} />);
-    await waitFor(() => expect(screen.getByTestId("health-badge-vm-1")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("health-badge-vm-1")).toBeInTheDocument(),
+    );
 
     rerender(<VmHealthBadge vmName="vm-1" refreshKey={1} />);
     await waitFor(() => {

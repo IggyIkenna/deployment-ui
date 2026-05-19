@@ -119,7 +119,9 @@ export async function fetchClientTreasury(
 export async function fetchClientSubscriptions(
   clientId: string,
 ): Promise<ClientSubscriptions> {
-  return apiFetch<ClientSubscriptions>(`/api/clients/${clientId}/subscriptions`);
+  return apiFetch<ClientSubscriptions>(
+    `/api/clients/${clientId}/subscriptions`,
+  );
 }
 
 /**

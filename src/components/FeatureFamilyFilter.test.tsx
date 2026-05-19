@@ -5,9 +5,7 @@ import { type FeatureFamily, FEATURE_FAMILIES } from "../api/client";
 
 describe("FeatureFamilyFilter", () => {
   it("renders 'All families' summary when nothing is selected", () => {
-    render(
-      <FeatureFamilyFilter selected={new Set()} onChange={vi.fn()} />,
-    );
+    render(<FeatureFamilyFilter selected={new Set()} onChange={vi.fn()} />);
     expect(
       screen.getByTestId("feature-family-filter-summary").textContent,
     ).toBe("All families");
@@ -50,9 +48,7 @@ describe("FeatureFamilyFilter", () => {
   });
 
   it("opens the menu on toggle click and renders 8 family options", () => {
-    render(
-      <FeatureFamilyFilter selected={new Set()} onChange={vi.fn()} />,
-    );
+    render(<FeatureFamilyFilter selected={new Set()} onChange={vi.fn()} />);
     expect(screen.queryByTestId("feature-family-filter-menu")).toBeNull();
     fireEvent.click(screen.getByTestId("feature-family-filter-toggle"));
     expect(screen.getByTestId("feature-family-filter-menu")).toBeTruthy();
@@ -65,13 +61,9 @@ describe("FeatureFamilyFilter", () => {
 
   it("invokes onChange with the toggled set when a family is clicked", () => {
     const onChange = vi.fn();
-    render(
-      <FeatureFamilyFilter selected={new Set()} onChange={onChange} />,
-    );
+    render(<FeatureFamilyFilter selected={new Set()} onChange={onChange} />);
     fireEvent.click(screen.getByTestId("feature-family-filter-toggle"));
-    fireEvent.click(
-      screen.getByTestId("feature-family-filter-option-onchain"),
-    );
+    fireEvent.click(screen.getByTestId("feature-family-filter-option-onchain"));
     expect(onChange).toHaveBeenCalledTimes(1);
     const next = onChange.mock.calls[0][0] as ReadonlySet<FeatureFamily>;
     expect(next.has("onchain")).toBe(true);
@@ -87,9 +79,7 @@ describe("FeatureFamilyFilter", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("feature-family-filter-toggle"));
-    fireEvent.click(
-      screen.getByTestId("feature-family-filter-option-onchain"),
-    );
+    fireEvent.click(screen.getByTestId("feature-family-filter-option-onchain"));
     const next = onChange.mock.calls[0][0] as ReadonlySet<FeatureFamily>;
     expect(next.has("onchain")).toBe(false);
     expect(next.has("volatility")).toBe(true);
@@ -97,9 +87,7 @@ describe("FeatureFamilyFilter", () => {
 
   it("Select all chooses every family", () => {
     const onChange = vi.fn();
-    render(
-      <FeatureFamilyFilter selected={new Set()} onChange={onChange} />,
-    );
+    render(<FeatureFamilyFilter selected={new Set()} onChange={onChange} />);
     fireEvent.click(screen.getByTestId("feature-family-filter-toggle"));
     fireEvent.click(screen.getByTestId("feature-family-filter-select-all"));
     const next = onChange.mock.calls[0][0] as ReadonlySet<FeatureFamily>;
@@ -122,11 +110,7 @@ describe("FeatureFamilyFilter", () => {
 
   it("does not open the menu when disabled", () => {
     render(
-      <FeatureFamilyFilter
-        selected={new Set()}
-        onChange={vi.fn()}
-        disabled
-      />,
+      <FeatureFamilyFilter selected={new Set()} onChange={vi.fn()} disabled />,
     );
     fireEvent.click(screen.getByTestId("feature-family-filter-toggle"));
     expect(screen.queryByTestId("feature-family-filter-menu")).toBeNull();

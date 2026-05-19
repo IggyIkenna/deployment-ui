@@ -66,9 +66,9 @@ describe("CloudProviderContext", () => {
   });
 
   it("does nothing when switchTarget is called with the current target", async () => {
-    const clearSpy = vi
-      .spyOn(apiClient, "clearCache")
-      .mockResolvedValue({ status: "ok" } as unknown as apiClient.ClearCacheResponse);
+    const clearSpy = vi.spyOn(apiClient, "clearCache").mockResolvedValue({
+      status: "ok",
+    } as unknown as apiClient.ClearCacheResponse);
     render(
       <CloudProviderProvider>
         <ProbeConsumer />
@@ -84,7 +84,9 @@ describe("CloudProviderContext", () => {
   });
 
   it("still switches when clearCache rejects (catch swallows)", async () => {
-    vi.spyOn(apiClient, "clearCache").mockRejectedValue(new Error("backend down"));
+    vi.spyOn(apiClient, "clearCache").mockRejectedValue(
+      new Error("backend down"),
+    );
     render(
       <CloudProviderProvider>
         <ProbeConsumer />

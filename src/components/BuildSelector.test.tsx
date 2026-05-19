@@ -36,15 +36,15 @@ describe("BuildSelector", () => {
   });
 
   it("renders the error message on fetch failure", async () => {
-    vi.spyOn(deploymentApi, "fetchBuilds").mockRejectedValue(
-      new Error("boom"),
-    );
+    vi.spyOn(deploymentApi, "fetchBuilds").mockRejectedValue(new Error("boom"));
     render(<BuildSelector service="instruments-service" onSelect={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("boom")).toBeTruthy());
   });
 
   it("falls back to default error string when reject value is not an Error", async () => {
-    vi.spyOn(deploymentApi, "fetchBuilds").mockRejectedValue("string-rejection");
+    vi.spyOn(deploymentApi, "fetchBuilds").mockRejectedValue(
+      "string-rejection",
+    );
     render(<BuildSelector service="instruments-service" onSelect={vi.fn()} />);
     await waitFor(() =>
       expect(screen.getByText(/Failed to fetch builds/)).toBeTruthy(),
@@ -74,16 +74,12 @@ describe("BuildSelector", () => {
     ]);
     render(<BuildSelector service="instruments-service" onSelect={vi.fn()} />);
     await waitFor(() =>
-      expect(
-        screen.getByText(/Pick a build to pre-fill tag/),
-      ).toBeTruthy(),
+      expect(screen.getByText(/Pick a build to pre-fill tag/)).toBeTruthy(),
     );
   });
 
   it("does not call fetchBuilds when service is empty", () => {
-    const spy = vi
-      .spyOn(deploymentApi, "fetchBuilds")
-      .mockResolvedValue([]);
+    const spy = vi.spyOn(deploymentApi, "fetchBuilds").mockResolvedValue([]);
     render(<BuildSelector service="" onSelect={vi.fn()} />);
     expect(spy).not.toHaveBeenCalled();
   });

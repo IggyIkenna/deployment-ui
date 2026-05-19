@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Cpu, Loader2, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import {
+  Cpu,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+} from "lucide-react";
 import {
   launchExecutionBacktest,
   type LaunchResult,
@@ -8,9 +14,18 @@ import {
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 
-const ARCHETYPES = ["carry_staked_basis", "arbitrage_price_dispersion"] as const;
+const ARCHETYPES = [
+  "carry_staked_basis",
+  "arbitrage_price_dispersion",
+] as const;
 
-function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: () => void }) {
+function ResultPanel({
+  result,
+  onDismiss,
+}: {
+  result: LaunchResult;
+  onDismiss: () => void;
+}) {
   return (
     <div
       data-testid="launch-result"
@@ -23,7 +38,10 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
             Execution backtest launched
           </span>
           {result.dry_run && (
-            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-300">
+            <Badge
+              variant="outline"
+              className="text-xs border-amber-500/40 text-amber-300"
+            >
               DRY RUN
             </Badge>
           )}
@@ -41,9 +59,13 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
         <dt className="text-[var(--color-text-muted)]">Zone</dt>
         <dd className="text-[var(--color-text-primary)]">{result.zone}</dd>
         <dt className="text-[var(--color-text-muted)]">Launched</dt>
-        <dd className="text-[var(--color-text-primary)]">{result.launched_at}</dd>
+        <dd className="text-[var(--color-text-primary)]">
+          {result.launched_at}
+        </dd>
         <dt className="text-[var(--color-text-muted)]">Correlation</dt>
-        <dd className="text-[var(--color-text-primary)] truncate">{result.correlation_id}</dd>
+        <dd className="text-[var(--color-text-primary)] truncate">
+          {result.correlation_id}
+        </dd>
       </dl>
       {result.events_uri && (
         <a
@@ -120,7 +142,9 @@ export function ExecutionBacktests() {
         </div>
       </div>
 
-      {result && <ResultPanel result={result} onDismiss={() => setResult(null)} />}
+      {result && (
+        <ResultPanel result={result} onDismiss={() => setResult(null)} />
+      )}
 
       {error && (
         <div
@@ -134,7 +158,9 @@ export function ExecutionBacktests() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-[var(--color-text-secondary)]">Archetype</label>
+          <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+            Archetype
+          </label>
           <select
             value={archetype}
             onChange={(e) => setArchetype(e.target.value)}
@@ -151,7 +177,10 @@ export function ExecutionBacktests() {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="tick-interval-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
+          <label
+            htmlFor="tick-interval-field"
+            className="text-xs font-medium text-[var(--color-text-secondary)]"
+          >
             Tick Interval (seconds){" "}
             <span className="text-[var(--color-text-muted)]">60–86400</span>
           </label>
@@ -159,16 +188,24 @@ export function ExecutionBacktests() {
             id="tick-interval-field"
             type="number"
             value={tickInterval}
-            onChange={(e) => { setTickInterval(e.target.value); setTickIntervalTouched(true); }}
+            onChange={(e) => {
+              setTickInterval(e.target.value);
+              setTickIntervalTouched(true);
+            }}
             onBlur={() => setTickIntervalTouched(true)}
             step={60}
             aria-invalid={showTickIntervalError || undefined}
-            aria-describedby={showTickIntervalError ? "tick-interval-error" : undefined}
+            aria-describedby={
+              showTickIntervalError ? "tick-interval-error" : undefined
+            }
             className={`w-full rounded-md border ${showTickIntervalError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
             data-testid="tick-interval-input"
           />
           {showTickIntervalError && (
-            <p id="tick-interval-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+            <p
+              id="tick-interval-error"
+              className="text-xs text-[var(--color-accent-red)] mt-0.5"
+            >
               {tickIntervalError}
             </p>
           )}
@@ -183,7 +220,9 @@ export function ExecutionBacktests() {
               className="h-4 w-4 rounded border-[var(--color-border-default)]"
               data-testid="continuous-checkbox"
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">Continuous mode</span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Continuous mode
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -192,7 +231,9 @@ export function ExecutionBacktests() {
               onChange={(e) => setForce(e.target.checked)}
               className="h-4 w-4 rounded border-[var(--color-border-default)]"
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">Force re-run</span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Force re-run
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -202,7 +243,9 @@ export function ExecutionBacktests() {
               className="h-4 w-4 rounded border-[var(--color-border-default)]"
               data-testid="dry-run-checkbox"
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">Dry run</span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Dry run
+            </span>
           </label>
         </div>
 

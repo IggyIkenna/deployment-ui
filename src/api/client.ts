@@ -1187,7 +1187,10 @@ export interface TurboFeatureGroupStatus {
   dates_found: number;
   dates_expected: number;
   completion_pct: number;
-  timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
+  timeframes?: Record<
+    string,
+    { dates_found: number; dates_expected: number; completion_pct: number }
+  >;
   // Optional feature_family axis (Phase 8B of features_repo_consolidation_
   // 2026_05_08.plan). When the manifest row carries a non-null
   // feature_family value the deployment-api propagates it here so the UI
@@ -1405,11 +1408,15 @@ export async function getDataStatusManifest(params: {
   if (params.asset_group) {
     params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
-  if (params.secondary_axis) searchParams.set("secondary_axis", params.secondary_axis);
+  if (params.secondary_axis)
+    searchParams.set("secondary_axis", params.secondary_axis);
   if (params.league_id) searchParams.set("league_id", params.league_id);
   if (params.fixture_id) searchParams.set("fixture_id", params.fixture_id);
   if (params.canonical_question_group) {
-    searchParams.set("canonical_question_group", params.canonical_question_group);
+    searchParams.set(
+      "canonical_question_group",
+      params.canonical_question_group,
+    );
   }
   if (params.job_id) searchParams.set("job_id", params.job_id);
   if (params.chain) searchParams.set("chain", params.chain);
@@ -1497,7 +1504,8 @@ export async function getDataCoverageSummary(params?: {
 }): Promise<CoverageSummaryResponse> {
   const searchParams = new URLSearchParams();
   if (params?.service) searchParams.set("service", params.service);
-  if (params?.asset_groups) searchParams.set("asset_groups", params.asset_groups);
+  if (params?.asset_groups)
+    searchParams.set("asset_groups", params.asset_groups);
   const qs = searchParams.toString();
   return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
     signal: params?.signal,
@@ -1536,7 +1544,12 @@ export interface VenueDetailResult {
   columns?: string[];
   instrument_types?: Record<string, number>;
   statuses?: Record<string, number>;
-  instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
+  instruments?: Array<{
+    key: string;
+    type: string;
+    base: string;
+    quote: string;
+  }>;
 }
 
 export async function fetchVenueDetail(
@@ -1620,9 +1633,12 @@ export async function listFiles(params: {
   if (params.timeframe) {
     searchParams.set("timeframe", params.timeframe);
   }
-  const raw = await fetchJson<unknown>(`/data-status/list-files?${searchParams.toString()}`, {
-    signal: params.signal,
-  });
+  const raw = await fetchJson<unknown>(
+    `/data-status/list-files?${searchParams.toString()}`,
+    {
+      signal: params.signal,
+    },
+  );
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
@@ -2083,7 +2099,8 @@ export async function fetchShardSchema(params: {
   if (params.model_family) qp.set("model_family", params.model_family);
   if (params.training_period) qp.set("training_period", params.training_period);
   if (params.strategy_id) qp.set("strategy_id", params.strategy_id);
-  if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
+  if (params.instruction_type)
+    qp.set("instruction_type", params.instruction_type);
   if (params.feature_group) qp.set("feature_group", params.feature_group);
   if (params.timeframe) qp.set("timeframe", params.timeframe);
   if (params.feature_family) qp.set("feature_family", params.feature_family);
@@ -2468,7 +2485,9 @@ export async function fetchShardInfo(params: {
   data_type: string;
 }): Promise<ShardInfoResponse> {
   const qp = new URLSearchParams(params);
-  return fetchJson<ShardInfoResponse>(`/data-status/shard-info?${qp.toString()}`);
+  return fetchJson<ShardInfoResponse>(
+    `/data-status/shard-info?${qp.toString()}`,
+  );
 }
 
 export async function fetchBundlePreview(params: {
@@ -2600,7 +2619,10 @@ export function buildShardDownloadUrl(params: {
  * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
  * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
  */
-export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
+export function buildFixturesCsvDownloadUrl(params: {
+  day: string;
+  league_id: string;
+}): string {
   const qp = new URLSearchParams({
     day: params.day,
     league_id: params.league_id,
@@ -2786,9 +2808,12 @@ export async function fetchFixtureBreakdown(params: {
     day: params.day,
     league_id: params.league_id,
   });
-  const res = await fetch(`${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`, {
-    credentials: "include",
-  });
+  const res = await fetch(
+    `${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`,
+    {
+      credentials: "include",
+    },
+  );
   if (!res.ok) {
     throw new Error(`fetchFixtureBreakdown ${res.status}: ${await res.text()}`);
   }
@@ -2971,12 +2996,17 @@ export async function getInstrumentsList(params: {
   searchParams.set("asset_group", params.asset_group);
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
-  const raw = await fetchJson<unknown>(`/data-status/instruments?${searchParams.toString()}`);
+  const raw = await fetchJson<unknown>(
+    `/data-status/instruments?${searchParams.toString()}`,
+  );
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
       const { category, ...rest } = r;
-      return { ...rest, asset_group: category ?? "" } as InstrumentsListResponse;
+      return {
+        ...rest,
+        asset_group: category ?? "",
+      } as InstrumentsListResponse;
     }
   }
   return raw as InstrumentsListResponse;
@@ -3098,7 +3128,11 @@ export async function getInstrumentAvailability(params: {
       parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
     }
   >(`/data-status/instrument-availability?${searchParams.toString()}`);
-  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
+  if (
+    raw?.parsed &&
+    "category" in raw.parsed &&
+    !("asset_group" in raw.parsed)
+  ) {
     const p = raw.parsed as Record<string, unknown>;
     const cat = p["category"];
     const { category: _omit, ...rest } = p;
@@ -3290,7 +3324,11 @@ export async function getHonestCoverage(
 // Recursive-borrow coverage — Phase 11 of defi_recursive_borrow_archetypes.
 // ===========================================================================
 
-export type CellStatus = "design-ready" | "coverage-ready" | "live-ready" | "paused";
+export type CellStatus =
+  | "design-ready"
+  | "coverage-ready"
+  | "live-ready"
+  | "paused";
 
 export interface RecursiveBorrowCell {
   protocol: string;
@@ -3319,7 +3357,9 @@ export interface RecursiveBorrowCoverageResponse {
 }
 
 export async function getRecursiveBorrowCoverage(): Promise<RecursiveBorrowCoverageResponse> {
-  return fetchJson<RecursiveBorrowCoverageResponse>("/data-status/recursive-borrow-coverage");
+  return fetchJson<RecursiveBorrowCoverageResponse>(
+    "/data-status/recursive-borrow-coverage",
+  );
 }
 
 export { ApiError };

@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { fetchVmFilteredEvents, type VMLifecycleEvent } from "../api/deploymentApi";
+import {
+  RefreshCw,
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import {
+  fetchVmFilteredEvents,
+  type VMLifecycleEvent,
+} from "../api/deploymentApi";
 
 const SEVERITY_CLASSES: Record<string, string> = {
   INFO: "text-[var(--color-text-secondary)] border-[var(--color-border)]",
@@ -32,7 +40,11 @@ function EventRow({ evt }: { evt: VMLifecycleEvent }) {
             aria-label={open ? "collapse details" : "expand details"}
             className="ml-auto text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
           >
-            {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {open ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
           </button>
         )}
       </div>
@@ -52,7 +64,12 @@ interface Props {
   refreshKey?: number;
 }
 
-export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey = 0 }: Props) {
+export function VmEventsTimeline({
+  vmName,
+  typeFilter,
+  limit = 100,
+  refreshKey = 0,
+}: Props) {
   const [events, setEvents] = useState<VMLifecycleEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,12 +106,17 @@ export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey =
           aria-label="Refresh events timeline"
           className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
         </button>
       </div>
 
       {error && (
-        <div role="alert" className="flex items-center gap-2 text-xs text-red-400 py-1">
+        <div
+          role="alert"
+          className="flex items-center gap-2 text-xs text-red-400 py-1"
+        >
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -108,7 +130,9 @@ export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey =
       )}
 
       {!error && !loading && events.length === 0 && (
-        <p className="text-sm text-[var(--color-text-muted)] py-2">No events found.</p>
+        <p className="text-sm text-[var(--color-text-muted)] py-2">
+          No events found.
+        </p>
       )}
 
       {events.length > 0 && (
@@ -121,7 +145,8 @@ export function VmEventsTimeline({ vmName, typeFilter, limit = 100, refreshKey =
 
       {totalEvents > events.length && (
         <p className="text-xs text-[var(--color-text-muted)] text-center pt-2">
-          Showing {events.length} of {totalEvents} events — increase limit to see more
+          Showing {events.length} of {totalEvents} events — increase limit to
+          see more
         </p>
       )}
     </div>

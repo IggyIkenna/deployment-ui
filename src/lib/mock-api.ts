@@ -213,10 +213,7 @@ function _mkVenue(
     missing_dates: [],
     dates_found_list: [],
     dates_missing_list: [],
-    completion_pct: Math.min(
-      Math.round((captured / denom) * 10000) / 100,
-      100,
-    ),
+    completion_pct: Math.min(Math.round((captured / denom) * 10000) / 100, 100),
     venue_start_date: "2024-01-01",
     capture_status_counts: {
       captured,
@@ -248,18 +245,22 @@ function _mkCategory(
   const attempted = captured + empty + failed;
   const denom = Math.max(1, dates_expected);
   const attemptedDenom = Math.max(1, attempted);
-  const capturePct = Math.min(Math.round((captured / denom) * 10000) / 100, 100);
+  const capturePct = Math.min(
+    Math.round((captured / denom) * 10000) / 100,
+    100,
+  );
   const attemptPct = Math.min(
     Math.round((attempted / denom) * 10000) / 100,
     100,
   );
   const emptyRate =
-    attempted > 0
-      ? Math.round((empty / attemptedDenom) * 10000) / 10000
-      : null;
+    attempted > 0 ? Math.round((empty / attemptedDenom) * 10000) / 10000 : null;
   const failureRate = Math.round((failed / attemptedDenom) * 10000) / 10000;
 
-  const perVenueExpected = Math.max(1, Math.floor(dates_expected / venues.length));
+  const perVenueExpected = Math.max(
+    1,
+    Math.floor(dates_expected / venues.length),
+  );
   let remainingFailed = failed;
   let remainingEmpty = empty;
   let remainingCaptured = captured;
@@ -515,10 +516,14 @@ function _mkMtdsHonest(
   const perInstrumentDts = opts.perInstrumentDataTypes ?? {};
   const legacyDts = opts.legacyDataTypes ?? {};
   for (const dt of expectedDataTypes) {
-    const isPerInstrument = Object.prototype.hasOwnProperty.call(perInstrumentDts, dt);
+    const isPerInstrument = Object.prototype.hasOwnProperty.call(
+      perInstrumentDts,
+      dt,
+    );
     const isLegacy = Object.prototype.hasOwnProperty.call(legacyDts, dt);
     if (isPerInstrument) {
-      const { expected_instruments, missing_instruments } = perInstrumentDts[dt];
+      const { expected_instruments, missing_instruments } =
+        perInstrumentDts[dt];
       const universe = expected_instruments.length;
       const expected = windowDays * universe;
       // One captured instrument gets (windowDays - 2) shards per instrument;
@@ -550,10 +555,17 @@ function _mkMtdsHonest(
       if (universe < 20) {
         const perInstrument: Record<
           string,
-          { found_shards: number; expected_shards: number; completion_pct: number; missing_dates?: string[] }
+          {
+            found_shards: number;
+            expected_shards: number;
+            completion_pct: number;
+            missing_dates?: string[];
+          }
         > = {};
         for (const iid of expected_instruments) {
-          const iFound = missing_instruments.includes(iid) ? 0 : perInstrumentFound;
+          const iFound = missing_instruments.includes(iid)
+            ? 0
+            : perInstrumentFound;
           const iPct =
             windowDays === 0
               ? 0
@@ -610,7 +622,8 @@ function _mkMtdsHonest(
           ? 0
           : Math.min(Math.round((found / expected) * 10000) / 100, 100),
       unit: "shard_days",
-      missing_dates: missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
+      missing_dates:
+        missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
       dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
     };
   }
@@ -721,45 +734,39 @@ function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
   ]);
   const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
   const HONEST_AXIS = "per_venue_per_data_type_per_day";
-  const uniPools = Array.from({ length: 20 }, (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`);
-  const aaveIndices = Array.from({ length: 10 }, (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`);
+  const uniPools = Array.from(
+    { length: 20 },
+    (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`,
+  );
+  const aaveIndices = Array.from(
+    { length: 10 },
+    (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`,
+  );
   venuesDict["UNISWAPV3-ETHEREUM"] = {
     ...venuesDict["UNISWAPV3-ETHEREUM"],
-    ..._mkMtdsHonest(
-      ["dex_pools"],
-      [],
-      90,
-      HONEST_AXIS,
-      {
-        perInstrumentDataTypes: {
-          // 20-element universe — hits the aggregator's "<20" gate, so
-          // per_instrument is intentionally omitted to mirror live shape.
-          dex_pools: {
-            expected_instruments: uniPools,
-            missing_instruments: uniPools.slice(17), // last 3 missing
-          },
+    ..._mkMtdsHonest(["dex_pools"], [], 90, HONEST_AXIS, {
+      perInstrumentDataTypes: {
+        // 20-element universe — hits the aggregator's "<20" gate, so
+        // per_instrument is intentionally omitted to mirror live shape.
+        dex_pools: {
+          expected_instruments: uniPools,
+          missing_instruments: uniPools.slice(17), // last 3 missing
         },
       },
-    ),
+    }),
   } as ReturnType<typeof _mkVenue>;
   venuesDict["AAVEV3-ETHEREUM"] = {
     ...venuesDict["AAVEV3-ETHEREUM"],
-    ..._mkMtdsHonest(
-      ["lending_indices"],
-      [],
-      90,
-      HONEST_AXIS,
-      {
-        perInstrumentDataTypes: {
-          // 10-element universe — under the <20 budget, so per_instrument
-          // detail is populated.
-          lending_indices: {
-            expected_instruments: aaveIndices,
-            missing_instruments: [aaveIndices[3], aaveIndices[7]],
-          },
+    ..._mkMtdsHonest(["lending_indices"], [], 90, HONEST_AXIS, {
+      perInstrumentDataTypes: {
+        // 10-element universe — under the <20 budget, so per_instrument
+        // detail is populated.
+        lending_indices: {
+          expected_instruments: aaveIndices,
+          missing_instruments: [aaveIndices[3], aaveIndices[7]],
         },
       },
-    ),
+    }),
   } as ReturnType<typeof _mkVenue>;
   return base;
 }
@@ -794,15 +801,21 @@ const MOCK_DATA_STATUS = {
   mode: "turbo" as const,
   sub_dimension: "venue" as const,
   overall_completion_pct: Math.min(
-    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    Math.round(
+      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
+    ) / 100,
     100,
   ),
   overall_completion_pct_dates: Math.min(
-    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    Math.round(
+      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
+    ) / 100,
     100,
   ),
   overall_completion_pct_shards_weighted: Math.min(
-    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
+    Math.round(
+      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
+    ) / 100,
     100,
   ),
   overall_dates_found: _MOCK_TOTAL_CAPTURED,
@@ -1060,8 +1073,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Config
   if (path.match(/^\/api\/config\/venues/)) {
     const params = new URL(url, "http://x").searchParams;
-    const ag =
-      params.get("asset_group") ?? params.get("category") ?? "equity";
+    const ag = params.get("asset_group") ?? params.get("category") ?? "equity";
     return json({ venues: MOCK_VENUES_BY_TRADING_CLASS[ag] ?? [] });
   }
   if (path.match(/^\/api\/config\/start-dates/)) {
@@ -1527,7 +1539,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // the UI shows every badge colour + exercises the Retry button flow.
   if (path.startsWith("/api/data-status/instruments-for-shard")) {
     const venue = new URL(path, "http://x").searchParams.get("venue") ?? "MOCK";
-    const day = new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
+    const day =
+      new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
     return json({
       service: "market-tick-data-service",
       category: "cefi",
@@ -1617,10 +1630,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           "vm-2026-04-30-tradfi-bf-btc-heavy-2024-06",
           "running",
         ),
-        _mockVmDeployment(
-          "vm-2026-04-30-tradfi-bf-eth-light-2025",
-          "running",
-        ),
+        _mockVmDeployment("vm-2026-04-30-tradfi-bf-eth-light-2025", "running"),
       ],
       recent: [
         _mockVmDeployment(
@@ -1716,8 +1726,7 @@ function _mockVmDeployment(deploymentId: string, status: string) {
     status === "running"
       ? null
       : new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const exitCode =
-    status === "running" ? null : status === "completed" ? 0 : 1;
+  const exitCode = status === "running" ? null : status === "completed" ? 0 : 1;
   return {
     deployment_id: deploymentId,
     vm_name: deploymentId.replace(/^vm-\d{4}-\d{2}-\d{2}-/, ""),

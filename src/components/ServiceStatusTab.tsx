@@ -300,14 +300,14 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                       const byAg =
                         d?.by_asset_group ??
                         (d &&
-                          typeof d === "object" &&
-                          "by_category" in d &&
-                          d.by_category &&
-                          typeof d.by_category === "object"
+                        typeof d === "object" &&
+                        "by_category" in d &&
+                        d.by_category &&
+                        typeof d.by_category === "object"
                           ? (d.by_category as Record<
-                            string,
-                            { timestamp?: string }
-                          >)
+                              string,
+                              { timestamp?: string }
+                            >)
                           : undefined);
                       if (!byAg) return null;
                       return (
@@ -317,7 +317,10 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                           </p>
                           <div className="grid grid-cols-3 gap-2">
                             {Object.entries(byAg).map(
-                              ([ag, info]: [string, { timestamp?: string }]) => (
+                              ([ag, info]: [
+                                string,
+                                { timestamp?: string },
+                              ]) => (
                                 <div key={ag} className="text-xs">
                                   <span className="font-medium">{ag}:</span>{" "}
                                   <span className="text-[var(--color-text-muted)]">
@@ -375,25 +378,25 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                           </div>
                           {status.details.deployment.used_force !==
                             undefined && (
-                              <div>
-                                <span className="text-[var(--color-text-muted)]">
-                                  Force:
-                                </span>{" "}
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs"
-                                  style={{
-                                    color: status.details.deployment.used_force
-                                      ? "var(--color-accent-green)"
-                                      : "var(--color-accent-red)",
-                                  }}
-                                >
-                                  {status.details.deployment.used_force
-                                    ? "YES"
-                                    : "NO"}
-                                </Badge>
-                              </div>
-                            )}
+                            <div>
+                              <span className="text-[var(--color-text-muted)]">
+                                Force:
+                              </span>{" "}
+                              <Badge
+                                variant="outline"
+                                className="text-xs"
+                                style={{
+                                  color: status.details.deployment.used_force
+                                    ? "var(--color-accent-green)"
+                                    : "var(--color-accent-red)",
+                                }}
+                              >
+                                {status.details.deployment.used_force
+                                  ? "YES"
+                                  : "NO"}
+                              </Badge>
+                            </div>
+                          )}
                           {status.api?.gcs_fuse?.active !== undefined && (
                             <div>
                               <span className="text-[var(--color-text-muted)]">
@@ -433,11 +436,11 @@ export function ServiceStatusTab({ serviceName }: ServiceStatusTabProps) {
                               {status.details.deployment.total_shards} completed
                               {(status.details.deployment.failed_shards ?? 0) >
                                 0 && (
-                                  <span className="text-[var(--color-accent-red)] ml-2">
-                                    ({status.details.deployment.failed_shards}{" "}
-                                    failed)
-                                  </span>
-                                )}
+                                <span className="text-[var(--color-accent-red)] ml-2">
+                                  ({status.details.deployment.failed_shards}{" "}
+                                  failed)
+                                </span>
+                              )}
                             </span>
                           </div>
                         )}

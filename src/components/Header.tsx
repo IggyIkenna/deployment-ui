@@ -95,7 +95,11 @@ export function Header() {
           aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           data-testid="mobile-menu-btn"
         >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </button>
 
         <div className="hidden md:flex items-center gap-3">
@@ -104,27 +108,43 @@ export function Header() {
             const backendMock = Boolean(health?.mock_mode);
             if (FRONTEND_MOCK && backendMock) {
               return (
-                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="VITE_MOCK_API=true + backend CLOUD_MOCK_MODE=true">
+                <Badge
+                  variant="outline"
+                  className="text-xs gap-1 border-amber-500/40 text-amber-300"
+                  title="VITE_MOCK_API=true + backend CLOUD_MOCK_MODE=true"
+                >
                   <FlaskConical className="h-3 w-3" /> MOCK (both)
                 </Badge>
               );
             }
             if (backendMock) {
               return (
-                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="Backend CLOUD_MOCK_MODE=true — sample data, not live cloud">
+                <Badge
+                  variant="outline"
+                  className="text-xs gap-1 border-amber-500/40 text-amber-300"
+                  title="Backend CLOUD_MOCK_MODE=true — sample data, not live cloud"
+                >
                   <FlaskConical className="h-3 w-3" /> MOCK (API)
                 </Badge>
               );
             }
             if (FRONTEND_MOCK) {
               return (
-                <Badge variant="outline" className="text-xs gap-1 border-amber-500/40 text-amber-300" title="VITE_MOCK_API=true — UI intercepts /api/* locally">
+                <Badge
+                  variant="outline"
+                  className="text-xs gap-1 border-amber-500/40 text-amber-300"
+                  title="VITE_MOCK_API=true — UI intercepts /api/* locally"
+                >
                   <FlaskConical className="h-3 w-3" /> MOCK (UI)
                 </Badge>
               );
             }
             return (
-              <Badge variant="outline" className="text-xs gap-1 border-green-500/40 text-green-300" title={`Live data from ${health?.cloud_provider ?? "cloud"}`}>
+              <Badge
+                variant="outline"
+                className="text-xs gap-1 border-green-500/40 text-green-300"
+                title={`Live data from ${health?.cloud_provider ?? "cloud"}`}
+              >
                 <Database className="h-3 w-3" /> LIVE
               </Badge>
             );
@@ -196,19 +216,33 @@ export function Header() {
             </button>
             {envTooltipOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 min-w-48 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-3 shadow-xl text-xs">
-                <div className="font-semibold text-[var(--color-text-primary)] mb-2">Environment</div>
+                <div className="font-semibold text-[var(--color-text-primary)] mb-2">
+                  Environment
+                </div>
                 <div className="flex flex-col gap-1 font-mono">
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">env: </span>
-                    <span className="text-[var(--color-text-secondary)]">{envTier}</span>
+                    <span className="text-[var(--color-text-tertiary)]">
+                      env:{" "}
+                    </span>
+                    <span className="text-[var(--color-text-secondary)]">
+                      {envTier}
+                    </span>
                   </span>
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">api: </span>
-                    <span className="text-[var(--color-text-secondary)]">{window.location.origin}/api</span>
+                    <span className="text-[var(--color-text-tertiary)]">
+                      api:{" "}
+                    </span>
+                    <span className="text-[var(--color-text-secondary)]">
+                      {window.location.origin}/api
+                    </span>
                   </span>
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">cloud: </span>
-                    <span className="text-[var(--color-text-secondary)]">{target}</span>
+                    <span className="text-[var(--color-text-tertiary)]">
+                      cloud:{" "}
+                    </span>
+                    <span className="text-[var(--color-text-secondary)]">
+                      {target}
+                    </span>
                   </span>
                 </div>
               </div>

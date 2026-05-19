@@ -28,7 +28,12 @@ import { useState } from "react";
 
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import { Dialog, DialogHeader, DialogTitle, DialogContent } from "../../ui/dialog";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogContent,
+} from "../../ui/dialog";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 
@@ -39,11 +44,7 @@ import { Label } from "../../ui/label";
 // deployment-api `/api/kill-switch/state` route lands per Phase 7.A.
 // ---------------------------------------------------------------------------
 
-export type KillSwitchScope =
-  | "GLOBAL"
-  | "ASSET_GROUP"
-  | "VENUE"
-  | "ARCHETYPE";
+export type KillSwitchScope = "GLOBAL" | "ASSET_GROUP" | "VENUE" | "ARCHETYPE";
 
 export type KillSwitchProvenance =
   | "operator"
@@ -209,7 +210,9 @@ function ConfirmDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="metadata">Metadata / justification (optional)</Label>
+            <Label htmlFor="metadata">
+              Metadata / justification (optional)
+            </Label>
             <textarea
               id="metadata"
               data-testid="kill-switch-metadata"
@@ -237,8 +240,8 @@ function ConfirmDialog({
                   ? "Arming…"
                   : "Disarming…"
                 : action === "arm"
-                ? "Confirm arm"
-                : "Confirm disarm"}
+                  ? "Confirm arm"
+                  : "Confirm disarm"}
             </Button>
           </div>
         </div>
@@ -334,9 +337,7 @@ export function KillSwitchPanel({
                 <time dateTime={state.armed_at}>{state.armed_at}</time>
               </p>
               {state.armed_by ? <p>Armed by: {state.armed_by}</p> : null}
-              {state.provenance ? (
-                <p>Provenance: {state.provenance}</p>
-              ) : null}
+              {state.provenance ? <p>Provenance: {state.provenance}</p> : null}
             </div>
           ) : null}
         </div>

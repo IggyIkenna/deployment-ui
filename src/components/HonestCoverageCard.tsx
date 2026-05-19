@@ -3,12 +3,7 @@ import { useEffect, useState } from "react";
 import type { HonestCoverageResponse } from "../api/client";
 import { getHonestCoverage } from "../api/client";
 import { Badge } from "./ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 const AG_ORDER = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 
@@ -25,7 +20,8 @@ function CoverageBar({
   expected_unattempted: number;
   total: number;
 }) {
-  if (total === 0) return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
+  if (total === 0)
+    return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
   const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%`;
   return (
     <div className="flex h-2 rounded overflow-hidden w-full">
@@ -116,7 +112,8 @@ export function HonestCoverageCard({ date }: { date?: string }) {
             data-testid="honest-coverage-not-yet-computed"
           >
             <Info className="h-4 w-4" />
-            Coverage data not yet computed for{date ? ` ${date}` : " this date"}.
+            Coverage data not yet computed for{date ? ` ${date}` : " this date"}
+            .
           </div>
         ) : error ? (
           <div className="text-xs text-red-500">{error}</div>
@@ -131,7 +128,10 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                     className="p-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] space-y-1"
                   >
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-[10px] font-mono uppercase">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-mono uppercase"
+                      >
                         {ag}
                       </Badge>
                       <span

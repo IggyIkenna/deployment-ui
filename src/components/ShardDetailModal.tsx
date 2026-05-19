@@ -61,7 +61,9 @@ function captureStatusBadgeColor(status: CaptureStatusLiteral): string {
   }
 }
 
-function payloadTabTitle(shardClass: ShardDetailResponse["shard_class"]): string {
+function payloadTabTitle(
+  shardClass: ShardDetailResponse["shard_class"],
+): string {
   switch (shardClass) {
     case "grouped":
       return "Instruments in this shard";
@@ -254,10 +256,11 @@ export function ShardDetailModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const safeName = `${coord.data_type}_${coord.day}_${coord.venue ?? "noVenue"}`.replace(
-        /[^a-zA-Z0-9_.-]/g,
-        "_",
-      );
+      const safeName =
+        `${coord.data_type}_${coord.day}_${coord.venue ?? "noVenue"}`.replace(
+          /[^a-zA-Z0-9_.-]/g,
+          "_",
+        );
       a.download = `${safeName}.csv`;
       document.body.appendChild(a);
       a.click();
@@ -335,7 +338,8 @@ export function ShardDetailModal({
           <span>size: {humanBytes(detail.gcs.file_size_bytes)}</span>
           <span>rows: {detail.gcs.row_count ?? "—"}</span>
           <span>
-            captured: {detail.gcs.captured_at
+            captured:{" "}
+            {detail.gcs.captured_at
               ? `${relativeTime(detail.gcs.captured_at)} (${detail.gcs.captured_at})`
               : "—"}
           </span>
@@ -381,9 +385,7 @@ export function ShardDetailModal({
               <>
                 {" · "}
                 symbol_column:{" "}
-                <span className="font-mono">
-                  {detail.schema.symbol_column}
-                </span>
+                <span className="font-mono">{detail.schema.symbol_column}</span>
               </>
             )}
           </div>
@@ -516,10 +518,7 @@ export function ShardDetailModal({
       )}
 
       {tab === "payload" && (
-        <div
-          data-testid="shard-detail-tab-body-payload"
-          className="space-y-2"
-        >
+        <div data-testid="shard-detail-tab-body-payload" className="space-y-2">
           <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
             {payloadTabTitle(detail.shard_class)}
           </div>
@@ -539,8 +538,7 @@ export function ShardDetailModal({
                 <span className="font-mono">{coord.instrument_type}</span>
               </div>
               <div>
-                venue:{" "}
-                <span className="font-mono">{coord.venue ?? "—"}</span>
+                venue: <span className="font-mono">{coord.venue ?? "—"}</span>
               </div>
             </div>
           )}
@@ -556,10 +554,9 @@ export function ShardDetailModal({
           {detail.shard_class === "fixtures" &&
             detail.payload_fixtures &&
             renderDictTable(
-              (detail.payload_fixtures.fixtures as Record<
-                string,
-                unknown
-              >[]).map((fx) => ({
+              (
+                detail.payload_fixtures.fixtures as Record<string, unknown>[]
+              ).map((fx) => ({
                 ...fx,
                 markets: Array.isArray(fx.markets)
                   ? (fx.markets as unknown[]).join(", ")

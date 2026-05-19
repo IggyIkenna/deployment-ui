@@ -49,7 +49,13 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "instruments-service": {
     description: "Instrument universe & definitions",
     dimensions: ["asset_group", "date"],
-    operations: [{ value: "instruments", label: "Instruments", description: "Fetch & normalise instrument reference data" }],
+    operations: [
+      {
+        value: "instruments",
+        label: "Instruments",
+        description: "Fetch & normalise instrument reference data",
+      },
+    ],
     modes: ["batch", "live"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
@@ -58,10 +64,26 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     description: "Download & normalise raw tick data",
     dimensions: ["asset_group", "venue", "date"],
     operations: [
-      { value: "download", label: "Download", description: "Download tick data from venues" },
-      { value: "collect-gas-fees", label: "Gas Fees", description: "Collect EVM gas fee data" },
-      { value: "collect-solana-defi", label: "Solana DeFi", description: "Collect Solana DeFi protocol data" },
-      { value: "collect-evm-defi", label: "EVM DeFi", description: "Collect EVM DeFi protocol data" },
+      {
+        value: "download",
+        label: "Download",
+        description: "Download tick data from venues",
+      },
+      {
+        value: "collect-gas-fees",
+        label: "Gas Fees",
+        description: "Collect EVM gas fee data",
+      },
+      {
+        value: "collect-solana-defi",
+        label: "Solana DeFi",
+        description: "Collect Solana DeFi protocol data",
+      },
+      {
+        value: "collect-evm-defi",
+        label: "EVM DeFi",
+        description: "Collect EVM DeFi protocol data",
+      },
     ],
     modes: ["batch", "live"],
     categories: ["CEFI", "TRADFI", "DEFI", "SPORTS"],
@@ -69,7 +91,13 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "market-data-processing-service": {
     description: "Resample ticks into OHLCV candles",
     dimensions: ["asset_group", "venue", "date"],
-    operations: [{ value: "process", label: "Process", description: "Resample raw ticks into candles" }],
+    operations: [
+      {
+        value: "process",
+        label: "Process",
+        description: "Resample raw ticks into candles",
+      },
+    ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
@@ -78,8 +106,16 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     description: "Calendar, seasonality & corporate actions",
     dimensions: ["asset_group", "date"],
     operations: [
-      { value: "calendar", label: "Calendar", description: "Calendar & seasonality features" },
-      { value: "corporate_actions", label: "Corporate Actions", description: "Dividends, splits, earnings" },
+      {
+        value: "calendar",
+        label: "Calendar",
+        description: "Calendar & seasonality features",
+      },
+      {
+        value: "corporate_actions",
+        label: "Corporate Actions",
+        description: "Dividends, splits, earnings",
+      },
     ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI"],
@@ -87,49 +123,87 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "features-delta-one-service": {
     description: "Returns, spreads, delta-one signals",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Compute delta-one features" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Compute delta-one features",
+      },
+    ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-volatility-service": {
     description: "Realised & implied vol surface",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Compute volatility features" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Compute volatility features",
+      },
+    ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-onchain-service": {
     description: "On-chain DeFi & network metrics",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Compute on-chain features" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Compute on-chain features",
+      },
+    ],
     modes: ["batch"],
     categories: ["DEFI"],
   },
   "features-sports-service": {
     description: "Sports market event features",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Compute sports features" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Compute sports features",
+      },
+    ],
     modes: ["batch"],
     categories: ["SPORTS"],
   },
   "features-multi-timeframe-service": {
     description: "Cross-timeframe feature aggregation",
     dimensions: ["asset_group", "timeframe", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Aggregate across timeframes" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Aggregate across timeframes",
+      },
+    ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI"],
   },
   "features-cross-instrument-service": {
     description: "Cross-asset correlation features",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Cross-instrument correlations" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Cross-instrument correlations",
+      },
+    ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI"],
   },
   "features-commodity-service": {
     description: "Commodity-specific features",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [{ value: "compute", label: "Compute", description: "Commodity features" }],
+    operations: [
+      { value: "compute", label: "Compute", description: "Commodity features" },
+    ],
     modes: ["batch"],
     categories: ["TRADFI"],
   },
@@ -139,7 +213,11 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     dimensions: ["instrument", "timeframe", "target_type", "config"],
     operations: [
       { value: "train", label: "Train", description: "Train ML models" },
-      { value: "evaluate", label: "Evaluate", description: "Evaluate model performance" },
+      {
+        value: "evaluate",
+        label: "Evaluate",
+        description: "Evaluate model performance",
+      },
     ],
     modes: ["batch"],
     categories: ["CEFI", "TRADFI", "DEFI", "SPORTS"],
@@ -147,7 +225,13 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "ml-inference-service": {
     description: "Batch & live model inference",
     dimensions: ["instrument", "timeframe", "target_type", "config"],
-    operations: [{ value: "infer", label: "Inference", description: "Run model predictions" }],
+    operations: [
+      {
+        value: "infer",
+        label: "Inference",
+        description: "Run model predictions",
+      },
+    ],
     modes: ["batch", "live"],
     categories: ["CEFI", "TRADFI", "DEFI", "SPORTS"],
   },
@@ -156,8 +240,16 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     description: "Backtest & optimise strategies",
     dimensions: ["config"],
     operations: [
-      { value: "backtest", label: "Backtest", description: "Historical strategy replay" },
-      { value: "trade", label: "Trade", description: "Live/paper trading signals" },
+      {
+        value: "backtest",
+        label: "Backtest",
+        description: "Historical strategy replay",
+      },
+      {
+        value: "trade",
+        label: "Trade",
+        description: "Live/paper trading signals",
+      },
     ],
     modes: ["batch", "live"],
     operationalModes: ["live", "paper", "backtest"],
@@ -166,8 +258,16 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     description: "Order execution & algos",
     dimensions: ["config"],
     operations: [
-      { value: "live_execution", label: "Live Execution", description: "Execute orders on venues" },
-      { value: "backtest", label: "Backtest", description: "Backtest execution strategies" },
+      {
+        value: "live_execution",
+        label: "Live Execution",
+        description: "Execute orders on venues",
+      },
+      {
+        value: "backtest",
+        label: "Backtest",
+        description: "Backtest execution strategies",
+      },
     ],
     modes: ["batch", "live"],
     operationalModes: ["live", "manual", "paper", "backtest"],
@@ -175,7 +275,9 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "trading-agent-service": {
     description: "Autonomous trading agents",
     dimensions: ["config"],
-    operations: [{ value: "run", label: "Run", description: "Run trading agents" }],
+    operations: [
+      { value: "run", label: "Run", description: "Run trading agents" },
+    ],
     modes: ["live"],
     operationalModes: ["live", "paper"],
   },
@@ -183,27 +285,49 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "position-balance-monitor-service": {
     description: "Real-time position & balance tracking",
     dimensions: ["config"],
-    operations: [{ value: "monitor", label: "Monitor", description: "Track positions & balances" }],
+    operations: [
+      {
+        value: "monitor",
+        label: "Monitor",
+        description: "Track positions & balances",
+      },
+    ],
     modes: ["live"],
   },
   "risk-and-exposure-service": {
     description: "Greeks, VaR & exposure limits",
     dimensions: ["config"],
-    operations: [{ value: "compute", label: "Compute", description: "Compute risk metrics" }],
+    operations: [
+      {
+        value: "compute",
+        label: "Compute",
+        description: "Compute risk metrics",
+      },
+    ],
     modes: ["batch", "live"],
   },
   "pnl-attribution-service": {
     description: "P&L attribution & reporting",
     dimensions: ["config"],
-    operations: [{ value: "compute", label: "Compute", description: "Attribute P&L" }],
+    operations: [
+      { value: "compute", label: "Compute", description: "Attribute P&L" },
+    ],
     modes: ["batch"],
   },
   "alerting-service": {
     description: "Alerts, circuit breakers & notifications",
     dimensions: ["config"],
     operations: [
-      { value: "monitor", label: "Monitor", description: "Real-time alert monitoring" },
-      { value: "replay", label: "Replay", description: "Historical alert replay" },
+      {
+        value: "monitor",
+        label: "Monitor",
+        description: "Real-time alert monitoring",
+      },
+      {
+        value: "replay",
+        label: "Replay",
+        description: "Historical alert replay",
+      },
     ],
     modes: ["batch", "live"],
   },
@@ -211,19 +335,25 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "ibkr-gateway-infra": {
     description: "Interactive Brokers TWS gateway",
     dimensions: ["config"],
-    operations: [{ value: "start", label: "Start", description: "Start IBKR gateway" }],
+    operations: [
+      { value: "start", label: "Start", description: "Start IBKR gateway" },
+    ],
     modes: ["live"],
   },
   "deployment-service": {
     description: "Deployment orchestration & sharding",
     dimensions: ["service"],
-    operations: [{ value: "deploy", label: "Deploy", description: "Deploy services" }],
+    operations: [
+      { value: "deploy", label: "Deploy", description: "Deploy services" },
+    ],
     modes: ["batch"],
   },
   "odum-research-website": {
     description: "Corporate website",
     dimensions: ["environment"],
-    operations: [{ value: "build", label: "Build", description: "Build & deploy website" }],
+    operations: [
+      { value: "build", label: "Build", description: "Build & deploy website" },
+    ],
     modes: ["batch"],
   },
 };
@@ -297,7 +427,11 @@ const PIPELINE_LAYERS = [
     title: "L5: Execution",
     description: "Strategy, execution, agents",
     color: "var(--color-accent-green)",
-    services: ["strategy-service", "execution-service", "trading-agent-service"],
+    services: [
+      "strategy-service",
+      "execution-service",
+      "trading-agent-service",
+    ],
   },
   {
     id: "layer6",
@@ -359,10 +493,7 @@ export function ServiceList({
     } else {
       // Single operation — select directly
       setExpandedService(null);
-      onSelectService(
-        serviceName,
-        config?.operations[0]?.value,
-      );
+      onSelectService(serviceName, config?.operations[0]?.value);
     }
   };
 

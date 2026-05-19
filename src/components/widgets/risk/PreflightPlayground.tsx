@@ -4,10 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
-import type {
-  RiskRuleConsequence,
-  RiskRuleSeverity,
-} from "./RuleBrowser";
+import type { RiskRuleConsequence, RiskRuleSeverity } from "./RuleBrowser";
 
 export type AssetGroup = "defi" | "cefi" | "tradfi" | "sports" | "prediction";
 
@@ -94,7 +91,8 @@ const DECISION_BADGE_CLASS: Record<PreflightDecision, string> = {
 };
 
 const CONSEQUENCE_BADGE_CLASS: Record<RiskRuleConsequence, string> = {
-  BLOCK: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  BLOCK:
+    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
   SCALE_DOWN:
     "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
   MONITOR:
@@ -125,7 +123,13 @@ interface NumberFieldProps {
   onChange: (v: number) => void;
 }
 
-function NumberField({ label, testId, value, step, onChange }: NumberFieldProps) {
+function NumberField({
+  label,
+  testId,
+  value,
+  step,
+  onChange,
+}: NumberFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-xs">
       <span className="text-[var(--color-text-secondary)]">{label}</span>

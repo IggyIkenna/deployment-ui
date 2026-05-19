@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { FlaskConical } from "lucide-react";
 
 export function ExperimentsSubTab() {
@@ -15,8 +21,8 @@ export function ExperimentsSubTab() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-gray-600">
-          This feature will allow you to track and visualize experiment runs from
-          your hyperparameter tuning and feature selection pipelines.
+          This feature will allow you to track and visualize experiment runs
+          from your hyperparameter tuning and feature selection pipelines.
         </p>
       </CardContent>
     </Card>

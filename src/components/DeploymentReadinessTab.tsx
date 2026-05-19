@@ -43,7 +43,11 @@ function fmtSnapshotAge(lastSnapshotDate: string | null): string {
   return `${days}d ago`;
 }
 
-function SnapshotAgeBadge({ lastSnapshotDate }: { lastSnapshotDate: string | null }) {
+function SnapshotAgeBadge({
+  lastSnapshotDate,
+}: {
+  lastSnapshotDate: string | null;
+}) {
   if (!lastSnapshotDate) {
     return <Badge variant="error">no snapshot</Badge>;
   }
@@ -84,7 +88,9 @@ export function DeploymentReadinessTab() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => { void load(); }, REFRESH_INTERVAL_MS);
+    const timer = setInterval(() => {
+      void load();
+    }, REFRESH_INTERVAL_MS);
     return () => {
       clearInterval(timer);
       abortRef.current?.abort();
@@ -114,7 +120,9 @@ export function DeploymentReadinessTab() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { void load(); }}
+            onClick={() => {
+              void load();
+            }}
             disabled={loading}
             data-testid="readiness-refresh-btn"
           >
@@ -132,9 +140,7 @@ export function DeploymentReadinessTab() {
           </p>
         )}
         {!error && rows === null && loading && (
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Loading…
-          </p>
+          <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>
         )}
         {rows !== null && rows.length === 0 && (
           <p className="text-sm text-[var(--color-text-secondary)]">
@@ -162,8 +168,13 @@ export function DeploymentReadinessTab() {
                   <td className="py-2 pr-6">
                     <ReadinessBadge ready={row.deploy_ready} />
                   </td>
-                  <td className="py-2 pr-6" data-testid={`snapshot-age-${row.repo}`}>
-                    <SnapshotAgeBadge lastSnapshotDate={row.last_snapshot_date} />
+                  <td
+                    className="py-2 pr-6"
+                    data-testid={`snapshot-age-${row.repo}`}
+                  >
+                    <SnapshotAgeBadge
+                      lastSnapshotDate={row.last_snapshot_date}
+                    />
                   </td>
                   <td className="py-2 text-[var(--color-text-secondary)] text-xs">
                     {fmtReason(row.reason)}

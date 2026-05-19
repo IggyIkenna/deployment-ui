@@ -23,7 +23,11 @@ vi.mock("../components/ui/button", () => ({
     disabled?: boolean;
     "aria-label"?: string;
   }) => (
-    <button onClick={p.onClick} disabled={p.disabled} aria-label={p["aria-label"]}>
+    <button
+      onClick={p.onClick}
+      disabled={p.disabled}
+      aria-label={p["aria-label"]}
+    >
       {p.children}
     </button>
   ),
@@ -121,7 +125,9 @@ describe("DailyCosts page", () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText("arbitrage_price_dispersion")).toBeInTheDocument();
+      expect(
+        screen.getByText("arbitrage_price_dispersion"),
+      ).toBeInTheDocument();
       expect(screen.getByText("carry_staked_basis")).toBeInTheDocument();
     });
   });
@@ -165,7 +171,9 @@ describe("DailyCosts page", () => {
     const callsBefore = mockFetchDailyCosts.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: /refresh cost data/i }));
     await waitFor(() => {
-      expect(mockFetchDailyCosts.mock.calls.length).toBeGreaterThan(callsBefore);
+      expect(mockFetchDailyCosts.mock.calls.length).toBeGreaterThan(
+        callsBefore,
+      );
     });
   });
 

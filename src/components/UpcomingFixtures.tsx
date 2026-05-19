@@ -59,7 +59,15 @@ function groupFixtures(rows: UpcomingFixture[]) {
       byLeague.set(lk, g);
     }
     const leagues = [...byLeague.keys()].sort();
-    return { day, leagues: leagues.map((lid) => ({ league_id: lid, fixtures: (byLeague.get(lid) ?? []).sort((a, b) => a.kickoff_utc.localeCompare(b.kickoff_utc)) })) };
+    return {
+      day,
+      leagues: leagues.map((lid) => ({
+        league_id: lid,
+        fixtures: (byLeague.get(lid) ?? []).sort((a, b) =>
+          a.kickoff_utc.localeCompare(b.kickoff_utc),
+        ),
+      })),
+    };
   });
 }
 
@@ -102,7 +110,8 @@ export function UpcomingFixtures() {
             <div>
               <CardTitle className="text-base">Upcoming fixtures</CardTitle>
               <CardDescription className="text-xs">
-                Next days from sports_reference rolling window (API-Football schedule parquets).
+                Next days from sports_reference rolling window (API-Football
+                schedule parquets).
               </CardDescription>
             </div>
           </div>
@@ -124,7 +133,10 @@ export function UpcomingFixtures() {
         </div>
         <div className="flex flex-wrap items-end gap-3 pt-2">
           <div className="space-y-1">
-            <Label htmlFor="uf-days" className="text-[10px] uppercase text-[var(--color-text-muted)]">
+            <Label
+              htmlFor="uf-days"
+              className="text-[10px] uppercase text-[var(--color-text-muted)]"
+            >
               Days forward
             </Label>
             <Input
@@ -134,11 +146,16 @@ export function UpcomingFixtures() {
               max={31}
               className="h-8 w-24 text-xs font-mono"
               value={days}
-              onChange={(ev) => setDays(Math.max(1, Math.min(31, Number(ev.target.value) || 1)))}
+              onChange={(ev) =>
+                setDays(Math.max(1, Math.min(31, Number(ev.target.value) || 1)))
+              }
             />
           </div>
           <div className="space-y-1 min-w-[12rem] flex-1">
-            <Label htmlFor="uf-league" className="text-[10px] uppercase text-[var(--color-text-muted)]">
+            <Label
+              htmlFor="uf-league"
+              className="text-[10px] uppercase text-[var(--color-text-muted)]"
+            >
               League id (optional)
             </Label>
             <Input
@@ -153,7 +170,10 @@ export function UpcomingFixtures() {
       </CardHeader>
       <CardContent>
         {error && (
-          <div className="text-sm text-[var(--color-accent-red)] mb-2" data-testid="upcoming-fixtures-error">
+          <div
+            className="text-sm text-[var(--color-accent-red)] mb-2"
+            data-testid="upcoming-fixtures-error"
+          >
             {error}
           </div>
         )}
@@ -163,15 +183,23 @@ export function UpcomingFixtures() {
             Loading fixtures…
           </div>
         ) : grouped.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]" data-testid="upcoming-fixtures-empty">
+          <p
+            className="text-sm text-[var(--color-text-muted)]"
+            data-testid="upcoming-fixtures-empty"
+          >
             No fixtures in range (or parquets not yet written for future dates).
           </p>
         ) : (
           <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
             {grouped.map(({ day, leagues }) => {
-              const sampleIso = leagues[0]?.fixtures[0]?.kickoff_utc ?? `${day}T12:00:00Z`;
+              const sampleIso =
+                leagues[0]?.fixtures[0]?.kickoff_utc ?? `${day}T12:00:00Z`;
               return (
-                <details key={day} className="group/day rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] open:bg-[var(--color-bg-tertiary)]" open>
+                <details
+                  key={day}
+                  className="group/day rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] open:bg-[var(--color-bg-tertiary)]"
+                  open
+                >
                   <summary className="cursor-pointer select-none list-none px-3 py-2 flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                     <span className="text-xs font-semibold text-[var(--color-text-primary)]">
                       {formatDayHeading(sampleIso)}
@@ -197,7 +225,10 @@ export function UpcomingFixtures() {
                                 <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
                                   {formatKickoffLocal(fx.kickoff_utc)}
                                 </span>
-                                <Badge variant="outline" className="text-[9px] font-mono shrink-0">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] font-mono shrink-0"
+                                >
                                   {fx.status || "—"}
                                 </Badge>
                               </div>
@@ -206,7 +237,10 @@ export function UpcomingFixtures() {
                                 {" vs "}
                                 {fx.away_team_name || fx.away_team_id}
                               </div>
-                              <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate" title={fx.venue_name}>
+                              <div
+                                className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate"
+                                title={fx.venue_name}
+                              >
                                 {fx.venue_name || fx.venue_id || "Venue TBD"}
                                 {fx.round ? ` · ${fx.round}` : ""}
                               </div>

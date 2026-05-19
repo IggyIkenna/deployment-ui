@@ -11,7 +11,10 @@ interface ManualTradeEntry {
   price: string;
 }
 
-const ARCHETYPES = ["carry_staked_basis", "arbitrage_price_dispersion"] as const;
+const ARCHETYPES = [
+  "carry_staked_basis",
+  "arbitrage_price_dispersion",
+] as const;
 const VENUES = ["binance", "bybit", "okx", "hyperliquid", "deribit"] as const;
 const SIDES = ["buy", "sell"] as const;
 
@@ -62,23 +65,28 @@ export function Dart() {
             <ul className="text-xs text-[var(--color-text-secondary)] space-y-1 list-none">
               <li className="flex items-center gap-2">
                 <span className="text-[var(--color-text-muted)]">□</span>
-                Manual trade confirmed end-to-end through execution-service (same automation path)
+                Manual trade confirmed end-to-end through execution-service
+                (same automation path)
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-[var(--color-text-muted)]">□</span>
-                Position + PnL visible in monitoring dashboard within 60s of fill
+                Position + PnL visible in monitoring dashboard within 60s of
+                fill
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-[var(--color-text-muted)]">□</span>
-                Kill switch tested + confirmed working for this archetype × venue pair
+                Kill switch tested + confirmed working for this archetype ×
+                venue pair
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-[var(--color-text-muted)]">□</span>
-                Risk limits checked: max position size, max drawdown, circuit breaker thresholds
+                Risk limits checked: max position size, max drawdown, circuit
+                breaker thresholds
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-[var(--color-text-muted)]">□</span>
-                Operator has acknowledged wallet balance + gas reserve is sufficient
+                Operator has acknowledged wallet balance + gas reserve is
+                sufficient
               </li>
             </ul>
           </div>
@@ -138,7 +146,11 @@ export function Dart() {
             panel.
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4" data-testid="trade-form">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            data-testid="trade-form"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)]">
@@ -146,7 +158,9 @@ export function Dart() {
                 </label>
                 <select
                   value={entry.archetype}
-                  onChange={(e) => setEntry((p) => ({ ...p, archetype: e.target.value }))}
+                  onChange={(e) =>
+                    setEntry((p) => ({ ...p, archetype: e.target.value }))
+                  }
                   aria-label="Archetype"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="archetype-select"
@@ -164,7 +178,9 @@ export function Dart() {
                 </label>
                 <select
                   value={entry.venue}
-                  onChange={(e) => setEntry((p) => ({ ...p, venue: e.target.value }))}
+                  onChange={(e) =>
+                    setEntry((p) => ({ ...p, venue: e.target.value }))
+                  }
                   aria-label="Venue"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="venue-select"
@@ -185,7 +201,9 @@ export function Dart() {
               <input
                 type="text"
                 value={entry.instrument}
-                onChange={(e) => setEntry((p) => ({ ...p, instrument: e.target.value }))}
+                onChange={(e) =>
+                  setEntry((p) => ({ ...p, instrument: e.target.value }))
+                }
                 placeholder="ETH-USDT-PERP"
                 className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                 data-testid="instrument-input"
@@ -200,7 +218,10 @@ export function Dart() {
                 <select
                   value={entry.side}
                   onChange={(e) =>
-                    setEntry((p) => ({ ...p, side: e.target.value as "buy" | "sell" }))
+                    setEntry((p) => ({
+                      ...p,
+                      side: e.target.value as "buy" | "sell",
+                    }))
                   }
                   aria-label="Side"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
@@ -220,7 +241,9 @@ export function Dart() {
                 <input
                   type="text"
                   value={entry.quantity}
-                  onChange={(e) => setEntry((p) => ({ ...p, quantity: e.target.value }))}
+                  onChange={(e) =>
+                    setEntry((p) => ({ ...p, quantity: e.target.value }))
+                  }
                   placeholder="0.1"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="quantity-input"
@@ -228,12 +251,17 @@ export function Dart() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[var(--color-text-secondary)]">
-                  Limit Price <span className="text-[var(--color-text-muted)]">(optional)</span>
+                  Limit Price{" "}
+                  <span className="text-[var(--color-text-muted)]">
+                    (optional)
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={entry.price}
-                  onChange={(e) => setEntry((p) => ({ ...p, price: e.target.value }))}
+                  onChange={(e) =>
+                    setEntry((p) => ({ ...p, price: e.target.value }))
+                  }
                   placeholder="market"
                   className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
                   data-testid="price-input"

@@ -170,7 +170,11 @@ export interface LiveStatusRow {
   data_type: string;
   venue: string;
   chain?: string;
-  capture_status: "captured" | "empty_confirmed" | "attempted_failed" | "expected_unattempted";
+  capture_status:
+    | "captured"
+    | "empty_confirmed"
+    | "attempted_failed"
+    | "expected_unattempted";
   staleness_seconds: number;
   refreshed_at: string;
 }
@@ -458,7 +462,9 @@ export interface DailyCostResponse {
   by_vm: VmCostRow[];
 }
 
-export async function fetchDailyCosts(date?: string): Promise<DailyCostResponse> {
+export async function fetchDailyCosts(
+  date?: string,
+): Promise<DailyCostResponse> {
   const qs = date ? `?date=${encodeURIComponent(date)}` : "";
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/daily${qs}`);
   return handleResponse<DailyCostResponse>(response);

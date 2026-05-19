@@ -433,16 +433,27 @@ function HwmTable({ rows }: { rows: HwmCrystallizationRow[] }) {
                 key={i}
                 className="border-b border-[var(--color-border)]/40 hover:bg-[var(--color-bg-secondary)]"
               >
-                <td className="px-2 py-1 font-mono">{row.share_class_id ?? "—"}</td>
-                <td className="px-2 py-1">{(row.period_start ?? "—").slice(0, 10)}</td>
-                <td className="px-2 py-1">{(row.period_end ?? "—").slice(0, 10)}</td>
+                <td className="px-2 py-1 font-mono">
+                  {row.share_class_id ?? "—"}
+                </td>
+                <td className="px-2 py-1">
+                  {(row.period_start ?? "—").slice(0, 10)}
+                </td>
+                <td className="px-2 py-1">
+                  {(row.period_end ?? "—").slice(0, 10)}
+                </td>
                 <td className="px-2 py-1">{row.recognition_type ?? "—"}</td>
                 <td
                   className={`px-2 py-1 tabular-nums ${amount > 0 ? "text-[var(--color-accent-green)]" : "text-[var(--color-text-secondary)]"}`}
                 >
-                  ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  $
+                  {amount.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
                 </td>
-                <td className="px-2 py-1">{(row.recognized_at ?? "—").slice(0, 19).replace("T", " ")}</td>
+                <td className="px-2 py-1">
+                  {(row.recognized_at ?? "—").slice(0, 19).replace("T", " ")}
+                </td>
               </tr>
             );
           })}
@@ -672,9 +683,12 @@ export function ClientReportingTab() {
       {/* HWM crystallization timeline — 5.C2 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">HWM Crystallization Timeline</CardTitle>
+          <CardTitle className="text-sm">
+            HWM Crystallization Timeline
+          </CardTitle>
           <CardDescription className="text-xs">
-            Fee recognition events per share class — performance fee crystallizations + management fees.
+            Fee recognition events per share class — performance fee
+            crystallizations + management fees.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 pb-4">

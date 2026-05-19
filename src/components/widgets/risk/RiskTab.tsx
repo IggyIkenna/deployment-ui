@@ -13,7 +13,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { RuleBrowser, RuleBrowserProps } from "./RuleBrowser";
-import { PreflightPlayground, PreflightPlaygroundProps } from "./PreflightPlayground";
+import {
+  PreflightPlayground,
+  PreflightPlaygroundProps,
+} from "./PreflightPlayground";
 
 export type RiskSubView = "rules" | "preflight";
 
@@ -24,7 +27,10 @@ export interface RiskTabProps {
   preflightProps?: PreflightPlaygroundProps;
 }
 
-export function RiskTab({ ruleBrowserProps, preflightProps }: RiskTabProps = {}) {
+export function RiskTab({
+  ruleBrowserProps,
+  preflightProps,
+}: RiskTabProps = {}) {
   const [view, setView] = useState<RiskSubView>("rules");
 
   return (

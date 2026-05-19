@@ -51,7 +51,10 @@ interface Props {
 // ---------------------------------------------------------------------------
 let _mockHf = 1.25;
 function _nextMockHf(): number {
-  _mockHf = Math.max(1.01, Math.min(2.0, _mockHf + (Math.random() - 0.5) * 0.04));
+  _mockHf = Math.max(
+    1.01,
+    Math.min(2.0, _mockHf + (Math.random() - 0.5) * 0.04),
+  );
   return _mockHf;
 }
 
@@ -86,7 +89,7 @@ export function HealthFactorMonitorTile({
   const hfColor =
     latest && latest.hf < 1.05
       ? "text-[var(--color-accent-red)]"
-      : latest && latest.hf < 1.10
+      : latest && latest.hf < 1.1
         ? "text-[var(--color-accent-amber)]"
         : "text-[var(--color-accent-green)]";
 
@@ -95,7 +98,9 @@ export function HealthFactorMonitorTile({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
           Health Factor Monitor
-          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">chain: {chain}</span>
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
+            chain: {chain}
+          </span>
         </h3>
         {latest && (
           <span className={`text-lg font-bold tabular-nums ${hfColor}`}>
@@ -105,17 +110,38 @@ export function HealthFactorMonitorTile({
       </div>
 
       <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={points} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+        <LineChart
+          data={points}
+          margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="ts" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="ts"
+            tick={{ fontSize: 10 }}
+            interval="preserveStartEnd"
+          />
           <YAxis
             domain={[1.0, 2.0]}
             tick={{ fontSize: 10 }}
             tickFormatter={(v: number) => v.toFixed(2)}
           />
-          <Tooltip formatter={(v) => typeof v === "number" ? v.toFixed(3) : String(v)} />
-          <ReferenceLine y={1.10} stroke="#eab308" strokeDasharray="4 2" label={{ value: "1.10", fontSize: 10, fill: "#eab308" }} />
-          <ReferenceLine y={1.05} stroke="#dc2626" strokeDasharray="4 2" label={{ value: "1.05", fontSize: 10, fill: "#dc2626" }} />
+          <Tooltip
+            formatter={(v) =>
+              typeof v === "number" ? v.toFixed(3) : String(v)
+            }
+          />
+          <ReferenceLine
+            y={1.1}
+            stroke="#eab308"
+            strokeDasharray="4 2"
+            label={{ value: "1.10", fontSize: 10, fill: "#eab308" }}
+          />
+          <ReferenceLine
+            y={1.05}
+            stroke="#dc2626"
+            strokeDasharray="4 2"
+            label={{ value: "1.05", fontSize: 10, fill: "#dc2626" }}
+          />
           <Line
             type="monotone"
             dataKey="hf"
@@ -128,8 +154,9 @@ export function HealthFactorMonitorTile({
       </ResponsiveContainer>
 
       <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-        Thresholds: 1.10 partial-unwind (yellow) · 1.05 flash-close (red). UI-throttled {pollIntervalMs / 1000}s.
-        SSE stream endpoint pending (Phase 11 P1 sub-todo).
+        Thresholds: 1.10 partial-unwind (yellow) · 1.05 flash-close (red).
+        UI-throttled {pollIntervalMs / 1000}s. SSE stream endpoint pending
+        (Phase 11 P1 sub-todo).
       </p>
     </div>
   );

@@ -21,7 +21,7 @@ const BASE_EVENT: VMLifecycleEvent = {
   details: null,
 };
 
-function makeResult(events: typeof BASE_EVENT[]): VMEventListResult {
+function makeResult(events: (typeof BASE_EVENT)[]): VMEventListResult {
   return {
     vm_name: "cefi-backfill-20260515",
     service: "market-tick-data-service",
@@ -88,11 +88,17 @@ describe("VmEventsTimeline", () => {
         <VmEventsTimeline vmName="cefi-backfill-20260515" />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByTestId("event-row-STARTED")).toBeInTheDocument());
-    const callsBefore = mockFetchVmFilteredEvents.mock.calls.length;
-    fireEvent.click(screen.getByRole("button", { name: /refresh events timeline/i }));
     await waitFor(() =>
-      expect(mockFetchVmFilteredEvents.mock.calls.length).toBeGreaterThan(callsBefore),
+      expect(screen.getByTestId("event-row-STARTED")).toBeInTheDocument(),
+    );
+    const callsBefore = mockFetchVmFilteredEvents.mock.calls.length;
+    fireEvent.click(
+      screen.getByRole("button", { name: /refresh events timeline/i }),
+    );
+    await waitFor(() =>
+      expect(mockFetchVmFilteredEvents.mock.calls.length).toBeGreaterThan(
+        callsBefore,
+      ),
     );
   });
 
@@ -101,13 +107,17 @@ describe("VmEventsTimeline", () => {
       ...BASE_EVENT,
       details: { rows_processed: "42", phase: "init" },
     };
-    mockFetchVmFilteredEvents.mockResolvedValueOnce(makeResult([evtWithDetails]));
+    mockFetchVmFilteredEvents.mockResolvedValueOnce(
+      makeResult([evtWithDetails]),
+    );
     render(
       <MemoryRouter>
         <VmEventsTimeline vmName="cefi-backfill-20260515" />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByTestId("event-row-STARTED")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("event-row-STARTED")).toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /expand details/i }));
     await waitFor(() => {

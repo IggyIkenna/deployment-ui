@@ -97,90 +97,92 @@ export function DeploymentHistory() {
         </p>
       ) : (
         <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="table-header-cell">Service</th>
-              <th className="table-header-cell">Version</th>
-              <th className="table-header-cell">Env</th>
-              <th className="table-header-cell">Status</th>
-              <th className="table-header-cell">Triggered By</th>
-              <th className="table-header-cell">Triggered At</th>
-              <th className="table-header-cell">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job.job_id} className="table-row">
-                <td className="table-cell font-semibold">{job.service_name}</td>
-                <td
-                  className="table-cell"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {job.version}
-                </td>
-                <td
-                  className="table-cell"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {job.environment}
-                </td>
-                <td className="table-cell">
-                  <span
-                    style={{
-                      color: STATUS_COLORS[job.status],
-                      fontWeight: 600,
-                    }}
-                  >
-                    {job.status}
-                  </span>
-                </td>
-                <td
-                  className="table-cell text-xs"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {job.triggered_by}
-                </td>
-                <td
-                  className="table-cell text-xs"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {new Date(job.triggered_at).toLocaleString()}
-                </td>
-                <td className="table-cell">
-                  <div className="flex gap-2 items-center">
-                    {job.logs_url && (
-                      <a
-                        href={job.logs_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: "var(--color-accent-blue)",
-                          textDecoration: "none",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Logs ↗
-                      </a>
-                    )}
-                    {job.status === "SUCCESS" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleRollback(job.job_id)}
-                        disabled={rollingBack === job.job_id}
-                      >
-                        {rollingBack === job.job_id
-                          ? "Rolling back..."
-                          : "Rollback"}
-                      </Button>
-                    )}
-                  </div>
-                </td>
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="table-header-cell">Service</th>
+                <th className="table-header-cell">Version</th>
+                <th className="table-header-cell">Env</th>
+                <th className="table-header-cell">Status</th>
+                <th className="table-header-cell">Triggered By</th>
+                <th className="table-header-cell">Triggered At</th>
+                <th className="table-header-cell">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {jobs.map((job) => (
+                <tr key={job.job_id} className="table-row">
+                  <td className="table-cell font-semibold">
+                    {job.service_name}
+                  </td>
+                  <td
+                    className="table-cell"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {job.version}
+                  </td>
+                  <td
+                    className="table-cell"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {job.environment}
+                  </td>
+                  <td className="table-cell">
+                    <span
+                      style={{
+                        color: STATUS_COLORS[job.status],
+                        fontWeight: 600,
+                      }}
+                    >
+                      {job.status}
+                    </span>
+                  </td>
+                  <td
+                    className="table-cell text-xs"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {job.triggered_by}
+                  </td>
+                  <td
+                    className="table-cell text-xs"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {new Date(job.triggered_at).toLocaleString()}
+                  </td>
+                  <td className="table-cell">
+                    <div className="flex gap-2 items-center">
+                      {job.logs_url && (
+                        <a
+                          href={job.logs_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "var(--color-accent-blue)",
+                            textDecoration: "none",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Logs ↗
+                        </a>
+                      )}
+                      {job.status === "SUCCESS" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleRollback(job.job_id)}
+                          disabled={rollingBack === job.job_id}
+                        >
+                          {rollingBack === job.job_id
+                            ? "Rolling back..."
+                            : "Rollback"}
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

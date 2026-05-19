@@ -212,9 +212,9 @@ export function AuditLogViewer(): ReactElement {
             Audit log not yet available
           </p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            The <code>/api/kill-switch/audit-log</code> endpoint is not wired
-            on this deployment-api. Phase 7.A (Sub-L) ships this endpoint;
-            once it lands, this viewer renders the live entries.
+            The <code>/api/kill-switch/audit-log</code> endpoint is not wired on
+            this deployment-api. Phase 7.A (Sub-L) ships this endpoint; once it
+            lands, this viewer renders the live entries.
           </p>
         </div>
       ) : null}
@@ -272,10 +272,7 @@ function AuditLogTable({
   page,
   onPage,
 }: AuditLogTableProps): ReactElement {
-  const lastPage = Math.max(
-    1,
-    Math.ceil(response.total / response.page_size),
-  );
+  const lastPage = Math.max(1, Math.ceil(response.total / response.page_size));
 
   return (
     <div className="rounded-lg border border-[var(--color-border-default)] overflow-hidden">
@@ -302,17 +299,15 @@ function AuditLogTable({
               </td>
               <td className="px-3 py-2 font-mono">{entry.switch_id}</td>
               <td className="px-3 py-2">
-                <Badge
-                  variant={entry.action === "arm" ? "error" : "success"}
-                >
+                <Badge variant={entry.action === "arm" ? "error" : "success"}>
                   {entry.action.toUpperCase()}
                 </Badge>
               </td>
               <td className="px-3 py-2">{entry.provenance}</td>
               <td className="px-3 py-2 font-mono text-xs">
                 {entry.action === "arm"
-                  ? entry.requested_by ?? "—"
-                  : entry.disarmed_by ?? "—"}
+                  ? (entry.requested_by ?? "—")
+                  : (entry.disarmed_by ?? "—")}
               </td>
               <td className="px-3 py-2 text-xs">
                 {Object.entries(entry.metadata).map(([k, v]) => (

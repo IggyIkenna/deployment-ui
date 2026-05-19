@@ -16,7 +16,8 @@ interface WsVmEventStreamState {
 }
 
 function buildWsUrl(vmName: string): string {
-  const base = (import.meta.env.VITE_DEPLOYMENT_API_URL as string | undefined) ?? "";
+  const base =
+    (import.meta.env.VITE_DEPLOYMENT_API_URL as string | undefined) ?? "";
   if (base) {
     const wsBase = base.replace(/^http/, "ws");
     return `${wsBase}/ws/vm/${encodeURIComponent(vmName)}/events`;
@@ -74,7 +75,11 @@ export function useVmWebSocket(vmName: string | null): WsVmEventStreamState {
 
     ws.onerror = () => {
       if (cancelled) return;
-      setState((prev) => ({ ...prev, connected: false, error: "Connection lost" }));
+      setState((prev) => ({
+        ...prev,
+        connected: false,
+        error: "Connection lost",
+      }));
     };
 
     return () => {

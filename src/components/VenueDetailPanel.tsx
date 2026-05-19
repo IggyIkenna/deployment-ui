@@ -12,10 +12,7 @@
  * hunt for the CeFi venue-level render block.
  */
 
-import type {
-  VenueDetailResult,
-  VenueDetailV2Response,
-} from "../api/client";
+import type { VenueDetailResult, VenueDetailV2Response } from "../api/client";
 
 type AnyVenueDetail = VenueDetailResult | VenueDetailV2Response;
 
@@ -92,10 +89,7 @@ export function VenueDetailPanel({
                     className="flex gap-2 text-[8px] font-mono items-center"
                     data-testid={`defi-pool-row-${address}`}
                   >
-                    <span
-                      className="truncate max-w-[160px]"
-                      title={address}
-                    >
+                    <span className="truncate max-w-[160px]" title={address}>
                       {address}
                     </span>
                     <span className="text-[var(--color-text-muted)]">
@@ -204,7 +198,8 @@ export function VenueDetailPanel({
               {v1.total_instruments_unfiltered !== undefined &&
                 v1.total_instruments_unfiltered > v1.instruments.length && (
                   <span className="text-[var(--color-text-muted)] ml-1">
-                    (showing {v1.instruments.length} of {v1.total_instruments_unfiltered})
+                    (showing {v1.instruments.length} of{" "}
+                    {v1.total_instruments_unfiltered})
                   </span>
                 )}
             </summary>

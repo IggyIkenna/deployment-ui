@@ -88,7 +88,10 @@ describe("VmCostEstimatePanel", () => {
     fireEvent.submit(screen.getByTestId("cost-estimate-form"));
     await waitFor(() => expect(mockFetchVmCostEstimate).toHaveBeenCalled());
     expect(mockFetchVmCostEstimate).toHaveBeenCalledWith(
-      expect.objectContaining({ machine_type: "n1-standard-8", runtime_hours: 5 }),
+      expect.objectContaining({
+        machine_type: "n1-standard-8",
+        runtime_hours: 5,
+      }),
     );
   });
 });

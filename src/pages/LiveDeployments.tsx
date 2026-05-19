@@ -49,7 +49,9 @@ function formatStaleness(sec: number | null): string {
   return `${Math.round(sec / 3600)}h`;
 }
 
-function stalenessVariant(sec: number | null): "success" | "warning" | "error" | "default" {
+function stalenessVariant(
+  sec: number | null,
+): "success" | "warning" | "error" | "default" {
   if (sec === null) return "default";
   if (sec < 300) return "success";
   if (sec < 1800) return "warning";
@@ -91,15 +93,15 @@ function VmEventPanel({ vmName }: { vmName: string }) {
             {connected ? (
               <span className="text-green-600 font-medium">● live</span>
             ) : (
-              <span className="text-[var(--color-text-muted)]">○ disconnected</span>
+              <span className="text-[var(--color-text-muted)]">
+                ○ disconnected
+              </span>
             )}
           </span>
         </div>
       </CardHeader>
       <CardContent>
-        {error && (
-          <p className="text-sm text-red-600 mb-2">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
         {events.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
             {connected ? "Waiting for events…" : "Connecting…"}
@@ -117,10 +119,14 @@ function VmEventPanel({ vmName }: { vmName: string }) {
                 <span className="text-[var(--color-text-muted)] shrink-0">
                   {new Date(evt.timestamp).toLocaleTimeString()}
                 </span>
-                <span className={`shrink-0 font-semibold ${severityColor(evt.severity)}`}>
+                <span
+                  className={`shrink-0 font-semibold ${severityColor(evt.severity)}`}
+                >
                   {evt.event}
                 </span>
-                <span className="text-[var(--color-text-muted)]">{evt.service}</span>
+                <span className="text-[var(--color-text-muted)]">
+                  {evt.service}
+                </span>
               </div>
             ))}
           </div>
@@ -188,10 +194,14 @@ function VmLogPanel({ vmName }: { vmName: string }) {
                 <span className="text-[var(--color-text-muted)] shrink-0">
                   {new Date(line.timestamp).toLocaleTimeString()}
                 </span>
-                <span className={`shrink-0 font-semibold ${severityColor(line.severity)}`}>
+                <span
+                  className={`shrink-0 font-semibold ${severityColor(line.severity)}`}
+                >
                   {line.event}
                 </span>
-                <span className="text-[var(--color-text-secondary)]">{line.message}</span>
+                <span className="text-[var(--color-text-secondary)]">
+                  {line.message}
+                </span>
               </div>
             ))}
           </div>
@@ -220,7 +230,11 @@ export function LiveDeployments() {
         setHealthRefreshKey((k) => k + 1);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load live deployments");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load live deployments",
+        );
       })
       .finally(() => setLoading(false));
   }, []);
@@ -239,7 +253,10 @@ export function LiveDeployments() {
   }
 
   return (
-    <main className="mx-auto px-4 lg:px-6 py-6 max-w-[1920px]" aria-busy={loading}>
+    <main
+      className="mx-auto px-4 lg:px-6 py-6 max-w-[1920px]"
+      aria-busy={loading}
+    >
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
@@ -311,7 +328,10 @@ export function LiveDeployments() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" aria-label="Live-mode VM deployments">
+              <table
+                className="w-full text-sm"
+                aria-label="Live-mode VM deployments"
+              >
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                     <th className="px-4 py-2 text-left font-medium text-[var(--color-text-muted)]">
@@ -392,7 +412,11 @@ export function LiveDeployments() {
 
       {selectedVmName && (
         <>
-          <div className="flex gap-2 mt-4" role="tablist" aria-label="VM panel view">
+          <div
+            className="flex gap-2 mt-4"
+            role="tablist"
+            aria-label="VM panel view"
+          >
             <button
               role="tab"
               aria-selected={activePanel === "events"}

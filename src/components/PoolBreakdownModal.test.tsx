@@ -90,7 +90,9 @@ describe("PoolBreakdownModal", () => {
     // Loading state appears first, then disappears once the fixture resolves.
     expect(screen.getByTestId("defi-pools-loading")).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.queryByTestId("defi-pools-loading")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId("defi-pools-loading"),
+      ).not.toBeInTheDocument(),
     );
 
     // Modal container, all three pool rows, and at least one coverage badge.
@@ -138,7 +140,9 @@ describe("PoolBreakdownModal", () => {
     );
 
     await waitFor(() =>
-      expect(screen.queryByTestId("defi-pools-loading")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId("defi-pools-loading"),
+      ).not.toBeInTheDocument(),
     );
 
     const footer = screen.getByTestId("defi-pools-truncation-footer");
@@ -156,7 +160,9 @@ describe("PoolBreakdownModal", () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.queryByTestId("defi-pools-loading")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId("defi-pools-loading"),
+      ).not.toBeInTheDocument(),
     );
     expect(
       screen.queryByTestId("defi-pools-truncation-footer"),
@@ -184,7 +190,9 @@ describe("PoolBreakdownModal", () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.queryByTestId("defi-pools-loading")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId("defi-pools-loading"),
+      ).not.toBeInTheDocument(),
     );
     const empty = screen.getByTestId("defi-pools-empty");
     expect(empty).toBeInTheDocument();
@@ -203,7 +211,9 @@ describe("PoolBreakdownModal", () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.queryByTestId("defi-pools-loading")).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId("defi-pools-loading"),
+      ).not.toBeInTheDocument(),
     );
     // Response.day overrides the prop day in the title.
     expect(

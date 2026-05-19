@@ -214,7 +214,10 @@ function SubscriptionForm({
   );
   const [note, setNote] = useState(initial.note ?? "");
 
-  const setOverride = (service: string, isolation: IsolationPolicy | "none") => {
+  const setOverride = (
+    service: string,
+    isolation: IsolationPolicy | "none",
+  ) => {
     setOverrides((prev) => {
       const filtered = prev.filter((o) => o.service_name !== service);
       if (isolation === "none") return filtered;

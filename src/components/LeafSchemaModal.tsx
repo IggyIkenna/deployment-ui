@@ -227,8 +227,8 @@ export function LeafSchemaModal({
               data-testid="leaf-schema-available-at-missing"
               title="Writegate Phase 1A.future MissingAvailableAt failure mode — every shard's parquet must carry available_at per CLAUDE.md."
             >
-              MISSING — writegate contract violation (every shard's parquet
-              must carry available_at)
+              MISSING — writegate contract violation (every shard's parquet must
+              carry available_at)
             </div>
           )}
         </div>
@@ -247,7 +247,9 @@ export function LeafSchemaModal({
                 <span>
                   min:{" "}
                   <span
-                    style={{ color: completenessColor(data.completeness.min_fraction) }}
+                    style={{
+                      color: completenessColor(data.completeness.min_fraction),
+                    }}
                   >
                     {data.completeness.min_fraction !== null
                       ? data.completeness.min_fraction.toFixed(3)
@@ -257,7 +259,9 @@ export function LeafSchemaModal({
                 <span>
                   max:{" "}
                   <span
-                    style={{ color: completenessColor(data.completeness.max_fraction) }}
+                    style={{
+                      color: completenessColor(data.completeness.max_fraction),
+                    }}
                   >
                     {data.completeness.max_fraction !== null
                       ? data.completeness.max_fraction.toFixed(3)
@@ -267,7 +271,9 @@ export function LeafSchemaModal({
                 <span>
                   mean:{" "}
                   <span
-                    style={{ color: completenessColor(data.completeness.mean_fraction) }}
+                    style={{
+                      color: completenessColor(data.completeness.mean_fraction),
+                    }}
                   >
                     {data.completeness.mean_fraction !== null
                       ? data.completeness.mean_fraction.toFixed(3)
@@ -294,7 +300,8 @@ export function LeafSchemaModal({
                   }}
                   title="Number of rows where the incomplete_window column is non-empty / non-null (i.e. the upstream window had gaps at write-time)."
                 >
-                  incomplete_window: {data.completeness.incomplete_window_present_count}
+                  incomplete_window:{" "}
+                  {data.completeness.incomplete_window_present_count}
                 </span>
               </div>
             </div>
@@ -304,8 +311,8 @@ export function LeafSchemaModal({
               data-testid="leaf-schema-completeness-absent"
               title="Parquet predates the writegate slice (c) per-service emission-policy rollout (Phase 6.1-6.9). Auto-surfaces once MDPS / features-* / ml-* / strategy / execution start writing `completeness_fraction` + `incomplete_window` columns via publish_with_policy()."
             >
-              not yet populated (parquet predates slice (c) per-service emission-policy
-              rollout)
+              not yet populated (parquet predates slice (c) per-service
+              emission-policy rollout)
             </div>
           )}
         </div>

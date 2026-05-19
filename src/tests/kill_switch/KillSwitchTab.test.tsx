@@ -76,9 +76,9 @@ describe("KillSwitchTab", () => {
     );
     render(<KillSwitchTab />);
     await waitFor(() => {
-      expect(screen.getByTestId("kill-switch-armed-count").textContent).toContain(
-        "0",
-      );
+      expect(
+        screen.getByTestId("kill-switch-armed-count").textContent,
+      ).toContain("0");
     });
   });
 
@@ -88,8 +88,18 @@ describe("KillSwitchTab", () => {
       vi.fn(() =>
         Promise.resolve(
           _mkStateResponse([
-            _mkSwitch({ switch_id: "global-emergency", armed: true, armed_at: "2026-05-11T00:00:00Z", armed_by: "operator" }),
-            _mkSwitch({ switch_id: "cefi-stop", scope: "ASSET_GROUP", scope_value: "cefi", armed: false }),
+            _mkSwitch({
+              switch_id: "global-emergency",
+              armed: true,
+              armed_at: "2026-05-11T00:00:00Z",
+              armed_by: "operator",
+            }),
+            _mkSwitch({
+              switch_id: "cefi-stop",
+              scope: "ASSET_GROUP",
+              scope_value: "cefi",
+              armed: false,
+            }),
           ]),
         ),
       ),
@@ -145,7 +155,9 @@ describe("KillSwitchTab", () => {
     const auditBtn = screen.getByTestId("kill-switch-subview-audit");
     const activeBtn = screen.getByTestId("kill-switch-subview-active");
     expect(auditBtn.className).toContain("bg-[var(--color-accent-blue)]");
-    expect(activeBtn.className).toContain("border-[var(--color-border-default)]");
+    expect(activeBtn.className).toContain(
+      "border-[var(--color-border-default)]",
+    );
   });
 
   it("renders the top-level kill-switch-tab container", async () => {

@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import {
+  TrendingUp,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+} from "lucide-react";
 import {
   launchStrategyBacktest,
   type LaunchResult,
@@ -9,10 +15,19 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useNotifications } from "../contexts/NotificationContext";
 
-const ARCHETYPES = ["carry_staked_basis", "arbitrage_price_dispersion"] as const;
+const ARCHETYPES = [
+  "carry_staked_basis",
+  "arbitrage_price_dispersion",
+] as const;
 const GRID_DENSITIES = ["low", "medium", "high"] as const;
 
-function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: () => void }) {
+function ResultPanel({
+  result,
+  onDismiss,
+}: {
+  result: LaunchResult;
+  onDismiss: () => void;
+}) {
   return (
     <div
       data-testid="launch-result"
@@ -25,7 +40,10 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
             Backtest VM launched
           </span>
           {result.dry_run && (
-            <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-300">
+            <Badge
+              variant="outline"
+              className="text-xs border-amber-500/40 text-amber-300"
+            >
               DRY RUN
             </Badge>
           )}
@@ -43,9 +61,13 @@ function ResultPanel({ result, onDismiss }: { result: LaunchResult; onDismiss: (
         <dt className="text-[var(--color-text-muted)]">Zone</dt>
         <dd className="text-[var(--color-text-primary)]">{result.zone}</dd>
         <dt className="text-[var(--color-text-muted)]">Launched</dt>
-        <dd className="text-[var(--color-text-primary)]">{result.launched_at}</dd>
+        <dd className="text-[var(--color-text-primary)]">
+          {result.launched_at}
+        </dd>
         <dt className="text-[var(--color-text-muted)]">Correlation</dt>
-        <dd className="text-[var(--color-text-primary)] truncate">{result.correlation_id}</dd>
+        <dd className="text-[var(--color-text-primary)] truncate">
+          {result.correlation_id}
+        </dd>
       </dl>
       {result.events_uri && (
         <a
@@ -135,7 +157,9 @@ export function StrategyBacktests() {
         </div>
       </div>
 
-      {result && <ResultPanel result={result} onDismiss={() => setResult(null)} />}
+      {result && (
+        <ResultPanel result={result} onDismiss={() => setResult(null)} />
+      )}
 
       {error && (
         <div
@@ -149,7 +173,9 @@ export function StrategyBacktests() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-[var(--color-text-secondary)]">Archetype</label>
+          <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+            Archetype
+          </label>
           <select
             value={archetype}
             onChange={(e) => setArchetype(e.target.value)}
@@ -167,35 +193,52 @@ export function StrategyBacktests() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label htmlFor="start-date-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
+            <label
+              htmlFor="start-date-field"
+              className="text-xs font-medium text-[var(--color-text-secondary)]"
+            >
               Start Date
             </label>
             <input
               id="start-date-field"
               type="date"
               value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setStartDateTouched(true); }}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setStartDateTouched(true);
+              }}
               onBlur={() => setStartDateTouched(true)}
               aria-invalid={showStartDateError || undefined}
-              aria-describedby={showStartDateError ? "start-date-error" : undefined}
+              aria-describedby={
+                showStartDateError ? "start-date-error" : undefined
+              }
               className={`w-full rounded-md border ${showStartDateError ? "border-[var(--color-accent-red)]" : "border-[var(--color-border-default)]"} bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]`}
               data-testid="start-date-input"
             />
             {showStartDateError && (
-              <p id="start-date-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+              <p
+                id="start-date-error"
+                className="text-xs text-[var(--color-accent-red)] mt-0.5"
+              >
                 {startDateError}
               </p>
             )}
           </div>
           <div className="space-y-1">
-            <label htmlFor="end-date-field" className="text-xs font-medium text-[var(--color-text-secondary)]">
+            <label
+              htmlFor="end-date-field"
+              className="text-xs font-medium text-[var(--color-text-secondary)]"
+            >
               End Date
             </label>
             <input
               id="end-date-field"
               type="date"
               value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setEndDateTouched(true); }}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setEndDateTouched(true);
+              }}
               onBlur={() => setEndDateTouched(true)}
               aria-invalid={showEndDateError || undefined}
               aria-describedby={showEndDateError ? "end-date-error" : undefined}
@@ -203,7 +246,10 @@ export function StrategyBacktests() {
               data-testid="end-date-input"
             />
             {showEndDateError && (
-              <p id="end-date-error" className="text-xs text-[var(--color-accent-red)] mt-0.5">
+              <p
+                id="end-date-error"
+                className="text-xs text-[var(--color-accent-red)] mt-0.5"
+              >
                 {endDateError}
               </p>
             )}
@@ -237,7 +283,9 @@ export function StrategyBacktests() {
               onChange={(e) => setForce(e.target.checked)}
               className="h-4 w-4 rounded border-[var(--color-border-default)]"
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">Force re-run</span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Force re-run
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -247,7 +295,9 @@ export function StrategyBacktests() {
               className="h-4 w-4 rounded border-[var(--color-border-default)]"
               data-testid="dry-run-checkbox"
             />
-            <span className="text-sm text-[var(--color-text-secondary)]">Dry run</span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Dry run
+            </span>
           </label>
         </div>
 

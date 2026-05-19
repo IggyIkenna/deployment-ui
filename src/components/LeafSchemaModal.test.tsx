@@ -50,7 +50,12 @@ function makeResponse(
     row_count: 0,
     column_count: 0,
     columns: [],
-    available_at: { present: false, min_iso: null, max_iso: null, null_count: 0 },
+    available_at: {
+      present: false,
+      min_iso: null,
+      max_iso: null,
+      null_count: 0,
+    },
     completeness: {
       present: false,
       min_fraction: null,
@@ -129,17 +134,16 @@ describe("LeafSchemaModal", () => {
     vi.mocked(apiClient.fetchLeafParquetStats).mockResolvedValue(
       makeResponse({
         available: false,
-        error_reason:
-          "RuntimeError: simulated parquet corruption",
+        error_reason: "RuntimeError: simulated parquet corruption",
       }),
     );
     render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByTestId("leaf-schema-unavailable")).toBeTruthy();
     });
-    expect(
-      screen.getByTestId("leaf-schema-unavailable").textContent,
-    ).toContain("simulated parquet corruption");
+    expect(screen.getByTestId("leaf-schema-unavailable").textContent).toContain(
+      "simulated parquet corruption",
+    );
   });
 
   it("renders missing available_at envelope as a contract violation", async () => {
@@ -166,7 +170,9 @@ describe("LeafSchemaModal", () => {
     );
     render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByTestId("leaf-schema-available-at-missing")).toBeTruthy();
+      expect(
+        screen.getByTestId("leaf-schema-available-at-missing"),
+      ).toBeTruthy();
     });
   });
 
@@ -213,8 +219,12 @@ describe("LeafSchemaModal", () => {
       expect(screen.getByTestId("leaf-schema-body")).toBeTruthy();
     });
 
-    expect(screen.getByTestId("leaf-schema-row-count").textContent).toContain("1,000");
-    expect(screen.getByTestId("leaf-schema-col-count").textContent).toContain("3");
+    expect(screen.getByTestId("leaf-schema-row-count").textContent).toContain(
+      "1,000",
+    );
+    expect(screen.getByTestId("leaf-schema-col-count").textContent).toContain(
+      "3",
+    );
     expect(screen.getByTestId("leaf-schema-available-at-present")).toBeTruthy();
     expect(screen.getByTestId("leaf-schema-column-ts_event")).toBeTruthy();
     expect(screen.getByTestId("leaf-schema-column-price")).toBeTruthy();
@@ -307,7 +317,9 @@ describe("LeafSchemaModal completeness envelope rendering", () => {
     );
     render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByTestId("leaf-schema-completeness-absent")).toBeTruthy();
+      expect(
+        screen.getByTestId("leaf-schema-completeness-absent"),
+      ).toBeTruthy();
     });
   });
 
@@ -329,7 +341,9 @@ describe("LeafSchemaModal completeness envelope rendering", () => {
     );
     render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByTestId("leaf-schema-completeness-present")).toBeTruthy();
+      expect(
+        screen.getByTestId("leaf-schema-completeness-present"),
+      ).toBeTruthy();
     });
     const block = screen.getByTestId("leaf-schema-completeness-present");
     expect(block.textContent).toContain("0.950");
@@ -356,7 +370,9 @@ describe("LeafSchemaModal completeness envelope rendering", () => {
     );
     render(<LeafSchemaModal coord={COORD} onClose={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByTestId("leaf-schema-completeness-present")).toBeTruthy();
+      expect(
+        screen.getByTestId("leaf-schema-completeness-present"),
+      ).toBeTruthy();
     });
     const block = screen.getByTestId("leaf-schema-completeness-present");
     expect(block.textContent).toContain("null_count: 24");

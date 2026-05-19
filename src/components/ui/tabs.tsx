@@ -6,8 +6,9 @@ const Tabs = TabsPrimitive.Root;
 
 export type TabsVariant = "underline" | "pill";
 
-interface TabsListProps
-  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
+interface TabsListProps extends React.ComponentPropsWithoutRef<
+  typeof TabsPrimitive.List
+> {
   variant?: TabsVariant;
   children?: React.ReactNode;
 }

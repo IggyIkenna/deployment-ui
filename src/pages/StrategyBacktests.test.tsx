@@ -8,7 +8,11 @@ vi.mock("../api/deploymentApi", () => ({
 }));
 
 vi.mock("../contexts/NotificationContext", () => ({
-  useNotifications: () => ({ addToast: vi.fn(), dismissToast: vi.fn(), toasts: [] }),
+  useNotifications: () => ({
+    addToast: vi.fn(),
+    dismissToast: vi.fn(),
+    toasts: [],
+  }),
 }));
 
 const mockResult = {
@@ -58,21 +62,31 @@ describe("StrategyBacktests", () => {
 
   it("shows inline error when end date is before start date", () => {
     render(<StrategyBacktests />);
-    fireEvent.change(screen.getByTestId("start-date-input"), { target: { value: "2026-03-01" } });
-    fireEvent.change(screen.getByTestId("end-date-input"), { target: { value: "2026-01-01" } });
+    fireEvent.change(screen.getByTestId("start-date-input"), {
+      target: { value: "2026-03-01" },
+    });
+    fireEvent.change(screen.getByTestId("end-date-input"), {
+      target: { value: "2026-01-01" },
+    });
     expect(screen.getByText(/on or after start date/i)).toBeInTheDocument();
   });
 
   it("submit button re-enables once both dates are valid", () => {
     render(<StrategyBacktests />);
     expect(screen.getByTestId("launch-button")).toBeDisabled();
-    fireEvent.change(screen.getByTestId("start-date-input"), { target: { value: "2026-01-01" } });
-    fireEvent.change(screen.getByTestId("end-date-input"), { target: { value: "2026-03-31" } });
+    fireEvent.change(screen.getByTestId("start-date-input"), {
+      target: { value: "2026-01-01" },
+    });
+    fireEvent.change(screen.getByTestId("end-date-input"), {
+      target: { value: "2026-03-31" },
+    });
     expect(screen.getByTestId("launch-button")).not.toBeDisabled();
   });
 
   it("calls launchStrategyBacktest with correct params and shows result", async () => {
-    vi.mocked(deploymentApi.launchStrategyBacktest).mockResolvedValue(mockResult);
+    vi.mocked(deploymentApi.launchStrategyBacktest).mockResolvedValue(
+      mockResult,
+    );
     render(<StrategyBacktests />);
 
     fireEvent.change(screen.getByTestId("start-date-input"), {
@@ -95,11 +109,15 @@ describe("StrategyBacktests", () => {
       );
     });
     expect(screen.getByTestId("launch-result")).toBeInTheDocument();
-    expect(screen.getByText("strategy-backtest-grid-carry-20260515")).toBeInTheDocument();
+    expect(
+      screen.getByText("strategy-backtest-grid-carry-20260515"),
+    ).toBeInTheDocument();
   });
 
   it("shows DRY RUN badge when result.dry_run is true", async () => {
-    vi.mocked(deploymentApi.launchStrategyBacktest).mockResolvedValue(mockResult);
+    vi.mocked(deploymentApi.launchStrategyBacktest).mockResolvedValue(
+      mockResult,
+    );
     render(<StrategyBacktests />);
 
     fireEvent.change(screen.getByTestId("start-date-input"), {
@@ -110,7 +128,9 @@ describe("StrategyBacktests", () => {
     });
     fireEvent.click(screen.getByTestId("launch-button"));
 
-    await waitFor(() => expect(screen.getByText("DRY RUN")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("DRY RUN")).toBeInTheDocument(),
+    );
   });
 
   it("shows error panel on API failure", async () => {

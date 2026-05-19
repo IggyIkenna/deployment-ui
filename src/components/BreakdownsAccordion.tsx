@@ -76,9 +76,7 @@ const HUMAN_AXIS_LABELS: Record<string, string> = {
 function formatAxisLabel(axis: string): string {
   return (
     HUMAN_AXIS_LABELS[axis] ??
-    axis
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    axis.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
   );
 }
 
@@ -133,7 +131,9 @@ export function BreakdownsAccordion({
                   <span className="font-medium text-[var(--color-text-secondary)]">
                     {formatAxisLabel(axis)}
                   </span>
-                  <span className="text-xs text-[var(--color-text-muted)]">{axis}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {axis}
+                  </span>
                 </span>
                 <span className="text-xs text-[var(--color-text-muted)]">
                   {empty
@@ -143,10 +143,10 @@ export function BreakdownsAccordion({
               </button>
               {isOpen && empty ? (
                 <p className="mt-2 ml-6 text-xs italic text-[var(--color-text-muted)]">
-                  This axis is declared in the SSOT for this asset group but
-                  the manifest hasn&apos;t populated it yet (Phase&nbsp;1
-                  writer work). Data will fill in here automatically once
-                  the writer for this service ships.
+                  This axis is declared in the SSOT for this asset group but the
+                  manifest hasn&apos;t populated it yet (Phase&nbsp;1 writer
+                  work). Data will fill in here automatically once the writer
+                  for this service ships.
                 </p>
               ) : null}
               {isOpen && !empty ? (
@@ -159,10 +159,9 @@ export function BreakdownsAccordion({
                         <Tag
                           {...(clickable
                             ? {
-                              type: "button" as const,
-                              onClick: () =>
-                                onSelectValue?.(axis, value),
-                            }
+                                type: "button" as const,
+                                onClick: () => onSelectValue?.(axis, value),
+                              }
                             : {})}
                           className={
                             "flex w-full items-center justify-between text-left text-xs " +

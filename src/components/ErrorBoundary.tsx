@@ -10,7 +10,10 @@ interface ErrorBoundaryProps {
   fallbackTitle?: string;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -21,7 +24,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("[ErrorBoundary] Caught render error:", error, info.componentStack);
+    console.error(
+      "[ErrorBoundary] Caught render error:",
+      error,
+      info.componentStack,
+    );
   }
 
   reset() {

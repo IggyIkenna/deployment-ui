@@ -139,10 +139,16 @@ describe("TreasuryTab", () => {
     let resolveTreasury!: (v: ClientTreasury) => void;
     let resolveSubs!: (v: ClientSubscriptions) => void;
     vi.spyOn(treasuryApi, "fetchClientTreasury").mockImplementation(
-      () => new Promise<ClientTreasury>((r) => { resolveTreasury = r; }),
+      () =>
+        new Promise<ClientTreasury>((r) => {
+          resolveTreasury = r;
+        }),
     );
     vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockImplementation(
-      () => new Promise<ClientSubscriptions>((r) => { resolveSubs = r; }),
+      () =>
+        new Promise<ClientSubscriptions>((r) => {
+          resolveSubs = r;
+        }),
     );
 
     render(<TreasuryTab />);
@@ -155,7 +161,9 @@ describe("TreasuryTab", () => {
   });
 
   it("renders NAV, onboarding badge, and subscriptions after data loads", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
+      MOCK_TREASURY,
+    );
     vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
       MOCK_SUBSCRIPTIONS,
     );
@@ -175,11 +183,15 @@ describe("TreasuryTab", () => {
 
     // Subscription archetypes (may appear in both subscriptions + allocations tables)
     expect(screen.getAllByText("carry_staked_basis").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("arbitrage_price_dispersion").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("arbitrage_price_dispersion").length,
+    ).toBeGreaterThan(0);
   });
 
   it("withdrawal request button is visible after data loads and opens dialog", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
+      MOCK_TREASURY,
+    );
     vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
       MOCK_SUBSCRIPTIONS,
     );
@@ -213,7 +225,9 @@ describe("TreasuryTab", () => {
   });
 
   it("renders COPPER custody ping as UNREACHABLE", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
+      MOCK_TREASURY,
+    );
     vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
       MOCK_SUBSCRIPTIONS,
     );

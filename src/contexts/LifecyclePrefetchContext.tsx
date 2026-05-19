@@ -80,7 +80,12 @@ function reducer(
     case "BACKFILL_ERROR":
       return {
         ...state,
-        backfill: { data: null, loading: false, error: action.payload, fetchedAt: null },
+        backfill: {
+          data: null,
+          loading: false,
+          error: action.payload,
+          fetchedAt: null,
+        },
       };
     case "LIVE_SUCCESS":
       return {
@@ -95,7 +100,12 @@ function reducer(
     case "LIVE_ERROR":
       return {
         ...state,
-        live: { data: null, loading: false, error: action.payload, fetchedAt: null },
+        live: {
+          data: null,
+          loading: false,
+          error: action.payload,
+          fetchedAt: null,
+        },
       };
     case "EXPERIMENTS_SUCCESS":
       return {
@@ -110,7 +120,12 @@ function reducer(
     case "EXPERIMENTS_ERROR":
       return {
         ...state,
-        experiments: { data: null, loading: false, error: action.payload, fetchedAt: null },
+        experiments: {
+          data: null,
+          loading: false,
+          error: action.payload,
+          fetchedAt: null,
+        },
       };
     case "SCHEDULED_SUCCESS":
       return {
@@ -125,7 +140,12 @@ function reducer(
     case "SCHEDULED_ERROR":
       return {
         ...state,
-        scheduled: { data: null, loading: false, error: action.payload, fetchedAt: null },
+        scheduled: {
+          data: null,
+          loading: false,
+          error: action.payload,
+          fetchedAt: null,
+        },
       };
     default:
       return state;
@@ -212,7 +232,10 @@ export function LifecyclePrefetchProvider({
       }
 
       if (experimentsResult.status === "fulfilled") {
-        dispatch({ type: "EXPERIMENTS_SUCCESS", payload: experimentsResult.value });
+        dispatch({
+          type: "EXPERIMENTS_SUCCESS",
+          payload: experimentsResult.value,
+        });
       } else {
         const error =
           experimentsResult.reason instanceof Error
@@ -237,7 +260,13 @@ export function LifecyclePrefetchProvider({
     return () => {
       isMounted = false;
     };
-  }, [target, state.backfill.fetchedAt, state.live.fetchedAt, state.experiments.fetchedAt, state.scheduled.fetchedAt]);
+  }, [
+    target,
+    state.backfill.fetchedAt,
+    state.live.fetchedAt,
+    state.experiments.fetchedAt,
+    state.scheduled.fetchedAt,
+  ]);
 
   return (
     <LifecyclePrefetchContext.Provider value={{ state }}>
