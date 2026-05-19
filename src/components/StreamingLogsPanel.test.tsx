@@ -89,7 +89,7 @@ describe("StreamingLogsPanel", () => {
     });
 
     render(<StreamingLogsPanel vmName="vm-123" />);
-    expect(screen.getByText("Loading events...")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to log stream…")).toBeInTheDocument();
   });
 
   it("renders error state", () => {
