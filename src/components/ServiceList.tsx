@@ -1,5 +1,4 @@
 import {
-  Activity,
   BarChart3,
   Bot,
   Brain,
@@ -15,7 +14,6 @@ import {
   Network,
   Package,
   Radio,
-  Shield,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -237,7 +235,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   },
   // L5
   "strategy-service": {
-    description: "Backtest & optimise strategies",
+    description: "Strategy, risk, position & P&L",
     dimensions: ["config"],
     operations: [
       {
@@ -249,6 +247,21 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
         value: "trade",
         label: "Trade",
         description: "Live/paper trading signals",
+      },
+      {
+        value: "risk-monitor",
+        label: "Risk Monitor",
+        description: "Real-time risk & position monitoring",
+      },
+      {
+        value: "position-recon",
+        label: "Position Recon",
+        description: "Position reconciliation",
+      },
+      {
+        value: "pnl-attribution",
+        label: "P&L Attribution",
+        description: "P&L attribution & reporting",
       },
     ],
     modes: ["batch", "live"],
@@ -282,38 +295,6 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
     operationalModes: ["live", "paper"],
   },
   // L6
-  "position-balance-monitor-service": {
-    description: "Real-time position & balance tracking",
-    dimensions: ["config"],
-    operations: [
-      {
-        value: "monitor",
-        label: "Monitor",
-        description: "Track positions & balances",
-      },
-    ],
-    modes: ["live"],
-  },
-  "risk-and-exposure-service": {
-    description: "Greeks, VaR & exposure limits",
-    dimensions: ["config"],
-    operations: [
-      {
-        value: "compute",
-        label: "Compute",
-        description: "Compute risk metrics",
-      },
-    ],
-    modes: ["batch", "live"],
-  },
-  "pnl-attribution-service": {
-    description: "P&L attribution & reporting",
-    dimensions: ["config"],
-    operations: [
-      { value: "compute", label: "Compute", description: "Attribute P&L" },
-    ],
-    modes: ["batch"],
-  },
   "alerting-service": {
     description: "Alerts, circuit breakers & notifications",
     dimensions: ["config"],
@@ -375,9 +356,6 @@ const serviceIcons: Record<string, React.ElementType> = {
   "strategy-service": TrendingUp,
   "execution-service": Zap,
   "trading-agent-service": Bot,
-  "position-balance-monitor-service": Activity,
-  "risk-and-exposure-service": Shield,
-  "pnl-attribution-service": BarChart3,
   "alerting-service": Radio,
   "ibkr-gateway-infra": Network,
   "deployment-service": Layers,
@@ -436,14 +414,9 @@ const PIPELINE_LAYERS = [
   {
     id: "layer6",
     title: "L6: Risk",
-    description: "Positions, risk, P&L, alerts",
+    description: "Risk, P&L, alerts",
     color: "var(--color-accent-red)",
-    services: [
-      "position-balance-monitor-service",
-      "risk-and-exposure-service",
-      "pnl-attribution-service",
-      "alerting-service",
-    ],
+    services: ["alerting-service"],
   },
   {
     id: "infrastructure",

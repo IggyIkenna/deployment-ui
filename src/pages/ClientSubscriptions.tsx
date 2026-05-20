@@ -41,9 +41,6 @@ import type {
 // Mirrors runtime-topology.yaml `isolation_policies` entries with allowed=[shared, isolated].
 const OVERRIDABLE_SERVICES: string[] = [
   "strategy-service",
-  "position-balance-monitor-service",
-  "risk-and-exposure-service",
-  "pnl-attribution-service",
   "alerting-service",
 ];
 

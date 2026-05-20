@@ -1697,8 +1697,6 @@ export const MANIFEST_MODE_SERVICES = [
   "execution-service",
   "ml-training-service",
   "ml-inference-service",
-  "risk-and-exposure-service",
-  "pnl-attribution-service",
   "alerting-service",
 ];
 
@@ -1732,8 +1730,6 @@ export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "execution-service": "domain",
   "ml-training-service": "model_id",
   "ml-inference-service": "mode",
-  "risk-and-exposure-service": "client_id",
-  "pnl-attribution-service": "strategy_id",
   "alerting-service": "alert_type",
 };
 

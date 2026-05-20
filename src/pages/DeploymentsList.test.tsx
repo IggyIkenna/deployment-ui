@@ -129,7 +129,7 @@ beforeEach(async () => {
     to_sha: "def456",
     added: [
       {
-        service: "risk-and-exposure-service",
+        service: "alerting-service",
         from_version: null,
         to_version: "0.4.0",
       },
@@ -440,7 +440,7 @@ describe("DeploymentsList diff viewer", () => {
     expect(within(diffEl).getByText(/Removed/)).toBeInTheDocument();
     expect(within(diffEl).getByText(/Changed/)).toBeInTheDocument();
     expect(
-      within(diffEl).getByText("risk-and-exposure-service"),
+      within(diffEl).getByText("alerting-service"),
     ).toBeInTheDocument();
     expect(within(diffEl).getByText("strategy-service")).toBeInTheDocument();
     expect(

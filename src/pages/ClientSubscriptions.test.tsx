@@ -92,7 +92,7 @@ describe("ClientSubscriptions page", () => {
         client_id: "alpha",
         sla_tier: "premium",
         service_overrides: [
-          { service_name: "risk-and-exposure-service", isolation: "isolated" },
+          { service_name: "strategy-service", isolation: "isolated" },
         ],
         active_from: "2026-01-01T00:00:00Z",
       },
@@ -109,7 +109,7 @@ describe("ClientSubscriptions page", () => {
       expect(screen.getByText("alpha")).toBeInTheDocument();
     });
     expect(screen.getByText("premium")).toBeInTheDocument();
-    expect(screen.getByText(/risk-and-exposure-service/)).toBeInTheDocument();
+    expect(screen.getByText(/strategy-service/)).toBeInTheDocument();
   });
 
   it("shows empty state when there are no subscriptions", async () => {

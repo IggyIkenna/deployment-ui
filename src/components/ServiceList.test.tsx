@@ -138,9 +138,9 @@ describe("ServiceList", () => {
 
   it("supports services without operationalModes (no amber badges where absent)", () => {
     render(<ServiceList selectedService={null} onSelectService={vi.fn()} />);
-    // pnl-attribution-service has no operationalModes — its rendering
+    // alerting-service has no operationalModes — its rendering
     // path goes through opModes.map([]) which is the empty-list branch.
-    expect(screen.getByText("pnl attribution")).toBeTruthy();
+    expect(screen.getByText("alerting")).toBeTruthy();
   });
 
   it("handles deployment-service single-op click", () => {
