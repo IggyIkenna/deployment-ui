@@ -11,13 +11,15 @@ function CoverageBar({
   captured,
   empty_confirmed,
   attempted_failed,
-  expected_unattempted,
+  expected_unattempted_known_empty,
+  expected_unattempted_pending_fetch,
   total,
 }: {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
-  expected_unattempted: number;
+  expected_unattempted_known_empty: number;
+  expected_unattempted_pending_fetch: number;
   total: number;
 }) {
   if (total === 0)
@@ -31,9 +33,14 @@ function CoverageBar({
         title={`captured: ${captured}`}
       />
       <div
-        className="bg-yellow-400"
+        className="bg-teal-400"
         style={{ width: pct(empty_confirmed) }}
         title={`empty_confirmed: ${empty_confirmed}`}
+      />
+      <div
+        className="bg-sky-300"
+        style={{ width: pct(expected_unattempted_known_empty) }}
+        title={`expected_unattempted_known_empty: ${expected_unattempted_known_empty}`}
       />
       <div
         className="bg-red-500"
@@ -42,8 +49,8 @@ function CoverageBar({
       />
       <div
         className="bg-[var(--color-bg-tertiary)]"
-        style={{ width: pct(expected_unattempted) }}
-        title={`expected_unattempted: ${expected_unattempted}`}
+        style={{ width: pct(expected_unattempted_pending_fetch) }}
+        title={`expected_unattempted_pending_fetch: ${expected_unattempted_pending_fetch}`}
       />
     </div>
   );
@@ -89,7 +96,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           </Badge>
           <span
             className="text-[10px] text-[var(--color-text-muted)] cursor-help"
-            title="captured / (captured + attempted_failed + expected_unattempted) — empty_confirmed excluded (legitimate absence)"
+            title="(captured + empty_confirmed + expected_unattempted_known_empty) / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)"
           >
             reachable
           </span>
@@ -136,9 +143,9 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                       </Badge>
                       <span
                         className={`text-xs font-mono font-bold ${
-                          s.coverage_pct >= 95
+                          s.coverage_pct >= 99
                             ? "text-emerald-600"
-                            : s.coverage_pct >= 80
+                            : s.coverage_pct >= 95
                               ? "text-yellow-600"
                               : "text-red-600"
                         }`}
@@ -150,7 +157,8 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                       captured={s.captured}
                       empty_confirmed={s.empty_confirmed}
                       attempted_failed={s.attempted_failed}
-                      expected_unattempted={s.expected_unattempted}
+                      expected_unattempted_known_empty={s.expected_unattempted_known_empty}
+                      expected_unattempted_pending_fetch={s.expected_unattempted_pending_fetch}
                       total={s.total}
                     />
                     <div className="text-[10px] text-[var(--color-text-muted)]">
@@ -160,14 +168,18 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                 );
               })}
             </div>
-            <div className="flex gap-3 text-[10px] text-[var(--color-text-muted)]">
+            <div className="flex flex-wrap gap-3 text-[10px] text-[var(--color-text-muted)]">
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" />
                 captured
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-yellow-400" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-teal-400" />
                 empty_confirmed
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-sm bg-sky-300" />
+                exp_unattempted_known_empty
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-red-500" />
@@ -175,7 +187,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-[var(--color-bg-tertiary)]" />
-                expected_unattempted
+                exp_unattempted_pending_fetch
               </span>
             </div>
           </div>

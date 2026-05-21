@@ -3311,9 +3311,13 @@ export interface HonestCoverageStatusCounts {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
-  expected_unattempted: number;
+  expected_unattempted_known_empty: number;
+  expected_unattempted_pending_fetch: number;
   total: number;
-  /** Reachable coverage: captured / (captured + attempted_failed + expected_unattempted). */
+  /**
+   * Honest coverage: (captured + empty_confirmed + expected_unattempted_known_empty)
+   *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)
+   */
   coverage_pct: number;
   /** Legacy all-shards formula including empty_confirmed in denominator. */
   all_shards_coverage_pct?: number;
