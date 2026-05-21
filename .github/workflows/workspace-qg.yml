@@ -62,11 +62,7 @@ permissions:
 jobs:
   quality-gates:
     name: Quality Gates (deployment-ui)
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/python-quality-gates.yml@live-defi-rollout
+    uses: IggyIkenna/unified-trading-pm/.github/workflows/ui-quality-gates.yml@live-defi-rollout
     with:
-      dep_repos: ""
+      node-version: "22"
     secrets: inherit
-    # Note: reusable workflow inputs are intentionally minimal — service_name + source_dir
-    # are derived inside the reusable workflow from github.repository (caller's repo name)
-    # and the conventional `<repo>_<underscored>` source-dir layout per workspace SSOT.
-    # See `.github/workflows/python-quality-gates.yml` in unified-trading-pm.
