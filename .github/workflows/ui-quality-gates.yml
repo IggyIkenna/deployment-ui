@@ -40,12 +40,12 @@ jobs:
       - name: Clone unified-trading-pm
         shell: bash
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
           DEP_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           BRANCH="${DEP_BRANCH:-main}"
-          (git clone -b "$BRANCH" "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm 2>/dev/null \
-            || git clone -b main "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm 2>/dev/null) || true
+          git clone --depth=1 -b "$BRANCH" "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm 2>/dev/null \
+            || git clone --depth=1 -b main "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm 2>/dev/null \
+            || true
 
       - name: Install dependencies
         shell: bash
