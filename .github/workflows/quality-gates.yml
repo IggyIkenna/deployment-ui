@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   call-quality-gates:
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/ui-quality-gates.yml@live-defi-rollout
+    uses: ./.github/workflows/ui-quality-gates.yml
     with:
       node-version: "22"
     secrets: inherit

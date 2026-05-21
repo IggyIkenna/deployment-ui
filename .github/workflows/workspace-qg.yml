@@ -62,7 +62,7 @@ permissions:
 jobs:
   quality-gates:
     name: Quality Gates (deployment-ui)
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/ui-quality-gates.yml@live-defi-rollout
+    uses: ./.github/workflows/ui-quality-gates.yml
     with:
       node-version: "22"
     secrets: inherit
