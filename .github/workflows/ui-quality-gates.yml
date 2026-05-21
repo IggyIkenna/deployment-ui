@@ -44,9 +44,12 @@ jobs:
           GIT_TERMINAL_PROMPT: "0"
         run: |
           BRANCH="${DEP_BRANCH:-main}"
-          git -c credential.helper= clone --depth=1 -b "$BRANCH" \
+          # actions/checkout sets http.https://github.com/.extraheader in local git config.
+          # That token is scoped to this repo and causes auth failures on cross-repo clones.
+          # Override it with empty string to do an anonymous clone (PM is public).
+          git -c http.https://github.com/.extraheader="" -c credential.helper="" clone --depth=1 -b "$BRANCH" \
             "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm \
-            || git -c credential.helper= clone --depth=1 -b main \
+            || git -c http.https://github.com/.extraheader="" -c credential.helper="" clone --depth=1 -b main \
               "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm \
             || true
 
