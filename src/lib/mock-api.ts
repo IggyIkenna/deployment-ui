@@ -219,7 +219,22 @@ function _mkVenue(
       captured,
       empty_confirmed: empty,
       attempted_failed: failed,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
     },
+    counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
+    },
+    // Phase 4 P1: honest_coverage = (captured + empty) / (captured + empty + failed + pending)
+    coverage: (() => {
+      const num = captured + empty;
+      const den = num + failed + Math.max(0, dates_expected - attempted);
+      return den > 0 ? Math.round((num / den) * 1e6) / 1e6 : 1.0;
+    })(),
     attempt_coverage_pct: Math.min(
       Math.round((attempted / denom) * 10000) / 100,
       100,
@@ -310,7 +325,22 @@ function _mkCategory(
       captured,
       empty_confirmed: empty,
       attempted_failed: failed,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
     },
+    counts: {
+      captured,
+      empty_confirmed: empty,
+      attempted_failed: failed,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
+    },
+    coverage: (() => {
+      const num = captured + empty;
+      const pending = Math.max(0, dates_expected - (captured + empty + failed));
+      const den = num + failed + pending;
+      return den > 0 ? Math.round((num / den) * 1e6) / 1e6 : 1.0;
+    })(),
     venue_weighted: true,
     venue_dates_found: captured,
     venue_dates_expected: dates_expected,
@@ -420,7 +450,17 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       captured: totalFound,
       empty_confirmed: 0,
       attempted_failed: 0,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
     },
+    counts: {
+      captured: totalFound,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
+    },
+    coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
     venue_weighted: true,
     venue_dates_found: totalFound,
     venue_dates_expected: totalExpected,

@@ -1301,9 +1301,8 @@ function DataStatusTabInternal({
   };
 
   const getCompletionColor = (percent: number) => {
-    if (percent >= 100) return "var(--color-accent-green)";
-    if (percent >= 80) return "var(--color-accent-cyan)";
-    if (percent >= 50) return "var(--color-accent-amber)";
+    if (percent >= 99) return "var(--color-accent-green)";
+    if (percent >= 95) return "var(--color-accent-amber)";
     return "var(--color-accent-red)";
   };
 

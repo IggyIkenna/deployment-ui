@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   Bot,
   Brain,

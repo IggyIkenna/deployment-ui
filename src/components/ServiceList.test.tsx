@@ -27,8 +27,10 @@ describe("ServiceList", () => {
 
   it("renders the total service count badge", () => {
     render(<ServiceList selectedService={null} onSelectService={vi.fn()} />);
-    // 1 + 2 + 8 + 2 + 3 + 4 + 2 + 1 = 23
-    expect(screen.getByText("23")).toBeTruthy();
+    // 1 + 2 + 8 + 2 + 3 + 1 + 2 + 1 = 20
+    // (L6 Risk now has 1 service: alerting-service; pnl/position/risk-and-exposure
+    //  were merged into strategy-service ops in d22f2ba)
+    expect(screen.getByText("20")).toBeTruthy();
   });
 
   it("calls onSelectService with the default operation when a single-op service is clicked", () => {

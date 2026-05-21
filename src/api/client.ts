@@ -1075,7 +1075,20 @@ export interface TurboSubDimension {
     captured: number;
     empty_confirmed: number;
     attempted_failed: number;
+    // Phase 4 P1: all 5 fields exposed (expected_unattempted split)
+    expected_unattempted_known_empty?: number;
+    expected_unattempted_pending_fetch?: number;
   };
+  // Phase 4 P1: canonical alias for capture_status_counts (all 5 fields always present)
+  counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty: number;
+    expected_unattempted_pending_fetch: number;
+  };
+  // Phase 4 P1: honest_coverage float (0–1) pre-computed by API; never re-derive client-side
+  coverage?: number;
   attempt_coverage_pct?: number;
   capture_coverage_pct?: number;
   empty_rate?: number;
@@ -1247,6 +1260,24 @@ export interface TurboAssetGroupStatus {
   attempt_coverage_pct?: number;
   capture_coverage_pct?: number;
   empty_rate_estimate?: number | null;
+  failure_rate?: number;
+  // Phase 4 P1: category-level capture-status counts + honest-coverage float
+  capture_status_counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty?: number;
+    expected_unattempted_pending_fetch?: number;
+  };
+  counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty: number;
+    expected_unattempted_pending_fetch: number;
+  };
+  // honest_coverage float (0–1); use instead of recomputing from counts client-side
+  coverage?: number;
   missing_dates: string[] | string;
   // Category-level dates lists (with truncation for UI display)
   dates_found_count?: number; // Total found count
