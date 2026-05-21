@@ -40,16 +40,21 @@ jobs:
       - name: Clone unified-trading-pm
         shell: bash
         env:
+          GH_PAT: ${{ secrets.GH_PAT }}
           DEP_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
+          if [ -z "${GH_PAT}" ]; then
+            echo "::warning::GH_PAT secret not configured in this repo — quality gates will fail."
+            echo "  Add GH_PAT (a PAT with repo read scope) to this repo's GitHub Actions secrets."
+            exit 0
+          fi
           BRANCH="${DEP_BRANCH:-main}"
-          # Use curl tarball download instead of git clone — avoids actions/checkout's
-          # git credential helpers that block anonymous access to public repos.
-          mkdir -p ../unified-trading-pm
-          curl -sL "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm/archive/refs/heads/${BRANCH}.tar.gz" \
-            | tar -xz --strip-components=1 -C ../unified-trading-pm 2>/dev/null \
-            || curl -sL "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm/archive/refs/heads/main.tar.gz" \
-              | tar -xz --strip-components=1 -C ../unified-trading-pm 2>/dev/null \
+          git clone --depth=1 -b "$BRANCH" \
+            "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" \
+            ../unified-trading-pm 2>/dev/null \
+            || git clone --depth=1 -b main \
+              "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" \
+              ../unified-trading-pm 2>/dev/null \
             || true
 
       - name: Install dependencies
