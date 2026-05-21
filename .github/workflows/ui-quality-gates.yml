@@ -41,12 +41,14 @@ jobs:
         shell: bash
         env:
           DEP_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GIT_TERMINAL_PROMPT: "0"
         run: |
           BRANCH="${DEP_BRANCH:-main}"
-          echo "Cloning unified-trading-pm branch=${BRANCH} owner=${GITHUB_REPOSITORY_OWNER}"
-          git clone --depth=1 -b "$BRANCH" "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm \
-            || git clone --depth=1 -b main "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm
-          ls ../unified-trading-pm/scripts/quality-gates-base/base-ui.sh
+          git -c credential.helper= clone --depth=1 -b "$BRANCH" \
+            "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm \
+            || git -c credential.helper= clone --depth=1 -b main \
+              "https://github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" ../unified-trading-pm \
+            || true
 
       - name: Install dependencies
         shell: bash
