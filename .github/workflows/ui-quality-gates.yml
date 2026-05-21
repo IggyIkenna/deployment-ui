@@ -18,10 +18,6 @@ on:
       TELEGRAM_BOT_TOKEN:
         required: false
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   quality-gates:
     runs-on: ubuntu-latest
