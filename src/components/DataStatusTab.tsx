@@ -4458,7 +4458,10 @@ function DataStatusTabInternal({
                                                             : undefined;
                                                         const dataTypeHint =
                                                           firstDt ??
-                                                          "AUTO_DETECT_FAIL";
+                                                          (serviceName ===
+                                                          "instruments-service"
+                                                            ? "INSTRUMENTS"
+                                                            : "AUTO_DETECT_FAIL");
                                                         const makeOnClick =
                                                           (date: string) =>
                                                           () =>
