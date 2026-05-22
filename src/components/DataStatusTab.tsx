@@ -4363,7 +4363,7 @@ function DataStatusTabInternal({
                                                             );
                                                           }}
                                                         >
-                                                          pools
+                                                          breakdown
                                                         </button>
                                                       )}
                                                     </summary>
@@ -4490,26 +4490,39 @@ function DataStatusTabInternal({
                                                                   dates
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                                  {cvFoundList.map(
-                                                                    (
-                                                                      date: string,
-                                                                    ) => (
-                                                                      <button
-                                                                        key={
-                                                                          date
-                                                                        }
-                                                                        type="button"
-                                                                        onClick={makeOnClick(
+                                                                  <DateList
+                                                                    dates={
+                                                                      cvFoundList
+                                                                    }
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    testIdPrefix={`defi-date-found-${v}`}
+                                                                    onClickDate={makeOnClick}
+                                                                    downloadUrl={(
+                                                                      date,
+                                                                    ) =>
+                                                                      buildShardDownloadUrl(
+                                                                        {
+                                                                          service:
+                                                                            serviceName,
+                                                                          asset_group:
+                                                                            catName,
+                                                                          venue:
+                                                                            v,
                                                                           date,
-                                                                        )}
-                                                                        title={`Show shard details for ${date}`}
-                                                                        data-testid={`defi-date-found-${v}-${date}`}
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                      >
-                                                                        {date}
-                                                                      </button>
-                                                                    ),
-                                                                  )}
+                                                                          data_type:
+                                                                            dataTypeHint !==
+                                                                            "AUTO_DETECT_FAIL"
+                                                                              ? dataTypeHint
+                                                                              : undefined,
+                                                                        },
+                                                                      )
+                                                                    }
+                                                                    downloadTitle={(
+                                                                      date,
+                                                                    ) =>
+                                                                      `Download manifest catalog CSV for ${v} on ${date}`
+                                                                    }
+                                                                  />
                                                                   {vdTyped.dates_found >
                                                                     cvFoundList.length && (
                                                                     <span className="text-[7px] text-[var(--color-text-muted)]">
@@ -4532,26 +4545,14 @@ function DataStatusTabInternal({
                                                                   missing dates
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                                  {cvMissingList.map(
-                                                                    (
-                                                                      date: string,
-                                                                    ) => (
-                                                                      <button
-                                                                        key={
-                                                                          date
-                                                                        }
-                                                                        type="button"
-                                                                        onClick={makeOnClick(
-                                                                          date,
-                                                                        )}
-                                                                        title={`Show shard details (missing) for ${date}`}
-                                                                        data-testid={`defi-date-missing-${v}-${date}`}
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                      >
-                                                                        {date}
-                                                                      </button>
-                                                                    ),
-                                                                  )}
+                                                                  <DateList
+                                                                    dates={
+                                                                      cvMissingList
+                                                                    }
+                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    testIdPrefix={`defi-date-missing-${v}`}
+                                                                    onClickDate={makeOnClick}
+                                                                  />
                                                                   {cvMissingCount >
                                                                     cvMissingList.length && (
                                                                     <span className="text-[7px] text-[var(--color-text-muted)]">
