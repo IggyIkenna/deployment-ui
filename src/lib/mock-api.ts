@@ -760,8 +760,8 @@ function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
 
 /**
  * DEFI fixture with Phase 8H per-instrument honest-coverage. Wave 8G
- * seeded UAC instrument-ref for DEFI protocols, so UNISWAPV3-ETHEREUM now
- * declares 20 dex_pools and AAVEV3-ETHEREUM declares 10 lending_indices
+ * seeded UAC instrument-ref for DEFI protocols, so UNISWAP_V3-ETHEREUM now
+ * declares 20 dex_pools and AAVE_V3-ETHEREUM declares 10 lending_indices
  * instruments.  The 20-pool universe sits exactly at the aggregator's
  * `per_instrument` budget threshold (< 20) so it is intentionally
  * emitted WITHOUT a `per_instrument` dict — mirroring the live aggregator
@@ -769,8 +769,8 @@ function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
  */
 function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
   const base = _mkCategory("DEFI", "dense", 110, 102, 5, 3, [
-    "UNISWAPV3-ETHEREUM",
-    "AAVEV3-ETHEREUM",
+    "UNISWAP_V3-ETHEREUM",
+    "AAVE_V3-ETHEREUM",
   ]);
   const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
   const HONEST_AXIS = "per_venue_per_data_type_per_day";
@@ -782,8 +782,8 @@ function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
     { length: 10 },
     (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`,
   );
-  venuesDict["UNISWAPV3-ETHEREUM"] = {
-    ...venuesDict["UNISWAPV3-ETHEREUM"],
+  venuesDict["UNISWAP_V3-ETHEREUM"] = {
+    ...venuesDict["UNISWAP_V3-ETHEREUM"],
     ..._mkMtdsHonest(["dex_pools"], [], 90, HONEST_AXIS, {
       perInstrumentDataTypes: {
         // 20-element universe — hits the aggregator's "<20" gate, so
@@ -795,8 +795,8 @@ function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
       },
     }),
   } as ReturnType<typeof _mkVenue>;
-  venuesDict["AAVEV3-ETHEREUM"] = {
-    ...venuesDict["AAVEV3-ETHEREUM"],
+  venuesDict["AAVE_V3-ETHEREUM"] = {
+    ...venuesDict["AAVE_V3-ETHEREUM"],
     ..._mkMtdsHonest(["lending_indices"], [], 90, HONEST_AXIS, {
       perInstrumentDataTypes: {
         // 10-element universe — under the <20 budget, so per_instrument

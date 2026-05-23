@@ -89,9 +89,9 @@ describe("Wave 8H — MTDS honest-coverage per-instrument fixture", () => {
     expect(dt.legacy_row_count).toBeUndefined();
   });
 
-  it("UNISWAPV3-ETHEREUM/dex_pools emits 20 expected instruments WITHOUT per_instrument detail (universe-size budget)", async () => {
+  it("UNISWAP_V3-ETHEREUM/dex_pools emits 20 expected instruments WITHOUT per_instrument detail (universe-size budget)", async () => {
     const status = await fetchTurboStatus();
-    const honest = getVenueHonest(status, "DEFI", "UNISWAPV3-ETHEREUM");
+    const honest = getVenueHonest(status, "DEFI", "UNISWAP_V3-ETHEREUM");
     const dt = honest["dex_pools"];
     expect(dt).toBeTruthy();
     expect(dt.unit).toBe("shard_instrument_days");
@@ -102,9 +102,9 @@ describe("Wave 8H — MTDS honest-coverage per-instrument fixture", () => {
     expect(dt.missing_instruments?.length).toBe(3);
   });
 
-  it("AAVEV3-ETHEREUM/lending_indices emits 10 expected instruments WITH per_instrument detail (universe-size < 20)", async () => {
+  it("AAVE_V3-ETHEREUM/lending_indices emits 10 expected instruments WITH per_instrument detail (universe-size < 20)", async () => {
     const status = await fetchTurboStatus();
-    const honest = getVenueHonest(status, "DEFI", "AAVEV3-ETHEREUM");
+    const honest = getVenueHonest(status, "DEFI", "AAVE_V3-ETHEREUM");
     const dt = honest["lending_indices"];
     expect(dt).toBeTruthy();
     expect(dt.unit).toBe("shard_instrument_days");
