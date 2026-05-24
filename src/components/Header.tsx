@@ -66,6 +66,7 @@ export function Header() {
     { to: "/ops/live-deployments", label: "Live Ops" },
     { to: "/ops/costs", label: "Costs" },
     { to: "/dart", label: "DART" },
+    { to: "/safety-ops", label: "Safety Ops" },
     { to: "/research/ml-experiments", label: "ML" },
     { to: "/research/strategy-backtests", label: "Strategy" },
     { to: "/research/execution-backtests", label: "Exec BT" },
@@ -179,6 +180,12 @@ export function Header() {
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
           >
             DART
+          </Link>
+          <Link
+            to="/safety-ops"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
+          >
+            Safety Ops
           </Link>
           <Link
             to="/research/ml-experiments"

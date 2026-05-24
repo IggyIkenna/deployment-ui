@@ -50,6 +50,7 @@ import { MlExperiments } from "./pages/MlExperiments";
 import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VmDeployments } from "./pages/VmDeployments";
+import { SafetyOps } from "./pages/SafetyOps";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -142,6 +143,7 @@ function App() {
                   <Route path="/ops/costs" element={<DailyCosts />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   <Route path="/dart" element={<Dart />} />
+                  <Route path="/safety-ops" element={<SafetyOps />} />
                   <Route
                     path="/research/ml-experiments"
                     element={<MlExperiments />}
