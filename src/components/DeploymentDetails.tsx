@@ -215,7 +215,7 @@ export function DeploymentDetails({
 
   // Legacy paginated shard loading (kept for backward compat with backend)
   const [shardPage, setShardPage] = useState<ShardDetail[] | null>(null);
-  const [_shardPageTotal, setShardPageTotal] = useState<number | null>(null);
+  const [, setShardPageTotal] = useState<number | null>(null);
   const [shardPageOffset, setShardPageOffset] = useState(0);
   const [shardPageLimit] = useState(200);
   const [shardPageStatus, setShardPageStatus] = useState<

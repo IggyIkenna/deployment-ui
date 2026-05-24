@@ -681,6 +681,7 @@ function InstrumentsModalStandard({
     coord.data_type,
     offset,
     debouncedSearch,
+    activeInstrumentType,
   ]);
 
   const isBundled = listing?.bundling === "per_underlying";

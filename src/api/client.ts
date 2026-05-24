@@ -3162,7 +3162,7 @@ export async function getInstrumentAvailability(params: {
   ) {
     const p = raw.parsed as Record<string, unknown>;
     const cat = p["category"];
-    const { category: _omit, ...rest } = p;
+    const { category: _category, ...rest } = p;
     return {
       ...raw,
       parsed: {

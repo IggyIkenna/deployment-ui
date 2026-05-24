@@ -4175,12 +4175,12 @@ function DataStatusTabInternal({
                                 </div>
                               )}
 
-                            {/* Chain breakdown for DeFi (v4) — replaces flat venue list */}
+                            {/* Chain breakdown for DeFi (v4) — replaces flat venue list. PREDICTION uses the same chains structure but labels it "Venues" since Polymarket/Kalshi are venues, not chains */}
                             {catData.chains &&
                               Object.keys(catData.chains).length > 0 && (
                                 <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
                                   <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                    Chains
+                                    {catName === "PREDICTION" ? "Venues" : "Chains"}
                                   </p>
                                   <div className="space-y-0.5">
                                     {Object.entries(catData.chains).map(

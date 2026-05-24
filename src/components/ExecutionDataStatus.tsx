@@ -142,7 +142,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   });
 
   const [cloudConfigPath, setCloudConfigPath] = useState<string | null>(null);
-  const [_discoveredConfigCount, setDiscoveredConfigCount] = useState<
+  const [, setDiscoveredConfigCount] = useState<
     number | null
   >(null);
   const [data, setData] = useState<ExecutionDataStatusResponse | null>(null);

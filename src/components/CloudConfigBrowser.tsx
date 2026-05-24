@@ -48,7 +48,7 @@ export function CloudConfigBrowser({
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbLevel[]>([]);
   const [currentDirectories, setCurrentDirectories] = useState<string[]>([]);
   const [loadingDirectories, setLoadingDirectories] = useState(false);
-  const [_selectedDirectory, setSelectedDirectory] = useState<string>("");
+  const [, setSelectedDirectory] = useState<string>("");
 
   // State for config discovery
   const [discoveredCount, setDiscoveredCount] = useState<number | null>(null);
