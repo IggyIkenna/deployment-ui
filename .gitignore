@@ -127,3 +127,6 @@ test-results/
 
 # Orphan-route audit runtime report (scanner regenerates on every run)
 scripts/.orphan-audit-report.json
+
+# design-agent handoff archive (not source)
+deployment-ui.zip

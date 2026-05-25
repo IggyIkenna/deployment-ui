@@ -1,0 +1,271 @@
+{
+  "shard_axes": {
+    "instruments-service|cefi": ["venue"],
+    "instruments-service|tradfi": ["venue"],
+    "instruments-service|defi": ["venue", "chain"],
+    "instruments-service|sports": ["data_type", "league_id"],
+    "instruments-service|prediction": ["venue", "canonical_question_group"],
+    "market-tick-data-service|cefi": [
+      "venue",
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-tick-data-service|tradfi": [
+      "venue",
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-tick-data-service|defi": [
+      "venue",
+      "chain",
+      "data_type",
+      "instrument_id"
+    ],
+    "market-tick-data-service|sports": ["data_type", "league_id"],
+    "market-tick-data-service|prediction": [
+      "venue",
+      "canonical_question_group",
+      "data_type"
+    ],
+    "market-data-processing-service|cefi": [
+      "venue",
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-data-processing-service|tradfi": [
+      "venue",
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-data-processing-service|defi": [
+      "venue",
+      "chain",
+      "data_type",
+      "instrument_id"
+    ],
+    "market-data-processing-service|sports": ["data_type", "league_id"],
+    "market-data-processing-service|prediction": [
+      "venue",
+      "canonical_question_group",
+      "data_type"
+    ],
+    "features-service|cefi": [
+      "venue",
+      "feature_group",
+      "timeframe",
+      "instrument_id"
+    ],
+    "features-service|tradfi": [
+      "venue",
+      "feature_group",
+      "timeframe",
+      "instrument_id"
+    ],
+    "features-service|defi": [
+      "venue",
+      "chain",
+      "feature_group",
+      "timeframe",
+      "instrument_id"
+    ],
+    "features-service|sports": ["feature_group", "league_id"],
+    "features-service|shared": ["feature_group", "timeframe"],
+    "features-service|prediction": [
+      "venue",
+      "canonical_question_group",
+      "feature_group",
+      "timeframe"
+    ],
+    "ml-training-service|shared": ["model_family", "training_period", "job_id"],
+    "ml-inference-service|shared": ["model_family", "job_id"],
+    "strategy-service|cefi": ["strategy_id", "job_id"],
+    "strategy-service|tradfi": ["strategy_id", "job_id"],
+    "strategy-service|defi": ["strategy_id", "job_id"],
+    "strategy-service|sports": ["strategy_id", "job_id"],
+    "strategy-service|prediction": ["strategy_id", "job_id"],
+    "execution-service|cefi": ["strategy_id", "instruction_type", "job_id"],
+    "execution-service|tradfi": ["strategy_id", "instruction_type", "job_id"],
+    "execution-service|defi": ["strategy_id", "instruction_type", "job_id"],
+    "execution-service|sports": ["strategy_id", "instruction_type", "job_id"],
+    "execution-service|prediction": [
+      "strategy_id",
+      "instruction_type",
+      "job_id"
+    ]
+  },
+  "display_axes": {
+    "instruments-service|cefi": ["instrument_type", "data_type"],
+    "instruments-service|tradfi": ["instrument_type", "data_type"],
+    "instruments-service|defi": ["instrument_type", "data_type"],
+    "instruments-service|sports": ["source"],
+    "instruments-service|prediction": ["data_type"],
+    "market-tick-data-service|cefi": [],
+    "market-tick-data-service|tradfi": [],
+    "market-tick-data-service|defi": ["instrument_type"],
+    "market-tick-data-service|sports": ["source", "fixture_id"],
+    "market-tick-data-service|prediction": [],
+    "market-data-processing-service|cefi": [],
+    "market-data-processing-service|tradfi": [],
+    "market-data-processing-service|defi": ["instrument_type"],
+    "market-data-processing-service|sports": ["source", "fixture_id"],
+    "market-data-processing-service|prediction": [],
+    "features-service|cefi": ["instrument_type"],
+    "features-service|tradfi": ["instrument_type"],
+    "features-service|defi": ["instrument_type"],
+    "features-service|sports": ["source", "data_type"],
+    "features-service|shared": [],
+    "features-service|prediction": [],
+    "ml-training-service|shared": ["client_id", "asset_group"],
+    "ml-inference-service|shared": ["client_id", "asset_group"],
+    "strategy-service|cefi": ["archetype", "client_id"],
+    "strategy-service|tradfi": ["archetype", "client_id"],
+    "strategy-service|defi": ["archetype", "client_id"],
+    "strategy-service|sports": ["archetype", "client_id"],
+    "strategy-service|prediction": ["archetype", "client_id"],
+    "execution-service|cefi": ["venue", "client_id"],
+    "execution-service|tradfi": ["venue", "client_id"],
+    "execution-service|defi": ["venue", "client_id"],
+    "execution-service|sports": ["venue", "client_id"],
+    "execution-service|prediction": ["venue", "client_id"]
+  },
+  "primary_axis": {
+    "instruments-service|cefi": "venue",
+    "instruments-service|tradfi": "venue",
+    "instruments-service|defi": "venue",
+    "instruments-service|sports": "data_type",
+    "instruments-service|prediction": "venue",
+    "market-tick-data-service|cefi": "venue",
+    "market-tick-data-service|tradfi": "venue",
+    "market-tick-data-service|defi": "venue",
+    "market-tick-data-service|sports": "data_type",
+    "market-tick-data-service|prediction": "venue",
+    "market-data-processing-service|cefi": "venue",
+    "market-data-processing-service|tradfi": "venue",
+    "market-data-processing-service|defi": "venue",
+    "market-data-processing-service|sports": "data_type",
+    "market-data-processing-service|prediction": "venue",
+    "features-service|cefi": "venue",
+    "features-service|tradfi": "venue",
+    "features-service|defi": "venue",
+    "features-service|sports": "feature_group",
+    "features-service|shared": "feature_group",
+    "features-service|prediction": "venue",
+    "ml-training-service|shared": "model_family",
+    "ml-inference-service|shared": "model_family",
+    "strategy-service|cefi": "strategy_id",
+    "strategy-service|tradfi": "strategy_id",
+    "strategy-service|defi": "strategy_id",
+    "strategy-service|sports": "strategy_id",
+    "strategy-service|prediction": "strategy_id",
+    "execution-service|cefi": "instruction_type",
+    "execution-service|tradfi": "instruction_type",
+    "execution-service|defi": "instruction_type",
+    "execution-service|sports": "instruction_type",
+    "execution-service|prediction": "instruction_type"
+  },
+  "breakdown_axes": {
+    "instruments-service|cefi": ["instrument_type", "data_type"],
+    "instruments-service|tradfi": ["instrument_type", "data_type"],
+    "instruments-service|defi": ["chain", "instrument_type", "data_type"],
+    "instruments-service|sports": ["league_id", "source"],
+    "instruments-service|prediction": ["canonical_question_group", "data_type"],
+    "market-tick-data-service|cefi": [
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-tick-data-service|tradfi": [
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-tick-data-service|defi": [
+      "chain",
+      "data_type",
+      "instrument_id",
+      "instrument_type"
+    ],
+    "market-tick-data-service|sports": ["league_id", "source", "fixture_id"],
+    "market-tick-data-service|prediction": [
+      "canonical_question_group",
+      "data_type"
+    ],
+    "market-data-processing-service|cefi": [
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-data-processing-service|tradfi": [
+      "data_type",
+      "instrument_type",
+      "instrument_id"
+    ],
+    "market-data-processing-service|defi": [
+      "chain",
+      "data_type",
+      "instrument_id",
+      "instrument_type"
+    ],
+    "market-data-processing-service|sports": [
+      "league_id",
+      "source",
+      "fixture_id"
+    ],
+    "market-data-processing-service|prediction": [
+      "canonical_question_group",
+      "data_type"
+    ],
+    "features-service|cefi": [
+      "feature_group",
+      "timeframe",
+      "instrument_id",
+      "instrument_type"
+    ],
+    "features-service|tradfi": [
+      "feature_group",
+      "timeframe",
+      "instrument_id",
+      "instrument_type"
+    ],
+    "features-service|defi": [
+      "chain",
+      "feature_group",
+      "timeframe",
+      "instrument_id",
+      "instrument_type"
+    ],
+    "features-service|sports": ["league_id", "source", "data_type"],
+    "features-service|shared": ["timeframe"],
+    "features-service|prediction": [
+      "canonical_question_group",
+      "feature_group",
+      "timeframe"
+    ],
+    "ml-training-service|shared": [
+      "training_period",
+      "job_id",
+      "client_id",
+      "asset_group"
+    ],
+    "ml-inference-service|shared": ["job_id", "client_id", "asset_group"],
+    "strategy-service|cefi": ["job_id", "archetype", "client_id"],
+    "strategy-service|tradfi": ["job_id", "archetype", "client_id"],
+    "strategy-service|defi": ["job_id", "archetype", "client_id"],
+    "strategy-service|sports": ["job_id", "archetype", "client_id"],
+    "strategy-service|prediction": ["job_id", "archetype", "client_id"],
+    "execution-service|cefi": ["strategy_id", "job_id", "venue", "client_id"],
+    "execution-service|tradfi": ["strategy_id", "job_id", "venue", "client_id"],
+    "execution-service|defi": ["strategy_id", "job_id", "venue", "client_id"],
+    "execution-service|sports": ["strategy_id", "job_id", "venue", "client_id"],
+    "execution-service|prediction": [
+      "strategy_id",
+      "job_id",
+      "venue",
+      "client_id"
+    ]
+  }
+}
