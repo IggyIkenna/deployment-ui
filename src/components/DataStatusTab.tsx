@@ -243,11 +243,11 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
           className="w-full px-2 py-1 rounded text-[12px] bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
         />
       )}
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-2">
         {visible.map(([venue, count]) => (
           <span
             key={venue}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
+            className="inline-flex items-center gap-2 px-1.5 py-1 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
           >
             {venue} <strong>{count.toLocaleString()}</strong>
           </span>
@@ -255,7 +255,7 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
         {hiddenCount > 0 && (
           <button
             onClick={() => setExpanded(true)}
-            className="px-1.5 py-0.5 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-accent-cyan)] hover:underline cursor-pointer border-none"
+            className="px-1.5 py-1 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-accent-cyan)] hover:underline cursor-pointer border-none"
           >
             +{hiddenCount} more
           </button>
@@ -301,7 +301,7 @@ function DateList({
           {downloadUrl && (
             <a
               href={downloadUrl(date)}
-              className="inline-flex items-center justify-center px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] focus:outline-none"
+              className="inline-flex items-center justify-center px-1 py-1 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] focus:outline-none"
               title={
                 downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`
               }
@@ -317,7 +317,7 @@ function DateList({
       {remaining > 0 && (
         <button
           type="button"
-          className="text-[10px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          className="text-[10px] font-mono px-1 py-1 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
           onClick={() => setLimit((l) => l + DATE_PAGE_SIZE)}
         >
           +{remaining} more
@@ -1851,7 +1851,7 @@ function DataStatusTabInternal({
               <div className="space-y-3">
                 {/* Grand totals row */}
                 <div className="grid grid-cols-4 gap-3 text-center">
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                  <div className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
                     <div className="text-lg font-mono font-bold">
                       {(coverageSummary.totals.shards ?? 0).toLocaleString()}
                     </div>
@@ -1859,7 +1859,7 @@ function DataStatusTabInternal({
                       Total Shards
                     </div>
                   </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                  <div className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
                     <div className="text-lg font-mono font-bold">
                       {(
                         (coverageSummary.totals.instrument_rows ?? 0) /
@@ -1871,7 +1871,7 @@ function DataStatusTabInternal({
                       Instrument Rows
                     </div>
                   </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                  <div className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
                     <div className="text-lg font-mono font-bold">
                       {(
                         coverageSummary.totals.dates_across_asset_groups ?? 0
@@ -1881,7 +1881,7 @@ function DataStatusTabInternal({
                       Dates (all asset groups)
                     </div>
                   </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                  <div className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-tertiary)]">
                     <div className="text-lg font-mono font-bold">
                       {Object.keys(coverageSummary.asset_groups ?? {}).length}
                     </div>
@@ -2151,7 +2151,7 @@ function DataStatusTabInternal({
                 }}
                 className="h-9"
               />
-              <div className="flex gap-1 mt-1">
+              <div className="flex gap-2 mt-1">
                 {[
                   { label: "30d", days: 30 },
                   { label: "90d", days: 90 },
@@ -2463,7 +2463,7 @@ function DataStatusTabInternal({
                                 Select Timeframe
                               </Label>
                             </div>
-                            <div className="flex gap-1.5 flex-wrap">
+                            <div className="flex gap-2.5 flex-wrap">
                               {availableTimeframes.map((tf) => (
                                 <Button
                                   key={tf}
@@ -2917,12 +2917,12 @@ function DataStatusTabInternal({
                                         (click to expand)
                                       </summary>
                                       <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                        <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                                           {stats.dates_found_list.map(
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                               >
                                                 {date}
                                               </span>
@@ -2942,12 +2942,12 @@ function DataStatusTabInternal({
                                         (click to expand)
                                       </summary>
                                       <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                        <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                                           {stats.dates_missing_list.map(
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                               >
                                                 {date}
                                               </span>
@@ -2999,7 +2999,7 @@ function DataStatusTabInternal({
               size="sm"
               onClick={() => setViewMode("table")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
+                "flex items-center gap-2.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
                 viewMode === "table"
                   ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
@@ -3014,7 +3014,7 @@ function DataStatusTabInternal({
               size="sm"
               onClick={() => setViewMode("calendar")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
+                "flex items-center gap-2.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
                 viewMode === "calendar"
                   ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
@@ -3216,7 +3216,7 @@ function DataStatusTabInternal({
                                           <div className="text-xs text-[var(--color-text-muted)] mb-2">
                                             Missing venues:
                                           </div>
-                                          <div className="flex flex-wrap gap-1.5">
+                                          <div className="flex flex-wrap gap-2.5">
                                             {dateInfo.missing.map((venue) => (
                                               <Badge
                                                 key={venue}
@@ -3686,7 +3686,7 @@ function DataStatusTabInternal({
           <button
             type="button"
             onClick={() => setManifestFilter(null)}
-            className="rounded border border-[var(--color-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--color-bg-hover)]"
+            className="rounded border border-[var(--color-border)] px-2 py-1 text-[11px] hover:bg-[var(--color-bg-hover)]"
             data-testid="manifest-filter-clear"
           >
             Clear filter
@@ -4037,12 +4037,12 @@ function DataStatusTabInternal({
                                       available shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
-                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                         {catData.dates_found_list?.map(
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                              className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                             >
                                               {date}
                                             </span>
@@ -4057,7 +4057,7 @@ function DataStatusTabInternal({
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                  className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -4079,12 +4079,12 @@ function DataStatusTabInternal({
                                       missing shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
-                                      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                         {catData.dates_missing_list?.map(
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                              className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                             >
                                               {date}
                                             </span>
@@ -4099,7 +4099,7 @@ function DataStatusTabInternal({
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                  className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -4249,7 +4249,7 @@ function DataStatusTabInternal({
                                                   return (
                                                     <div
                                                       key={v}
-                                                      className="flex items-center gap-2 py-0.5 px-1.5"
+                                                      className="flex items-center gap-2 py-1 px-1.5"
                                                     >
                                                       <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">
                                                         {v}
@@ -4295,7 +4295,7 @@ function DataStatusTabInternal({
                                                     key={v}
                                                     className="group/cv"
                                                   >
-                                                    <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                    <summary className="flex items-center gap-2 py-1 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                       <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
                                                       <span className="text-[12px] font-mono">
                                                         {v}
@@ -4367,7 +4367,7 @@ function DataStatusTabInternal({
                                                         </button>
                                                       )}
                                                     </summary>
-                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
+                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1 space-y-1">
                                                       {/* Data types breakdown */}
                                                       {vdTyped.data_types &&
                                                         Object.keys(
@@ -4383,7 +4383,7 @@ function DataStatusTabInternal({
                                                               ]) => (
                                                                 <div
                                                                   key={dtName}
-                                                                  className="flex items-center gap-2 py-0.5 px-1"
+                                                                  className="flex items-center gap-2 py-1 px-1"
                                                                 >
                                                                   <span
                                                                     className="text-[11px] font-mono"
@@ -4494,7 +4494,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       cvFoundList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-found-${v}`}
                                                                     onClickDate={makeOnClick}
                                                                     downloadUrl={(
@@ -4549,7 +4549,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       cvMissingList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-missing-${v}`}
                                                                     onClickDate={makeOnClick}
                                                                   />
@@ -4680,7 +4680,7 @@ function DataStatusTabInternal({
                                                   ).map(([tf, tfData]) => (
                                                     <div
                                                       key={tf}
-                                                      className="flex items-center gap-2 py-0.5 px-1.5"
+                                                      className="flex items-center gap-2 py-1 px-1.5"
                                                     >
                                                       <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">
                                                         {tf}
@@ -4787,7 +4787,7 @@ function DataStatusTabInternal({
                                 {catData.venue_summary &&
                                   catData.venue_summary.expected_but_missing
                                     .length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                    <div className="flex flex-wrap items-center gap-2.5 mb-2">
                                       <span className="text-[12px] text-[var(--color-text-muted)] uppercase tracking-wide">
                                         Missing:
                                       </span>
@@ -4795,7 +4795,7 @@ function DataStatusTabInternal({
                                         (venue: string) => (
                                           <span
                                             key={venue}
-                                            className="text-[12px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                            className="text-[12px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                           >
                                             {venue}
                                           </span>
@@ -4900,7 +4900,7 @@ function DataStatusTabInternal({
                                           )}
                                           {allOutOfScope && (
                                             <span
-                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-1 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                                               title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
                                               data-testid="out-of-scope-badge"
                                             >
@@ -4909,7 +4909,7 @@ function DataStatusTabInternal({
                                           )}
                                           {hasMissingDataTypes && (
                                             <span
-                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                               title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
                                               data-testid="missing-data-types-badge"
                                             >
@@ -4922,7 +4922,7 @@ function DataStatusTabInternal({
                                           )}
                                           {hasBlockedOnRaw && (
                                             <span
-                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-1 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
                                               title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
                                               data-testid="blocked-on-raw-badge"
                                             >
@@ -5177,7 +5177,7 @@ function DataStatusTabInternal({
                                               </div>
                                               {hasMissingDataTypes && (
                                                 <div
-                                                  className="flex flex-wrap items-center gap-1"
+                                                  className="flex flex-wrap items-center gap-2"
                                                   data-testid="missing-data-types-list"
                                                 >
                                                   <span className="text-[11px] text-[var(--color-accent-red)]">
@@ -5188,7 +5188,7 @@ function DataStatusTabInternal({
                                                     (dt) => (
                                                       <span
                                                         key={dt}
-                                                        className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                        className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                                         title={`UAC-declared data type '${dt}' has zero found shards for ${name}`}
                                                       >
                                                         {dt}
@@ -5264,7 +5264,7 @@ function DataStatusTabInternal({
                                                         hasMissingInstruments ||
                                                         hasPerInstrument;
                                                       const dtRowCore = (
-                                                        <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
+                                                        <div className="flex items-center gap-2 py-1 px-1.5 rounded">
                                                           <span
                                                             className="text-[12px] font-mono truncate min-w-0"
                                                             style={{
@@ -5365,10 +5365,10 @@ function DataStatusTabInternal({
                                                           <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
                                                             {dtRowCore}
                                                           </summary>
-                                                          <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                          <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
                                                             {hasMissingInstruments && (
                                                               <div
-                                                                className="flex flex-wrap items-center gap-1 py-0.5 px-1"
+                                                                className="flex flex-wrap items-center gap-2 py-1 px-1"
                                                                 data-testid="honest-dt-missing-instruments-list"
                                                               >
                                                                 <span className="text-[11px] text-[var(--color-accent-red)] shrink-0">
@@ -5382,7 +5382,7 @@ function DataStatusTabInternal({
                                                                   (iid) => (
                                                                     <span
                                                                       key={iid}
-                                                                      className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                                      className="text-[11px] font-mono px-1.5 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                                                       title={`Instrument '${iid}' has zero captured shards in window`}
                                                                     >
                                                                       {iid}
@@ -5409,7 +5409,7 @@ function DataStatusTabInternal({
                                                                       0;
                                                                     const instRowCore =
                                                                       (
-                                                                        <div className="flex items-center gap-2 py-0.5 px-1.5">
+                                                                        <div className="flex items-center gap-2 py-1 px-1.5">
                                                                           <span
                                                                             className="text-[11px] font-mono truncate min-w-0"
                                                                             style={{
@@ -5498,7 +5498,7 @@ function DataStatusTabInternal({
                                                                             instRowCore
                                                                           }
                                                                         </summary>
-                                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1">
                                                                           <details>
                                                                             <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                               {
@@ -5512,7 +5512,7 @@ function DataStatusTabInternal({
                                                                                 dates={
                                                                                   instMissing
                                                                                 }
-                                                                                btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                                btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                                 testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
                                                                                 onClickDate={(
                                                                                   date,
@@ -5559,7 +5559,7 @@ function DataStatusTabInternal({
                                                                                 ) +
                                                                                 `&instrument_ids=${encodeURIComponent(iid)}`
                                                                               }
-                                                                              className="inline-flex items-center gap-1 mt-0.5 text-[11px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
+                                                                              className="inline-flex items-center gap-2 mt-0.5 text-[11px] px-1 py-1 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
                                                                               title={`Download ${dtName} CSV for ${iid} across the full window`}
                                                                               download
                                                                               data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
@@ -5634,7 +5634,7 @@ function DataStatusTabInternal({
                                                     key={itName}
                                                     className="group/itype"
                                                   >
-                                                    <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                    <summary className="flex items-center gap-2 py-1 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                       <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
                                                       <span className="text-[12px] font-mono truncate">
                                                         {itName}
@@ -5676,7 +5676,7 @@ function DataStatusTabInternal({
                                                       Object.keys(
                                                         it.underlyings,
                                                       ).length > 0 && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
                                                           <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                             Underlyings
                                                           </span>
@@ -5691,7 +5691,7 @@ function DataStatusTabInternal({
                                                                 key={ulName}
                                                                 className="group/ul"
                                                               >
-                                                                <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                <summary className="flex items-center gap-2 py-1 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                                   <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
                                                                   <span className="text-[12px] font-mono truncate">
                                                                     {ulName}
@@ -5738,7 +5738,7 @@ function DataStatusTabInternal({
                                                                     ulData.data_types,
                                                                   ).length >
                                                                     0 && (
-                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
                                                                       {Object.entries(
                                                                         ulData.data_types,
                                                                       ).map(
@@ -5750,7 +5750,7 @@ function DataStatusTabInternal({
                                                                             key={
                                                                               dtName
                                                                             }
-                                                                            className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                            className="flex items-center gap-2 py-1 px-1.5"
                                                                           >
                                                                             <span
                                                                               className="text-[11px] font-mono text-[var(--color-text-secondary)]"
@@ -5809,7 +5809,7 @@ function DataStatusTabInternal({
                                                           it.underlyings,
                                                         ).length > 0
                                                       ) && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
                                                           {Object.entries(
                                                             it.data_types,
                                                           ).map(
@@ -5819,7 +5819,7 @@ function DataStatusTabInternal({
                                                             ]) => (
                                                               <div
                                                                 key={dtName}
-                                                                className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                className="flex items-center gap-2 py-1 px-1.5"
                                                               >
                                                                 <span
                                                                   className="text-[11px] font-mono text-[var(--color-text-secondary)]"
@@ -5905,7 +5905,7 @@ function DataStatusTabInternal({
                                                       key={dtName}
                                                       className="group/dt"
                                                     >
-                                                      <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                      <summary className="flex items-center gap-2 py-1 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
                                                         <span
                                                           className="text-[12px] font-mono truncate min-w-0"
@@ -5974,7 +5974,7 @@ function DataStatusTabInternal({
                                                         </button>
                                                       </summary>
                                                       {hasDates && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1">
                                                           <div className="flex gap-3">
                                                             {dtFoundList.length >
                                                               0 && (
@@ -5992,7 +5992,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       dtFoundList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-found-${name}-${dtName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6058,7 +6058,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       dtMissingList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6169,7 +6169,7 @@ function DataStatusTabInternal({
                                                     return (
                                                       <div
                                                         key={leagueName}
-                                                        className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50"
+                                                        className="flex items-center gap-2 py-1 px-1.5 rounded opacity-50"
                                                       >
                                                         <span className="h-2.5 w-2.5 shrink-0" />
                                                         <span
@@ -6190,7 +6190,7 @@ function DataStatusTabInternal({
                                                       key={leagueName}
                                                       className="group/league"
                                                     >
-                                                      <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                      <summary className="flex items-center gap-2 py-1 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
                                                         <span
                                                           className="text-[12px] font-mono truncate min-w-0"
@@ -6230,7 +6230,7 @@ function DataStatusTabInternal({
                                                         </span>
                                                       </summary>
                                                       {/* League date details */}
-                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-1">
                                                         <div className="flex gap-3">
                                                           {foundDatesList.length >
                                                             0 && (
@@ -6264,7 +6264,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       foundDatesList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
                                                                     testIdPrefix={`fixture-date-toggle-${leagueName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6301,7 +6301,7 @@ function DataStatusTabInternal({
                                                                         key={
                                                                           date
                                                                         }
-                                                                        className="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                                        className="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                                       >
                                                                         {date}
                                                                       </span>
@@ -6349,7 +6349,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       missingDatesList
                                                                     }
-                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
                                                                     testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6370,7 +6370,7 @@ function DataStatusTabInternal({
                                                                         key={
                                                                           date
                                                                         }
-                                                                        className="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                                        className="text-[10px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                                       >
                                                                         {date}
                                                                       </span>
@@ -6430,7 +6430,7 @@ function DataStatusTabInternal({
                                                   <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                     <DateList
                                                       dates={foundList}
-                                                      btnClassName="text-[11px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                      btnClassName="text-[11px] font-mono px-1 py-1 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                       testIdPrefix={`shard-csv-date-found-${name}`}
                                                       onClickDate={(date) =>
                                                         openShardDetail({
@@ -6474,7 +6474,7 @@ function DataStatusTabInternal({
                                                   <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                     <DateList
                                                       dates={missingList}
-                                                      btnClassName="text-[11px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                      btnClassName="text-[11px] font-mono px-1 py-1 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                       testIdPrefix={`shard-csv-date-missing-${name}`}
                                                       onClickDate={(date) =>
                                                         openShardDetail({
@@ -7249,11 +7249,11 @@ function DataStatusTabInternal({
                                   {dayResult.error}
                                 </span>
                               ) : dayResult.file_count > 0 ? (
-                                <span className="text-[var(--color-accent-green)] text-xs flex items-center gap-1">
+                                <span className="text-[var(--color-accent-green)] text-xs flex items-center gap-2">
                                   <CheckCircle className="h-3 w-3" /> OK
                                 </span>
                               ) : (
-                                <span className="text-[var(--color-accent-orange)] text-xs flex items-center gap-1">
+                                <span className="text-[var(--color-accent-orange)] text-xs flex items-center gap-2">
                                   <XCircle className="h-3 w-3" /> Empty
                                 </span>
                               )}
