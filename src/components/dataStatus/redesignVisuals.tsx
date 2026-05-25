@@ -744,7 +744,9 @@ function buildPivotColumns(
     let values: string[];
     if (axis === "asset_group") values = ds.ags;
     else if (axis === a.primary) values = a.primaryValues;
-    else values = [];
+    // Small axes (data_type, instrument_type, …) come from the backend up-front;
+    // instrument_id has no list (too large) and stays drilldown-only.
+    else values = a.axisValues[axis] ?? [];
     cols.push({ axis, values });
   }
   cols.push({

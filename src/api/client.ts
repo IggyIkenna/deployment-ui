@@ -825,6 +825,10 @@ export interface CoverageGridAssetGroup {
   primary: string;
   primary_values: string[];
   sub_axes: string[];
+  /** Distinct values for the SMALL shard axes (data_type, instrument_type,
+   * chain, league_id, …), derived fresh from the manifest. Excludes
+   * instrument_id (lazy/drilldown) + date. Absent axis = lazy. */
+  axis_values: Record<string, string[]>;
   grid: Record<string, Record<string, CoverageGridCounts>>;
   by_primary: Record<string, CoverageGridCounts>;
   total: CoverageGridCounts;

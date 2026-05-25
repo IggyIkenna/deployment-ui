@@ -53,6 +53,9 @@ export interface AgData {
   primary: string;
   primaryValues: string[];
   subAxes: string[];
+  /** Backend-supplied values for small axes (data_type, instrument_type, …),
+   * fresh from the manifest. Absent axis (e.g. instrument_id) is lazy. */
+  axisValues: Record<string, string[]>;
   shardsPerCell: number;
   grid: Record<string, Record<string, CellStats>>;
   byPrimary: Record<string, CellStats>;
@@ -181,6 +184,7 @@ function toAgData(block: CoverageGridAssetGroup, dates: string[]): AgData {
     primary,
     primaryValues,
     subAxes,
+    axisValues: block.axis_values ?? {},
     shardsPerCell: block.meta.days
       ? Math.round(
           block.meta.shards_per_day / Math.max(1, primaryValues.length),
