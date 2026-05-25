@@ -1104,11 +1104,12 @@ input[type="week"]::-webkit-calendar-picker-indicator:hover {
   color: var(--color-text-primary);
 }
 
-/* Light theme — WCAG AA compliant (contrast ≥ 4.5:1 for text, ≥ 3:1 for UI components).
-   Accent color darkened to #0891b2 (cyan-600) which achieves 4.8:1 on white. */
-@media (prefers-color-scheme: light) {
-  :root,
-  .theme-light {
+/* Light theme — OPT-IN ONLY via `.theme-light` (dark is the default to match
+   the dark trading-dashboard design). Previously OS-forced via
+   `@media (prefers-color-scheme: light)`, which washed the whole UI to white
+   on light-mode machines. WCAG AA compliant (contrast ≥ 4.5:1 text / ≥ 3:1 UI);
+   accent darkened to #0891b2 (cyan-600) = 4.8:1 on white. */
+.theme-light {
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f9fafb;
     --color-bg-tertiary: #f3f4f6;
@@ -1150,5 +1151,4 @@ input[type="week"]::-webkit-calendar-picker-indicator:hover {
 
     --color-stripe-light: rgba(0, 0, 0, 0.1);
     --color-stripe-dark: rgba(0, 0, 0, 0.25);
-  }
 }
