@@ -4,7 +4,8 @@
  * `issues.jsx`; classNames preserved verbatim so `redesign.css` applies.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import type { CoverageSummaryResponse } from "../../api/client";
 import {
   recentFailures,
   recentMissing,
@@ -750,10 +751,24 @@ export function NeedsAttention({
   const missing = useMemo(() => recentMissing(ds, { limit: 4 }), [ds]);
   const stale = useMemo(() => staleCapture(ds, { limit: 3 }), [ds]);
   const total = failures.length + missing.length + stale.length;
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <section className="card" style={{ marginBottom: 18 }}>
-      <div className="card-head">
+      <div
+        className="card-head"
+        style={{ cursor: "pointer" }}
+        onClick={() => setCollapsed((c) => !c)}
+        title={collapsed ? "Expand" : "Collapse"}
+      >
+        <Icons.ChevronRight
+          size={14}
+          style={{
+            transform: collapsed ? "none" : "rotate(90deg)",
+            transition: "transform 0.15s",
+            color: "var(--color-text-muted)",
+          }}
+        />
         <Icons.AlertTri
           size={14}
           style={{ color: "var(--color-accent-amber)" }}
@@ -762,21 +777,25 @@ export function NeedsAttention({
         <span className="text-xs muted">last 14 days</span>
         <div style={{ flex: 1 }} />
         <span className="badge badge-outline badge-mono">{total} items</span>
-        <button className="btn btn-ghost btn-xs">
+        <button
+          className="btn btn-ghost btn-xs"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Icons.Refresh size={11} />
           Recheck
         </button>
       </div>
 
-      <div
-        className="card-body"
-        style={{
-          padding: 0,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          borderBottom: 0,
-        }}
-      >
+      {!collapsed && (
+        <div
+          className="card-body"
+          style={{
+            padding: 0,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            borderBottom: 0,
+          }}
+        >
         <Column
           color="var(--color-accent-red)"
           label="Failures"
@@ -896,6 +915,91 @@ export function NeedsAttention({
             </div>
           ))}
         </Column>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const fmtCompact = (n: number): string =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000
+      ? `${(n / 1_000).toFixed(1)}k`
+      : String(n);
+
+/**
+ * Inventory / volume stat row — the metrics the old "Instrument Coverage
+ * Summary" carried (Total shards, Instrument rows, Dates, Asset groups, Unique
+ * venues, Instruments latest day). Sourced from /data-status/coverage-summary
+ * (the same endpoint the old card used); fresh from the manifest, not enums.
+ */
+export function InventoryStats({
+  summary,
+}: {
+  summary: CoverageSummaryResponse | null;
+}) {
+  if (!summary) return null;
+  const t = summary.totals;
+  const ags = Object.keys(summary.asset_groups ?? {});
+  const uniqueVenues = ags.reduce(
+    (s, ag) => s + (summary.asset_groups[ag]?.unique_venues ?? 0),
+    0,
+  );
+  const cards: { label: string; value: string }[] = [
+    { label: "Total shards", value: fmtNumber(t.shards) },
+    { label: "Instrument rows", value: fmtCompact(t.instrument_rows) },
+    { label: "Dates (all groups)", value: fmtNumber(t.dates_across_asset_groups) },
+    { label: "Asset groups", value: String(ags.length) },
+    { label: "Unique venues", value: fmtNumber(uniqueVenues) },
+    { label: "Instruments (latest)", value: fmtNumber(t.latest_day_instruments) },
+  ];
+  return (
+    <section className="card" style={{ marginBottom: 18 }}>
+      <div
+        className="card-body"
+        style={{
+          padding: 0,
+          display: "grid",
+          gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))`,
+          borderBottom: 0,
+        }}
+      >
+        {cards.map((c, i) => (
+          <div
+            key={c.label}
+            style={{
+              padding: "14px 18px",
+              borderRight:
+                i < cards.length - 1
+                  ? "1px solid var(--color-border-subtle)"
+                  : 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 22,
+                fontFamily: "var(--font-mono)",
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                lineHeight: 1.1,
+              }}
+            >
+              {c.value}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginTop: 4,
+              }}
+            >
+              {c.label}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

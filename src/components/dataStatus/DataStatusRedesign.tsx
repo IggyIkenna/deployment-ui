@@ -24,10 +24,15 @@ import { Icons } from "./redesignIcons";
 import { addDays, cls, ymd } from "./redesignUtil";
 import {
   FilterBar,
+  InventoryStats,
   NeedsAttention,
   SummaryHero,
   type Filters,
 } from "./redesignSummary";
+import {
+  getDataCoverageSummary,
+  type CoverageSummaryResponse,
+} from "../../api/client";
 import {
   VisualColumns,
   VisualHeatmap,
@@ -141,6 +146,20 @@ export function DataStatusRedesign({ service }: { service: string }) {
   const [ds, setDs] = useState<ServiceDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [coverageSummary, setCoverageSummary] =
+    useState<CoverageSummaryResponse | null>(null);
+
+  // Inventory/volume metrics (Total shards, Instrument rows, Dates, Asset
+  // groups, Unique venues) — the old "Instrument Coverage Summary" stats.
+  useEffect(() => {
+    const controller = new AbortController();
+    getDataCoverageSummary({ service, signal: controller.signal })
+      .then((s) => setCoverageSummary(s))
+      .catch(() => {
+        /* non-fatal — inventory row just hides */
+      });
+    return () => controller.abort();
+  }, [service]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -269,6 +288,8 @@ export function DataStatusRedesign({ service }: { service: string }) {
           onOpenAg={onOpenAg}
         />
       )}
+
+      <InventoryStats summary={coverageSummary} />
 
       <FilterBar filters={filters} setFilters={setFilters} ds={ds} />
 
