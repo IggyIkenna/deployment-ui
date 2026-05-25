@@ -33,7 +33,6 @@ import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { RepoCoverageTab } from "./components/RepoCoverageTab";
 import { TreasuryTab } from "./components/TreasuryTab";
-import { DataStatusRedesignPage } from "./components/dataStatus/DataStatusRedesignPage";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -137,10 +136,6 @@ function App() {
                     element={<ClientSubscriptions />}
                   />
                   <Route path="/chaos" element={<Chaos />} />
-                  <Route
-                    path="/data-status-redesign"
-                    element={<DataStatusRedesignPage />}
-                  />
                   <Route
                     path="/ops/live-deployments"
                     element={<LiveDeployments />}

@@ -60,7 +60,6 @@ export function Header() {
   };
 
   const NAV_LINKS = [
-    { to: "/data-status-redesign", label: "Data Status ✨" },
     { to: "/vm-deployments", label: "VM Deployments" },
     { to: "/client-subscriptions", label: "Subscriptions" },
     { to: "/chaos", label: "Chaos" },
@@ -152,12 +151,6 @@ export function Header() {
             );
           })()}
           {/* Admin nav */}
-          <Link
-            to="/data-status-redesign"
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] bg-[var(--color-accent-dim)] hover:brightness-125"
-          >
-            Data Status ✨
-          </Link>
           <Link
             to="/vm-deployments"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
