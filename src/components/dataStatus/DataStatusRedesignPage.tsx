@@ -42,6 +42,17 @@ function fmt(n: number): string {
   return n.toLocaleString("en-US");
 }
 
+/** True for fetch aborts (StrictMode double-invoke / rapid re-select) — not real errors. */
+function isAbort(e: unknown): boolean {
+  if (e instanceof DOMException && e.name === "AbortError") return true;
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "name" in e &&
+    (e as { name: string }).name === "AbortError"
+  );
+}
+
 /** One Miller column: the list of values for `axis` given pinned ancestors. */
 function AxisColumn(props: {
   axis: string;
@@ -226,7 +237,9 @@ export function DataStatusRedesignPage() {
           ags.includes(prev) ? prev : (ags[0] ?? "cefi"),
         );
       })
-      .catch((e: unknown) => setError(String(e)));
+      .catch((e: unknown) => {
+        if (!isAbort(e)) setError(String(e));
+      });
     return () => ctrl.abort();
   }, [service]);
 
@@ -251,7 +264,7 @@ export function DataStatusRedesignPage() {
         setLoading(false);
       })
       .catch((e: unknown) => {
-        if (!ctrl.signal.aborted) {
+        if (!ctrl.signal.aborted && !isAbort(e)) {
           setError(String(e));
           setLoading(false);
         }
