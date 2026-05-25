@@ -497,7 +497,7 @@ export function ServiceList({
                 style={{ borderLeft: `3px solid ${layer.color}` }}
               >
                 <span
-                  className="text-[10px] font-semibold uppercase tracking-wider"
+                  className="text-[12px] font-semibold uppercase tracking-wider"
                   style={{ color: layer.color }}
                 >
                   {layer.title}
@@ -577,7 +577,7 @@ function ServiceItem({
         <div className="flex-1 min-w-0">
           <p
             className={cn(
-              "text-xs font-medium font-mono truncate leading-tight",
+              "text-sm font-medium font-mono truncate leading-tight",
               isSelected
                 ? "text-[var(--color-text-primary)]"
                 : "text-[var(--color-text-secondary)]",
@@ -590,7 +590,7 @@ function ServiceItem({
             {modes.map((m) => (
               <span
                 key={m}
-                className="text-[9px] font-mono px-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
+                className="text-[10px] font-mono px-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
               >
                 {m}
               </span>
@@ -598,7 +598,7 @@ function ServiceItem({
             {opModes.map((m) => (
               <span
                 key={m}
-                className="text-[9px] font-mono px-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-accent-amber)]"
+                className="text-[10px] font-mono px-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-accent-amber)]"
               >
                 {m}
               </span>
@@ -640,7 +640,7 @@ function ServiceItem({
                   {op.label}
                 </p>
                 {op.description && (
-                  <p className="text-[9px] text-[var(--color-text-muted)] truncate">
+                  <p className="text-[10px] text-[var(--color-text-muted)] truncate">
                     {op.description}
                   </p>
                 )}

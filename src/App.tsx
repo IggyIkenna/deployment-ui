@@ -124,7 +124,13 @@ function App() {
             <RequireAuth>
               <div className="min-h-screen bg-[var(--color-bg-primary)]">
                 <MockModeBanner />
-                <Header />
+                <Header
+                  onHome={() => {
+                    setSelectedService(null);
+                    setSelectedOperation(null);
+                    setSelectedDeploymentId(null);
+                  }}
+                />
                 <Routes>
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route
@@ -160,8 +166,8 @@ function App() {
                     path="*"
                     element={
                       <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px]">
-                        <div className="grid grid-cols-12 gap-4 lg:gap-6">
-                          <div className="col-span-12 lg:col-span-3 xl:col-span-2 2xl:col-span-2">
+                        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+                          <div className="w-full lg:w-64 lg:shrink-0">
                             <ServiceList
                               selectedService={selectedService}
                               onSelectService={(service, operation) => {
@@ -179,7 +185,7 @@ function App() {
                               }}
                             />
                           </div>
-                          <div className="col-span-12 lg:col-span-9 xl:col-span-10 2xl:col-span-10">
+                          <div className="flex-1 min-w-0">
                             {selectedService ? (
                               (() => {
                                 const isInfra =

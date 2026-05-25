@@ -10,6 +10,7 @@ import {
   Cloud,
   Database,
   FlaskConical,
+  Home,
   Menu,
   X,
 } from "lucide-react";
@@ -32,7 +33,7 @@ function resolveEnvTier(): EnvTier {
   return "prod";
 }
 
-export function Header() {
+export function Header({ onHome }: { onHome?: () => void }) {
   const { health, isHealthy, error } = useHealth();
   const { target, switchTarget, switching } = useCloudProvider();
   const [clearingCache, setClearingCache] = useState(false);
@@ -60,6 +61,7 @@ export function Header() {
   };
 
   const NAV_LINKS = [
+    { to: "/", label: "Home" },
     { to: "/vm-deployments", label: "VM Deployments" },
     { to: "/client-subscriptions", label: "Subscriptions" },
     { to: "/chaos", label: "Chaos" },
@@ -75,7 +77,12 @@ export function Header() {
   return (
     <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
       <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        <div className="flex items-center gap-3">
+        <Link
+          to="/"
+          onClick={() => onHome?.()}
+          className="flex items-center gap-3 rounded-lg -mx-1 px-1 py-0.5 hover:bg-[var(--color-bg-hover)] transition-colors"
+          title="Back to home / overview"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30">
             <Server className="h-5 w-5 text-[var(--color-accent-cyan)]" />
           </div>
@@ -87,7 +94,7 @@ export function Header() {
               deployment monitoring & orchestration
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Hamburger — mobile only */}
         <button
@@ -152,56 +159,64 @@ export function Header() {
           })()}
           {/* Admin nav */}
           <Link
+            to="/"
+            onClick={() => onHome?.()}
+            className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-accent-cyan)]/40 text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/10"
+          >
+            <Home className="h-4 w-4" />
+            Home
+          </Link>
+          <Link
             to="/vm-deployments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             VM Deployments
           </Link>
           <Link
             to="/client-subscriptions"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             Subscriptions
           </Link>
           <Link
             to="/chaos"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             Chaos
           </Link>
           <Link
             to="/ops/live-deployments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             Live Ops
           </Link>
           <Link
             to="/dart"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
           >
             DART
           </Link>
           <Link
             to="/safety-ops"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
           >
             Safety Ops
           </Link>
           <Link
             to="/research/ml-experiments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             ML
           </Link>
           <Link
             to="/research/strategy-backtests"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             Strategy
           </Link>
           <Link
             to="/research/execution-backtests"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+            className="text-sm font-medium px-4 py-2 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             Exec BT
           </Link>
