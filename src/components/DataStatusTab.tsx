@@ -240,14 +240,14 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
             setSearch(e.target.value);
             setExpanded(false);
           }}
-          className="w-full px-2 py-1 rounded text-[10px] bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
+          className="w-full px-2 py-1 rounded text-[12px] bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
         />
       )}
       <div className="flex flex-wrap gap-1">
         {visible.map(([venue, count]) => (
           <span
             key={venue}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]"
           >
             {venue} <strong>{count.toLocaleString()}</strong>
           </span>
@@ -255,7 +255,7 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
         {hiddenCount > 0 && (
           <button
             onClick={() => setExpanded(true)}
-            className="px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-accent-cyan)] hover:underline cursor-pointer border-none"
+            className="px-1.5 py-0.5 rounded text-[11px] bg-[var(--color-bg-tertiary)] text-[var(--color-accent-cyan)] hover:underline cursor-pointer border-none"
           >
             +{hiddenCount} more
           </button>
@@ -317,7 +317,7 @@ function DateList({
       {remaining > 0 && (
         <button
           type="button"
-          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          className="text-[10px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
           onClick={() => setLimit((l) => l + DATE_PAGE_SIZE)}
         >
           +{remaining} more
@@ -1817,7 +1817,7 @@ function DataStatusTabInternal({
                 </CardTitle>
                 <Badge
                   variant="outline"
-                  className="text-[10px]"
+                  className="text-[12px]"
                   title={
                     coverageSummary?.totals_source === "rollup"
                       ? "Served from pre-computed rollup (≤30 min stale). Numbers may differ from live manifest until writegate Phase 3.D.4 lands."
@@ -1834,7 +1834,7 @@ function DataStatusTabInternal({
                   <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
                     {coverageSummary.totals.latest_day_instruments.toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">
+                  <div className="text-[12px] text-[var(--color-text-muted)]">
                     instruments (latest day, sum across asset groups)
                   </div>
                 </div>
@@ -1855,7 +1855,7 @@ function DataStatusTabInternal({
                     <div className="text-lg font-mono font-bold">
                       {(coverageSummary.totals.shards ?? 0).toLocaleString()}
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                    <div className="text-[12px] text-[var(--color-text-muted)]">
                       Total Shards
                     </div>
                   </div>
@@ -1867,7 +1867,7 @@ function DataStatusTabInternal({
                       ).toFixed(1)}
                       M
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                    <div className="text-[12px] text-[var(--color-text-muted)]">
                       Instrument Rows
                     </div>
                   </div>
@@ -1877,7 +1877,7 @@ function DataStatusTabInternal({
                         coverageSummary.totals.dates_across_asset_groups ?? 0
                       ).toLocaleString()}
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                    <div className="text-[12px] text-[var(--color-text-muted)]">
                       Dates (all asset groups)
                     </div>
                   </div>
@@ -1885,7 +1885,7 @@ function DataStatusTabInternal({
                     <div className="text-lg font-mono font-bold">
                       {Object.keys(coverageSummary.asset_groups ?? {}).length}
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                    <div className="text-[12px] text-[var(--color-text-muted)]">
                       Asset Groups
                     </div>
                   </div>
@@ -1915,7 +1915,7 @@ function DataStatusTabInternal({
                           <div className="flex items-center justify-between mb-2">
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-mono"
+                              className="text-[12px] font-mono"
                             >
                               {cat}
                             </Badge>
@@ -1928,7 +1928,7 @@ function DataStatusTabInternal({
                             {catData.latest_day_total.toLocaleString()}{" "}
                             instruments (latest day)
                           </div>
-                          <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                          <div className="text-[12px] text-[var(--color-text-muted)] mb-2">
                             {catData.unique_dates.toLocaleString()} dates
                             &middot; {catData.total_shards.toLocaleString()}{" "}
                             shards
@@ -1966,7 +1966,7 @@ function DataStatusTabInternal({
                           a <details> so the page doesn't fan out
                           5000 instruments by default. */}
                           <details className="mt-3">
-                            <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
+                            <summary className="text-[12px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
                               Hierarchical drill-down (shard atom)
                             </summary>
                             <div className="mt-2">
@@ -1999,7 +1999,7 @@ function DataStatusTabInternal({
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
             <CardTitle className="text-base">Symbol search</CardTitle>
-            <span className="text-[10px] text-[var(--color-text-muted)] ml-2">
+            <span className="text-[12px] text-[var(--color-text-muted)] ml-2">
               cross-category &middot; canonical IDs &middot; whitespace =
               AND-match
             </span>
@@ -2039,7 +2039,7 @@ function DataStatusTabInternal({
                 >
                   <Badge
                     variant="outline"
-                    className="text-[9px] font-mono shrink-0 w-20 justify-center"
+                    className="text-[11px] font-mono shrink-0 w-20 justify-center"
                   >
                     {m.asset_group}
                   </Badge>
@@ -2049,18 +2049,18 @@ function DataStatusTabInternal({
                   >
                     {m.canonical_id}
                   </span>
-                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono shrink-0">
+                  <span className="text-[12px] text-[var(--color-text-muted)] font-mono shrink-0">
                     {m.venue}
                   </span>
                   {m.instrument_type && (
-                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
+                    <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
                       {m.instrument_type}
                     </span>
                   )}
                 </div>
               ))}
               {symbolSearchTruncated && (
-                <div className="px-3 py-1.5 text-[10px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
+                <div className="px-3 py-1.5 text-[12px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
                   Showing first 50 matches — refine your query for narrower
                   results.
                 </div>
@@ -2163,7 +2163,7 @@ function DataStatusTabInternal({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-6 px-2 text-[10px]"
+                    className="h-6 px-2 text-[12px]"
                     onClick={() => {
                       if (p.days === null) {
                         // Full history — API-Football fixtures go back to 2018-01-01.
@@ -2223,7 +2223,7 @@ function DataStatusTabInternal({
                     />
                     {freshnessDate && (
                       <span
-                        className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap"
+                        className="text-[12px] text-[var(--color-text-muted)] whitespace-nowrap"
                         title="GCS blob timestamps are always UTC regardless of bucket region"
                       >
                         ={" "}
@@ -2912,7 +2912,7 @@ function DataStatusTabInternal({
                                   stats.dates_found_list &&
                                   stats.dates_found_list.length > 0 && (
                                     <details className="w-full">
-                                      <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
+                                      <summary className="text-[12px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
                                         ▸ {stats.dates_found} available shards
                                         (click to expand)
                                       </summary>
@@ -2922,7 +2922,7 @@ function DataStatusTabInternal({
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                               >
                                                 {date}
                                               </span>
@@ -2937,7 +2937,7 @@ function DataStatusTabInternal({
                                   stats.dates_missing_list &&
                                   stats.dates_missing_list.length > 0 && (
                                     <details className="w-full">
-                                      <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
+                                      <summary className="text-[12px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
                                         ▸ {stats.dates_missing} missing shards
                                         (click to expand)
                                       </summary>
@@ -2947,7 +2947,7 @@ function DataStatusTabInternal({
                                             (date: string) => (
                                               <span
                                                 key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                               >
                                                 {date}
                                               </span>
@@ -4042,7 +4042,7 @@ function DataStatusTabInternal({
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                              className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                             >
                                               {date}
                                             </span>
@@ -4050,14 +4050,14 @@ function DataStatusTabInternal({
                                         )}
                                         {catData.dates_found_truncated && (
                                           <>
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                            <span className="text-[11px] text-[var(--color-text-muted)]">
                                               ...
                                             </span>
                                             {catData.dates_found_list_tail?.map(
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                  className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -4084,7 +4084,7 @@ function DataStatusTabInternal({
                                           (date: string) => (
                                             <span
                                               key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                              className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                             >
                                               {date}
                                             </span>
@@ -4092,14 +4092,14 @@ function DataStatusTabInternal({
                                         )}
                                         {catData.dates_missing_truncated && (
                                           <>
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">
+                                            <span className="text-[11px] text-[var(--color-text-muted)]">
                                               ...
                                             </span>
                                             {catData.dates_missing_list_tail?.map(
                                               (date: string) => (
                                                 <span
                                                   key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                  className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                 >
                                                   {date}
                                                 </span>
@@ -4164,7 +4164,7 @@ function DataStatusTabInternal({
                                               }}
                                             />
                                           </div>
-                                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                                          <div className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
                                             {folderData.dates_found}/
                                             {folderData.dates_expected} shards
                                           </div>
@@ -4208,11 +4208,11 @@ function DataStatusTabInternal({
                                               <span className="text-xs font-mono font-medium">
                                                 {chainName}
                                               </span>
-                                              <span className="text-[9px] text-[var(--color-text-muted)]">
+                                              <span className="text-[11px] text-[var(--color-text-muted)]">
                                                 ({cd.venue_count} protocols)
                                               </span>
                                               <div className="flex-1" />
-                                              <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                              <span className="text-[12px] text-[var(--color-text-muted)] font-mono">
                                                 {cd.shards_found ??
                                                   cd.dates_found}
                                                 /
@@ -4251,7 +4251,7 @@ function DataStatusTabInternal({
                                                       key={v}
                                                       className="flex items-center gap-2 py-0.5 px-1.5"
                                                     >
-                                                      <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
+                                                      <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">
                                                         {v}
                                                       </span>
                                                     </div>
@@ -4297,12 +4297,12 @@ function DataStatusTabInternal({
                                                   >
                                                     <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                       <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
-                                                      <span className="text-[10px] font-mono">
+                                                      <span className="text-[12px] font-mono">
                                                         {v}
                                                       </span>
                                                       {vdTyped.venue_start_date && (
                                                         <span
-                                                          className="text-[8px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
+                                                          className="text-[11px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
                                                           title={`Data starts: ${vdTyped.venue_start_date}`}
                                                         >
                                                           from{" "}
@@ -4312,7 +4312,7 @@ function DataStatusTabInternal({
                                                         </span>
                                                       )}
                                                       <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                                                      <span className="text-[11px] text-[var(--color-text-muted)] font-mono">
                                                         {vdTyped.dates_found}/
                                                         {vdTyped.dates_expected_venue ||
                                                           vdTyped.dates_expected}
@@ -4330,7 +4330,7 @@ function DataStatusTabInternal({
                                                         />
                                                       </div>
                                                       <span
-                                                        className="text-[9px] font-mono w-8 text-right"
+                                                        className="text-[11px] font-mono w-8 text-right"
                                                         style={{
                                                           color:
                                                             getCompletionColor(
@@ -4346,7 +4346,7 @@ function DataStatusTabInternal({
                                                       {defiPoolsDay && (
                                                         <button
                                                           type="button"
-                                                          className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                          className="text-[11px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
                                                           title={`View per-pool coverage breakdown for ${v} on ${defiPoolsDay}`}
                                                           data-testid={`defi-pools-button-${v}`}
                                                           onClick={(e) => {
@@ -4386,7 +4386,7 @@ function DataStatusTabInternal({
                                                                   className="flex items-center gap-2 py-0.5 px-1"
                                                                 >
                                                                   <span
-                                                                    className="text-[9px] font-mono"
+                                                                    className="text-[11px] font-mono"
                                                                     style={{
                                                                       color:
                                                                         getCompletionColor(
@@ -4397,7 +4397,7 @@ function DataStatusTabInternal({
                                                                     {dtName}
                                                                   </span>
                                                                   <div className="flex-1" />
-                                                                  <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                  <span className="text-[11px] text-[var(--color-text-muted)] font-mono">
                                                                     {
                                                                       dtData.dates_found
                                                                     }
@@ -4407,7 +4407,7 @@ function DataStatusTabInternal({
                                                                     }
                                                                   </span>
                                                                   <span
-                                                                    className="text-[8px] font-mono w-7 text-right"
+                                                                    className="text-[11px] font-mono w-7 text-right"
                                                                     style={{
                                                                       color:
                                                                         getCompletionColor(
@@ -4482,7 +4482,7 @@ function DataStatusTabInternal({
                                                             {cvFoundList.length >
                                                               0 && (
                                                               <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                <summary className="text-[11px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                                   {
                                                                     vdTyped.dates_found
                                                                   }{" "}
@@ -4494,7 +4494,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       cvFoundList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-found-${v}`}
                                                                     onClickDate={makeOnClick}
                                                                     downloadUrl={(
@@ -4525,7 +4525,7 @@ function DataStatusTabInternal({
                                                                   />
                                                                   {vdTyped.dates_found >
                                                                     cvFoundList.length && (
-                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                    <span className="text-[10px] text-[var(--color-text-muted)]">
                                                                       +
                                                                       {vdTyped.dates_found -
                                                                         cvFoundList.length}{" "}
@@ -4538,7 +4538,7 @@ function DataStatusTabInternal({
                                                             {cvMissingList.length >
                                                               0 && (
                                                               <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                   {
                                                                     cvMissingCount
                                                                   }{" "}
@@ -4549,13 +4549,13 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       cvMissingList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-missing-${v}`}
                                                                     onClickDate={makeOnClick}
                                                                   />
                                                                   {cvMissingCount >
                                                                     cvMissingList.length && (
-                                                                    <span className="text-[7px] text-[var(--color-text-muted)]">
+                                                                    <span className="text-[10px] text-[var(--color-text-muted)]">
                                                                       +
                                                                       {cvMissingCount -
                                                                         cvMissingList.length}{" "}
@@ -4571,7 +4571,7 @@ function DataStatusTabInternal({
                                                       {/* Instrument breakdown link — renders inline under this protocol */}
                                                       <div className="pt-0.5">
                                                         <span
-                                                          className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                                          className="text-[11px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
                                                           onClick={() =>
                                                             handleVenueClick(
                                                               catName,
@@ -4644,7 +4644,7 @@ function DataStatusTabInternal({
                                                 {fgName}
                                               </span>
                                               <div className="flex-1" />
-                                              <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                              <span className="text-[12px] text-[var(--color-text-muted)] font-mono">
                                                 {fg.dates_found}/
                                                 {fg.dates_expected}
                                               </span>
@@ -4682,11 +4682,11 @@ function DataStatusTabInternal({
                                                       key={tf}
                                                       className="flex items-center gap-2 py-0.5 px-1.5"
                                                     >
-                                                      <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
+                                                      <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">
                                                         {tf}
                                                       </span>
                                                       <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                                                      <span className="text-[11px] text-[var(--color-text-muted)] font-mono">
                                                         {tfData.dates_found}/
                                                         {tfData.dates_expected}
                                                       </span>
@@ -4703,7 +4703,7 @@ function DataStatusTabInternal({
                                                         />
                                                       </div>
                                                       <span
-                                                        className="text-[9px] font-mono w-8 text-right"
+                                                        className="text-[11px] font-mono w-8 text-right"
                                                         style={{
                                                           color:
                                                             getCompletionColor(
@@ -4788,14 +4788,14 @@ function DataStatusTabInternal({
                                   catData.venue_summary.expected_but_missing
                                     .length > 0 && (
                                     <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                      <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
+                                      <span className="text-[12px] text-[var(--color-text-muted)] uppercase tracking-wide">
                                         Missing:
                                       </span>
                                       {catData.venue_summary.expected_but_missing.map(
                                         (venue: string) => (
                                           <span
                                             key={venue}
-                                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                            className="text-[12px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                           >
                                             {venue}
                                           </span>
@@ -4894,13 +4894,13 @@ function DataStatusTabInternal({
                                             {name}
                                           </span>
                                           {subData.status === "bonus" && (
-                                            <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
+                                            <span className="text-[11px] text-[var(--color-accent-amber)] font-medium shrink-0">
                                               bonus
                                             </span>
                                           )}
                                           {allOutOfScope && (
                                             <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                                               title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
                                               data-testid="out-of-scope-badge"
                                             >
@@ -4909,7 +4909,7 @@ function DataStatusTabInternal({
                                           )}
                                           {hasMissingDataTypes && (
                                             <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                               title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
                                               data-testid="missing-data-types-badge"
                                             >
@@ -4922,7 +4922,7 @@ function DataStatusTabInternal({
                                           )}
                                           {hasBlockedOnRaw && (
                                             <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
+                                              className="text-[11px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
                                               title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
                                               data-testid="blocked-on-raw-badge"
                                             >
@@ -5002,7 +5002,7 @@ function DataStatusTabInternal({
                                           <div className="flex items-center gap-2 shrink-0">
                                             {venueStartDate && (
                                               <span
-                                                className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
+                                                className="text-[11px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
                                                 title={`Data starts: ${venueStartDate}`}
                                               >
                                                 from{" "}
@@ -5020,7 +5020,7 @@ function DataStatusTabInternal({
                                                 return (
                                                   <>
                                                     <span
-                                                      className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                                                      className="text-[12px] text-[var(--color-text-muted)] font-mono"
                                                       title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
                                                     >
                                                       {subData.dates_found.toLocaleString()}{" "}
@@ -5053,7 +5053,7 @@ function DataStatusTabInternal({
                                               }
                                               return (
                                                 <>
-                                                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                  <span className="text-[12px] text-[var(--color-text-muted)] font-mono">
                                                     {subData.dates_found}/
                                                     {expectedDates}
                                                   </span>
@@ -5112,7 +5112,7 @@ function DataStatusTabInternal({
                                               return (
                                                 <button
                                                   type="button"
-                                                  className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                  className="text-[11px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
                                                   title={
                                                     catName === "SPORTS"
                                                       ? `View ${name} schema`
@@ -5153,12 +5153,12 @@ function DataStatusTabInternal({
                                               data-testid="honest-coverage-panel"
                                             >
                                               <div className="flex items-baseline gap-2">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                   Honest coverage (data types)
                                                 </span>
                                                 {subData.honest_axis && (
                                                   <span
-                                                    className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
+                                                    className="text-[11px] text-[var(--color-text-muted)] font-mono opacity-70"
                                                     title={`Shards are counted along ${subData.honest_axis}`}
                                                   >
                                                     {subData.honest_axis}
@@ -5167,7 +5167,7 @@ function DataStatusTabInternal({
                                                 {expectedDataTypes.length >
                                                   0 && (
                                                   <span
-                                                    className="text-[8px] text-[var(--color-text-muted)] opacity-70"
+                                                    className="text-[11px] text-[var(--color-text-muted)] opacity-70"
                                                     title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
                                                   >
                                                     {expectedDataTypes.length}{" "}
@@ -5180,7 +5180,7 @@ function DataStatusTabInternal({
                                                   className="flex flex-wrap items-center gap-1"
                                                   data-testid="missing-data-types-list"
                                                 >
-                                                  <span className="text-[9px] text-[var(--color-accent-red)]">
+                                                  <span className="text-[11px] text-[var(--color-accent-red)]">
                                                     Missing (
                                                     {missingDataTypes.length}):
                                                   </span>
@@ -5188,7 +5188,7 @@ function DataStatusTabInternal({
                                                     (dt) => (
                                                       <span
                                                         key={dt}
-                                                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                        className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                                         title={`UAC-declared data type '${dt}' has zero found shards for ${name}`}
                                                       >
                                                         {dt}
@@ -5266,7 +5266,7 @@ function DataStatusTabInternal({
                                                       const dtRowCore = (
                                                         <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
                                                           <span
-                                                            className="text-[10px] font-mono truncate min-w-0"
+                                                            className="text-[12px] font-mono truncate min-w-0"
                                                             style={{
                                                               color:
                                                                 getCompletionColor(
@@ -5279,7 +5279,7 @@ function DataStatusTabInternal({
                                                           </span>
                                                           <span
                                                             className={cn(
-                                                              "text-[8px] font-mono px-1 py-px rounded border shrink-0",
+                                                              "text-[11px] font-mono px-1 py-px rounded border shrink-0",
                                                               unitBadgeClass,
                                                             )}
                                                             title={
@@ -5292,7 +5292,7 @@ function DataStatusTabInternal({
                                                           </span>
                                                           {hasMissingInstruments && (
                                                             <span
-                                                              className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)] shrink-0"
+                                                              className="text-[11px] font-mono px-1 py-px rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)] shrink-0"
                                                               title={`Instruments with zero captured shards: ${missingInstruments.join(", ")}`}
                                                               data-testid="honest-dt-missing-instruments-badge"
                                                             >
@@ -5308,7 +5308,7 @@ function DataStatusTabInternal({
                                                           )}
                                                           <div className="flex-1" />
                                                           <span
-                                                            className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0"
+                                                            className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0"
                                                             title={
                                                               expectedInstruments.length >
                                                               0
@@ -5332,7 +5332,7 @@ function DataStatusTabInternal({
                                                             />
                                                           </div>
                                                           <span
-                                                            className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                            className="text-[11px] font-mono font-medium w-8 text-right shrink-0"
                                                             style={{
                                                               color:
                                                                 getCompletionColor(
@@ -5371,7 +5371,7 @@ function DataStatusTabInternal({
                                                                 className="flex flex-wrap items-center gap-1 py-0.5 px-1"
                                                                 data-testid="honest-dt-missing-instruments-list"
                                                               >
-                                                                <span className="text-[9px] text-[var(--color-accent-red)] shrink-0">
+                                                                <span className="text-[11px] text-[var(--color-accent-red)] shrink-0">
                                                                   Missing (
                                                                   {
                                                                     missingInstruments.length
@@ -5382,7 +5382,7 @@ function DataStatusTabInternal({
                                                                   (iid) => (
                                                                     <span
                                                                       key={iid}
-                                                                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                                      className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                                                       title={`Instrument '${iid}' has zero captured shards in window`}
                                                                     >
                                                                       {iid}
@@ -5411,7 +5411,7 @@ function DataStatusTabInternal({
                                                                       (
                                                                         <div className="flex items-center gap-2 py-0.5 px-1.5">
                                                                           <span
-                                                                            className="text-[9px] font-mono truncate min-w-0"
+                                                                            className="text-[11px] font-mono truncate min-w-0"
                                                                             style={{
                                                                               color:
                                                                                 getCompletionColor(
@@ -5427,7 +5427,7 @@ function DataStatusTabInternal({
                                                                             }
                                                                           </span>
                                                                           <div className="flex-1" />
-                                                                          <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                          <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                                             {
                                                                               idata.found_shards
                                                                             }
@@ -5449,7 +5449,7 @@ function DataStatusTabInternal({
                                                                             />
                                                                           </div>
                                                                           <span
-                                                                            className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
+                                                                            className="text-[11px] font-mono font-medium w-8 text-right shrink-0"
                                                                             style={{
                                                                               color:
                                                                                 getCompletionColor(
@@ -5500,7 +5500,7 @@ function DataStatusTabInternal({
                                                                         </summary>
                                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
                                                                           <details>
-                                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                            <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                               {
                                                                                 instMissing.length
                                                                               }{" "}
@@ -5512,7 +5512,7 @@ function DataStatusTabInternal({
                                                                                 dates={
                                                                                   instMissing
                                                                                 }
-                                                                                btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                                btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                                 testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
                                                                                 onClickDate={(
                                                                                   date,
@@ -5559,7 +5559,7 @@ function DataStatusTabInternal({
                                                                                 ) +
                                                                                 `&instrument_ids=${encodeURIComponent(iid)}`
                                                                               }
-                                                                              className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
+                                                                              className="inline-flex items-center gap-1 mt-0.5 text-[11px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
                                                                               title={`Download ${dtName} CSV for ${iid} across the full window`}
                                                                               download
                                                                               data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
@@ -5594,7 +5594,7 @@ function DataStatusTabInternal({
                                           {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
                                           {hasInstrumentTypes && (
                                             <div className="space-y-0.5 pt-1">
-                                              <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                              <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                 Instrument Types
                                               </span>
                                               {Object.entries(
@@ -5636,11 +5636,11 @@ function DataStatusTabInternal({
                                                   >
                                                     <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                       <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
-                                                      <span className="text-[10px] font-mono truncate">
+                                                      <span className="text-[12px] font-mono truncate">
                                                         {itName}
                                                       </span>
                                                       <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                      <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                         {it.dates_found}/
                                                         {it.dates_expected}
                                                       </span>
@@ -5657,7 +5657,7 @@ function DataStatusTabInternal({
                                                         />
                                                       </div>
                                                       <span
-                                                        className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                        className="text-[11px] font-mono font-medium w-8 text-right shrink-0"
                                                         style={{
                                                           color:
                                                             getCompletionColor(
@@ -5677,7 +5677,7 @@ function DataStatusTabInternal({
                                                         it.underlyings,
                                                       ).length > 0 && (
                                                         <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                          <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                          <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                             Underlyings
                                                           </span>
                                                           {Object.entries(
@@ -5693,11 +5693,11 @@ function DataStatusTabInternal({
                                                               >
                                                                 <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                                   <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
-                                                                  <span className="text-[10px] font-mono truncate">
+                                                                  <span className="text-[12px] font-mono truncate">
                                                                     {ulName}
                                                                   </span>
                                                                   <div className="flex-1" />
-                                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                  <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                                     {
                                                                       ulData.dates_found
                                                                     }
@@ -5719,7 +5719,7 @@ function DataStatusTabInternal({
                                                                     />
                                                                   </div>
                                                                   <span
-                                                                    className="text-[9px] font-mono w-8 text-right shrink-0"
+                                                                    className="text-[11px] font-mono w-8 text-right shrink-0"
                                                                     style={{
                                                                       color:
                                                                         getCompletionColor(
@@ -5753,7 +5753,7 @@ function DataStatusTabInternal({
                                                                             className="flex items-center gap-2 py-0.5 px-1.5"
                                                                           >
                                                                             <span
-                                                                              className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                              className="text-[11px] font-mono text-[var(--color-text-secondary)]"
                                                                               style={{
                                                                                 color:
                                                                                   getCompletionColor(
@@ -5766,7 +5766,7 @@ function DataStatusTabInternal({
                                                                               }
                                                                             </span>
                                                                             <div className="flex-1" />
-                                                                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                            <span className="text-[11px] text-[var(--color-text-muted)] font-mono">
                                                                               {
                                                                                 dtData.dates_found
                                                                               }
@@ -5776,7 +5776,7 @@ function DataStatusTabInternal({
                                                                               }
                                                                             </span>
                                                                             <span
-                                                                              className="text-[8px] font-mono w-7 text-right"
+                                                                              className="text-[11px] font-mono w-7 text-right"
                                                                               style={{
                                                                                 color:
                                                                                   getCompletionColor(
@@ -5822,7 +5822,7 @@ function DataStatusTabInternal({
                                                                 className="flex items-center gap-2 py-0.5 px-1.5"
                                                               >
                                                                 <span
-                                                                  className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                  className="text-[11px] font-mono text-[var(--color-text-secondary)]"
                                                                   style={{
                                                                     color:
                                                                       getCompletionColor(
@@ -5833,7 +5833,7 @@ function DataStatusTabInternal({
                                                                   {dtName}
                                                                 </span>
                                                                 <div className="flex-1" />
-                                                                <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                <span className="text-[11px] text-[var(--color-text-muted)] font-mono">
                                                                   {
                                                                     dtData.dates_found
                                                                   }
@@ -5843,7 +5843,7 @@ function DataStatusTabInternal({
                                                                   }
                                                                 </span>
                                                                 <span
-                                                                  className="text-[8px] font-mono w-7 text-right"
+                                                                  className="text-[11px] font-mono w-7 text-right"
                                                                   style={{
                                                                     color:
                                                                       getCompletionColor(
@@ -5871,7 +5871,7 @@ function DataStatusTabInternal({
                                           {hasDataTypes &&
                                             !hasInstrumentTypes && (
                                               <div className="space-y-0.5 pt-1">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                   {catName === "PREDICTION"
                                                     ? "Markets"
                                                     : "Data Types"}
@@ -5908,7 +5908,7 @@ function DataStatusTabInternal({
                                                       <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
                                                         <span
-                                                          className="text-[10px] font-mono truncate min-w-0"
+                                                          className="text-[12px] font-mono truncate min-w-0"
                                                           style={{
                                                             color:
                                                               getCompletionColor(
@@ -5919,7 +5919,7 @@ function DataStatusTabInternal({
                                                           {dtName}
                                                         </span>
                                                         <div className="flex-1" />
-                                                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                        <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                           {dtData.dates_found}/
                                                           {
                                                             dtData.dates_expected
@@ -5938,7 +5938,7 @@ function DataStatusTabInternal({
                                                           />
                                                         </div>
                                                         <span
-                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                          className="text-[11px] font-mono font-medium w-8 text-right shrink-0"
                                                           style={{
                                                             color:
                                                               getCompletionColor(
@@ -5953,7 +5953,7 @@ function DataStatusTabInternal({
                                                         </span>
                                                         <button
                                                           type="button"
-                                                          className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                          className="text-[11px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
                                                           title={`View schema for ${name} / ${dtName}`}
                                                           onClick={(e) => {
                                                             e.preventDefault();
@@ -5979,7 +5979,7 @@ function DataStatusTabInternal({
                                                             {dtFoundList.length >
                                                               0 && (
                                                               <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                <summary className="text-[11px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                                   {
                                                                     dtData.dates_found
                                                                   }{" "}
@@ -5992,7 +5992,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       dtFoundList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-found-${name}-${dtName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6047,7 +6047,7 @@ function DataStatusTabInternal({
                                                             {dtMissingList.length >
                                                               0 && (
                                                               <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                   {
                                                                     dtMissingList.length
                                                                   }{" "}
@@ -6058,7 +6058,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       dtMissingList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6101,7 +6101,7 @@ function DataStatusTabInternal({
                                           {hasLeagues && (
                                             <div className="space-y-0.5 pt-1">
                                               <div className="flex items-center gap-2">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                <span className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                   {catName === "PREDICTION"
                                                     ? "Markets"
                                                     : "Leagues"}
@@ -6110,7 +6110,7 @@ function DataStatusTabInternal({
                                                   name === "FIXTURES" && (
                                                     <button
                                                       type="button"
-                                                      className="text-[9px] text-[var(--color-accent-cyan)] hover:underline"
+                                                      className="text-[11px] text-[var(--color-accent-cyan)] hover:underline"
                                                       title="View the FIXTURES parquet schema from unified-api-contracts — date-independent"
                                                       onClick={() =>
                                                         setSchemaModal({
@@ -6173,13 +6173,13 @@ function DataStatusTabInternal({
                                                       >
                                                         <span className="h-2.5 w-2.5 shrink-0" />
                                                         <span
-                                                          className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]"
+                                                          className="text-[12px] font-mono truncate min-w-0 text-[var(--color-text-muted)]"
                                                           title={leagueName}
                                                         >
                                                           {leagueName}
                                                         </span>
                                                         <div className="flex-1" />
-                                                        <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">
+                                                        <span className="text-[11px] font-mono text-[var(--color-text-muted)] shrink-0 italic">
                                                           N/A
                                                         </span>
                                                       </div>
@@ -6193,13 +6193,13 @@ function DataStatusTabInternal({
                                                       <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                         <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
                                                         <span
-                                                          className="text-[10px] font-mono truncate min-w-0"
+                                                          className="text-[12px] font-mono truncate min-w-0"
                                                           title={leagueName}
                                                         >
                                                           {leagueName}
                                                         </span>
                                                         <div className="flex-1" />
-                                                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                        <span className="text-[11px] text-[var(--color-text-muted)] font-mono shrink-0">
                                                           {countDisplay}
                                                         </span>
                                                         <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
@@ -6215,7 +6215,7 @@ function DataStatusTabInternal({
                                                           />
                                                         </div>
                                                         <span
-                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                          className="text-[11px] font-mono font-medium w-8 text-right shrink-0"
                                                           style={{
                                                             color:
                                                               getCompletionColor(
@@ -6235,7 +6235,7 @@ function DataStatusTabInternal({
                                                           {foundDatesList.length >
                                                             0 && (
                                                             <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                              <summary className="text-[11px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                                 {foundCount ??
                                                                   foundDatesList.length}{" "}
                                                                 available
@@ -6264,7 +6264,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       foundDatesList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
                                                                     testIdPrefix={`fixture-date-toggle-${leagueName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6301,7 +6301,7 @@ function DataStatusTabInternal({
                                                                         key={
                                                                           date
                                                                         }
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                                        className="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
                                                                       >
                                                                         {date}
                                                                       </span>
@@ -6314,7 +6314,7 @@ function DataStatusTabInternal({
                                                           {missingDatesList.length >
                                                             0 && (
                                                             <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                              <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                                 {missingCount ??
                                                                   missingDatesList.length}{" "}
                                                                 missing
@@ -6349,7 +6349,7 @@ function DataStatusTabInternal({
                                                                     dates={
                                                                       missingDatesList
                                                                     }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
+                                                                    btnClassName="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
                                                                     testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
                                                                     onClickDate={(
                                                                       date,
@@ -6370,7 +6370,7 @@ function DataStatusTabInternal({
                                                                         key={
                                                                           date
                                                                         }
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                                        className="text-[10px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
                                                                       >
                                                                         {date}
                                                                       </span>
@@ -6420,7 +6420,7 @@ function DataStatusTabInternal({
                                             >
                                               {foundList.length > 0 && (
                                                 <details>
-                                                  <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                  <summary className="text-[11px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
                                                     {subData.dates_found}{" "}
                                                     available{" "}
                                                     {catName === "SPORTS"
@@ -6430,7 +6430,7 @@ function DataStatusTabInternal({
                                                   <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                     <DateList
                                                       dates={foundList}
-                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                      btnClassName="text-[11px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                       testIdPrefix={`shard-csv-date-found-${name}`}
                                                       onClickDate={(date) =>
                                                         openShardDetail({
@@ -6465,7 +6465,7 @@ function DataStatusTabInternal({
                                               )}
                                               {missingList.length > 0 && (
                                                 <details>
-                                                  <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                  <summary className="text-[11px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
                                                     {missingCount} missing{" "}
                                                     {catName === "SPORTS"
                                                       ? "fixtures"
@@ -6474,7 +6474,7 @@ function DataStatusTabInternal({
                                                   <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                     <DateList
                                                       dates={missingList}
-                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                      btnClassName="text-[11px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                       testIdPrefix={`shard-csv-date-missing-${name}`}
                                                       onClickDate={(date) =>
                                                         openShardDetail({
@@ -6490,7 +6490,7 @@ function DataStatusTabInternal({
                                                     />
                                                     {missingCount >
                                                       missingList.length && (
-                                                      <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                      <span className="text-[11px] text-[var(--color-text-muted)]">
                                                         +
                                                         {missingCount -
                                                           missingList.length}{" "}
@@ -6506,7 +6506,7 @@ function DataStatusTabInternal({
                                           {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
                                           <div className="pt-0.5">
                                             <span
-                                              className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                              className="text-[11px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
                                               onClick={() =>
                                                 handleVenueClick(catName, name)
                                               }
