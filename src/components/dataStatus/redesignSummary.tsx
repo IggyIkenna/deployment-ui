@@ -17,7 +17,7 @@ import {
   type ServiceRollup,
 } from "./redesignData";
 import { Icons } from "./redesignIcons";
-import { cls, fmtNumber } from "./redesignUtil";
+import { cls, fmtNumber, ymd, parseYmd, addDays } from "./redesignUtil";
 
 export interface Filters {
   start: string;
@@ -532,6 +532,39 @@ function DateRangePicker({
             padding: 0,
           }}
         />
+      </div>
+      {/* Quick-range presets — set start relative to the current end date. */}
+      <div className="row" style={{ gap: 4 }}>
+        {(
+          [
+            { label: "30d", days: 30 },
+            { label: "60d", days: 60 },
+            { label: "90d", days: 90 },
+            { label: "All", days: null },
+          ] as const
+        ).map((p) => {
+          const applyPreset = () => {
+            if (p.days === null) {
+              onChange({ start: "2018-01-01", end });
+            } else {
+              onChange({ start: ymd(addDays(parseYmd(end), -(p.days - 1))), end });
+            }
+          };
+          return (
+            <button
+              key={p.label}
+              onClick={applyPreset}
+              className="btn btn-xs btn-ghost"
+              style={{
+                border: "1px solid var(--color-border-default)",
+                padding: "3px 9px",
+              }}
+              title={p.days === null ? "Full history" : `Last ${p.days} days`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
