@@ -808,6 +808,56 @@ export async function getDrilldownSupportedPairs(opts?: {
 }
 
 // ===========================================================================
+// Coverage grid — per-(primary-axis x date) rollup powering the redesigned
+// Data Status visuals (heatmap / stacked / matrix / columns).
+// Mounts at GET /api/data-status/grid (see deployment_api/routes/data_status.py).
+// ===========================================================================
+
+/** Raw 4-state counts for one (primary_value, date) cell or rollup. */
+export interface CoverageGridCounts {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+}
+
+/** One asset_group's dense coverage grid (shape of `build_coverage_grid`). */
+export interface CoverageGridAssetGroup {
+  primary: string;
+  primary_values: string[];
+  sub_axes: string[];
+  grid: Record<string, Record<string, CoverageGridCounts>>;
+  by_primary: Record<string, CoverageGridCounts>;
+  total: CoverageGridCounts;
+  meta: { primary_count: number; days: number; shards_per_day: number };
+}
+
+export interface CoverageGridResponse {
+  service: string;
+  date_range: { start: string; end: string };
+  asset_groups: Record<string, CoverageGridAssetGroup>;
+}
+
+export async function getCoverageGrid(params: {
+  service: string;
+  start_date: string;
+  end_date: string;
+  asset_group?: string[];
+  signal?: AbortSignal;
+}): Promise<CoverageGridResponse> {
+  const sp = new URLSearchParams();
+  sp.set("service", params.service);
+  sp.set("start_date", params.start_date);
+  sp.set("end_date", params.end_date);
+  if (params.asset_group) {
+    params.asset_group.forEach((ag) => sp.append("asset_group", ag));
+  }
+  return fetchJson<CoverageGridResponse>(
+    `/data-status/grid?${sp.toString()}`,
+    { signal: params.signal },
+  );
+}
+
+// ===========================================================================
 // Deploy-Missing surgical-recovery preview — drilldown plan Phase 3.
 // ===========================================================================
 

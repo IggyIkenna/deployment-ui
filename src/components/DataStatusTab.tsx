@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DataStatusRedesign } from "./dataStatus/DataStatusRedesign";
 import type {
   DataTypeCheckResponse,
   InstrumentSearchMatch,
@@ -7323,6 +7324,16 @@ function DataStatusTabInternal({
 }
 
 // Exported wrapper component that delegates to specialized components
+// Services that render the redesigned Data Status experience (grid-driven
+// hero + tiles + needs-attention + 4-visual coverage switcher). These are the
+// manifest-backed data-pipeline services the redesign was built against.
+const REDESIGN_SERVICES = new Set([
+  "instruments-service",
+  "market-tick-data-service",
+  "market-data-processing-service",
+  "features-service",
+]);
+
 export function DataStatusTab({
   serviceName,
   deploymentResult,
@@ -7332,6 +7343,11 @@ export function DataStatusTab({
   // Use specialized component for execution-services (different data model)
   if (serviceName === "execution-services") {
     return <ExecutionDataStatus serviceName={serviceName} />;
+  }
+
+  // Redesigned grid-driven Data Status for the core data-pipeline services.
+  if (REDESIGN_SERVICES.has(serviceName)) {
+    return <DataStatusRedesign service={serviceName} />;
   }
 
   // Use standard data status for all other services
