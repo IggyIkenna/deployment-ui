@@ -1301,8 +1301,11 @@ function DataStatusTabInternal({
   };
 
   const getCompletionColor = (percent: number) => {
-    if (percent >= 99) return "var(--color-accent-green)";
-    if (percent >= 95) return "var(--color-accent-amber)";
+    // Aligned to the redesign's color language: high-90s reads healthy (green),
+    // 80–95 partial (amber), <80 low (red). The exact % stays visible as text
+    // (formatPct shows a decimal in the 99–99.99 band so 99.x never looks 100).
+    if (percent >= 95) return "var(--color-accent-green)";
+    if (percent >= 80) return "var(--color-accent-amber)";
     return "var(--color-accent-red)";
   };
 
