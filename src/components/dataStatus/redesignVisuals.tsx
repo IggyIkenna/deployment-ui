@@ -12,6 +12,7 @@ import {
   type ServiceDataset,
 } from "./redesignData";
 import { Icons } from "./redesignIcons";
+import { buildCsvDownloadUrl } from "../../api/client";
 import {
   axisLabel,
   cls,
@@ -1029,10 +1030,59 @@ function PivotDetail({
               <Icons.Eye size={12} /> Inspect leaf shard
             </button>
             <div className="row" style={{ gap: 6 }}>
-              <button className="btn btn-outline" style={{ flex: 1 }}>
-                <Icons.Download size={12} /> Download
-              </button>
-              <button className="btn btn-outline" style={{ flex: 1 }}>
+              {(() => {
+                // download-csv needs venue + day + instrument_type + data_type.
+                const venue = selections.venue;
+                const day = selections.date;
+                const dataType = selections.data_type;
+                const instrumentType = selections.instrument_type;
+                const canDownload = Boolean(
+                  ds.service && venue && day && dataType && instrumentType,
+                );
+                const doDownload = () => {
+                  if (!canDownload) return;
+                  const url = buildCsvDownloadUrl({
+                    service: ds.service,
+                    asset_group: ag,
+                    venue: venue as string,
+                    day: day as string,
+                    instrument_type: instrumentType as string,
+                    data_type: dataType as string,
+                    instrument_ids: selections.instrument_id
+                      ? [selections.instrument_id]
+                      : [],
+                    chain: selections.chain,
+                    league_id: selections.league_id,
+                    job_id: selections.job_id,
+                  });
+                  window.open(url, "_blank", "noopener");
+                };
+                return (
+                  <button
+                    className="btn btn-outline"
+                    style={{
+                      flex: 1,
+                      opacity: canDownload ? 1 : 0.5,
+                      cursor: canDownload ? "pointer" : "not-allowed",
+                    }}
+                    disabled={!canDownload}
+                    onClick={doDownload}
+                    title={
+                      canDownload
+                        ? "Download this shard's rows as CSV"
+                        : "Pin venue, data_type, instrument_type and a date to download"
+                    }
+                  >
+                    <Icons.Download size={12} /> Download
+                  </button>
+                );
+              })()}
+              <button
+                className="btn btn-outline"
+                style={{ flex: 1, opacity: 0.5, cursor: "not-allowed" }}
+                disabled
+                title="Backfill — coming soon"
+              >
                 <Icons.Rocket size={12} /> Backfill
               </button>
             </div>
