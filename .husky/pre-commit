@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Format + lint staged files only — no stash, no full working-tree scan.
+npx lint-staged || exit 1
