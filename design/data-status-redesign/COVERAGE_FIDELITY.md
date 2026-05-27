@@ -228,6 +228,38 @@ Columns never triggers the grid → dead path. Fix: `axisValuesOf` now unions th
 (`instrument_id`, `date`) stay lazy/backend-resolved. This is also the **correct** source: `/grid`
 reads the shared `market-data-tick` bucket and would leak MTDS raw data_types into the MDPS view.
 
+### Columns cascade — drilldown-driven (`9455621`)
+The Columns Finder cascade was a STATIC CROSS-PRODUCT (each axis = full union of values,
+independent), causing: (a) impossible-tuple downloads → 404 "no manifest row" (e.g.
+BALANCER-ETHEREUM + chain AVALANCHE — BALANCER is ETHEREUM-only); (b) fabricated uniform `9.7k`
+counts; (c) date column always `0%` (read the never-loaded grid); (d) hyphenated `dex-pools` beside
+underscore `dex_pools` (sub-dimension labels polluting the union); (e) instruments-service showing
+junk data_type/instrument_type columns.
+
+Rewired to be drilldown-driven:
+- **Columns = `["asset_group", ...shard_axes, "date"]`** where `shard_axes` is the STATIC canonical
+  atom from `/config/shard-axis-matrix` (no GCS read — instant + reliable; an earlier attempt to
+  fetch axes via a cold drilldown raced/aborted → "0 axes", columns never rendered). This is also
+  authoritative: instruments-service = `[venue]` (+`chain` for defi) → no junk columns.
+- **Each shard-axis column's VALUES come from a `/drilldown` filtered by the pinned prefix** → only
+  values that CO-OCCUR with the pins, with REAL counts + `completion_pct` (date column too → fixes
+  the always-0%). Verified live: pin DEFI → AERODROME_V3 narrows chain to `["BASE"]`;
+  BALANCER-ETHEREUM → `["ETHEREUM"]`.
+- **Download** builds the URL from the selected leaf node's exact `row_key` → always a real shard.
+  Detail shows real `totals` + `reason_summary` + `manifest_uri` (the fabricated `gs://utd-…` path
+  is gone).
+- Removed the dead static-cascade code (`buildPivotColumns`/`coverageFor`/`shardCountFor`) + the
+  `AgData.axisValues` union.
+
+> **Not a bucket mismatch.** The buckets resolve correctly; the 404s were the cascade handing the
+> download endpoint tuples that don't exist. The endpoint's 404/502 responses (no manifest row /
+> phantom path-drift) are the honest backend behaviour.
+
+**Known cost / follow-up:** the first value-drilldown per bucket is a cold ~6–10s index read
+(columns render instantly from the matrix; values stream in with a per-column "loading…"). Backend
+index-read caching/coalescing is the deferred fix that would make this snappy — it now gates the
+cascade + the drawer Why panel, so it's the top backend follow-up.
+
 ### MDPS (market-data-processing-service) expectation
 MDPS shares the `market-data-tick-*` buckets with MTDS (distinguished by processed `data_type`s).
 Until the raw backfill completes, MDPS processed data_types are largely absent → they surface as
