@@ -217,6 +217,17 @@ UI (deployment-ui `89692e7`):
   Proper fix = cache/pre-resolve the index read — deferred backend work.
 - Bundled-data_type drilldown-tree gap (§4b) — reason_summary covers it; tree fix deferred.
 
+### Columns small-axis prefill (`1b4cf47`)
+The Columns layout showed empty `data_type` / `instrument_type` for MTDS/MDPS. Root cause: the
+Batch-1 re-architecture made the overview turbo-based + lazy `/grid` (heatmap/matrix only), so
+Columns read the AG-level `ag.data_types` map — which turbo leaves **empty for MTDS/MDPS** (it puts
+data_types per-venue). `/grid` DOES compute `axis_values`, but `loadAgGrid` never merges it and
+Columns never triggers the grid → dead path. Fix: `axisValuesOf` now unions the small axes across
+`ag.venues` (`expected_data_types` + `data_types` + `honest_data_types` keys → data_type;
+`instrument_types` keys → instrument_type). Cheap (turbo already fetched, no index read); heavy axes
+(`instrument_id`, `date`) stay lazy/backend-resolved. This is also the **correct** source: `/grid`
+reads the shared `market-data-tick` bucket and would leak MTDS raw data_types into the MDPS view.
+
 ### MDPS (market-data-processing-service) expectation
 MDPS shares the `market-data-tick-*` buckets with MTDS (distinguished by processed `data_type`s).
 Until the raw backfill completes, MDPS processed data_types are largely absent → they surface as
