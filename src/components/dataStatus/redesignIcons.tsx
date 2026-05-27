@@ -30,6 +30,7 @@ import {
   Rocket,
   Search,
   Sparkles,
+  Trash2,
   X,
   type LucideProps,
 } from "lucide-react";
@@ -62,4 +63,5 @@ export const Icons = {
   Check: Check as IconComponent,
   Sparkles: Sparkles as IconComponent,
   Info: Info as IconComponent,
+  Trash: Trash2 as IconComponent,
 } as const;

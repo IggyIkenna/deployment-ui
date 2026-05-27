@@ -3,24 +3,38 @@
  *
  * Builds the prototype's `ds` shape (see
  * `design/data-status-redesign/js/data.jsx` + `NOTES.md` § "Wiring to real
- * APIs") from the live `/api/data-status/grid` endpoint. The visuals consume
- * exactly this shape, so once it's built from real counts they render real
- * data with no further changes.
+ * APIs") from the FAST `/api/data-status/turbo` + `/api/data-status/coverage-summary`
+ * + `/api/config/shard-axis-matrix` endpoints.
+ *
+ * Why not `/grid`? The grid endpoint reads the full (172 MB) manifest index
+ * per request and HANGS (60-90s+) on the real production manifest. Turbo
+ * (~3.5s) + coverage-summary (~1.7s) read the consolidated rollups instead,
+ * so the hero / AG tiles / Stacked / inventory / needs-attention render FAST.
+ *
+ * The per-`(primary,date)` `grid` (consumed only by the Heatmap + Matrix
+ * visuals) is NOT built eagerly. It is loaded lazily via `loadAgGrid` when the
+ * user selects one of those visuals — see `DataStatusRedesign`. Until then each
+ * `AgData.grid` is an empty object and the date-grid visuals show a loading /
+ * slow-load note.
  *
  * Status vocabulary — the prototype's cell keys mapped from the backend
  * 4-state `capture_status`:
  *   captured       <- captured
  *   empty          <- empty_confirmed   (honest, typed-reason empty)
  *   failed         <- attempted_failed
- *   known-empty    <- (not distinguished by the grid; folded into empty)
- *   unattempted    <- derived: a (primary,date) cell absent from the grid
- *   partial/future <- derived per the prototype's cell rules
+ *   known-empty    <- expected_unattempted_known_empty (when present)
+ *   unattempted    <- expected_unattempted_pending_fetch (when present)
  */
 
 import {
   getCoverageGrid,
-  type CoverageGridAssetGroup,
+  getDataStatusTurbo,
+  getShardAxisMatrix,
   type CoverageGridCounts,
+  type ShardAxisMatrixResponse,
+  type TurboAssetGroupStatus,
+  type TurboDataStatusResponse,
+  type TurboSubDimension,
 } from "../../api/client";
 import { enumerateDates, parseYmd, ymd } from "./redesignUtil";
 
@@ -57,7 +71,11 @@ export interface AgData {
    * fresh from the manifest. Absent axis (e.g. instrument_id) is lazy. */
   axisValues: Record<string, string[]>;
   shardsPerCell: number;
+  /** Per-(primaryValue, date) cell grid. Empty until `loadAgGrid` runs —
+   * the Heatmap + Matrix visuals are the only consumers. */
   grid: Record<string, Record<string, CellStats>>;
+  /** True once the lazy per-day grid has been merged in. */
+  gridLoaded: boolean;
   byPrimary: Record<string, CellStats>;
   total: AgRollup;
 }
@@ -68,6 +86,7 @@ export interface ServiceDataset {
   agData: Record<string, AgData>;
   start: string;
   end: string;
+  mode: string;
 }
 
 export interface ServiceRollup {
@@ -115,8 +134,36 @@ function honestCoverageOf(c: CellStats): number {
   return denom === 0 ? 0 : ok / denom;
 }
 
-/** Build a CellStats from raw backend counts for a single (primary,date) cell. */
-function cellFromCounts(counts: CoverageGridCounts): CellStats {
+/** 4-state capture counts as exposed by turbo (AG-level + per-sub-dimension). */
+interface CaptureStatusCounts {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  expected_unattempted_known_empty?: number;
+  expected_unattempted_pending_fetch?: number;
+}
+
+/** Build a CellStats from turbo's 4-state capture-status counts. */
+function cellFromCaptureCounts(
+  counts: CaptureStatusCounts | undefined,
+): CellStats {
+  const c = emptyCell();
+  if (!counts) return c;
+  c.captured = counts.captured ?? 0;
+  c.empty = counts.empty_confirmed ?? 0;
+  c.failed = counts.attempted_failed ?? 0;
+  c["known-empty"] = counts.expected_unattempted_known_empty ?? 0;
+  c.unattempted = counts.expected_unattempted_pending_fetch ?? 0;
+  c.total = c.captured + c.empty + c.failed + c["known-empty"] + c.unattempted;
+  c.status = statusFromCounts(c);
+  c.coverage = coverageOf(c);
+  // Illustrative row estimate (captured shards carry rows; honest empties don't).
+  c.rows = Math.round(c.captured * 120_000);
+  return c;
+}
+
+/** Build a CellStats from raw `/grid` 4-state counts (lazy per-day path). */
+function cellFromGridCounts(counts: CoverageGridCounts): CellStats {
   const c = emptyCell();
   c.captured = counts.captured;
   c.empty = counts.empty_confirmed;
@@ -124,7 +171,6 @@ function cellFromCounts(counts: CoverageGridCounts): CellStats {
   c.total = counts.captured + counts.empty_confirmed + counts.attempted_failed;
   c.status = statusFromCounts(c);
   c.coverage = coverageOf(c);
-  // Illustrative row estimate (captured shards carry rows; honest empties don't).
   c.rows = Math.round(c.captured * 120_000);
   return c;
 }
@@ -140,81 +186,158 @@ function addInto(acc: CellStats, c: CellStats): void {
   acc.rows += c.rows;
 }
 
-/** Convert one asset_group grid block into the prototype's `AgData`. */
-function toAgData(block: CoverageGridAssetGroup, dates: string[]): AgData {
-  const primary = block.primary;
-  const primaryValues = block.primary_values;
-  const subAxes = block.sub_axes.filter((a) => a !== "date" && a !== primary);
+/** Read the capture-status counts off a turbo AG or sub-dimension entry. */
+function captureCountsOf(
+  entry: TurboAssetGroupStatus | TurboSubDimension,
+): CaptureStatusCounts | undefined {
+  // `counts` is the canonical 5-field alias; `capture_status_counts` is the
+  // 3-field rollup. Prefer the canonical one when present.
+  const withCounts = entry as {
+    counts?: CaptureStatusCounts;
+    capture_status_counts?: CaptureStatusCounts;
+  };
+  return withCounts.counts ?? withCounts.capture_status_counts;
+}
 
-  const grid: Record<string, Record<string, CellStats>> = {};
+/** The sub-dimension map for one AG, keyed by the primary axis value. */
+function subDimensionsOf(
+  ag: TurboAssetGroupStatus,
+  primary: string,
+): Record<string, TurboSubDimension> {
+  if (primary === "data_type" && ag.data_types) return ag.data_types;
+  if (ag.venues) return ag.venues;
+  if (ag.data_types) return ag.data_types;
+  return {};
+}
+
+/** Distinct values for the small breakdown axes, derived from turbo maps. */
+function axisValuesOf(
+  ag: TurboAssetGroupStatus,
+  breakdownAxes: string[],
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const axis of breakdownAxes) {
+    if (axis === "data_type" && ag.data_types) {
+      out[axis] = Object.keys(ag.data_types);
+    } else if (axis === "chain" && ag.chains) {
+      out[axis] = Object.keys(ag.chains);
+    } else if (axis === "instrument_type" && ag.folders) {
+      out[axis] = Object.keys(ag.folders);
+    }
+    // instrument_id / fixture_id / league_id stay lazy (drilldown-only).
+  }
+  return out;
+}
+
+/** Convert one turbo asset_group block into the prototype's `AgData`
+ * (fast path — `grid` left empty for lazy load). */
+function toAgData(
+  ag: TurboAssetGroupStatus,
+  primaryAxis: string,
+  breakdownAxes: string[],
+): AgData {
+  const primary =
+    primaryAxis || (ag.breakdown_axis === "data_type" ? "data_type" : "venue");
+  const subDims = subDimensionsOf(ag, primary);
+  const primaryValues = Object.keys(subDims);
+
   const byPrimary: Record<string, CellStats> = {};
   const total = emptyRollup();
-  const today = ymd(new Date());
 
   for (const pv of primaryValues) {
-    const byDate: Record<string, CellStats> = {};
-    const pvAcc = emptyCell();
-    const rawDays = block.grid[pv] ?? {};
-    for (const date of dates) {
-      const raw = rawDays[date];
-      if (raw) {
-        const cell = cellFromCounts(raw);
-        byDate[date] = cell;
-        addInto(pvAcc, cell);
-      } else {
-        // Absent cell: future if beyond today, else not-yet-attempted (missing).
-        const future = date > today;
-        const cell = emptyCell();
-        cell.status = future ? "future" : "missing";
-        byDate[date] = cell;
-      }
+    const cell = cellFromCaptureCounts(captureCountsOf(subDims[pv]));
+    byPrimary[pv] = cell;
+    addInto(total, cell);
+  }
+
+  // When the AG carries its own rollup counts prefer them for the total
+  // (sub-dimension sums can omit non-primary axes).
+  const agCounts = captureCountsOf(ag);
+  if (agCounts) {
+    const agCell = cellFromCaptureCounts(agCounts);
+    if (agCell.total > total.total) {
+      total.total = agCell.total;
+      total.captured = agCell.captured;
+      total.empty = agCell.empty;
+      total["known-empty"] = agCell["known-empty"];
+      total.failed = agCell.failed;
+      total.unattempted = agCell.unattempted;
+      total.rows = agCell.rows;
     }
-    pvAcc.coverage = coverageOf(pvAcc);
-    pvAcc.status = statusFromCounts(pvAcc);
-    grid[pv] = byDate;
-    byPrimary[pv] = pvAcc;
-    addInto(total, pvAcc);
   }
 
   total.coverage = coverageOf(total);
   total.honestCoverage = honestCoverageOf(total);
   total.status = statusFromCounts(total);
 
+  const subAxes = breakdownAxes.filter(
+    (a) => a !== "date" && a !== primary && a !== "instrument_id",
+  );
+
   return {
     primary,
     primaryValues,
     subAxes,
-    axisValues: block.axis_values ?? {},
-    shardsPerCell: block.meta.days
-      ? Math.round(
-          block.meta.shards_per_day / Math.max(1, primaryValues.length),
-        )
+    axisValues: axisValuesOf(ag, breakdownAxes),
+    shardsPerCell: primaryValues.length
+      ? Math.round(total.total / primaryValues.length)
       : 0,
-    grid,
+    grid: {},
+    gridLoaded: false,
     byPrimary,
     total,
   };
 }
 
-/** Fetch + assemble the full `ds` for one service across all its asset groups. */
+/** Resolve the primary + breakdown axes for `(service, asset_group)` from the
+ * SHARD_AXIS_MATRIX SSOT (keys are lowercase asset_group). */
+function axesForAg(
+  matrix: ShardAxisMatrixResponse | null,
+  service: string,
+  ag: string,
+): { primary: string; breakdowns: string[] } {
+  const agKey = ag.toLowerCase();
+  const primary = matrix?.primary_axis?.[service]?.[agKey] ?? "";
+  const breakdowns = matrix?.breakdown_axes?.[service]?.[agKey] ?? [];
+  return { primary, breakdowns };
+}
+
+/** Fetch + assemble the full `ds` for one service from the FAST endpoints. */
 export async function buildServiceDataset(params: {
   service: string;
   start: string;
   end: string;
+  mode?: string;
   signal?: AbortSignal;
 }): Promise<ServiceDataset> {
-  const res = await getCoverageGrid({
-    service: params.service,
-    start_date: params.start,
-    end_date: params.end,
-    signal: params.signal,
-  });
-  const dates = enumerateDates(params.start, params.end);
+  const turboMode = params.mode === "live" ? "live" : "batch";
+  const [turbo, matrix] = await Promise.all([
+    getDataStatusTurbo({
+      service: params.service,
+      start_date: params.start,
+      end_date: params.end,
+      mode: turboMode,
+      include_sub_dimensions: true,
+      signal: params.signal,
+    }),
+    getShardAxisMatrix(params.service, params.signal).catch(
+      (): ShardAxisMatrixResponse => ({
+        shard_axes: {},
+        display_axes: {},
+        primary_axis: {},
+        breakdown_axes: {},
+      }),
+    ),
+  ]);
+
   const agData: Record<string, AgData> = {};
   const ags: string[] = [];
-  for (const [ag, block] of Object.entries(res.asset_groups)) {
+  for (const [ag, block] of Object.entries(turbo.asset_groups)) {
+    const { primary, breakdowns } = axesForAg(matrix, params.service, ag);
+    const built = toAgData(block, primary, breakdowns);
+    if (built.primaryValues.length === 0) continue;
     ags.push(ag);
-    agData[ag] = toAgData(block, dates);
+    agData[ag] = built;
   }
   return {
     service: params.service,
@@ -222,10 +345,65 @@ export async function buildServiceDataset(params: {
     agData,
     start: params.start,
     end: params.end,
+    mode: params.mode ?? "batch",
   };
 }
 
-/** Hero rollup over a date range + optional asset-group filter. */
+/**
+ * Lazily load the per-(primary,date) grid from `/grid` and merge it into the
+ * dataset. SLOW on the real production manifest — callers must show a spinner.
+ * Returns a NEW dataset (immutable) so React re-renders. If the grid is
+ * already loaded, the same dataset is returned unchanged.
+ */
+export async function loadAgGrid(params: {
+  ds: ServiceDataset;
+  signal?: AbortSignal;
+}): Promise<ServiceDataset> {
+  const { ds } = params;
+  if (ds.ags.every((ag) => ds.agData[ag]?.gridLoaded)) return ds;
+
+  const res = await getCoverageGrid({
+    service: ds.service,
+    start_date: ds.start,
+    end_date: ds.end,
+    signal: params.signal,
+  });
+  const dates = enumerateDates(ds.start, ds.end);
+  const today = ymd(new Date());
+
+  const nextAgData: Record<string, AgData> = {};
+  for (const ag of ds.ags) {
+    const existing = ds.agData[ag];
+    const block = res.asset_groups[ag];
+    if (!block) {
+      nextAgData[ag] = existing;
+      continue;
+    }
+    const grid: Record<string, Record<string, CellStats>> = {};
+    for (const pv of existing.primaryValues) {
+      const byDate: Record<string, CellStats> = {};
+      const rawDays = block.grid[pv] ?? {};
+      for (const date of dates) {
+        const raw = rawDays[date];
+        if (raw) {
+          byDate[date] = cellFromGridCounts(raw);
+        } else {
+          const cell = emptyCell();
+          cell.status = date > today ? "future" : "missing";
+          byDate[date] = cell;
+        }
+      }
+      grid[pv] = byDate;
+    }
+    nextAgData[ag] = { ...existing, grid, gridLoaded: true };
+  }
+  return { ...ds, agData: nextAgData };
+}
+
+/** Hero rollup over a date range + optional asset-group filter.
+ *
+ * When the per-day grid is loaded we sum the in-range cells; otherwise we use
+ * the AG-level `total` (whole-window rollup from turbo). */
 export function rollupService(
   ds: ServiceDataset,
   opts: { ags?: string[] | null; startDate: string; endDate: string },
@@ -240,16 +418,20 @@ export function rollupService(
   const byAg: Record<string, AgRollup> = {};
 
   for (const ag of ds.ags) {
-    if (include && !include.has(ag)) continue;
+    if (include && !include.has(ag.toLowerCase())) continue;
     const a = ds.agData[ag];
     const acc = emptyRollup();
-    for (const pv of a.primaryValues) {
-      const days = a.grid[pv] ?? {};
-      for (const date of Object.keys(days)) {
-        const d = parseYmd(date);
-        if (d < startD || d > endD) continue;
-        addInto(acc, days[date]);
+    if (a.gridLoaded) {
+      for (const pv of a.primaryValues) {
+        const days = a.grid[pv] ?? {};
+        for (const date of Object.keys(days)) {
+          const d = parseYmd(date);
+          if (d < startD || d > endD) continue;
+          addInto(acc, days[date]);
+        }
       }
+    } else {
+      addInto(acc, a.total);
     }
     acc.coverage = coverageOf(acc);
     acc.honestCoverage = honestCoverageOf(acc);
@@ -263,7 +445,8 @@ export function rollupService(
   return { byAg, overall };
 }
 
-/** Per-date rollup across all primary values (heatmap calendars). */
+/** Per-date rollup across all primary values (heatmap calendars). Requires the
+ * lazy grid; returns `{}` until it's loaded. */
 export function rollUpDates(
   ds: ServiceDataset,
   ag: string,
@@ -271,7 +454,7 @@ export function rollUpDates(
   endDate: string,
 ): Record<string, CellStats> {
   const a = ds.agData[ag];
-  if (!a) return {};
+  if (!a || !a.gridLoaded) return {};
   const startD = parseYmd(startDate);
   const endD = parseYmd(endDate);
   const byDate: Record<string, CellStats> = {};
@@ -322,6 +505,11 @@ export interface StaleItem {
 
 const today = (): string => ymd(new Date());
 
+/** Recent failures.
+ *
+ * With the lazy grid loaded we report exact (primaryValue, date) failure
+ * cells; without it we fall back to the per-primaryValue rollup (date column
+ * shows the window end) so the panel still surfaces failing venues fast. */
 export function recentFailures(
   ds: ServiceDataset,
   opts: { limit?: number } = {},
@@ -330,16 +518,32 @@ export function recentFailures(
   const out: FailureItem[] = [];
   for (const ag of ds.ags) {
     const a = ds.agData[ag];
-    for (const pv of a.primaryValues) {
-      const days = a.grid[pv] ?? {};
-      for (const date of Object.keys(days)) {
-        const c = days[date];
-        if (c.failed > 0) {
+    if (a.gridLoaded) {
+      for (const pv of a.primaryValues) {
+        const days = a.grid[pv] ?? {};
+        for (const date of Object.keys(days)) {
+          const c = days[date];
+          if (c.failed > 0) {
+            out.push({
+              ag,
+              primary: a.primary,
+              primaryValue: pv,
+              date,
+              failed: c.failed,
+              total: c.total,
+            });
+          }
+        }
+      }
+    } else {
+      for (const pv of a.primaryValues) {
+        const c = a.byPrimary[pv];
+        if (c && c.failed > 0) {
           out.push({
             ag,
             primary: a.primary,
             primaryValue: pv,
-            date,
+            date: ds.end,
             failed: c.failed,
             total: c.total,
           });
@@ -351,6 +555,8 @@ export function recentFailures(
   return out.slice(0, limit);
 }
 
+/** Missing-date blocks. Requires the lazy grid (per-day granularity); returns
+ * empty until it's loaded. */
 export function recentMissing(
   ds: ServiceDataset,
   opts: { limit?: number } = {},
@@ -360,6 +566,7 @@ export function recentMissing(
   const blocks: Record<string, MissingItem> = {};
   for (const ag of ds.ags) {
     const a = ds.agData[ag];
+    if (!a.gridLoaded) continue;
     for (const pv of a.primaryValues) {
       const days = a.grid[pv] ?? {};
       const sorted = Object.keys(days).sort();
@@ -395,6 +602,7 @@ export function recentMissing(
     .slice(0, limit);
 }
 
+/** Stale-capture detection. Requires the lazy grid; returns empty until loaded. */
 export function staleCapture(
   ds: ServiceDataset,
   opts: { limit?: number; behindDays?: number } = {},
@@ -405,6 +613,7 @@ export function staleCapture(
   const out: StaleItem[] = [];
   for (const ag of ds.ags) {
     const a = ds.agData[ag];
+    if (!a.gridLoaded) continue;
     for (const pv of a.primaryValues) {
       const sorted = Object.keys(a.grid[pv] ?? {})
         .sort()
@@ -447,3 +656,6 @@ export function mapStatusToCell(s: CellStatusName): string {
   if (s === "future") return "future";
   return "none";
 }
+
+// Re-export so consumers can keep importing the turbo type from here if needed.
+export type { TurboDataStatusResponse };

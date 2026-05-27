@@ -548,7 +548,10 @@ function DateRangePicker({
             if (p.days === null) {
               onChange({ start: "2018-01-01", end });
             } else {
-              onChange({ start: ymd(addDays(parseYmd(end), -(p.days - 1))), end });
+              onChange({
+                start: ymd(addDays(parseYmd(end), -(p.days - 1))),
+                end,
+              });
             }
           };
           return (
@@ -575,10 +578,18 @@ export function FilterBar({
   filters,
   setFilters,
   ds,
+  onRefresh,
+  onClearCache,
+  clearing,
+  refreshing,
 }: {
   filters: Filters;
   setFilters: (f: Filters) => void;
   ds: ServiceDataset;
+  onRefresh?: () => void;
+  onClearCache?: () => void;
+  clearing?: boolean;
+  refreshing?: boolean;
 }) {
   const agOptions = ds.ags.map((a) => a.toUpperCase());
   return (
@@ -616,9 +627,25 @@ export function FilterBar({
           <Icons.ListFilter size={12} />
           More filters
         </button>
-        <button className="btn btn-primary">
+        <button
+          className="btn btn-outline"
+          onClick={onClearCache}
+          disabled={clearing}
+          data-testid="data-status-clear-cache"
+          title="Clear the data-status cache, then re-check"
+        >
+          <Icons.Trash size={12} />
+          {clearing ? "Clearing…" : "Clear cache"}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={onRefresh}
+          disabled={refreshing}
+          data-testid="data-status-refresh"
+          title="Re-check status (re-fetch turbo + coverage summary)"
+        >
           <Icons.Refresh size={12} />
-          Refresh
+          {refreshing ? "Checking…" : "Check status"}
         </button>
       </div>
       {filters.assetGroups.length > 0 && (
@@ -742,10 +769,12 @@ export function NeedsAttention({
   ds,
   onOpenFailure,
   onOpenMissing,
+  onRecheck,
 }: {
   ds: ServiceDataset;
   onOpenFailure: (f: FailureItem) => void;
   onOpenMissing: (m: MissingItem) => void;
+  onRecheck?: () => void;
 }) {
   const failures = useMemo(() => recentFailures(ds, { limit: 5 }), [ds]);
   const missing = useMemo(() => recentMissing(ds, { limit: 4 }), [ds]);
@@ -779,7 +808,11 @@ export function NeedsAttention({
         <span className="badge badge-outline badge-mono">{total} items</span>
         <button
           className="btn btn-ghost btn-xs"
-          onClick={(e) => e.stopPropagation()}
+          data-testid="needs-attention-recheck"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRecheck?.();
+          }}
         >
           <Icons.Refresh size={11} />
           Recheck
@@ -796,125 +829,133 @@ export function NeedsAttention({
             borderBottom: 0,
           }}
         >
-        <Column
-          color="var(--color-accent-red)"
-          label="Failures"
-          count={failures.length}
-        >
-          {failures.length === 0 && <EmptyRow label="No failures" />}
-          {failures.map((f, i) => (
-            <div key={i} className="attn-row" onClick={() => onOpenFailure(f)}>
-              <span className="attn-dot attn-dot-error" />
-              <div className="col" style={{ gap: 2, minWidth: 0 }}>
-                <div className="row" style={{ gap: 6 }}>
-                  <span
-                    className="font-mono text-xs truncate"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {f.ag.toUpperCase()}/{f.primaryValue}
-                  </span>
-                  <span className="text-xs muted font-mono">· {f.date}</span>
-                </div>
-                <span className="text-xs muted truncate">
-                  {f.failed}/{f.total} shards
-                </span>
-              </div>
-              <button
-                className="btn btn-ghost btn-xs"
-                onClick={(e) => e.stopPropagation()}
+          <Column
+            color="var(--color-accent-red)"
+            label="Failures"
+            count={failures.length}
+          >
+            {failures.length === 0 && <EmptyRow label="No failures" />}
+            {failures.map((f, i) => (
+              <div
+                key={i}
+                className="attn-row"
+                onClick={() => onOpenFailure(f)}
               >
-                <Icons.Refresh size={11} />
-                Retry
-              </button>
-            </div>
-          ))}
-        </Column>
+                <span className="attn-dot attn-dot-error" />
+                <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 6 }}>
+                    <span
+                      className="font-mono text-xs truncate"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {f.ag.toUpperCase()}/{f.primaryValue}
+                    </span>
+                    <span className="text-xs muted font-mono">· {f.date}</span>
+                  </div>
+                  <span className="text-xs muted truncate">
+                    {f.failed}/{f.total} shards
+                  </span>
+                </div>
+                <button
+                  className="btn btn-ghost btn-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Icons.Refresh size={11} />
+                  Retry
+                </button>
+              </div>
+            ))}
+          </Column>
 
-        <Column
-          color="var(--color-accent-amber)"
-          label="Missing dates"
-          count={missing.length}
-        >
-          {missing.length === 0 && <EmptyRow label="No gaps detected" />}
-          {missing.map((m, i) => (
-            <div key={i} className="attn-row" onClick={() => onOpenMissing(m)}>
-              <span className="attn-dot attn-dot-warn" />
-              <div className="col" style={{ gap: 2, minWidth: 0 }}>
-                <div className="row" style={{ gap: 6 }}>
-                  <span
-                    className="font-mono text-xs truncate"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {m.ag.toUpperCase()}/{m.primaryValue}
-                  </span>
+          <Column
+            color="var(--color-accent-amber)"
+            label="Missing dates"
+            count={missing.length}
+          >
+            {missing.length === 0 && <EmptyRow label="No gaps detected" />}
+            {missing.map((m, i) => (
+              <div
+                key={i}
+                className="attn-row"
+                onClick={() => onOpenMissing(m)}
+              >
+                <span className="attn-dot attn-dot-warn" />
+                <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 6 }}>
+                    <span
+                      className="font-mono text-xs truncate"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {m.ag.toUpperCase()}/{m.primaryValue}
+                    </span>
+                    <span className="text-xs muted font-mono">
+                      · {m.count}d gap
+                    </span>
+                  </div>
                   <span className="text-xs muted font-mono">
-                    · {m.count}d gap
+                    {m.start === m.end ? m.start : `${m.start} → ${m.end}`}
                   </span>
                 </div>
-                <span className="text-xs muted font-mono">
-                  {m.start === m.end ? m.start : `${m.start} → ${m.end}`}
-                </span>
+                <button
+                  className="btn btn-primary btn-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Icons.Rocket size={11} />
+                  Deploy
+                </button>
               </div>
-              <button
-                className="btn btn-primary btn-xs"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Icons.Rocket size={11} />
-                Deploy
-              </button>
-            </div>
-          ))}
-        </Column>
+            ))}
+          </Column>
 
-        <Column
-          color="var(--color-accent-blue)"
-          label="Stale capture"
-          count={stale.length}
-          last
-        >
-          {stale.length === 0 && <EmptyRow label="All current" />}
-          {stale.map((s, i) => (
-            <div
-              key={i}
-              className="attn-row"
-              onClick={() =>
-                onOpenMissing({
-                  ag: s.ag,
-                  primary: s.primary,
-                  primaryValue: s.primaryValue,
-                  start: s.lastCaptured,
-                  end: s.lastCaptured,
-                  count: s.gap,
-                })
-              }
-            >
-              <span className="attn-dot attn-dot-info" />
-              <div className="col" style={{ gap: 2, minWidth: 0 }}>
-                <div className="row" style={{ gap: 6 }}>
-                  <span
-                    className="font-mono text-xs truncate"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {s.ag.toUpperCase()}/{s.primaryValue}
-                  </span>
-                  <span className="text-xs muted font-mono">
-                    · {s.gap}d behind
+          <Column
+            color="var(--color-accent-blue)"
+            label="Stale capture"
+            count={stale.length}
+            last
+          >
+            {stale.length === 0 && <EmptyRow label="All current" />}
+            {stale.map((s, i) => (
+              <div
+                key={i}
+                className="attn-row"
+                onClick={() =>
+                  onOpenMissing({
+                    ag: s.ag,
+                    primary: s.primary,
+                    primaryValue: s.primaryValue,
+                    start: s.lastCaptured,
+                    end: s.lastCaptured,
+                    count: s.gap,
+                  })
+                }
+              >
+                <span className="attn-dot attn-dot-info" />
+                <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 6 }}>
+                    <span
+                      className="font-mono text-xs truncate"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {s.ag.toUpperCase()}/{s.primaryValue}
+                    </span>
+                    <span className="text-xs muted font-mono">
+                      · {s.gap}d behind
+                    </span>
+                  </div>
+                  <span className="text-xs muted">
+                    Last captured {s.lastCaptured}
                   </span>
                 </div>
-                <span className="text-xs muted">
-                  Last captured {s.lastCaptured}
-                </span>
+                <button
+                  className="btn btn-ghost btn-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Icons.Eye size={11} />
+                  Inspect
+                </button>
               </div>
-              <button
-                className="btn btn-ghost btn-xs"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Icons.Eye size={11} />
-                Inspect
-              </button>
-            </div>
-          ))}
-        </Column>
+            ))}
+          </Column>
         </div>
       )}
     </section>
@@ -949,10 +990,18 @@ export function InventoryStats({
   const cards: { label: string; value: string }[] = [
     { label: "Total shards", value: fmtNumber(t.shards) },
     { label: "Instrument rows", value: fmtCompact(t.instrument_rows) },
-    { label: "Dates (all groups)", value: fmtNumber(t.dates_across_asset_groups) },
+    {
+      label: "Dates (all groups)",
+      value: fmtNumber(
+        t.dates_across_asset_groups ?? t.dates_across_categories ?? 0,
+      ),
+    },
     { label: "Asset groups", value: String(ags.length) },
     { label: "Unique venues", value: fmtNumber(uniqueVenues) },
-    { label: "Instruments (latest)", value: fmtNumber(t.latest_day_instruments) },
+    {
+      label: "Instruments (latest)",
+      value: fmtNumber(t.latest_day_instruments),
+    },
   ];
   return (
     <section className="card" style={{ marginBottom: 18 }}>

@@ -14,6 +14,7 @@ const {
   getDeployMissingServices,
   setApiBaseUrl,
   buildShardDownloadUrl,
+  buildCsvDownloadUrl,
 } = clientModule;
 
 /**
@@ -49,7 +50,10 @@ function mockFetchError(status: number, body: Record<string, unknown> | null) {
     vi.fn().mockResolvedValue({
       ok: false,
       status,
-      json: body == null ? () => Promise.reject(new Error("nope")) : () => Promise.resolve(body),
+      json:
+        body == null
+          ? () => Promise.reject(new Error("nope"))
+          : () => Promise.resolve(body),
     }),
   );
 }
@@ -57,10 +61,7 @@ function mockFetchError(status: number, body: Record<string, unknown> | null) {
 function mockFetchAbort() {
   const err = new Error("Aborted");
   err.name = "AbortError";
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockRejectedValue(err),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(err));
 }
 
 describe("client.ts — branch coverage", () => {
@@ -132,7 +133,9 @@ describe("client.ts — branch coverage", () => {
   it("getDeployments with no filters omits the query string", async () => {
     mockFetchOk({ deployments: [], count: 0 });
     await getDeployments();
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).not.toContain("?");
   });
@@ -140,7 +143,9 @@ describe("client.ts — branch coverage", () => {
   it("getDeployments with empty filter object also omits the query string", async () => {
     mockFetchOk({ deployments: [], count: 0 });
     await getDeployments({});
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).not.toContain("?");
   });
@@ -186,7 +191,13 @@ describe("client.ts — branch coverage", () => {
       asset_group: "cefi",
       axes: [],
       tree: [],
-      totals: { captured: 0, empty_confirmed: 0, attempted_failed: 0, total: 0, completion_pct: 0 },
+      totals: {
+        captured: 0,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        total: 0,
+        completion_pct: 0,
+      },
       filtered_by: {},
     });
     await getHierarchicalDrilldown({
@@ -198,7 +209,9 @@ describe("client.ts — branch coverage", () => {
       child_offset: 50,
       child_limit: 25,
     });
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).toContain("expand_to_depth=3");
     expect(url).toContain("child_offset=50");
@@ -211,7 +224,13 @@ describe("client.ts — branch coverage", () => {
       asset_group: "tradfi",
       axes: [],
       tree: [],
-      totals: { captured: 0, empty_confirmed: 0, attempted_failed: 0, total: 0, completion_pct: 0 },
+      totals: {
+        captured: 0,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        total: 0,
+        completion_pct: 0,
+      },
       filtered_by: {},
     });
     await getHierarchicalDrilldown({
@@ -225,7 +244,9 @@ describe("client.ts — branch coverage", () => {
         instrument_type: "FUTURE",
       },
     });
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).toContain("venue=CME");
     expect(url).toContain("instrument_type=FUTURE");
@@ -238,7 +259,13 @@ describe("client.ts — branch coverage", () => {
       asset_group: "cefi",
       axes: [],
       tree: [],
-      totals: { captured: 0, empty_confirmed: 0, attempted_failed: 0, total: 0, completion_pct: 0 },
+      totals: {
+        captured: 0,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        total: 0,
+        completion_pct: 0,
+      },
       filtered_by: {},
     });
     await getHierarchicalDrilldown({
@@ -247,7 +274,9 @@ describe("client.ts — branch coverage", () => {
       start_date: "2024-01-01",
       end_date: "2024-01-05",
     });
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).not.toContain("expand_to_depth=");
     expect(url).not.toContain("child_offset=");
@@ -285,7 +314,9 @@ describe("client.ts — branch coverage", () => {
       asset_group: "cefi",
       row_key: { venue: "BINANCE" },
     });
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const opts = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(opts.body).toContain('"mode":"preview"');
   });
@@ -308,7 +339,9 @@ describe("client.ts — branch coverage", () => {
       row_key: {},
       mode: "tarball-from-local",
     });
-    const fetchSpy = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } });
+    const fetchSpy = globalThis.fetch as unknown as {
+      mock: { calls: unknown[][] };
+    };
     const opts = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(opts.body).toContain('"mode":"tarball-from-local"');
   });
@@ -349,5 +382,27 @@ describe("client.ts — branch coverage", () => {
     });
     expect(url).not.toContain("chain=");
     expect(url).not.toContain("league_id=");
+  });
+
+  // Regression guard for the redesign Columns "Download" button (Batch 1):
+  // it pins (venue, day, data_type, instrument_type, instrument_ids) and opens
+  // the CSV endpoint URL produced here.
+  it("buildCsvDownloadUrl builds a /data-status/download-csv URL with the pinned shard key", () => {
+    const url = buildCsvDownloadUrl({
+      service: "market-tick-data-service",
+      asset_group: "cefi",
+      venue: "BINANCE",
+      day: "2026-05-27",
+      instrument_type: "spot",
+      data_type: "trades",
+      instrument_ids: ["BTCUSDT", "ETHUSDT"],
+    });
+    expect(url).toContain("/data-status/download-csv?");
+    expect(url).toContain("service=market-tick-data-service");
+    expect(url).toContain("venue=BINANCE");
+    expect(url).toContain("day=2026-05-27");
+    expect(url).toContain("data_type=trades");
+    expect(url).toContain("instrument_type=spot");
+    expect(url).toContain("instrument_ids=BTCUSDT%2CETHUSDT");
   });
 });

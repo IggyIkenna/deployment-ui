@@ -855,10 +855,9 @@ export async function getCoverageGrid(params: {
   if (params.asset_group) {
     params.asset_group.forEach((ag) => sp.append("asset_group", ag));
   }
-  return fetchJson<CoverageGridResponse>(
-    `/data-status/grid?${sp.toString()}`,
-    { signal: params.signal },
-  );
+  return fetchJson<CoverageGridResponse>(`/data-status/grid?${sp.toString()}`, {
+    signal: params.signal,
+  });
 }
 
 // ===========================================================================
@@ -1575,6 +1574,9 @@ export interface CoverageSummaryResponse {
     shards: number;
     instrument_rows: number;
     dates_across_asset_groups: number;
+    // Legacy alias still emitted by the deployed backend (pre-rename). The UI
+    // reads whichever is present.
+    dates_across_categories?: number;
     latest_day_instruments: number;
   };
   totals_source?: "rollup" | "manifest";
