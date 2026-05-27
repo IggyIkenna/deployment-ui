@@ -86,9 +86,6 @@ export interface AgData {
   primary: string;
   primaryValues: string[];
   subAxes: string[];
-  /** Backend-supplied values for small axes (data_type, instrument_type, …),
-   * fresh from the manifest. Absent axis (e.g. instrument_id) is lazy. */
-  axisValues: Record<string, string[]>;
   shardsPerCell: number;
   /** Per-(primaryValue, date) cell grid. Empty until `loadAgGrid` runs —
    * the Heatmap + Matrix visuals are the only consumers. */
@@ -261,52 +258,6 @@ function subDimensionsOf(
   return {};
 }
 
-/** Sorted unique non-blank strings. */
-function uniqSorted(values: Iterable<string>): string[] {
-  const set = new Set<string>();
-  for (const v of values) {
-    const s = (v ?? "").trim();
-    if (s && s.toLowerCase() !== "nan") set.add(s);
-  }
-  return [...set].sort();
-}
-
-/** Distinct values for the small breakdown axes — the "cheap shallow" pre-fill
- * the Columns layout needs so data_type / instrument_type / chain columns are
- * never empty. Derived entirely from the ALREADY-fetched turbo block (no extra
- * manifest read): AG-level maps PLUS a union across the per-venue sub-dimensions
- * (`expected_data_types` / `data_types` / `honest_data_types` /
- * `instrument_types`), because turbo puts these per-venue for MTDS/MDPS and
- * leaves the AG-level `data_types` map empty. The heavy axes (`instrument_id`,
- * `date`) are deliberately NOT pre-filled — they stay lazy / drilldown-resolved
- * on the backend. */
-function axisValuesOf(
-  ag: TurboAssetGroupStatus,
-  breakdownAxes: string[],
-): Record<string, string[]> {
-  const venues = Object.values(ag.venues ?? {});
-  const out: Record<string, string[]> = {};
-  for (const axis of breakdownAxes) {
-    if (axis === "data_type") {
-      out[axis] = uniqSorted([
-        ...Object.keys(ag.data_types ?? {}),
-        ...venues.flatMap((v) => v.expected_data_types ?? []),
-        ...venues.flatMap((v) => Object.keys(v.data_types ?? {})),
-        ...venues.flatMap((v) => Object.keys(v.honest_data_types ?? {})),
-      ]);
-    } else if (axis === "instrument_type") {
-      out[axis] = uniqSorted([
-        ...Object.keys(ag.folders ?? {}),
-        ...venues.flatMap((v) => Object.keys(v.instrument_types ?? {})),
-      ]);
-    } else if (axis === "chain") {
-      out[axis] = uniqSorted(Object.keys(ag.chains ?? {}));
-    }
-    // instrument_id / fixture_id / league_id stay lazy (drilldown-only).
-  }
-  return out;
-}
-
 /** Convert one turbo asset_group block into the prototype's `AgData`
  * (fast path — `grid` left empty for lazy load). Exported for unit testing of
  * the per-venue completion (`primaryMeta`) projection. */
@@ -359,7 +310,6 @@ export function toAgData(
     primary,
     primaryValues,
     subAxes,
-    axisValues: axisValuesOf(ag, breakdownAxes),
     shardsPerCell: primaryValues.length
       ? Math.round(total.total / primaryValues.length)
       : 0,

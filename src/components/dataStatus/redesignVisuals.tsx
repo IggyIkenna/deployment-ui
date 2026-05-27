@@ -3,7 +3,7 @@
  * Ported from the prototype's `visual-*.jsx`. ClassNames preserved verbatim.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   mapStatusToCell,
   rollUpDates,
@@ -13,16 +13,21 @@ import {
   type VenueCompletion,
 } from "./redesignData";
 import { Icons } from "./redesignIcons";
-import { buildCsvDownloadUrl } from "../../api/client";
+import {
+  buildCsvDownloadUrl,
+  getHierarchicalDrilldown,
+  getShardAxisMatrix,
+  type DrilldownNode,
+  type DrilldownTotals,
+  type ReasonSummary,
+} from "../../api/client";
+import { groupReasonSummary, reasonMeta, REASON_ORDER } from "./reasonCategory";
 import {
   axisLabel,
   cls,
-  clamp01,
   enumerateDates,
   fmtDateFull,
   fmtNumber,
-  hashStr,
-  mulberry32,
   MONTHS,
   parseYmd,
   ymd,
@@ -648,132 +653,67 @@ export function VisualMatrix({
   );
 }
 
-// ───────────── #4 Columns (Finder-style pivot) ─────────────
+// ───────────── #4 Columns (Finder-style drilldown cascade) ─────────────
+//
+// DRILLDOWN-DRIVEN: every column past `asset_group` is populated by a real
+// backend drilldown call for the current pinned-prefix, so each value shown
+// CO-OCCURS with the pins (real narrowing) and carries REAL counts +
+// completion. No static cross-product, no synthesized coverage. See
+// `data_status_drilldown_shard_atom_alignment` plan.
 
-interface PivotColumn {
-  axis: string;
-  values: string[];
-}
 type Selections = Record<string, string | undefined>;
 
-function coverageForLookup(
-  ds: ServiceDataset,
-  ag: string,
-  axis: string,
-  value: string,
-): number | null {
-  const a = ds.agData[ag];
-  if (axis === "asset_group") return ds.agData[value]?.total?.coverage ?? null;
-  if (axis === a.primary) return a.byPrimary[value]?.coverage ?? null;
-  return null;
+/** One value in a drilldown column. */
+interface ColumnItem {
+  value: string;
+  count: number;
+  captured: number;
+  coveragePct: number;
+  reason?: string;
+  /** Exact tuple for this node — preferred source for the download URL. */
+  rowKey: Record<string, string>;
 }
 
-const pivotCache = new Map<string, number>();
+interface ColumnState {
+  loading: boolean;
+  error: boolean;
+  items: ColumnItem[];
+  /** True when the slice exceeded the backend child cap (best-effort note). */
+  capped: boolean;
+}
 
-function coverageFor(
-  ds: ServiceDataset,
-  ag: string,
-  axis: string,
-  value: string,
+const COLUMN_CHILD_LIMIT = 500;
+
+/** Build the contiguous-prefix filter map for a given axis position.
+ * The backend matches `matched_depth = number of pinned filters` and returns
+ * children for `axes[matched_depth]`, so we may only pin a CONTIGUOUS prefix.
+ * Returns null when the prefix up to (but excluding) `depth` is incomplete
+ * (an earlier axis is unpinned) — that column can't be fetched yet. */
+function prefixFilters(
+  axes: string[],
+  depth: number,
   selections: Selections,
-): number {
-  const a = ds.agData[ag];
-  const primary = a.primary;
-  if (axis === "asset_group") return ds.agData[value]?.total?.coverage ?? 0;
-  if (axis === primary && !selections.date)
-    return a.byPrimary[value]?.coverage ?? a.total.coverage;
-  if (axis === "date") {
-    const pv = selections[primary];
-    if (pv && a.grid[pv]?.[value]) return a.grid[pv][value].coverage;
-    let captured = 0;
-    let total = 0;
-    for (const p of a.primaryValues) {
-      const c = a.grid[p]?.[value];
-      if (!c) continue;
-      captured += c.captured + c.empty + c["known-empty"];
-      total += c.total;
-    }
-    return total === 0 ? 0 : captured / total;
+): Record<string, string> | null {
+  const filters: Record<string, string> = {};
+  for (let i = 0; i < depth; i++) {
+    const axis = axes[i];
+    const val = selections[axis];
+    if (val == null) return null;
+    filters[axis] = val;
   }
-  if (axis === primary && selections.date) {
-    const c = a.grid[value]?.[selections.date];
-    return c ? c.coverage : 0;
-  }
-  // Synthesize deterministically from pinned axes.
-  let base = a.total.coverage || 0.9;
-  const pinned = Object.entries(selections).filter(
-    ([k, v]) => v && k !== axis,
-  ) as [string, string][];
-  let n = 0;
-  let sum = 0;
-  for (const [k, v] of pinned) {
-    const pc = coverageForLookup(ds, ag, k, v);
-    if (pc != null) {
-      sum += pc;
-      n++;
-    }
-  }
-  if (n > 0) base = sum / n;
-  const key =
-    `${ds.service}|${ag}|${axis}|${value}|` +
-    pinned
-      .map(([k, v]) => `${k}=${v}`)
-      .sort()
-      .join("|");
-  const cached = pivotCache.get(key);
-  if (cached != null) return cached;
-  const rng = mulberry32(hashStr(key));
-  const cov = clamp01(base + (-0.06 + rng() * 0.12));
-  pivotCache.set(key, cov);
-  return cov;
+  return filters;
 }
 
-function shardCountFor(
-  ds: ServiceDataset,
-  ag: string,
-  axis: string,
-  value: string,
-  selections: Selections,
-): number {
-  const a = ds.agData[ag];
-  if (axis === "asset_group") return ds.agData[value]?.total?.total ?? 0;
-  if (axis === a.primary && !selections.date)
-    return a.byPrimary[value]?.total ?? 0;
-  if (axis === "date") {
-    const pv = selections[a.primary];
-    if (pv) return a.grid[pv]?.[value]?.total ?? 0;
-    let t = 0;
-    for (const p of a.primaryValues) t += a.grid[p]?.[value]?.total ?? 0;
-    return t;
-  }
-  const pvSel = selections[a.primary];
-  const total =
-    (pvSel ? a.byPrimary[pvSel]?.total : undefined) ?? a.total.total ?? 100;
-  return Math.round(total / Math.max(1, a.subAxes.length || 1));
-}
-
-function buildPivotColumns(
-  ds: ServiceDataset,
-  ag: string,
-  filters: Filters,
-): PivotColumn[] {
-  const a = ds.agData[ag];
-  const axes = ["asset_group", a.primary, ...a.subAxes];
-  const cols: PivotColumn[] = [];
-  for (const axis of axes) {
-    let values: string[];
-    if (axis === "asset_group") values = ds.ags;
-    else if (axis === a.primary) values = a.primaryValues;
-    // Small axes (data_type, instrument_type, …) come from the backend up-front;
-    // instrument_id has no list (too large) and stays drilldown-only.
-    else values = a.axisValues[axis] ?? [];
-    cols.push({ axis, values });
-  }
-  cols.push({
-    axis: "date",
-    values: enumerateDates(filters.start, filters.end),
-  });
-  return cols;
+/** Map a DrilldownNode to a ColumnItem. */
+function nodeToItem(node: DrilldownNode): ColumnItem {
+  return {
+    value: node.value,
+    count: node.total,
+    captured: node.captured,
+    coveragePct: node.completion_pct,
+    reason: node.reason_category,
+    rowKey: node.row_key,
+  };
 }
 
 function PivotRow({
@@ -782,12 +722,12 @@ function PivotRow({
   axis,
   onClick,
 }: {
-  item: { value: string; coverage: number; count: number };
+  item: ColumnItem;
   isActive: boolean;
   axis: string;
   onClick: () => void;
 }) {
-  const pct = (item.coverage || 0) * 100;
+  const pct = item.coveragePct;
   const tone = pct >= 95 ? "good" : pct >= 80 ? "warn" : "bad";
   const tc =
     tone === "good"
@@ -811,9 +751,10 @@ function PivotRow({
         {isDate ? fmtDateFull(item.value) : item.value}
       </span>
       <span className={cls("cols-row-pct", tone)}>
-        {axis === "asset_group" || axis === "date"
-          ? `${pct.toFixed(0)}%`
-          : fmtNumber(item.count || 0)}
+        {`${pct.toFixed(0)}%`}
+        <span className="muted" style={{ marginLeft: 6, fontWeight: 400 }}>
+          {fmtNumber(item.count)}
+        </span>
       </span>
       <span className="cols-row-chev">
         {isActive ? <Icons.X size={11} /> : <Icons.ChevronRight size={12} />}
@@ -828,49 +769,32 @@ function PivotRow({
   );
 }
 
-function PivotColumnPanel({
+/** The asset_group column reads the already-fetched grid `ds` (no drilldown). */
+function AssetGroupColumn({
   ds,
-  ag,
-  col,
   selections,
   onSelect,
 }: {
   ds: ServiceDataset;
-  ag: string;
-  col: PivotColumn;
   selections: Selections;
   onSelect: (v: string) => void;
 }) {
-  const [filter, setFilter] = useState("");
-  const items = useMemo(
-    () =>
-      col.values.map((v) => ({
-        value: v,
-        coverage: coverageFor(ds, ag, col.axis, v, selections),
-        count: shardCountFor(ds, ag, col.axis, v, selections),
-      })),
-    [ds, ag, col, selections],
-  );
-  const showSearch = items.length > 12 && col.axis !== "date";
-  const filtered = filter
-    ? items.filter((it) =>
-        String(it.value).toLowerCase().includes(filter.toLowerCase()),
-      )
-    : items;
-  const isDate = col.axis === "date";
-
+  const items: ColumnItem[] = ds.ags.map((agKey) => {
+    const t = ds.agData[agKey]?.total;
+    return {
+      value: agKey,
+      count: t?.total ?? 0,
+      captured: t?.captured ?? 0,
+      coveragePct: (t?.coverage ?? 0) * 100,
+      rowKey: {},
+    };
+  });
   return (
-    <div
-      className={cls(
-        "cols-col",
-        col.axis === "instrument_id" && "cols-col-wide",
-        isDate && "cols-col-date",
-      )}
-    >
+    <div className="cols-col">
       <div className="cols-col-header">
-        <span>{axisLabel(col.axis)}</span>
+        <span>{axisLabel("asset_group")}</span>
         <span style={{ flex: 1 }} />
-        {selections[col.axis] && (
+        {selections.asset_group && (
           <span
             className="badge badge-info badge-mono"
             style={{ padding: "0 5px", fontSize: 9.5 }}
@@ -878,7 +802,156 @@ function PivotColumnPanel({
             PINNED
           </span>
         )}
-        <span className="cols-row-count">{col.values.length}</span>
+        <span className="cols-row-count">{items.length}</span>
+      </div>
+      <div className="cols-col-body">
+        {items.map((it) => (
+          <PivotRow
+            key={it.value}
+            item={it}
+            isActive={selections.asset_group === it.value}
+            axis="asset_group"
+            onClick={() => onSelect(it.value)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A drilldown-backed column for one shard axis at `depth` in `axes`. */
+function DrilldownColumn({
+  ds,
+  ag,
+  axis,
+  depth,
+  axes,
+  selections,
+  onSelect,
+  onItems,
+}: {
+  ds: ServiceDataset;
+  ag: string;
+  axis: string;
+  depth: number;
+  axes: string[];
+  selections: Selections;
+  onSelect: (v: string) => void;
+  /** Report the loaded items up so the parent can drive auto-advance + the
+   * leaf row_key for the download URL. */
+  onItems: (axis: string, state: ColumnState) => void;
+}) {
+  const [filter, setFilter] = useState("");
+  const [state, setState] = useState<ColumnState>({
+    loading: true,
+    error: false,
+    items: [],
+    capped: false,
+  });
+
+  const { service, start, end } = ds;
+  const filters = prefixFilters(axes, depth, selections);
+  // Stable primitive key for the effect dep — the pinned prefix.
+  const prefixKey = filters
+    ? axes
+        .slice(0, depth)
+        .map((a) => `${a}=${filters[a]}`)
+        .join("|")
+    : "__incomplete__";
+
+  // Keep the latest onItems in a ref so it isn't an effect dep (avoids
+  // re-fetch loops from an unstable callback identity).
+  const onItemsRef = useRef(onItems);
+  onItemsRef.current = onItems;
+
+  useEffect(() => {
+    if (!filters) {
+      const incomplete: ColumnState = {
+        loading: false,
+        error: false,
+        items: [],
+        capped: false,
+      };
+      setState(incomplete);
+      onItemsRef.current(axis, incomplete);
+      return;
+    }
+    const controller = new AbortController();
+    setState({ loading: true, error: false, items: [], capped: false });
+    getHierarchicalDrilldown({
+      service,
+      asset_group: ag.toLowerCase(),
+      start_date: start,
+      end_date: end,
+      filters,
+      expand_to_depth: 1,
+      child_limit: COLUMN_CHILD_LIMIT,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        // The backend returns children for `axes[matched_depth]`; only accept
+        // them when that matches this column's axis (defensive).
+        const headAxis = res.tree[0]?.axis ?? axis;
+        const items = headAxis === axis ? res.tree.map(nodeToItem) : [];
+        const capped =
+          res.total_top_axis_children != null &&
+          res.total_top_axis_children > items.length;
+        const next: ColumnState = {
+          loading: false,
+          error: false,
+          items,
+          capped,
+        };
+        setState(next);
+        onItemsRef.current(axis, next);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const next: ColumnState = {
+          loading: false,
+          error: true,
+          items: [],
+          capped: false,
+        };
+        setState(next);
+        onItemsRef.current(axis, next);
+      });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, start, end, ag, axis, prefixKey]);
+
+  const isDate = axis === "date";
+  const showSearch = state.items.length > 12 && !isDate;
+  const filtered = filter
+    ? state.items.filter((it) =>
+        it.value.toLowerCase().includes(filter.toLowerCase()),
+      )
+    : state.items;
+
+  return (
+    <div
+      className={cls(
+        "cols-col",
+        axis === "instrument_id" && "cols-col-wide",
+        isDate && "cols-col-date",
+      )}
+    >
+      <div className="cols-col-header">
+        <span>{axisLabel(axis)}</span>
+        <span style={{ flex: 1 }} />
+        {selections[axis] && (
+          <span
+            className="badge badge-info badge-mono"
+            style={{ padding: "0 5px", fontSize: 9.5 }}
+          >
+            PINNED
+          </span>
+        )}
+        <span className="cols-row-count">
+          {state.loading ? "…" : state.items.length}
+        </span>
       </div>
       {showSearch && (
         <div className="cols-search">
@@ -899,66 +972,116 @@ function PivotColumnPanel({
         </div>
       )}
       <div className="cols-col-body">
-        {filtered.length === 0 && (
+        {state.loading && (
           <div
             className="muted text-xs"
             style={{ padding: 14, textAlign: "center" }}
           >
-            No matches
+            loading…
           </div>
         )}
-        {filtered.map((it) => (
-          <PivotRow
-            key={it.value}
-            item={it}
-            isActive={selections[col.axis] === it.value}
-            axis={col.axis}
-            onClick={() => onSelect(it.value)}
-          />
-        ))}
+        {!state.loading && state.error && (
+          <div
+            className="muted text-xs"
+            style={{ padding: 14, textAlign: "center" }}
+          >
+            unavailable
+          </div>
+        )}
+        {!state.loading && !state.error && filtered.length === 0 && (
+          <div
+            className="muted text-xs"
+            style={{ padding: 14, textAlign: "center" }}
+          >
+            {filter ? "No matches" : "no values"}
+          </div>
+        )}
+        {!state.loading &&
+          !state.error &&
+          filtered.map((it) => (
+            <PivotRow
+              key={it.value}
+              item={it}
+              isActive={selections[axis] === it.value}
+              axis={axis}
+              onClick={() => onSelect(it.value)}
+            />
+          ))}
+        {state.capped && !state.loading && (
+          <div
+            className="muted text-xs"
+            style={{ padding: "6px 14px", textAlign: "center" }}
+          >
+            showing first {state.items.length} — narrow with a filter
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+/** Detail panel: pinned slice totals (real) + reason mini-breakdown + the real
+ * manifest_uri + a download wired to the selected leaf's row_key. */
 function PivotDetail({
   ds,
   ag,
+  axes,
   selections,
-  cols,
+  leafRowKey,
   onCellClick,
 }: {
   ds: ServiceDataset;
   ag: string;
+  axes: string[];
   selections: Selections;
-  cols: PivotColumn[];
+  /** Exact tuple of the deepest pinned node (preferred download source). */
+  leafRowKey: Record<string, string> | null;
   onCellClick: (p: CellClick) => void;
 }) {
-  const a = ds.agData[ag];
-  const allAxes = cols.map((c) => c.axis);
-  const unpinned = allAxes.filter((x) => !selections[x]);
+  const [totals, setTotals] = useState<DrilldownTotals | null>(null);
+  const [reason, setReason] = useState<ReasonSummary | null>(null);
+  const [manifestUri, setManifestUri] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
 
-  const summary = useMemo(() => {
-    const pv = selections[a.primary];
-    if (pv && selections.date) {
-      const c = a.grid[pv]?.[selections.date];
-      if (c)
-        return {
-          coverage: c.coverage,
-          total: c.total,
-          failed: c.failed,
-        };
-    }
-    let coverage = a.total.coverage;
-    let total = a.total.total;
-    if (pv) {
-      coverage = a.byPrimary[pv]?.coverage ?? coverage;
-      total = a.byPrimary[pv]?.total ?? total;
-    }
-    return { coverage, total, failed: 0 };
-  }, [a, selections]);
+  const { service, start, end } = ds;
+  // Pinned shard axes (excludes asset_group + unpinned). Used both as the
+  // drilldown filter and as a stable effect key.
+  const pinnedAxes = axes.filter((a) => selections[a] != null);
+  const pinKey = pinnedAxes.map((a) => `${a}=${selections[a]}`).join("|");
 
-  const pct = (summary.coverage || 0) * 100;
+  useEffect(() => {
+    const controller = new AbortController();
+    const filters: Record<string, string> = {};
+    for (const a of pinnedAxes) filters[a] = selections[a] as string;
+    setLoading(true);
+    getHierarchicalDrilldown({
+      service,
+      asset_group: ag.toLowerCase(),
+      start_date: start,
+      end_date: end,
+      filters,
+      expand_to_depth: 0,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        setTotals(res.totals);
+        setReason(res.reason_summary ?? {});
+        setManifestUri(res.manifest_uri);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setTotals(null);
+        setReason(null);
+        setLoading(false);
+      });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, start, end, ag, pinKey]);
+
+  const pct = totals?.completion_pct ?? 0;
   const tone = pct >= 95 ? "good" : pct >= 80 ? "warn" : "bad";
   const tc =
     tone === "good"
@@ -966,9 +1089,29 @@ function PivotDetail({
       : tone === "warn"
         ? "var(--color-accent-amber)"
         : "var(--color-accent-red)";
-  const pinnedSegments = cols
-    .filter((c) => selections[c.axis])
-    .map((c) => selections[c.axis]!);
+
+  const pinnedSegments = ["asset_group", ...axes]
+    .filter((a) => selections[a] != null)
+    .map((a) => selections[a] as string);
+  const unpinned = axes.filter((a) => selections[a] == null);
+
+  // Download requires a venue + a date (the leaf). Prefer the leaf node's
+  // exact row_key tuple; fall back to the pinned selections.
+  const rk = leafRowKey ?? {};
+  const venue = rk.venue ?? selections.venue;
+  const day = rk.date ?? selections.date;
+  const dataType = rk.data_type ?? selections.data_type ?? "";
+  const instrumentType = rk.instrument_type ?? selections.instrument_type ?? "";
+  const instrumentId = rk.instrument_id ?? selections.instrument_id;
+  const chain = rk.chain ?? selections.chain;
+  const canDownload = Boolean(ds.service && venue && day);
+
+  const reasonRows = reason
+    ? REASON_ORDER.map((id) => ({ id, count: reason[id] ?? 0 })).filter(
+        (r) => r.count > 0,
+      )
+    : [];
+  const reasonGroups = groupReasonSummary(reason ?? undefined);
 
   return (
     <div className="cols-col cols-col-detail">
@@ -976,7 +1119,7 @@ function PivotDetail({
         <span>Detail</span>
         <span style={{ flex: 1 }} />
         <span className="text-xs muted font-mono">
-          {pinnedSegments.length}/{allAxes.length} pinned
+          {pinnedSegments.length}/{axes.length + 1} pinned
         </span>
       </div>
       <div className="cols-col-body" style={{ padding: 0 }}>
@@ -1008,7 +1151,7 @@ function PivotDetail({
               className="font-mono"
               style={{ fontSize: 14, color: tc, fontWeight: 600 }}
             >
-              {pct.toFixed(1)}%
+              {loading ? "…" : `${pct.toFixed(1)}%`}
             </span>
           </div>
           <div className="stack stack-thick">
@@ -1027,39 +1170,73 @@ function PivotDetail({
               fontFamily: "var(--font-mono)",
             }}
           >
-            <span>{fmtNumber(summary.total || 0)} shards</span>
-            {summary.failed > 0 && (
+            <span>{fmtNumber(totals?.total ?? 0)} shards</span>
+            {totals && totals.attempted_failed > 0 && (
               <span style={{ color: "var(--color-accent-red)" }}>
-                {summary.failed} failed
+                {fmtNumber(totals.attempted_failed)} failed
               </span>
             )}
           </div>
         </div>
+        {reasonRows.length > 0 && (
+          <div className="cols-detail-section">
+            <div className="cols-detail-label" style={{ marginBottom: 6 }}>
+              Why
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              {reasonRows.map((r) => {
+                const meta = reasonMeta(r.id);
+                return (
+                  <div
+                    key={r.id}
+                    className="row"
+                    style={{ gap: 8, alignItems: "center" }}
+                    title={meta.hint}
+                  >
+                    <span className="text-xs" style={{ flex: 1 }}>
+                      {meta.label}
+                    </span>
+                    <span className="font-mono text-xs muted">
+                      {fmtNumber(r.count)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-xs muted" style={{ marginTop: 6 }}>
+              {reasonGroups.failed > 0
+                ? `${fmtNumber(reasonGroups.failed)} failed`
+                : "no failures in slice"}
+            </div>
+          </div>
+        )}
         <div className="cols-detail-section">
           <div className="col" style={{ gap: 6 }}>
             <button
               className="btn btn-primary"
-              style={{ width: "100%" }}
+              style={{
+                width: "100%",
+                opacity: venue && day ? 1 : 0.5,
+                cursor: venue && day ? "pointer" : "not-allowed",
+              }}
+              disabled={!venue || !day}
               onClick={() => {
-                const pv = selections[a.primary];
-                if (pv && selections.date)
-                  onCellClick({ ag, primaryValue: pv, date: selections.date });
+                if (venue && day)
+                  onCellClick({ ag, primaryValue: venue, date: day });
               }}
             >
               <Icons.Eye size={12} /> Inspect leaf shard
             </button>
             <div className="row" style={{ gap: 6 }}>
-              {(() => {
-                // The backend /download-csv resolves capture_status from the
-                // provided tuple and accepts empty data_type / instrument_type
-                // (these are blank for many shards in the cascade), so we only
-                // require service + venue + day. Unpinned axes pass as "".
-                const venue = selections.venue;
-                const day = selections.date;
-                const dataType = selections.data_type ?? "";
-                const instrumentType = selections.instrument_type ?? "";
-                const canDownload = Boolean(ds.service && venue && day);
-                const doDownload = () => {
+              <button
+                className="btn btn-outline"
+                style={{
+                  flex: 1,
+                  opacity: canDownload ? 1 : 0.5,
+                  cursor: canDownload ? "pointer" : "not-allowed",
+                }}
+                disabled={!canDownload}
+                onClick={() => {
                   if (!canDownload) return;
                   const url = buildCsvDownloadUrl({
                     service: ds.service,
@@ -1068,35 +1245,21 @@ function PivotDetail({
                     day: day as string,
                     instrument_type: instrumentType,
                     data_type: dataType,
-                    instrument_ids: selections.instrument_id
-                      ? [selections.instrument_id]
-                      : [],
-                    chain: selections.chain,
+                    instrument_ids: instrumentId ? [instrumentId] : [],
+                    chain,
                     league_id: selections.league_id,
                     job_id: selections.job_id,
                   });
                   window.open(url, "_blank", "noopener");
-                };
-                return (
-                  <button
-                    className="btn btn-outline"
-                    style={{
-                      flex: 1,
-                      opacity: canDownload ? 1 : 0.5,
-                      cursor: canDownload ? "pointer" : "not-allowed",
-                    }}
-                    disabled={!canDownload}
-                    onClick={doDownload}
-                    title={
-                      canDownload
-                        ? "Download this shard's rows as CSV"
-                        : "Pin at least a venue and a date"
-                    }
-                  >
-                    <Icons.Download size={12} /> Download
-                  </button>
-                );
-              })()}
+                }}
+                title={
+                  canDownload
+                    ? "Download this shard's rows as CSV"
+                    : "Pin down to a venue and a date"
+                }
+              >
+                <Icons.Download size={12} /> Download
+              </button>
               <button
                 className="btn btn-outline"
                 style={{ flex: 1, opacity: 0.5, cursor: "not-allowed" }}
@@ -1108,37 +1271,21 @@ function PivotDetail({
             </div>
           </div>
         </div>
-        <div className="cols-detail-section">
-          <div className="cols-detail-label">GCS path</div>
-          <div
-            className="font-mono text-xs"
-            style={{
-              color: "var(--color-text-tertiary)",
-              wordBreak: "break-all",
-              lineHeight: 1.55,
-            }}
-          >
-            gs://utd-{ag}/{ds.service}/v=2/
-            <br />
-            {cols
-              .filter((c) => c.axis !== "asset_group")
-              .map((c) => (
-                <span key={c.axis}>
-                  {c.axis}=
-                  <span
-                    style={{
-                      color: selections[c.axis]
-                        ? "var(--color-text-primary)"
-                        : "var(--color-text-muted)",
-                    }}
-                  >
-                    {selections[c.axis] || "*"}
-                  </span>
-                  /<br />
-                </span>
-              ))}
+        {manifestUri && (
+          <div className="cols-detail-section">
+            <div className="cols-detail-label">Manifest index</div>
+            <div
+              className="font-mono text-xs"
+              style={{
+                color: "var(--color-text-tertiary)",
+                wordBreak: "break-all",
+                lineHeight: 1.55,
+              }}
+            >
+              {manifestUri}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1147,19 +1294,19 @@ function PivotDetail({
 function PivotHeader({
   ds,
   ag,
-  cols,
+  axes,
   selections,
   clearSelection,
 }: {
   ds: ServiceDataset;
   ag: string;
-  cols: PivotColumn[];
+  axes: string[];
   selections: Selections;
   clearSelection: (axis: string) => void;
 }) {
   const a = ds.agData[ag];
-  const segments = cols
-    .map((c) => ({ axis: c.axis, value: selections[c.axis] }))
+  const segments = ["asset_group", ...axes]
+    .map((axis) => ({ axis, value: selections[axis] }))
     .filter((s) => s.value) as { axis: string; value: string }[];
   return (
     <div style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
@@ -1184,8 +1331,8 @@ function PivotHeader({
         </span>
         {segments.length <= 1 ? (
           <span className="text-xs muted">
-            Pick a value in any column to pin it. Click a pinned value again to
-            unpin.
+            Pick a value in any column to pin it. Each column shows only values
+            that co-occur with the pins. Click a pinned value again to unpin.
           </span>
         ) : (
           segments.map((s) => (
@@ -1204,7 +1351,7 @@ function PivotHeader({
         )}
         <div style={{ flex: 1 }} />
         <span className="text-xs muted font-mono">
-          {fmtNumber(a.total.total)} shards · {cols.length - 1} axes + date
+          {fmtNumber(a.total.total)} shards · {axes.length} axes
         </span>
       </div>
     </div>
@@ -1220,31 +1367,80 @@ export function VisualColumns({
   filters: Filters;
   onCellClick: (p: CellClick) => void;
 }) {
+  void filters; // date range comes from `ds.start`/`ds.end`; kept for API parity.
   const initialAg = ds.ags[0];
   const [selections, setSelections] = useState<Selections>({
     asset_group: initialAg,
   });
+  // Loaded items per axis (from the drilldown columns) — drives auto-advance of
+  // the instrument_id axis and supplies the leaf row_key for downloads.
+  const [columnItems, setColumnItems] = useState<Record<string, ColumnState>>(
+    {},
+  );
+
+  const ag = selections.asset_group || ds.ags[0];
 
   useEffect(() => {
     setSelections({ asset_group: ds.ags[0] });
+    setColumnItems({});
   }, [ds.service, ds.ags]);
 
-  const ag = selections.asset_group || ds.ags[0];
-  const cols = useMemo(
-    () => buildPivotColumns(ds, ag, filters),
-    [ds, ag, filters.start, filters.end],
-  );
+  // The ordered shard axes come from the backend drilldown (authoritative for
+  // this (service, asset_group)). Fetched once per AG via the unfiltered call,
+  // so columns reflect the REAL shard atom — instruments-service shows only
+  // [venue, date] (no junk data_type/instrument_type), DeFi MTDS shows
+  // [venue, chain, data_type, instrument_id, date], etc.
+  // The ordered shard axes are STATIC config (the canonical shard atom for this
+  // service × asset_group) — they come from `/config/shard-axis-matrix`, NOT a
+  // GCS drilldown. Sourcing them from the matrix is instant + reliable (a cold
+  // drilldown read raced/aborted and left the cascade showing "0 axes"), and it
+  // is authoritative: instruments-service resolves to just [venue] (+ chain for
+  // defi) so it never shows junk data_type/instrument_type columns. We append
+  // `date` as the leaf axis (the drilldown appends it server-side too).
+  const [axes, setAxes] = useState<string[]>([]);
+  const { service: dsService, start: dsStart, end: dsEnd } = ds;
+  useEffect(() => {
+    if (!ag) {
+      setAxes([]);
+      return;
+    }
+    const controller = new AbortController();
+    setColumnItems({});
+    getShardAxisMatrix(dsService, controller.signal)
+      .then((m) => {
+        if (controller.signal.aborted) return;
+        const sa = m.shard_axes?.[dsService]?.[ag.toLowerCase()] ?? [];
+        setAxes(sa.includes("date") ? [...sa] : [...sa, "date"]);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setAxes([]);
+      });
+    return () => controller.abort();
+  }, [dsService, dsStart, dsEnd, ag]);
 
   const setAxis = (axis: string, value: string) => {
     setSelections((s) => {
       const next: Selections = { ...s };
       if (next[axis] === value) {
-        if (axis !== "asset_group") delete next[axis];
+        if (axis !== "asset_group") {
+          // Unpin this axis AND every deeper axis (prefix invariant).
+          const idx = axis === "asset_group" ? -1 : axes.indexOf(axis);
+          delete next[axis];
+          if (idx >= 0) {
+            for (let i = idx + 1; i < axes.length; i++) delete next[axes[i]];
+          }
+        }
       } else {
         next[axis] = value;
         if (axis === "asset_group") {
           for (const k of Object.keys(next))
             if (k !== "asset_group") delete next[k];
+        } else {
+          // Pinning a new value invalidates every deeper pin.
+          const idx = axes.indexOf(axis);
+          for (let i = idx + 1; i < axes.length; i++) delete next[axes[i]];
         }
       }
       return next;
@@ -1254,8 +1450,62 @@ export function VisualColumns({
     setSelections((s) => {
       const next = { ...s };
       delete next[axis];
+      const idx = axes.indexOf(axis);
+      if (idx >= 0) {
+        for (let i = idx + 1; i < axes.length; i++) delete next[axes[i]];
+      }
       return next;
     });
+
+  const handleItems = (axis: string, state: ColumnState) => {
+    setColumnItems((prev) => {
+      const existing = prev[axis];
+      if (
+        existing &&
+        existing.loading === state.loading &&
+        existing.error === state.error &&
+        existing.capped === state.capped &&
+        existing.items.length === state.items.length &&
+        existing.items.every((it, i) => it.value === state.items[i]?.value)
+      ) {
+        return prev;
+      }
+      return { ...prev, [axis]: state };
+    });
+  };
+
+  // Auto-advance the instrument_id axis when it is the next unpinned axis and
+  // the slice has NO distinct instrument_ids (bundled data_type → blank id).
+  // Pin "" so the `date` column (which follows instrument_id) can render.
+  useEffect(() => {
+    const idIdx = axes.indexOf("instrument_id");
+    if (idIdx < 0) return;
+    // Only auto-advance when the contiguous prefix up to instrument_id is
+    // pinned and instrument_id itself is unpinned.
+    for (let i = 0; i < idIdx; i++) {
+      if (selections[axes[i]] == null) return;
+    }
+    if (selections.instrument_id != null) return;
+    const st = columnItems.instrument_id;
+    if (st && !st.loading && !st.error && st.items.length === 0) {
+      setSelections((s) => ({ ...s, instrument_id: "" }));
+    }
+  }, [axes, selections, columnItems]);
+
+  // Resolve the deepest pinned node's exact row_key for the download.
+  const leafRowKey = useMemo(() => {
+    let deepest: Record<string, string> | null = null;
+    for (const axis of axes) {
+      const val = selections[axis];
+      if (val == null) break;
+      const st = columnItems[axis];
+      const match = st?.items.find((it) => it.value === val);
+      if (match && Object.keys(match.rowKey).length > 0) {
+        deepest = match.rowKey;
+      }
+    }
+    return deepest;
+  }, [axes, selections, columnItems]);
 
   if (!ag || !ds.agData[ag]) {
     return (
@@ -1272,26 +1522,35 @@ export function VisualColumns({
       <PivotHeader
         ds={ds}
         ag={ag}
-        cols={cols}
+        axes={axes}
         selections={selections}
         clearSelection={clearSelection}
       />
       <div className="cols-wrap">
-        {cols.map((col) => (
-          <PivotColumnPanel
-            key={col.axis}
+        <AssetGroupColumn
+          ds={ds}
+          selections={selections}
+          onSelect={(v) => setAxis("asset_group", v)}
+        />
+        {axes.map((axis, depth) => (
+          <DrilldownColumn
+            key={axis}
             ds={ds}
             ag={ag}
-            col={col}
+            axis={axis}
+            depth={depth}
+            axes={axes}
             selections={selections}
-            onSelect={(v) => setAxis(col.axis, v)}
+            onSelect={(v) => setAxis(axis, v)}
+            onItems={handleItems}
           />
         ))}
         <PivotDetail
           ds={ds}
           ag={ag}
+          axes={axes}
           selections={selections}
-          cols={cols}
+          leafRowKey={leafRowKey}
           onCellClick={onCellClick}
         />
       </div>

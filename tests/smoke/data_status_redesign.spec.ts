@@ -191,42 +191,126 @@ const GRID = {
   },
 };
 
-const DRILLDOWN = {
-  service: SERVICE,
-  asset_group: "cefi",
-  axes: ["venue", "data_type", "instrument_type", "date"],
-  tree: [
-    {
-      axis: "venue",
-      value: "BINANCE",
-      captured: 100,
+// Axis-ordered drilldown fixture for CEFI. The mock returns children for the
+// NEXT axis given the pinned (contiguous-prefix) filters in the query, so the
+// test exercises REAL narrowing (BINANCE → only book_snapshot_5/trades, etc.),
+// not the old static cross-product.
+const DRILLDOWN_AXES = ["venue", "data_type", "instrument_type", "date"];
+
+// children[depth] = the value set for axes[depth], keyed by the parent value at
+// the previous axis. A single value per venue proves the narrowing (the column
+// would otherwise show the full union).
+function drilldownNode(
+  axis: string,
+  value: string,
+  rowKey: Record<string, string>,
+  completion: number,
+) {
+  const captured = Math.round(completion);
+  return {
+    axis,
+    value,
+    captured,
+    empty_confirmed: 2,
+    attempted_failed: 0,
+    total: captured + 2,
+    completion_pct: completion,
+    row_key: rowKey,
+    children: [],
+    is_leaf: axis === "date",
+  };
+}
+
+function drilldownTreeFor(filters: Record<string, string>) {
+  const depth = DRILLDOWN_AXES.filter(
+    (a) => filters[a] != null && filters[a] !== "",
+  ).length;
+  const axis = DRILLDOWN_AXES[depth];
+  if (axis === "venue") {
+    return ["BINANCE", "BYBIT"].map((v) =>
+      drilldownNode("venue", v, { venue: v }, v === "BINANCE" ? 95 : 80),
+    );
+  }
+  if (axis === "data_type") {
+    // BINANCE narrows to a SINGLE real data_type — proves co-occurrence.
+    const dt = filters.venue === "BINANCE" ? "book_snapshot_5" : "trades";
+    return [
+      drilldownNode(
+        "data_type",
+        dt,
+        { venue: filters.venue, data_type: dt },
+        90,
+      ),
+    ];
+  }
+  if (axis === "instrument_type") {
+    return [
+      drilldownNode(
+        "instrument_type",
+        "perpetual",
+        {
+          venue: filters.venue,
+          data_type: filters.data_type,
+          instrument_type: "perpetual",
+        },
+        88,
+      ),
+    ];
+  }
+  if (axis === "date") {
+    // Non-zero per-date completion — proves the date column is real, not 0%.
+    return ["2026-05-10", "2026-05-11"].map((d, i) =>
+      drilldownNode(
+        "date",
+        d,
+        {
+          venue: filters.venue,
+          data_type: filters.data_type,
+          instrument_type: filters.instrument_type,
+          date: d,
+        },
+        i === 0 ? 100 : 75,
+      ),
+    );
+  }
+  return [];
+}
+
+function drilldownResponse(url: URL) {
+  const filters: Record<string, string> = {};
+  for (const a of DRILLDOWN_AXES) {
+    const v = url.searchParams.get(a);
+    if (v != null) filters[a] = v;
+  }
+  const tree = drilldownTreeFor(filters);
+  const captured = tree.reduce((s, n) => s + n.captured, 0);
+  const total = tree.reduce((s, n) => s + n.total, 0);
+  return {
+    service: SERVICE,
+    asset_group: "cefi",
+    axes: DRILLDOWN_AXES,
+    tree,
+    totals: {
+      captured,
       empty_confirmed: 5,
       attempted_failed: 0,
-      total: 105,
-      completion_pct: 95.2,
-      row_key: { venue: "BINANCE" },
-      children: [],
-      is_leaf: false,
+      total: total || 105,
+      completion_pct: 92.5,
     },
-  ],
-  totals: {
-    captured: 100,
-    empty_confirmed: 5,
-    attempted_failed: 0,
-    total: 105,
-    completion_pct: 95.2,
-  },
-  filtered_by: {},
-  reason_summary: {
-    captured: 270,
-    empty_calendar: 12,
-    fail_not_found: 60,
-    fail_auth: 4,
-  },
-  total_top_axis_children: 1,
-  child_offset: 0,
-  child_limit: 200,
-};
+    filtered_by: filters,
+    manifest_uri:
+      "gs://market-data-tick-cefi-prd/_index/availability_index.parquet",
+    reason_summary: {
+      captured: 270,
+      empty_calendar: 12,
+      fail_not_found: 60,
+      fail_auth: 4,
+    },
+    total_top_axis_children: tree.length,
+    child_offset: 0,
+    child_limit: 500,
+  };
+}
 
 interface Hits {
   turbo: number;
@@ -271,9 +355,10 @@ async function setupMocks(page: Page): Promise<Hits> {
     route.fulfill({ json: GRID });
   });
 
-  await page.route("**/api/data-status/drilldown/**", (route) =>
-    route.fulfill({ json: DRILLDOWN }),
-  );
+  await page.route("**/api/data-status/drilldown/**", (route) => {
+    const url = new URL(route.request().url());
+    route.fulfill({ json: drilldownResponse(url) });
+  });
 
   await page.route("**/api/data-status/drilldown-pairs", (route) =>
     route.fulfill({ json: [{ service: SERVICE, asset_group: "cefi" }] }),
@@ -375,15 +460,67 @@ test.describe("Data Status redesign — Batch 1", () => {
     await gotoDataStatus(page);
 
     await page.getByRole("button", { name: "Columns" }).click();
-    // Drill into the first primary value (venue) to expose the leaf actions.
-    await page.getByText("BINANCE", { exact: true }).first().click();
+    // CEFI is the default-pinned asset_group; pin a venue to expose the leaf
+    // actions. Scope clicks to the columns grid so we don't hit the AG tiles
+    // above (which open the drawer).
+    const cols = page.locator(".cols-wrap");
+    await cols.getByText("BINANCE", { exact: true }).first().click();
 
-    // The Download button is present in the columns leaf-action row. It calls
-    // buildCsvDownloadUrl(...) (asserted in tests/unit/client-branches.test.ts);
-    // here we only guard that the control renders without crashing.
+    // The Download button is present in the detail leaf-action row. It is
+    // DISABLED until a date is pinned (no fabricated tuple → no 404).
+    const download = page
+      .locator(".cols-col-detail")
+      .getByRole("button", { name: "Download", exact: true });
+    await expect(download).toBeVisible();
+    await expect.poll(async () => download.isEnabled()).toBe(false);
+    expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+  });
+
+  test("Columns: pinning a venue narrows the data_type column to its real co-occurring values (not the union)", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await setupMocks(page);
+    await gotoDataStatus(page);
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    const cols = page.locator(".cols-wrap");
+    await cols.getByText("BINANCE", { exact: true }).first().click();
+
+    // The data_type column now shows ONLY BINANCE's co-occurring data_type
+    // (book_snapshot_5 from the mock) — real narrowing, not the static union.
     await expect(
-      page.getByRole("button", { name: /Download/ }).first(),
+      cols.getByText("book_snapshot_5", { exact: true }).first(),
     ).toBeVisible();
+    // `trades` is BYBIT's data_type in the mock — it must NOT appear under
+    // BINANCE (proves the old cross-product union is gone).
+    await expect(cols.getByText("trades", { exact: true })).toHaveCount(0);
+    expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+  });
+
+  test("Columns: the date column shows non-zero per-date coverage (fixes the always-0% bug)", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await setupMocks(page);
+    await gotoDataStatus(page);
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    const cols = page.locator(".cols-wrap");
+    await cols.getByText("BINANCE", { exact: true }).first().click();
+    await cols.getByText("book_snapshot_5", { exact: true }).first().click();
+    await cols.getByText("perpetual", { exact: true }).first().click();
+
+    // The date column renders real dates (formatted "10 May 2026") with a
+    // non-zero coverage % (100% for the first mocked date) — NOT 0%.
+    const dateRow = cols
+      .locator(".cols-row-date")
+      .filter({ hasText: "10 May 2026" })
+      .first();
+    await expect(dateRow).toBeVisible();
+    await expect(dateRow).toContainText("100%");
     expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
   });
 
@@ -430,7 +567,7 @@ test.describe("Data Status redesign — Batch 1", () => {
     expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
   });
 
-  test("Columns Download enables once a venue + date are pinned and builds a well-formed URL", async ({
+  test("Columns Download is disabled until a leaf (venue+date) is pinned, then builds a URL with the pinned tuple", async ({
     page,
   }) => {
     const errors: string[] = [];
@@ -439,23 +576,34 @@ test.describe("Data Status redesign — Batch 1", () => {
     await gotoDataStatus(page);
 
     await page.getByRole("button", { name: "Columns" }).click();
+    const cols = page.locator(".cols-wrap");
 
-    // Drill into a venue to expose the date column + leaf actions.
-    await page.getByText("BINANCE", { exact: true }).first().click();
-
-    const download = page.getByRole("button", { name: /Download/ }).first();
+    const download = page
+      .locator(".cols-col-detail")
+      .getByRole("button", { name: "Download", exact: true });
     await expect(download).toBeVisible();
+    // No venue/date yet → disabled (guarantees we never target a phantom shard).
+    await expect.poll(async () => download.isEnabled()).toBe(false);
 
-    // Pin a date (the date column lists days). Pick the first available day cell
-    // value; date labels are rendered in the date pivot column.
-    const dayCandidate = page.getByText(/2026-05-\d{2}/).first();
-    if (await dayCandidate.count()) {
-      await dayCandidate.click();
-    }
+    // Walk the cascade: venue → data_type → instrument_type → date.
+    await cols.getByText("BINANCE", { exact: true }).first().click();
+    await cols.getByText("book_snapshot_5", { exact: true }).first().click();
+    await cols.getByText("perpetual", { exact: true }).first().click();
+    await cols.getByText("10 May 2026", { exact: true }).first().click();
 
-    // Once venue + date are pinned the Download button must be enabled (the old
-    // bug kept it disabled because data_type / instrument_type were unset).
+    // With the full leaf pinned, Download is enabled and opens a CSV URL that
+    // carries the pinned tuple (taken from the leaf node's row_key).
     await expect.poll(async () => download.isEnabled()).toBe(true);
+
+    const popupPromise = page.waitForEvent("popup");
+    await download.click();
+    const popup = await popupPromise;
+    const url = popup.url();
+    expect(url).toContain("/data-status/download-csv");
+    expect(url).toContain("venue=BINANCE");
+    expect(url).toContain("day=2026-05-10");
+    expect(url).toContain("data_type=book_snapshot_5");
+    expect(url).toContain("instrument_type=perpetual");
     expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
   });
 });

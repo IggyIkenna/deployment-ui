@@ -92,17 +92,4 @@ describe("toAgData primaryMeta projection", () => {
     const ag = toAgData(turboBlock(), "venue", []);
     expect(Object.keys(ag.primaryMeta).sort()).toEqual(["ASTER", "BINANCE"]);
   });
-
-  it("prefills small-axis values (data_type / instrument_type) by unioning per-venue turbo", () => {
-    // Regression guard: the Batch-1 re-architecture left the AG-level
-    // `data_types` map empty for MTDS/MDPS, so the Columns layout showed empty
-    // data_type / instrument_type. axisValuesOf must union the per-venue
-    // sub-dimensions instead.
-    const ag = toAgData(turboBlock(), "venue", ["data_type", "instrument_type"]);
-    expect(ag.axisValues.data_type).toEqual(
-      ["book_snapshot_5", "derivative_ticker", "liquidations", "trades"], // sorted union
-    );
-    // Case-drift is preserved (surfaces the PERPETUAL/perpetual data bug).
-    expect(ag.axisValues.instrument_type).toEqual(["PERPETUAL", "perpetual", "spot_pair"]);
-  });
 });
