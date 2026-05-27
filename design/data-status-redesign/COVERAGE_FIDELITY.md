@@ -159,6 +159,20 @@ discards every per-venue completion field turbo already provides. Result: the op
 5. **Manifest v8 only:** filter reads to `schema_version == 8` where a column exists (defensive;
    indexes are already pure-v8).
 
+## 4b. Finding — drilldown tree hides bundled-data_type failures (use reason_summary)
+
+The drilldown axis order for MTDS DeFi is `venue → chain → data_type → instrument_id → date`.
+Bundled data_types (`dex_swaps`, `dex_pool_swaps`, `oracle_prices`, …) have **blank
+`instrument_id`** (the shard atom is venue+chain+data_type+date, no per-instrument row).
+`_children_for_axis` drops blank-valued axis nodes (`v != "" and v != "nan"`), so those rows never
+materialise a leaf and **disappear from the tree** — e.g. DeFi/ARBITRUM April: 60 `dex_swaps`
+failures (`404 GET https`) are invisible in the leaf tree. They ARE counted in the response-level
+`totals` + `reason_summary` (`{captured:270, fail_not_found:60}`), which is therefore the
+**authoritative** failure surface. The redesign reason panel binds `reason_summary`, NOT the leaf
+tree, so failures are never hidden. (Proper fix — collapse the spurious instrument_id axis for
+bundled data_types in the tree — is a drilldown-shape change tracked as a follow-up, not this UI
+pass.)
+
 ## 5. Reason taxonomy (closed set the UI binds)
 
 `captured` · `empty_calendar` (EXPECTED_HOLIDAY/WEEKEND/PAUSED/SEASON/…) ·
