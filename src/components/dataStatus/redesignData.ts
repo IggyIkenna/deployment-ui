@@ -261,19 +261,46 @@ function subDimensionsOf(
   return {};
 }
 
-/** Distinct values for the small breakdown axes, derived from turbo maps. */
+/** Sorted unique non-blank strings. */
+function uniqSorted(values: Iterable<string>): string[] {
+  const set = new Set<string>();
+  for (const v of values) {
+    const s = (v ?? "").trim();
+    if (s && s.toLowerCase() !== "nan") set.add(s);
+  }
+  return [...set].sort();
+}
+
+/** Distinct values for the small breakdown axes — the "cheap shallow" pre-fill
+ * the Columns layout needs so data_type / instrument_type / chain columns are
+ * never empty. Derived entirely from the ALREADY-fetched turbo block (no extra
+ * manifest read): AG-level maps PLUS a union across the per-venue sub-dimensions
+ * (`expected_data_types` / `data_types` / `honest_data_types` /
+ * `instrument_types`), because turbo puts these per-venue for MTDS/MDPS and
+ * leaves the AG-level `data_types` map empty. The heavy axes (`instrument_id`,
+ * `date`) are deliberately NOT pre-filled — they stay lazy / drilldown-resolved
+ * on the backend. */
 function axisValuesOf(
   ag: TurboAssetGroupStatus,
   breakdownAxes: string[],
 ): Record<string, string[]> {
+  const venues = Object.values(ag.venues ?? {});
   const out: Record<string, string[]> = {};
   for (const axis of breakdownAxes) {
-    if (axis === "data_type" && ag.data_types) {
-      out[axis] = Object.keys(ag.data_types);
-    } else if (axis === "chain" && ag.chains) {
-      out[axis] = Object.keys(ag.chains);
-    } else if (axis === "instrument_type" && ag.folders) {
-      out[axis] = Object.keys(ag.folders);
+    if (axis === "data_type") {
+      out[axis] = uniqSorted([
+        ...Object.keys(ag.data_types ?? {}),
+        ...venues.flatMap((v) => v.expected_data_types ?? []),
+        ...venues.flatMap((v) => Object.keys(v.data_types ?? {})),
+        ...venues.flatMap((v) => Object.keys(v.honest_data_types ?? {})),
+      ]);
+    } else if (axis === "instrument_type") {
+      out[axis] = uniqSorted([
+        ...Object.keys(ag.folders ?? {}),
+        ...venues.flatMap((v) => Object.keys(v.instrument_types ?? {})),
+      ]);
+    } else if (axis === "chain") {
+      out[axis] = uniqSorted(Object.keys(ag.chains ?? {}));
     }
     // instrument_id / fixture_id / league_id stay lazy (drilldown-only).
   }

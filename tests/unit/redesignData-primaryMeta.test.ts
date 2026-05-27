@@ -27,6 +27,11 @@ function turboBlock(): TurboAssetGroupStatus {
         missing_dates: ["should-not-be-used"],
         missing_data_types: ["funding"],
         completion_pct: 96.4,
+        // Per-venue small-axis sources (MTDS/MDPS put these per-venue; the
+        // AG-level `data_types` map is empty). axisValuesOf must union them.
+        expected_data_types: ["trades", "book_snapshot_5"],
+        data_types: { trades: {}, derivative_ticker: {} },
+        instrument_types: { perpetual: {}, PERPETUAL: {} },
         capture_status_counts: {
           captured: 150,
           empty_confirmed: 6,
@@ -41,6 +46,8 @@ function turboBlock(): TurboAssetGroupStatus {
         // List truncated to first 2 of 30.
         dates_missing_list: ["2026-04-01", "2026-04-02"],
         completion_pct: 0,
+        expected_data_types: ["liquidations"],
+        instrument_types: { spot_pair: {} },
         capture_status_counts: {
           captured: 0,
           empty_confirmed: 0,
@@ -84,5 +91,18 @@ describe("toAgData primaryMeta projection", () => {
   it("populates one primaryMeta entry per primary value", () => {
     const ag = toAgData(turboBlock(), "venue", []);
     expect(Object.keys(ag.primaryMeta).sort()).toEqual(["ASTER", "BINANCE"]);
+  });
+
+  it("prefills small-axis values (data_type / instrument_type) by unioning per-venue turbo", () => {
+    // Regression guard: the Batch-1 re-architecture left the AG-level
+    // `data_types` map empty for MTDS/MDPS, so the Columns layout showed empty
+    // data_type / instrument_type. axisValuesOf must union the per-venue
+    // sub-dimensions instead.
+    const ag = toAgData(turboBlock(), "venue", ["data_type", "instrument_type"]);
+    expect(ag.axisValues.data_type).toEqual(
+      ["book_snapshot_5", "derivative_ticker", "liquidations", "trades"], // sorted union
+    );
+    // Case-drift is preserved (surfaces the PERPETUAL/perpetual data bug).
+    expect(ag.axisValues.instrument_type).toEqual(["PERPETUAL", "perpetual", "spot_pair"]);
   });
 });
