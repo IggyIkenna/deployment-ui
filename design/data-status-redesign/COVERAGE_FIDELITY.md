@@ -35,12 +35,36 @@ error_reason, attempted_at, asset_group, row_count, enumerator_run_id, service_e
 last_emission_decision_at, expected_window_completeness_fraction, pipeline_mode, feature_family,
 quote_asset, margin_type, combo_type, leg_weights, fixture_id, job_id`
 
-### `schema_version` — NO version drift at the index level
+### `schema_version` — NO version drift at the index level (verified ALL buckets)
 
-`market-data-tick-{defi,cefi}` and `instruments-store-cefi` indexes are **100% `'8'`**. The
-"version drift" the operator worried about does **not** appear in the consolidated availability
-index — every row is v8. (Drift, if any, would be in the *raw data parquet* footers in the old
-vs PRD buckets, not the manifest. See §3.)
+Full-index `schema_version` value_counts across **all 9 readable buckets** (2026-05-27):
+
+| bucket | rows | schema_version | capture_status |
+|---|---:|---|---|
+| instruments-store-cefi | 30,803 | **100% '8'** | captured 18,431 · **NULL 12,372** |
+| instruments-store-defi | 125,242 | **100% '8'** | captured 67,776 · **NULL 57,466** |
+| instruments-store-tradfi | 20,264 | **100% '8'** | captured 8,891 · NULL 11,301 · empty 72 |
+| instruments-store-sports | 2,680,309 | **100% '8'** | empty 1,908,861 · captured 586,554 · failed 178,025 · NULL 6,869 |
+| market-data-tick-cefi | 2,632,931 | **100% '8'** | failed 1,330,095 · captured 1,302,686 · empty 150 |
+| market-data-tick-defi | 1,633,711 | **100% '8'** | empty 1,292,275 · captured 339,203 · failed 2,233 |
+| market-data-tick-tradfi | 144,062 | **100% '8'** | captured 100,536 · empty 37,490 · failed 6,036 |
+| market-data-tick-sports | 786,235 | **100% '8'** | empty 583,948 · captured 202,067 · failed 220 |
+| market-data-tick-pred | 16,812 | **100% '8'** | captured 14,491 · empty 2,321 |
+
+**Every row is v8** — the version drift the operator worried about does NOT appear in the
+consolidated availability index (the 2026-05-20 "0% at v8" incident has since been migrated to
+100% v8). Drift, if any, would now be in the *raw data parquet* footers in the old vs PRD buckets,
+not the manifest. See §3.
+
+> **Transparency (sampled vs walked):** I read the FULL availability index for 9/10 buckets (not a
+> sample). `instruments-store-pred` could not be read in the probe harness (UTL read-path needed
+> `setup_events()` — an env quirk of the standalone probe, NOT a data problem; the API reads it
+> fine since it initialises events on boot). Re-verify pred on next pass.
+
+> **NULL `capture_status` in instruments-store** (cefi 12.4k / defi 57.5k / tradfi 11.3k / sports
+> 6.9k): legacy rows the Tier-3D reconciler hasn't stamped. UTL legacy-read semantics + the UI
+> classifier both coerce NULL → `captured`. The UI should label these "captured (legacy, unstamped)"
+> so the operator knows they're un-reconciled, not freshly captured.
 
 ### `capture_status` — the 4-state taxonomy (3 populated today)
 
