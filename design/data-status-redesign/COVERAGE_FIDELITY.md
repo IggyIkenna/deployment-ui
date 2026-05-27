@@ -255,10 +255,15 @@ Rewired to be drilldown-driven:
 > download endpoint tuples that don't exist. The endpoint's 404/502 responses (no manifest row /
 > phantom path-drift) are the honest backend behaviour.
 
-**Known cost / follow-up:** the first value-drilldown per bucket is a cold ~6–10s index read
-(columns render instantly from the matrix; values stream in with a per-column "loading…"). Backend
-index-read caching/coalescing is the deferred fix that would make this snappy — it now gates the
-cascade + the drawer Why panel, so it's the top backend follow-up.
+**Cold-read latency — FIXED (deployment-api@40915b5).** UTL caches the 172MB index for only 60s
+(per-process) and the API runs 3 workers, so drilldown cold reads recurred ~every minute and up to
+3× (one per worker). Added a deployment-api-side 5-min index cache (`index_cache.read_index_cached`,
+used by hierarchical drilldown + grid, flushed by Clear cache). Verified: after warm-up (one cold
+read per worker), calls across a 70s idle gap stayed ~1.3s (were all cold before). Cold now recurs
+only after 5-min idle / on Clear cache / on first hit of a new service bucket — NOT every minute.
+Residual: first open of a service still pays one cold read per worker (3×) before all warm; a shared
+cache would remove that but needs an external store — deferred (acceptable: a few cold reads on
+first open, then 5 min smooth).
 
 ### MDPS (market-data-processing-service) expectation
 MDPS shares the `market-data-tick-*` buckets with MTDS (distinguished by processed `data_type`s).
