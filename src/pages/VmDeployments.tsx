@@ -32,6 +32,29 @@ function formatProgress(entry: VmDeploymentEntry): string {
   return `${pct}% (${done.toLocaleString()}/${total.toLocaleString()})`;
 }
 
+function formatUptime(hours: number | null | undefined): string {
+  if (!hours) return "—";
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 24) return `${hours.toFixed(1)}h`;
+  return `${Math.floor(hours / 24)}d ${Math.round(hours % 24)}h`;
+}
+
+function getHealthBadgeVariant(status: string | undefined): "success" | "warning" | "error" | "default" {
+  switch (status) {
+    case "producing":
+      return "success";
+    case "starting":
+    case "idle":
+      return "warning";
+    case "stalled":
+    case "stopped":
+    case "boot-hung":
+      return "error";
+    default:
+      return "default";
+  }
+}
+
 function formatTimestamp(value: string | null): string {
   if (!value) return "—";
   try {
@@ -95,15 +118,16 @@ export function VmDeployments() {
           <table className="w-full">
             <thead>
               <tr>
-                <th className="table-header-cell">Deployment</th>
                 <th className="table-header-cell">Name</th>
-                <th className="table-header-cell">Asset group</th>
-                <th className="table-header-cell">Task / Mode</th>
-                <th className="table-header-cell">Status</th>
+                <th className="table-header-cell">Machine Type</th>
+                <th className="table-header-cell">Zone</th>
+                <th className="table-header-cell">Asset Group</th>
+                <th className="table-header-cell">Task</th>
+                <th className="table-header-cell">Health</th>
                 <th className="table-header-cell">Progress</th>
                 <th className="table-header-cell text-right">Errors</th>
-                <th className="table-header-cell">Started</th>
-                <th className="table-header-cell">Last Heartbeat</th>
+                <th className="table-header-cell">Uptime</th>
+                <th className="table-header-cell">Last Activity</th>
                 <th className="table-header-cell"></th>
               </tr>
             </thead>
@@ -120,23 +144,38 @@ export function VmDeployments() {
               ) : (
                 rows.map((r) => (
                   <tr key={r.deployment_id} className="table-row">
-                    <td className="table-cell font-mono text-xs">
-                      {r.deployment_id.slice(0, 8)}…
-                    </td>
                     <td className="table-cell font-semibold text-xs">
-                      {r.vm_name}
+                      <div title={`ID: ${r.deployment_id}`}>
+                        {r.vm_name}
+                      </div>
+                    </td>
+                    <td className="table-cell text-xs">
+                      {(r as any).machine_type || "—"}
+                    </td>
+                    <td className="table-cell text-xs">
+                      {(r as any).zone || "—"}
                     </td>
                     <td className="table-cell">{r.asset_group}</td>
                     <td className="table-cell text-xs">
-                      {r.task} / {r.mode}
+                      <div>{r.task}</div>
+                      <div className="text-[var(--color-text-muted)]">{r.mode}</div>
                     </td>
                     <td className="table-cell">
-                      <Badge
-                        variant={STATUS_VARIANT[r.status] ?? "default"}
-                        data-testid={`status-${r.status}`}
-                      >
-                        {r.status}
-                      </Badge>
+                      {(r as any).health_status ? (
+                        <Badge
+                          variant={getHealthBadgeVariant((r as any).health_status)}
+                          data-testid={`health-${(r as any).health_status}`}
+                        >
+                          {(r as any).health_status}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={STATUS_VARIANT[r.status] ?? "default"}
+                          data-testid={`status-${r.status}`}
+                        >
+                          {r.status}
+                        </Badge>
+                      )}
                       {r.exit_code != null && (
                         <span className="text-[var(--color-text-muted)] text-xs ml-2">
                           rc={r.exit_code}
@@ -164,7 +203,7 @@ export function VmDeployments() {
                       className="table-cell text-xs text-[var(--color-text-muted)]"
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
-                      {formatTimestamp(r.started_at)}
+                      {formatUptime((r as any).uptime_hours)}
                     </td>
                     <td
                       className="table-cell text-xs text-[var(--color-text-muted)]"
@@ -177,7 +216,7 @@ export function VmDeployments() {
                         to={`/vm-deployments/${encodeURIComponent(r.deployment_id)}`}
                         className="text-xs text-[var(--color-accent-blue)] hover:underline"
                       >
-                        Events
+                        Details
                       </Link>
                     </td>
                   </tr>
