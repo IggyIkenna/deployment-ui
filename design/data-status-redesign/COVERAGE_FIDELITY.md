@@ -183,3 +183,43 @@ pass.)
 `fail_schema` (SCHEMA_VALIDATION_FAILED/CSV/malformed) · `fail_io` ([Errno …]) ·
 `fail_phantom` (phantom_captured_no_parquet…) · `fail_legacy_migration` (LegacyBlankErrorReasonError/THIRDKEY_DRIFT/bare_name_migrated) ·
 `fail_other` (catch-all — never silently drop).
+
+## 6. What shipped (2026-05-27)
+
+Backend (deployment-api `e6b8a9a`, `261bd1e`):
+- `reason_taxonomy.py` — `classify_reason` + vectorised `rollup_reasons_frame` (37 unit cases).
+- Drilldown response now carries `reason_summary` (categorised counts for the filtered slice —
+  authoritative, counts bundled-data_type rows the tree omits) + per-leaf `reason_category`.
+- Grid `_counts` → full 4-state + NULL `capture_status` → captured (fixes the ~57k-row undercount).
+
+UI (deployment-ui `89692e7`):
+- `reasonCategory.ts` — frontend SSOT (labels/tone/group/hint) mirroring the backend closed set.
+- `redesignData.AgData.primaryMeta` carries turbo per-venue completion (days with data / remaining,
+  missing-dates list, missing data_types, venue start).
+- **Stacked** visual shows per-venue `X/Y dates · N missing` + missing data_types.
+- **Drawer venue view**: Completion block (progress %, days with data / remaining, the actual
+  missing-date list +N more, missing-data_type chips) + **WHY panel** (instant coarse 3-state bar
+  from turbo cell, then categorised reason bars from the drilldown). Verified live: DeFi/ARBITRUM
+  Apr = 60 `fail_not_found`; CeFi/KRAKEN-SPOT = "360 captured · 465 failed" all `fail_legacy_migration`
+  (i.e. NOT real failures — the operator-insight the old UI hid).
+- **Columns Download fixed**: was permanently disabled (required data_type+instrument_type which are
+  blank/never-pinned for many shards incl. all instruments-service shards = venue+date only). Now
+  needs only venue+date; unpinned axes sent as "". Endpoint streams CSV for present parquets and
+  returns honest 502 path-drift / 404 never-attempted for phantom/missing — which now reads as the
+  phantom/missing surfacing rather than a dead button.
+- Fixed a spurious "unavailable" in the WHY + "By data type" panels (unstable whole-`ds` useEffect
+  dep self-aborting the fetch with no abort guard). Send lowercase `asset_group` (canonical + single
+  index cache key).
+
+### Known cost / follow-ups (NOT this pass)
+- First drilldown per bucket per process is a cold ~9s read of the raw index (172MB / up to 2.6M
+  rows); subsequent calls are cached (~0.15s). The coarse-immediate WHY bar masks the cold wait.
+  Proper fix = cache/pre-resolve the index read — deferred backend work.
+- Bundled-data_type drilldown-tree gap (§4b) — reason_summary covers it; tree fix deferred.
+
+### MDPS (market-data-processing-service) expectation
+MDPS shares the `market-data-tick-*` buckets with MTDS (distinguished by processed `data_type`s).
+Until the raw backfill completes, MDPS processed data_types are largely absent → they surface as
+`empty_*` / `pending` (honest) or `attempted_failed` rather than `captured`. The redesign shows this
+honestly (low completion + empty/pending reasons), so "MDPS looks empty" is expected + explained,
+not a UI bug. No separate MDPS code path — same components.
