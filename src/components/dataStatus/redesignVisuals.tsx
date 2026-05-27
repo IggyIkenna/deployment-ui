@@ -10,6 +10,7 @@ import {
   type AgData,
   type CellStats,
   type ServiceDataset,
+  type VenueCompletion,
 } from "./redesignData";
 import { Icons } from "./redesignIcons";
 import { buildCsvDownloadUrl } from "../../api/client";
@@ -282,11 +283,13 @@ import { CoverageStack } from "./redesignSummary";
 function VenueBarRow({
   primaryValue,
   stats,
+  meta,
   simplified,
   onClick,
 }: {
   primaryValue: string;
   stats: CellStats;
+  meta?: VenueCompletion;
   simplified: boolean;
   onClick: () => void;
 }) {
@@ -298,6 +301,7 @@ function VenueBarRow({
       : tone === "warn"
         ? "var(--color-accent-amber)"
         : "var(--color-accent-red)";
+  const missingDts = meta?.missingDataTypes ?? [];
   return (
     <div
       onClick={onClick}
@@ -325,12 +329,26 @@ function VenueBarRow({
           {primaryValue}
         </span>
       </div>
-      <CoverageStack
-        counts={stats}
-        total={stats.total}
-        simplified={simplified}
-        height="thick"
-      />
+      <div className="col" style={{ gap: 3, minWidth: 0 }}>
+        <CoverageStack
+          counts={stats}
+          total={stats.total}
+          simplified={simplified}
+          height="thick"
+        />
+        {meta && (meta.datesExpected > 0 || meta.datesFound > 0) && (
+          <span className="text-xs muted font-mono">
+            {meta.datesFound}/{meta.datesExpected} dates · {meta.datesMissing}{" "}
+            missing
+          </span>
+        )}
+        {missingDts.length > 0 && (
+          <span className="text-xs muted" style={{ fontSize: 10.5 }}>
+            missing: {missingDts.slice(0, 3).join(", ")}
+            {missingDts.length > 3 ? ` (+${missingDts.length - 3})` : ""}
+          </span>
+        )}
+      </div>
       <span
         className="font-mono text-xs"
         style={{ color: tc, fontWeight: 600, textAlign: "right" }}
@@ -431,6 +449,7 @@ export function VisualStacked({
                   key={primaryValue}
                   primaryValue={primaryValue}
                   stats={stats}
+                  meta={a.primaryMeta[primaryValue]}
                   simplified={simplified}
                   onClick={() => onVenueClick({ ag, primaryValue })}
                 />
@@ -1031,14 +1050,15 @@ function PivotDetail({
             </button>
             <div className="row" style={{ gap: 6 }}>
               {(() => {
-                // download-csv needs venue + day + instrument_type + data_type.
+                // The backend /download-csv resolves capture_status from the
+                // provided tuple and accepts empty data_type / instrument_type
+                // (these are blank for many shards in the cascade), so we only
+                // require service + venue + day. Unpinned axes pass as "".
                 const venue = selections.venue;
                 const day = selections.date;
-                const dataType = selections.data_type;
-                const instrumentType = selections.instrument_type;
-                const canDownload = Boolean(
-                  ds.service && venue && day && dataType && instrumentType,
-                );
+                const dataType = selections.data_type ?? "";
+                const instrumentType = selections.instrument_type ?? "";
+                const canDownload = Boolean(ds.service && venue && day);
                 const doDownload = () => {
                   if (!canDownload) return;
                   const url = buildCsvDownloadUrl({
@@ -1046,8 +1066,8 @@ function PivotDetail({
                     asset_group: ag,
                     venue: venue as string,
                     day: day as string,
-                    instrument_type: instrumentType as string,
-                    data_type: dataType as string,
+                    instrument_type: instrumentType,
+                    data_type: dataType,
                     instrument_ids: selections.instrument_id
                       ? [selections.instrument_id]
                       : [],
@@ -1070,7 +1090,7 @@ function PivotDetail({
                     title={
                       canDownload
                         ? "Download this shard's rows as CSV"
-                        : "Pin venue, data_type, instrument_type and a date to download"
+                        : "Pin at least a venue and a date"
                     }
                   >
                     <Icons.Download size={12} /> Download

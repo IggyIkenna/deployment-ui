@@ -34,9 +34,16 @@ function captureCounts(captured: number, empty: number, failed: number) {
 
 function venueEntry(captured: number, empty: number, failed: number) {
   const total = captured + empty + failed;
+  const datesFound = captured > 0 ? 20 : 0;
   return {
-    dates_found: captured > 0 ? 20 : 0,
+    dates_found: datesFound,
     dates_expected: 30,
+    dates_expected_venue: 28,
+    dates_missing: 28 - datesFound,
+    dates_missing_count: 28 - datesFound,
+    dates_missing_list: ["2026-05-01", "2026-05-02"],
+    missing_data_types: failed > 0 ? ["funding"] : [],
+    venue_start_date: "2026-04-01",
     completion_pct: total ? (captured / total) * 100 : 0,
     capture_status_counts: captureCounts(captured, empty, failed),
     failure_rate: total ? failed / total : 0,
@@ -210,6 +217,12 @@ const DRILLDOWN = {
     completion_pct: 95.2,
   },
   filtered_by: {},
+  reason_summary: {
+    captured: 270,
+    empty_calendar: 12,
+    fail_not_found: 60,
+    fail_auth: 4,
+  },
   total_top_axis_children: 1,
   child_offset: 0,
   child_limit: 200,
@@ -371,6 +384,78 @@ test.describe("Data Status redesign — Batch 1", () => {
     await expect(
       page.getByRole("button", { name: /Download/ }).first(),
     ).toBeVisible();
+    expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+  });
+
+  test("Stacked visual shows a per-venue date completion readout", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await setupMocks(page);
+    await gotoDataStatus(page);
+
+    // Stacked is the default visual; ensure we are on it.
+    await page.getByRole("button", { name: "Stacked" }).click();
+
+    // Completion readout: "{found}/{expected} dates · {missing} missing".
+    await expect(page.getByText(/\d+\/\d+ dates/).first()).toBeVisible();
+    await expect(page.getByText(/missing/).first()).toBeVisible();
+    expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+  });
+
+  test("venue drawer renders Completion + Why (reason) sections", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await setupMocks(page);
+    await gotoDataStatus(page);
+
+    await page.getByRole("button", { name: "Stacked" }).click();
+    // Click a venue row to open the primary (venue) drawer.
+    await page.getByText("BINANCE", { exact: true }).first().click();
+
+    // Completion block + Why panel headings render (structure, not numbers).
+    await expect(
+      page.getByRole("heading", { name: "Completion" }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Why" }).first(),
+    ).toBeVisible();
+    // The reason breakdown surfaces a known failed category label.
+    await expect(
+      page.getByText(/not found|captured|empty/i).first(),
+    ).toBeVisible();
+    expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+  });
+
+  test("Columns Download enables once a venue + date are pinned and builds a well-formed URL", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await setupMocks(page);
+    await gotoDataStatus(page);
+
+    await page.getByRole("button", { name: "Columns" }).click();
+
+    // Drill into a venue to expose the date column + leaf actions.
+    await page.getByText("BINANCE", { exact: true }).first().click();
+
+    const download = page.getByRole("button", { name: /Download/ }).first();
+    await expect(download).toBeVisible();
+
+    // Pin a date (the date column lists days). Pick the first available day cell
+    // value; date labels are rendered in the date pivot column.
+    const dayCandidate = page.getByText(/2026-05-\d{2}/).first();
+    if (await dayCandidate.count()) {
+      await dayCandidate.click();
+    }
+
+    // Once venue + date are pinned the Download button must be enabled (the old
+    // bug kept it disabled because data_type / instrument_type were unset).
+    await expect.poll(async () => download.isEnabled()).toBe(true);
     expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
   });
 });

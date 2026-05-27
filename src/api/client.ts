@@ -710,6 +710,10 @@ export interface DrilldownNode {
   row_key: Record<string, string>;
   children: DrilldownNode[];
   is_leaf: boolean;
+  /** Closed-set reason category for a true (deepest-axis) leaf — empty on
+   * intermediate nodes. One of `ReasonCategory` (see reasonCategory.ts).
+   * Source: deployment_api reason_taxonomy.ReasonCategory. */
+  reason_category?: string;
 }
 
 export interface DrilldownTotals {
@@ -720,12 +724,22 @@ export interface DrilldownTotals {
   completion_pct: number;
 }
 
+/** Closed-set reason-category → count for the filtered drilldown slice. Every
+ * `ReasonCategory` key is present (count 0 when unmatched). Source:
+ * deployment_api reason_taxonomy.rollup_reasons_frame. `{}` when the slice is
+ * too large to roll up (unfiltered whole-asset-group) — narrow the filter. */
+export type ReasonSummary = Record<string, number>;
+
 export interface DrilldownResponse {
   service: string;
   asset_group: string;
   axes: string[];
   tree: DrilldownNode[];
   totals: DrilldownTotals;
+  /** Per-category reason breakdown for the filtered slice (authoritative WHY —
+   * counts every captured/empty/failed row incl. bundled-data_type rows the
+   * tree omits). Empty object when the slice exceeds the backend row cap. */
+  reason_summary?: ReasonSummary;
   filtered_by: Record<string, string>;
   manifest_uri?: string;
   mock?: boolean;

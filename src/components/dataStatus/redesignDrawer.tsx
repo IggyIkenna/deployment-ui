@@ -7,12 +7,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchDrilldownLevel, type AxisValueCell } from "./dataStatusModel";
+import { getHierarchicalDrilldown, type ReasonSummary } from "../../api/client";
 import {
   mapStatusToCell,
   type AgData,
   type CellStats,
   type ServiceDataset,
+  type VenueCompletion,
 } from "./redesignData";
+import { groupReasonSummary, reasonMeta, REASON_ORDER } from "./reasonCategory";
 import { Icons } from "./redesignIcons";
 import { CoverageStack } from "./redesignSummary";
 import {
@@ -23,6 +26,317 @@ import {
   fmtNumber,
   ymd,
 } from "./redesignUtil";
+
+/** One-line headline from grouped reason counts. */
+function reasonHeadline(summary: ReasonSummary | undefined): string {
+  const g = groupReasonSummary(summary);
+  const parts: string[] = [];
+  if (g.captured) parts.push(`${fmtNumber(g.captured)} captured`);
+  if (g.empty) parts.push(`${fmtNumber(g.empty)} empty`);
+  if (g.failed) parts.push(`${fmtNumber(g.failed)} failed`);
+  if (g.phantom) parts.push(`${fmtNumber(g.phantom)} phantom`);
+  if (g.pending) parts.push(`${fmtNumber(g.pending)} pending`);
+  return parts.length ? parts.join(" · ") : "no rows";
+}
+
+const REASON_TONE_COLOR: Record<string, string> = {
+  captured: "var(--color-accent-green)",
+  empty: "var(--color-text-muted)",
+  failed: "var(--color-accent-red)",
+  partial: "var(--color-accent-amber)",
+  missing: "var(--color-text-tertiary)",
+};
+
+/** Date-level completion block for one venue (primary value). */
+function CompletionBlock({ meta }: { meta: VenueCompletion }) {
+  const pct = Math.max(0, Math.min(100, meta.completionPct));
+  const tone = pct >= 95 ? "good" : pct >= 85 ? "warn" : ("bad" as const);
+  const barColor =
+    tone === "good"
+      ? "var(--color-accent-green)"
+      : tone === "warn"
+        ? "var(--color-accent-amber)"
+        : "var(--color-accent-red)";
+  const shownMissing = meta.missingDates.slice(0, 30);
+  const moreMissing = meta.missingDatesTotal - shownMissing.length;
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Completion</h3>
+        <span
+          className="font-mono text-xs"
+          style={{ marginLeft: "auto", color: barColor, fontWeight: 600 }}
+        >
+          {pct.toFixed(1)}%
+        </span>
+      </div>
+      <div className="card-body" style={{ padding: 14 }}>
+        <div
+          style={{
+            height: 8,
+            borderRadius: 4,
+            background: "var(--color-bg-tertiary)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${pct}%`,
+              height: "100%",
+              background: barColor,
+            }}
+          />
+        </div>
+        <div
+          className="row"
+          style={{ marginTop: 10, gap: 18, flexWrap: "wrap" }}
+        >
+          <StatGroup
+            label="Days with data"
+            value={fmtNumber(meta.datesFound)}
+            tone="good"
+          />
+          <StatGroup
+            label="Days remaining"
+            value={fmtNumber(meta.datesMissing)}
+            tone={meta.datesMissing > 0 ? "warn" : null}
+          />
+        </div>
+        {meta.venueStart && (
+          <div className="text-xs muted" style={{ marginTop: 8 }}>
+            venue data starts {meta.venueStart}
+          </div>
+        )}
+        {meta.missingDataTypes.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="text-xs muted" style={{ marginBottom: 4 }}>
+              Missing data_types
+            </div>
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              {meta.missingDataTypes.map((dt) => (
+                <span key={dt} className="badge badge-error badge-mono">
+                  {dt}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {shownMissing.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="text-xs muted" style={{ marginBottom: 4 }}>
+              Missing dates
+            </div>
+            <div
+              className="row"
+              style={{ gap: 5, flexWrap: "wrap", lineHeight: 1.6 }}
+            >
+              {shownMissing.map((d) => (
+                <span
+                  key={d}
+                  className="font-mono text-xs"
+                  style={{ color: "var(--color-accent-amber)" }}
+                >
+                  {d}
+                </span>
+              ))}
+              {moreMissing > 0 && (
+                <span className="text-xs muted">+{moreMissing} more</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** "Why" panel — fetches the drilldown reason_summary for one venue slice and
+ * renders it as a stacked bar + per-category list. */
+function WhyPanel({
+  ds,
+  ag,
+  primaryAxis,
+  primaryValue,
+}: {
+  ds: ServiceDataset;
+  ag: string;
+  primaryAxis: string;
+  primaryValue: string;
+}) {
+  const [summary, setSummary] = useState<ReasonSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Depend on PRIMITIVES (service/start/end), not the whole `ds` object —
+  // an unstable `ds` identity (React StrictMode double-invoke / parent
+  // re-render) would otherwise re-run the effect and abort its own in-flight
+  // fetch, surfacing a spurious "unavailable".
+  const { service, start, end } = ds;
+  useEffect(() => {
+    const controller = new AbortController();
+    setSummary(null);
+    setLoading(true);
+    setError(false);
+    getHierarchicalDrilldown({
+      service,
+      // Canonical lowercase asset_group (workspace SSOT) — also keeps the
+      // backend index-read cache keyed consistently with turbo/grid so we
+      // don't pay a second cold read for the CEFI-vs-cefi case variant.
+      asset_group: ag.toLowerCase(),
+      start_date: start,
+      end_date: end,
+      filters: { [primaryAxis]: primaryValue },
+      expand_to_depth: 1,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        setSummary(res.reason_summary ?? {});
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        // Any abort (however the fetch layer surfaces it) is not an error.
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [service, start, end, ag, primaryAxis, primaryValue]);
+
+  const ordered = REASON_ORDER.map((id) => ({
+    id,
+    count: summary?.[id] ?? 0,
+  })).filter((r) => r.count > 0);
+  const total = ordered.reduce((s, r) => s + r.count, 0);
+  const hasBreakdown = summary != null && Object.keys(summary).length > 0;
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Why</h3>
+        <span className="text-xs muted" style={{ marginLeft: "auto" }}>
+          {loading
+            ? "loading…"
+            : error
+              ? "unavailable"
+              : reasonHeadline(summary ?? undefined)}
+        </span>
+      </div>
+      <div className="card-body" style={{ padding: 14 }}>
+        {loading &&
+          (() => {
+            // Instant coarse breakdown from the turbo cell (captured/empty/
+            // failed) while the categorised reason_summary loads — the
+            // drilldown reads the full manifest index (~10s cold) so we show
+            // SOMETHING immediately rather than a blank spinner.
+            const cell = ds.agData[ag]?.byPrimary?.[primaryValue];
+            const coarse = cell
+              ? [
+                  { k: "captured", v: cell.captured, c: REASON_TONE_COLOR.captured },
+                  { k: "empty", v: cell.empty + cell["known-empty"], c: REASON_TONE_COLOR.empty },
+                  { k: "failed", v: cell.failed, c: REASON_TONE_COLOR.failed },
+                ].filter((s) => s.v > 0)
+              : [];
+            const cTotal = coarse.reduce((s, x) => s + x.v, 0);
+            return (
+              <>
+                {cTotal > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      height: 10,
+                      borderRadius: 5,
+                      overflow: "hidden",
+                      background: "var(--color-bg-tertiary)",
+                    }}
+                  >
+                    {coarse.map((s) => (
+                      <span
+                        key={s.k}
+                        title={`${s.k}: ${fmtNumber(s.v)}`}
+                        style={{ width: `${(s.v / cTotal) * 100}%`, background: s.c }}
+                      />
+                    ))}
+                  </div>
+                )}
+                <div className="muted text-xs" style={{ marginTop: cTotal > 0 ? 8 : 0 }}>
+                  Categorising failures… (reading the manifest index)
+                </div>
+              </>
+            );
+          })()}
+        {!loading && error && (
+          <div className="muted text-xs">
+            Could not load the reason breakdown for this slice.
+          </div>
+        )}
+        {!loading && !error && !hasBreakdown && (
+          <div className="muted text-xs">
+            Slice too large for a reason breakdown — narrow the filter (pick a
+            data_type or date range) to see why.
+          </div>
+        )}
+        {!loading && !error && hasBreakdown && total > 0 && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                height: 10,
+                borderRadius: 5,
+                overflow: "hidden",
+                background: "var(--color-bg-tertiary)",
+              }}
+            >
+              {ordered.map((r) => {
+                const meta = reasonMeta(r.id);
+                return (
+                  <span
+                    key={r.id}
+                    title={`${meta.label}: ${fmtNumber(r.count)}`}
+                    style={{
+                      width: `${(r.count / total) * 100}%`,
+                      background: REASON_TONE_COLOR[meta.tone],
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div className="col" style={{ gap: 4, marginTop: 10 }}>
+              {ordered.map((r) => {
+                const meta = reasonMeta(r.id);
+                return (
+                  <div
+                    key={r.id}
+                    className="row"
+                    style={{ gap: 8, alignItems: "center" }}
+                    title={meta.hint}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 2,
+                        background: REASON_TONE_COLOR[meta.tone],
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span className="text-xs" style={{ flex: 1 }}>
+                      {meta.label}
+                    </span>
+                    <span className="font-mono text-xs muted">
+                      {fmtNumber(r.count)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export type DrillEntry =
   | { kind: "ag"; ag: string }
@@ -105,25 +419,37 @@ function SubAxisBreakdown({
   const [cells, setCells] = useState<AxisValueCell[] | null>(null);
   const [error, setError] = useState(false);
 
+  // Primitive deps (not the whole `ds`) + abort guard — same fix as WhyPanel:
+  // an unstable `ds` identity re-ran this effect and aborted its own fetch,
+  // and the bare `.catch(setError)` turned that abort into a spurious
+  // "unavailable".
+  const { service: dsService, start: dsStart, end: dsEnd } = ds;
+  const primary = a.primary;
   useEffect(() => {
     if (!subAxis) return;
     const controller = new AbortController();
     setCells(null);
     setError(false);
-    const filters: Record<string, string> = { [a.primary]: primaryValue };
+    const filters: Record<string, string> = { [primary]: primaryValue };
     fetchDrilldownLevel({
-      service: ds.service,
-      assetGroup: ag,
-      start: ds.start,
-      end: ds.end,
+      service: dsService,
+      assetGroup: ag.toLowerCase(),
+      start: dsStart,
+      end: dsEnd,
       filters,
       expandToDepth: 1,
       signal: controller.signal,
     })
-      .then((res) => setCells(res.cells.slice(0, 12)))
-      .catch(() => setError(true));
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        setCells(res.cells.slice(0, 12));
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setError(true);
+      });
     return () => controller.abort();
-  }, [ds, ag, a.primary, primaryValue, subAxis, date]);
+  }, [dsService, dsStart, dsEnd, ag, primary, primaryValue, subAxis, date]);
 
   if (!subAxis) return null;
   return (
@@ -202,9 +528,21 @@ function AgDetail({
   const rows = a.primaryValues
     .map((pv) => ({ pv, stats: a.byPrimary[pv] }))
     .sort((x, y) => (x.stats.coverage || 0) - (y.stats.coverage || 0));
+  // Headline derived from the AG's already-fetched 4-state rollup — no fetch.
+  const t = a.total;
+  const headlineParts: string[] = [];
+  if (t.captured) headlineParts.push(`${fmtNumber(t.captured)} captured`);
+  if (t.empty + t["known-empty"])
+    headlineParts.push(`${fmtNumber(t.empty + t["known-empty"])} empty`);
+  if (t.failed) headlineParts.push(`${fmtNumber(t.failed)} failed`);
+  if (t.unattempted) headlineParts.push(`${fmtNumber(t.unattempted)} pending`);
+  const headline = headlineParts.length ? headlineParts.join(" · ") : "no rows";
   return (
     <div className="card">
       <div className="card-body" style={{ padding: 14 }}>
+        <div className="text-xs muted" style={{ marginBottom: 6 }}>
+          {headline}
+        </div>
         <div className="text-xs muted" style={{ marginBottom: 6 }}>
           By {axisLabel(a.primary).toLowerCase()} (sorted worst first)
         </div>
@@ -257,6 +595,7 @@ function PrimaryDetail({
 }) {
   const a: AgData = ds.agData[ag];
   const stats = a.byPrimary[primaryValue];
+  const meta = a.primaryMeta[primaryValue];
   const days = a.grid[primaryValue] ?? {};
   const recent14 = useMemo(() => {
     const out: { date: string; cell?: CellStats }[] = [];
@@ -347,6 +686,15 @@ function PrimaryDetail({
           </div>
         </div>
       </div>
+
+      {meta && <CompletionBlock meta={meta} />}
+
+      <WhyPanel
+        ds={ds}
+        ag={ag}
+        primaryAxis={a.primary}
+        primaryValue={primaryValue}
+      />
 
       <SubAxisBreakdown ds={ds} ag={ag} primaryValue={primaryValue} />
     </div>

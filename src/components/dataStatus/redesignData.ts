@@ -63,6 +63,25 @@ export interface AgRollup extends CellStats {
   honestCoverage: number;
 }
 
+/** Per-primary-value (venue / data_type) date-level completion readout.
+ * Carried through from the turbo sub-dimension entry so the Stacked visual +
+ * the venue drawer can show exactly how many dates are done vs remaining vs
+ * missing — and which specific dates. */
+export interface VenueCompletion {
+  datesFound: number;
+  datesExpected: number;
+  datesMissing: number;
+  /** First ~25 missing dates (the backend truncates the list). */
+  missingDates: string[];
+  /** True total missing count (>= missingDates.length when truncated). */
+  missingDatesTotal: number;
+  completionPct: number;
+  /** Declared data_types with zero found shards for this venue. */
+  missingDataTypes: string[];
+  /** When venue data first starts (venue-specific expected basis). */
+  venueStart?: string;
+}
+
 export interface AgData {
   primary: string;
   primaryValues: string[];
@@ -77,6 +96,8 @@ export interface AgData {
   /** True once the lazy per-day grid has been merged in. */
   gridLoaded: boolean;
   byPrimary: Record<string, CellStats>;
+  /** Per-primary-value date-level completion readout from turbo. */
+  primaryMeta: Record<string, VenueCompletion>;
   total: AgRollup;
 }
 
@@ -199,6 +220,36 @@ function captureCountsOf(
   return withCounts.counts ?? withCounts.capture_status_counts;
 }
 
+/** Build a `VenueCompletion` from one turbo sub-dimension entry.
+ *
+ * Prefers `dates_expected_venue` (venue-specific expected based on venue start)
+ * over the legacy asset-group-level `dates_expected`. The missing-date list is
+ * read from `dates_missing_list` (the truncated first-25) falling back to
+ * `missing_dates`; the true total is `dates_missing_count` when the list was
+ * truncated, else the list length / `dates_missing`. */
+function completionOf(entry: TurboSubDimension): VenueCompletion {
+  const datesFound = entry.dates_found ?? 0;
+  const datesExpected = entry.dates_expected_venue ?? entry.dates_expected ?? 0;
+  const missingDates = entry.dates_missing_list ?? entry.missing_dates ?? [];
+  const datesMissing =
+    entry.dates_missing ??
+    entry.dates_missing_count ??
+    (datesExpected > datesFound ? datesExpected - datesFound : 0);
+  const missingDatesTotal =
+    entry.dates_missing_count ??
+    (datesMissing > missingDates.length ? datesMissing : missingDates.length);
+  return {
+    datesFound,
+    datesExpected,
+    datesMissing,
+    missingDates,
+    missingDatesTotal,
+    completionPct: entry.completion_pct ?? 0,
+    missingDataTypes: entry.missing_data_types ?? [],
+    venueStart: entry.venue_start_date ?? undefined,
+  };
+}
+
 /** The sub-dimension map for one AG, keyed by the primary axis value. */
 function subDimensionsOf(
   ag: TurboAssetGroupStatus,
@@ -230,8 +281,9 @@ function axisValuesOf(
 }
 
 /** Convert one turbo asset_group block into the prototype's `AgData`
- * (fast path — `grid` left empty for lazy load). */
-function toAgData(
+ * (fast path — `grid` left empty for lazy load). Exported for unit testing of
+ * the per-venue completion (`primaryMeta`) projection. */
+export function toAgData(
   ag: TurboAssetGroupStatus,
   primaryAxis: string,
   breakdownAxes: string[],
@@ -242,11 +294,13 @@ function toAgData(
   const primaryValues = Object.keys(subDims);
 
   const byPrimary: Record<string, CellStats> = {};
+  const primaryMeta: Record<string, VenueCompletion> = {};
   const total = emptyRollup();
 
   for (const pv of primaryValues) {
     const cell = cellFromCaptureCounts(captureCountsOf(subDims[pv]));
     byPrimary[pv] = cell;
+    primaryMeta[pv] = completionOf(subDims[pv]);
     addInto(total, cell);
   }
 
@@ -285,6 +339,7 @@ function toAgData(
     grid: {},
     gridLoaded: false,
     byPrimary,
+    primaryMeta,
     total,
   };
 }
