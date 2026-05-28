@@ -4,6 +4,11 @@ name: ui-quality-gates
 # Cross-repo reusable workflow calls don't work between private user repos
 # (only works in GitHub organizations). This local copy is the workaround.
 # SSOT: IggyIkenna/unified-trading-pm/.github/workflows/ui-quality-gates.yml
+#
+# 2026-05-28 (item 14 of human_work_backlog): GH_PAT is fetched from GCP Secret Manager at
+# workflow runtime, not from GHA secrets. The caller passes GCP_SA_KEY (which the repo HAS as
+# a GHA secret); this workflow auths to GCP + reads GH_PAT from `projects/central-element-323112/
+# secrets/GH_PAT`. Operator policy: GH_PAT lives in SM exclusively, never in GHA secrets.
 
 on:
   workflow_call:
@@ -13,8 +18,9 @@ on:
         type: string
         default: "22"
     secrets:
-      GH_PAT:
-        required: false
+      GCP_SA_KEY:
+        required: true
+        description: GCP service account JSON used to fetch GH_PAT from Secret Manager
       TELEGRAM_BOT_TOKEN:
         required: false
 
@@ -37,25 +43,43 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: npm
 
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch GH_PAT from Secret Manager
+        id: gh_pat
+        shell: bash
+        run: |
+          set -euo pipefail
+          GH_PAT_VALUE=$(gcloud secrets versions access latest \
+            --secret=GH_PAT --project=central-element-323112)
+          if [ -z "${GH_PAT_VALUE}" ]; then
+            echo "::error::GH_PAT empty when fetched from Secret Manager (projects/central-element-323112/secrets/GH_PAT)"
+            exit 1
+          fi
+          # Mask before exposing so subsequent log lines never leak it
+          echo "::add-mask::${GH_PAT_VALUE}"
+          echo "gh_pat=${GH_PAT_VALUE}" >> "${GITHUB_OUTPUT}"
+
       - name: Clone unified-trading-pm
         shell: bash
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ steps.gh_pat.outputs.gh_pat }}
           DEP_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          if [ -z "${GH_PAT}" ]; then
-            echo "::warning::GH_PAT secret not configured in this repo — quality gates will fail."
-            echo "  Add GH_PAT (a PAT with repo read scope) to this repo's GitHub Actions secrets."
-            exit 0
-          fi
+          set -euo pipefail
           BRANCH="${DEP_BRANCH:-main}"
           git clone --depth=1 -b "$BRANCH" \
             "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" \
-            ../unified-trading-pm 2>/dev/null \
+            ../unified-trading-pm \
             || git clone --depth=1 -b main \
               "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm.git" \
-              ../unified-trading-pm 2>/dev/null \
-            || true
+              ../unified-trading-pm
 
       - name: Install dependencies
         shell: bash
@@ -71,7 +95,7 @@ jobs:
         if: always()
         shell: bash
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ steps.gh_pat.outputs.gh_pat }}
           TRIGGER_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           [ -z "${GH_PAT}" ] && echo "GH_PAT not set — skipping ci-status-update" && exit 0

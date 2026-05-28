@@ -62,14 +62,20 @@ permissions:
 jobs:
   quality-gates:
     name: Quality Gates (deployment-ui)
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/python-quality-gates.yml@live-defi-rollout
-    with:
-      dep_repos: ""
-    secrets: inherit
-    # Note: reusable workflow inputs are intentionally minimal — service_name + source_dir
-    # are derived inside the reusable workflow from github.repository (caller's repo name)
-    # and the conventional `<repo>_<underscored>` source-dir layout per workspace SSOT.
-    # See `.github/workflows/python-quality-gates.yml` in unified-trading-pm.
+    # 2026-05-28 fix (Item 14 of human_work_backlog_2026_05_20.md): deployment-ui is a
+    # TypeScript/React repo — calling the Python QG template (python-quality-gates.yml) was the
+    # original bug. Plus the cross-repo reusable-workflow call to PM doesn't work for private
+    # user repos and inheriting secrets fails because deployment-ui doesn't have GH_PAT in its
+    # GHA secrets (operator policy: GH_PAT lives in GCP Secret Manager, not GHA secrets).
+    #
+    # Switch to the within-repo local copy `ui-quality-gates.yml` which authenticates to GCP via
+    # GCP_SA_KEY (which IS a GHA secret) and fetches GH_PAT from Secret Manager at workflow
+    # runtime. See ui-quality-gates.yml § "Authenticate to GCP" + "Fetch GH_PAT from Secret
+    # Manager" steps.
+    uses: ./.github/workflows/ui-quality-gates.yml
+    secrets:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
   # Dispatch qg-passed to PM cloud-build-router on staging merge so Cloud Build runs the image build.
   # cloud-build-router.yml in PM listens for this event and triggers the GCP Cloud Build pipeline.
@@ -79,9 +85,31 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch GH_PAT from Secret Manager
+        id: gh_pat
+        run: |
+          set -euo pipefail
+          GH_PAT_VALUE=$(gcloud secrets versions access latest \
+            --secret=GH_PAT --project=central-element-323112)
+          if [ -z "${GH_PAT_VALUE}" ]; then
+            echo "::error::GH_PAT empty when fetched from Secret Manager (projects/central-element-323112/secrets/GH_PAT)"
+            exit 1
+          fi
+          # Mask + expose via $GITHUB_OUTPUT; mask first so subsequent log lines don't leak it
+          echo "::add-mask::${GH_PAT_VALUE}"
+          echo "gh_pat=${GH_PAT_VALUE}" >> "${GITHUB_OUTPUT}"
+
       - name: Dispatch qg-passed → cloud-build-router
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ steps.gh_pat.outputs.gh_pat }}
           GH_ORG: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
           BRANCH: ${{ github.ref_name }}
