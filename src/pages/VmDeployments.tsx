@@ -2,21 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchVmDeployments,
+  reconcileVmDeployments,
   type VmDeploymentEntry,
+  type VmReconcileResult,
 } from "../api/deploymentApi";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-const STATUS_VARIANT: Record<
-  string,
-  "success" | "warning" | "error" | "default"
-> = {
+const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "default"> = {
   running: "warning",
   completed: "success",
   failed: "error",
@@ -77,6 +71,9 @@ export function VmDeployments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState<VmReconcileResult | null>(null);
+  const [reconcileError, setReconcileError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -87,12 +84,31 @@ export function VmDeployments() {
         setRecent(data.recent);
         setLastRefreshed(new Date().toLocaleTimeString());
       })
-      .catch((err: unknown) =>
-        setError(
-          err instanceof Error ? err.message : "Failed to load VM deployments",
-        ),
-      )
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load VM deployments"))
       .finally(() => setLoading(false));
+  }, [days]);
+
+  const reconcile = useCallback(() => {
+    setReconciling(true);
+    setReconcileResult(null);
+    setReconcileError(null);
+    reconcileVmDeployments()
+      .then((result) => {
+        setReconcileResult(result);
+        // Reload the list to reflect reaped entries.
+        setLoading(true);
+        setError(null);
+        fetchVmDeployments(days)
+          .then((data) => {
+            setActive(data.active);
+            setRecent(data.recent);
+            setLastRefreshed(new Date().toLocaleTimeString());
+          })
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load VM deployments"))
+          .finally(() => setLoading(false));
+      })
+      .catch((err: unknown) => setReconcileError(err instanceof Error ? err.message : "Reconcile failed"))
+      .finally(() => setReconciling(false));
   }, [days]);
 
   useEffect(() => {
@@ -101,11 +117,7 @@ export function VmDeployments() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const renderTable = (
-    rows: VmDeploymentEntry[],
-    heading: string,
-    count: number,
-  ) => (
+  const renderTable = (rows: VmDeploymentEntry[], heading: string, count: number) => (
     <Card className="rounded-lg">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -134,10 +146,7 @@ export function VmDeployments() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={10}
-                    className="table-cell text-center text-[var(--color-text-muted)] py-6"
-                  >
+                  <td colSpan={10} className="table-cell text-center text-[var(--color-text-muted)] py-6">
                     None
                   </td>
                 </tr>
@@ -145,55 +154,39 @@ export function VmDeployments() {
                 rows.map((r) => (
                   <tr key={r.deployment_id} className="table-row">
                     <td className="table-cell font-semibold text-xs">
-                      <div title={`ID: ${r.deployment_id}`}>
-                        {r.vm_name}
-                      </div>
+                      <div title={`ID: ${r.deployment_id}`}>{r.vm_name}</div>
                     </td>
-                    <td className="table-cell text-xs">
-                      {(r as any).machine_type || "—"}
-                    </td>
-                    <td className="table-cell text-xs">
-                      {(r as any).zone || "—"}
-                    </td>
+                    <td className="table-cell text-xs">{r.machine_type || "—"}</td>
+                    <td className="table-cell text-xs">{r.zone || "—"}</td>
                     <td className="table-cell">{r.asset_group}</td>
                     <td className="table-cell text-xs">
                       <div>{r.task}</div>
                       <div className="text-[var(--color-text-muted)]">{r.mode}</div>
                     </td>
                     <td className="table-cell">
-                      {(r as any).health_status ? (
+                      {r.health_status ? (
                         <Badge
-                          variant={getHealthBadgeVariant((r as any).health_status)}
-                          data-testid={`health-${(r as any).health_status}`}
+                          variant={getHealthBadgeVariant(r.health_status)}
+                          data-testid={`health-${r.health_status}`}
                         >
-                          {(r as any).health_status}
+                          {r.health_status}
                         </Badge>
                       ) : (
-                        <Badge
-                          variant={STATUS_VARIANT[r.status] ?? "default"}
-                          data-testid={`status-${r.status}`}
-                        >
+                        <Badge variant={STATUS_VARIANT[r.status] ?? "default"} data-testid={`status-${r.status}`}>
                           {r.status}
                         </Badge>
                       )}
                       {r.exit_code != null && (
-                        <span className="text-[var(--color-text-muted)] text-xs ml-2">
-                          rc={r.exit_code}
-                        </span>
+                        <span className="text-[var(--color-text-muted)] text-xs ml-2">rc={r.exit_code}</span>
                       )}
                     </td>
-                    <td
-                      className="table-cell font-mono text-xs"
-                      style={{ fontVariantNumeric: "tabular-nums" }}
-                    >
+                    <td className="table-cell font-mono text-xs" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {formatProgress(r)}
                     </td>
                     <td
                       className={
                         "table-cell text-right font-mono text-xs " +
-                        (r.rows_error > 0
-                          ? "text-[var(--color-error)]"
-                          : "text-[var(--color-text-muted)]")
+                        (r.rows_error > 0 ? "text-[var(--color-error)]" : "text-[var(--color-text-muted)]")
                       }
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
@@ -203,7 +196,7 @@ export function VmDeployments() {
                       className="table-cell text-xs text-[var(--color-text-muted)]"
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
-                      {formatUptime((r as any).uptime_hours)}
+                      {formatUptime(r.uptime_hours)}
                     </td>
                     <td
                       className="table-cell text-xs text-[var(--color-text-muted)]"
@@ -233,12 +226,9 @@ export function VmDeployments() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold text-[var(--color-text-primary)]">
-            VM Deployments
-          </h1>
+          <h1 className="text-base font-semibold text-[var(--color-text-primary)]">VM Deployments</h1>
           <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
-            Active VM jobs + last {days} days of completions — sourced from the
-            GCS deployments registry.
+            Active VM jobs + last {days} days of completions — sourced from the GCS deployments registry.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -256,24 +246,38 @@ export function VmDeployments() {
             </select>
           </label>
           {lastRefreshed && (
-            <span
-              className="text-xs text-[var(--color-text-muted)]"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
+            <span className="text-xs text-[var(--color-text-muted)]" style={{ fontVariantNumeric: "tabular-nums" }}>
               refreshed {lastRefreshed}
             </span>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={reconcile}
+            disabled={reconciling || loading}
+            data-testid="reconcile-registry-btn"
+          >
+            {reconciling ? "Reconciling…" : "Reconcile Registry"}
+          </Button>
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             Refresh
           </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="text-[var(--color-error)] text-sm py-2">
-          Error: {error}
+      {reconcileResult && (
+        <div className="text-xs text-[var(--color-text-muted)] py-1" data-testid="reconcile-result">
+          Reconciled: reaped {reconcileResult.reaped_count} stale entries ({reconcileResult.total_active_before} active
+          before, {reconcileResult.running_vm_count} VMs running in GCP)
         </div>
       )}
+      {reconcileError && (
+        <div className="text-[var(--color-error)] text-xs py-1" data-testid="reconcile-error">
+          Reconcile error: {reconcileError}
+        </div>
+      )}
+
+      {error && <div className="text-[var(--color-error)] text-sm py-2">Error: {error}</div>}
 
       {renderTable(active, "Active", active.length)}
       {renderTable(recent, `Recent (${days}d)`, recent.length)}

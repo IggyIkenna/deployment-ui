@@ -1,8 +1,4 @@
-import type {
-  DeployJob,
-  DeployParams,
-  ServiceStatus,
-} from "../types/deploymentTypes";
+import type { DeployJob, DeployParams, ServiceStatus } from "../types/deploymentTypes";
 
 export interface BuildEntry {
   tag: string;
@@ -38,31 +34,21 @@ export async function triggerDeploy(params: DeployParams): Promise<DeployJob> {
   return handleResponse<DeployJob>(response);
 }
 
-export async function fetchDeploymentHistory(
-  serviceId?: string,
-): Promise<DeployJob[]> {
+export async function fetchDeploymentHistory(serviceId?: string): Promise<DeployJob[]> {
   const query = serviceId ? `?service_id=${serviceId}` : "";
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments${query}`);
   return handleResponse<DeployJob[]>(response);
 }
 
 export async function rollbackDeployment(jobId: string): Promise<DeployJob> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/deployments/${jobId}/rollback`,
-    {
-      method: "POST",
-    },
-  );
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${jobId}/rollback`, {
+    method: "POST",
+  });
   return handleResponse<DeployJob>(response);
 }
 
-export async function fetchBuilds(
-  service: string,
-  env: BuildEnvironment,
-): Promise<BuildEntry[]> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/builds/${encodeURIComponent(service)}?env=${env}`,
-  );
+export async function fetchBuilds(service: string, env: BuildEnvironment): Promise<BuildEntry[]> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/builds/${encodeURIComponent(service)}?env=${env}`);
   return handleResponse<BuildEntry[]>(response);
 }
 
@@ -89,6 +75,10 @@ export interface VmDeploymentEntry {
   rows_error: number;
   events_emitted: number;
   log_uri: string;
+  machine_type?: string | null;
+  zone?: string | null;
+  uptime_hours?: number | null;
+  health_status?: string | null;
 }
 
 export interface VmDeploymentsListResponse {
@@ -97,22 +87,28 @@ export interface VmDeploymentsListResponse {
   archive_days: number;
 }
 
-export async function fetchVmDeployments(
-  days = 7,
-): Promise<VmDeploymentsListResponse> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm-deployments?days=${days}`,
-  );
+export async function fetchVmDeployments(days = 7): Promise<VmDeploymentsListResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments?days=${days}`);
   return handleResponse<VmDeploymentsListResponse>(response);
 }
 
-export async function fetchVmDeployment(
-  deploymentId: string,
-): Promise<VmDeploymentEntry> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm-deployments/${encodeURIComponent(deploymentId)}`,
-  );
+export async function fetchVmDeployment(deploymentId: string): Promise<VmDeploymentEntry> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments/${encodeURIComponent(deploymentId)}`);
   return handleResponse<VmDeploymentEntry>(response);
+}
+
+export interface VmReconcileResult {
+  reaped_count: number;
+  reaped: string[];
+  running_vm_count: number;
+  total_active_before: number;
+}
+
+export async function reconcileVmDeployments(): Promise<VmReconcileResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments/reconcile`, {
+    method: "POST",
+  });
+  return handleResponse<VmReconcileResult>(response);
 }
 
 export interface DeploymentEventsResponse {
@@ -126,12 +122,8 @@ export interface DeploymentEventsResponse {
   count: number;
 }
 
-export async function fetchVmDeploymentEvents(
-  deploymentId: string,
-): Promise<DeploymentEventsResponse> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(deploymentId)}/events`,
-  );
+export async function fetchVmDeploymentEvents(deploymentId: string): Promise<DeploymentEventsResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(deploymentId)}/events`);
   return handleResponse<DeploymentEventsResponse>(response);
 }
 
@@ -145,14 +137,11 @@ export async function deployBuild(
   image_tag: string;
   environment: string;
 }> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(service)}/deploy`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_tag: imageTag, environment }),
-    },
-  );
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(service)}/deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_tag: imageTag, environment }),
+  });
   return handleResponse<{
     status: string;
     service: string;
@@ -170,11 +159,7 @@ export interface LiveStatusRow {
   data_type: string;
   venue: string;
   chain?: string;
-  capture_status:
-    | "captured"
-    | "empty_confirmed"
-    | "attempted_failed"
-    | "expected_unattempted";
+  capture_status: "captured" | "empty_confirmed" | "attempted_failed" | "expected_unattempted";
   staleness_seconds: number;
   refreshed_at: string;
 }
@@ -208,16 +193,11 @@ export interface VmEventsResponse {
   count: number;
 }
 
-export async function getVmEvents(
-  vmName: string,
-  date?: string,
-): Promise<VmEventsResponse> {
+export async function getVmEvents(vmName: string, date?: string): Promise<VmEventsResponse> {
   const params = new URLSearchParams();
   params.append("vm_name", vmName);
   if (date) params.append("date", date);
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm/events?${params.toString()}`,
-  );
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/events?${params.toString()}`);
   return handleResponse<VmEventsResponse>(response);
 }
 
@@ -250,9 +230,7 @@ export interface MlExperimentParams {
   dry_run?: boolean;
 }
 
-export async function launchMlExperiment(
-  params: MlExperimentParams,
-): Promise<LaunchResult> {
+export async function launchMlExperiment(params: MlExperimentParams): Promise<LaunchResult> {
   const response = await fetch(`${DEPLOYMENT_API}/api/ml/experiment/launch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -270,17 +248,12 @@ export interface StrategyBacktestParams {
   dry_run?: boolean;
 }
 
-export async function launchStrategyBacktest(
-  params: StrategyBacktestParams,
-): Promise<LaunchResult> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/strategy/backtest/launch`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    },
-  );
+export async function launchStrategyBacktest(params: StrategyBacktestParams): Promise<LaunchResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/strategy/backtest/launch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
   return handleResponse<LaunchResult>(response);
 }
 
@@ -292,17 +265,12 @@ export interface ExecutionBacktestParams {
   dry_run?: boolean;
 }
 
-export async function launchExecutionBacktest(
-  params: ExecutionBacktestParams,
-): Promise<LaunchResult> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/execution/backtest/launch`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    },
-  );
+export async function launchExecutionBacktest(params: ExecutionBacktestParams): Promise<LaunchResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/execution/backtest/launch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
   return handleResponse<LaunchResult>(response);
 }
 
@@ -326,14 +294,9 @@ export interface DeploymentDiffResponse {
   dry_run: boolean;
 }
 
-export async function fetchDeploymentDiff(
-  fromSha: string,
-  toSha: string,
-): Promise<DeploymentDiffResponse> {
+export async function fetchDeploymentDiff(fromSha: string, toSha: string): Promise<DeploymentDiffResponse> {
   const params = new URLSearchParams({ from_sha: fromSha, to_sha: toSha });
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/deployments/diff?${params.toString()}`,
-  );
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/diff?${params.toString()}`);
   return handleResponse<DeploymentDiffResponse>(response);
 }
 
@@ -364,9 +327,7 @@ export interface VmCostEstimateResponse {
   unknown_machine_type: boolean;
 }
 
-export async function fetchVmCostEstimate(
-  req: VmCostEstimateRequest,
-): Promise<VmCostEstimateResponse> {
+export async function fetchVmCostEstimate(req: VmCostEstimateRequest): Promise<VmCostEstimateResponse> {
   const response = await fetch(`${DEPLOYMENT_API}/api/vm/cost-estimate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -393,13 +354,8 @@ export interface VmLogTailResult {
   total_lines: number;
 }
 
-export async function fetchVmLogs(
-  vmName: string,
-  tail = 100,
-): Promise<VmLogTailResult> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm/logs/${encodeURIComponent(vmName)}?tail=${tail}`,
-  );
+export async function fetchVmLogs(vmName: string, tail = 100): Promise<VmLogTailResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/logs/${encodeURIComponent(vmName)}?tail=${tail}`);
   return handleResponse<VmLogTailResult>(response);
 }
 
@@ -420,13 +376,8 @@ export interface VmHealthResult {
   message: string;
 }
 
-export async function fetchVmHealth(
-  vmName: string,
-  scanHours = 24,
-): Promise<VmHealthResult> {
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/health?scan_hours=${scanHours}`,
-  );
+export async function fetchVmHealth(vmName: string, scanHours = 24): Promise<VmHealthResult> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/health?scan_hours=${scanHours}`);
   return handleResponse<VmHealthResult>(response);
 }
 
@@ -462,9 +413,7 @@ export interface DailyCostResponse {
   by_vm: VmCostRow[];
 }
 
-export async function fetchDailyCosts(
-  date?: string,
-): Promise<DailyCostResponse> {
+export async function fetchDailyCosts(date?: string): Promise<DailyCostResponse> {
   const qs = date ? `?date=${encodeURIComponent(date)}` : "";
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/daily${qs}`);
   return handleResponse<DailyCostResponse>(response);
@@ -500,8 +449,6 @@ export async function fetchVmFilteredEvents(
   if (opts.type) params.set("type", opts.type);
   if (opts.limit != null) params.set("limit", String(opts.limit));
   const qs = params.toString() ? `?${params.toString()}` : "";
-  const response = await fetch(
-    `${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`,
-  );
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`);
   return handleResponse<VMEventListResult>(response);
 }
