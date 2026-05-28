@@ -155,14 +155,7 @@ const MOCK_DEPLOYMENTS = [
   },
 ];
 
-const MOCK_CATEGORIES = [
-  "equity",
-  "crypto",
-  "fx",
-  "rates",
-  "commodity",
-  "sports",
-];
+const MOCK_CATEGORIES = ["equity", "crypto", "fx", "rates", "commodity", "sports"];
 
 const MOCK_VENUES_BY_TRADING_CLASS: Record<string, string[]> = {
   equity: ["NYSE", "NASDAQ", "LSE", "TSE", "HKEX"],
@@ -196,12 +189,7 @@ const MOCK_QUOTA = {
 // driven), CEFI/TRADFI/DEFI are dense ~99%, and every category carries
 // at least one attempted_failed row in its first venue so the failures
 // filter + retry affordance are both exercised.
-function _mkVenue(
-  dates_expected: number,
-  captured: number,
-  empty: number,
-  failed: number,
-) {
+function _mkVenue(dates_expected: number, captured: number, empty: number, failed: number) {
   const attempted = captured + empty + failed;
   const denom = Math.max(1, dates_expected);
   const attemptedDenom = Math.max(1, attempted);
@@ -235,14 +223,8 @@ function _mkVenue(
       const den = num + failed + Math.max(0, dates_expected - attempted);
       return den > 0 ? Math.round((num / den) * 1e6) / 1e6 : 1.0;
     })(),
-    attempt_coverage_pct: Math.min(
-      Math.round((attempted / denom) * 10000) / 100,
-      100,
-    ),
-    capture_coverage_pct: Math.min(
-      Math.round((captured / denom) * 10000) / 100,
-      100,
-    ),
+    attempt_coverage_pct: Math.min(Math.round((attempted / denom) * 10000) / 100, 100),
+    capture_coverage_pct: Math.min(Math.round((captured / denom) * 10000) / 100, 100),
     empty_rate: Math.round((empty / attemptedDenom) * 10000) / 10000,
     failure_rate: Math.round((failed / attemptedDenom) * 10000) / 10000,
   };
@@ -260,36 +242,22 @@ function _mkCategory(
   const attempted = captured + empty + failed;
   const denom = Math.max(1, dates_expected);
   const attemptedDenom = Math.max(1, attempted);
-  const capturePct = Math.min(
-    Math.round((captured / denom) * 10000) / 100,
-    100,
-  );
-  const attemptPct = Math.min(
-    Math.round((attempted / denom) * 10000) / 100,
-    100,
-  );
-  const emptyRate =
-    attempted > 0 ? Math.round((empty / attemptedDenom) * 10000) / 10000 : null;
+  const capturePct = Math.min(Math.round((captured / denom) * 10000) / 100, 100);
+  const attemptPct = Math.min(Math.round((attempted / denom) * 10000) / 100, 100);
+  const emptyRate = attempted > 0 ? Math.round((empty / attemptedDenom) * 10000) / 10000 : null;
   const failureRate = Math.round((failed / attemptedDenom) * 10000) / 10000;
 
-  const perVenueExpected = Math.max(
-    1,
-    Math.floor(dates_expected / venues.length),
-  );
+  const perVenueExpected = Math.max(1, Math.floor(dates_expected / venues.length));
   let remainingFailed = failed;
   let remainingEmpty = empty;
   let remainingCaptured = captured;
   const venuesDict: Record<string, ReturnType<typeof _mkVenue>> = {};
-  const failureRateByDim: Record<
-    string,
-    { failure_rate: number; attempted_failed_count: number }
-  > = {};
+  const failureRateByDim: Record<string, { failure_rate: number; attempted_failed_count: number }> = {};
   venues.forEach((v, idx) => {
     const vFailed = idx === 0 ? remainingFailed : 0;
     const split = Math.max(1, venues.length - idx);
     const vEmpty = remainingEmpty > 0 ? Math.floor(remainingEmpty / split) : 0;
-    const vCaptured =
-      remainingCaptured > 0 ? Math.floor(remainingCaptured / split) : 0;
+    const vCaptured = remainingCaptured > 0 ? Math.floor(remainingCaptured / split) : 0;
     remainingFailed -= vFailed;
     remainingEmpty -= vEmpty;
     remainingCaptured -= vCaptured;
@@ -297,8 +265,7 @@ function _mkCategory(
     if (vFailed > 0) {
       const vAttempted = vCaptured + vEmpty + vFailed;
       failureRateByDim[v] = {
-        failure_rate:
-          Math.round((vFailed / Math.max(1, vAttempted)) * 10000) / 10000,
+        failure_rate: Math.round((vFailed / Math.max(1, vAttempted)) * 10000) / 10000,
         attempted_failed_count: vFailed,
       };
     }
@@ -370,8 +337,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
   const fixturesFound = 2094;
   const fixturesExpected = 164027;
   const fixturesMissing = fixturesExpected - fixturesFound;
-  const fixturesPct =
-    Math.round((fixturesFound / fixturesExpected) * 10000) / 100;
+  const fixturesPct = Math.round((fixturesFound / fixturesExpected) * 10000) / 100;
 
   const leaguesFound = 2083;
   const leaguesExpected = 2088;
@@ -556,29 +522,20 @@ function _mkMtdsHonest(
   const perInstrumentDts = opts.perInstrumentDataTypes ?? {};
   const legacyDts = opts.legacyDataTypes ?? {};
   for (const dt of expectedDataTypes) {
-    const isPerInstrument = Object.prototype.hasOwnProperty.call(
-      perInstrumentDts,
-      dt,
-    );
+    const isPerInstrument = Object.prototype.hasOwnProperty.call(perInstrumentDts, dt);
     const isLegacy = Object.prototype.hasOwnProperty.call(legacyDts, dt);
     if (isPerInstrument) {
-      const { expected_instruments, missing_instruments } =
-        perInstrumentDts[dt];
+      const { expected_instruments, missing_instruments } = perInstrumentDts[dt];
       const universe = expected_instruments.length;
       const expected = windowDays * universe;
       // One captured instrument gets (windowDays - 2) shards per instrument;
       // missing instruments contribute 0. This mirrors the aggregator's
       // per-(venue, dt, instrument, date) shard counting.
-      const capturedInstruments = expected_instruments.filter(
-        (iid) => !missing_instruments.includes(iid),
-      );
+      const capturedInstruments = expected_instruments.filter((iid) => !missing_instruments.includes(iid));
       const perInstrumentFound = Math.max(0, windowDays - 2);
       const found = capturedInstruments.length * perInstrumentFound;
       const missing = Math.max(0, expected - found);
-      const pct =
-        expected === 0
-          ? 0
-          : Math.min(Math.round((found / expected) * 10000) / 100, 100);
+      const pct = expected === 0 ? 0 : Math.min(Math.round((found / expected) * 10000) / 100, 100);
       const shape: MtdsHonestDtShape = {
         expected_shards: expected,
         found_shards: found,
@@ -603,13 +560,8 @@ function _mkMtdsHonest(
           }
         > = {};
         for (const iid of expected_instruments) {
-          const iFound = missing_instruments.includes(iid)
-            ? 0
-            : perInstrumentFound;
-          const iPct =
-            windowDays === 0
-              ? 0
-              : Math.min(Math.round((iFound / windowDays) * 10000) / 100, 100);
+          const iFound = missing_instruments.includes(iid) ? 0 : perInstrumentFound;
+          const iPct = windowDays === 0 ? 0 : Math.min(Math.round((iFound / windowDays) * 10000) / 100, 100);
           perInstrument[iid] = {
             found_shards: iFound,
             expected_shards: windowDays,
@@ -649,21 +601,15 @@ function _mkMtdsHonest(
     }
     // Default venue-level shard_days path (unchanged from Phase 6e.3).
     const expected = windowDays;
-    const found = missingDataTypes.includes(dt)
-      ? 0
-      : Math.max(0, windowDays - 2);
+    const found = missingDataTypes.includes(dt) ? 0 : Math.max(0, windowDays - 2);
     const missing = Math.max(0, expected - found);
     honest[dt] = {
       expected_shards: expected,
       found_shards: found,
       missing_shards: missing,
-      completion_pct:
-        expected === 0
-          ? 0
-          : Math.min(Math.round((found / expected) * 10000) / 100, 100),
+      completion_pct: expected === 0 ? 0 : Math.min(Math.round((found / expected) * 10000) / 100, 100),
       unit: "shard_days",
-      missing_dates:
-        missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
+      missing_dates: missing > 0 ? ["2025-04-29", "2025-04-30"].slice(0, missing) : [],
       dates_found_list: found > 0 ? ["2025-01-01", "2025-01-02"] : [],
     };
   }
@@ -692,22 +638,13 @@ function _mkMtdsHonest(
  * - DERIBIT: missing both derivative_ticker and options_chain (venue-level).
  */
 function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
-  const base = _mkCategory("CEFI", "dense", 120, 118, 1, 1, [
-    "BINANCE-SPOT",
-    "BINANCE-FUTURES",
-    "DERIBIT",
-  ]);
+  const base = _mkCategory("CEFI", "dense", 120, 118, 1, 1, ["BINANCE-SPOT", "BINANCE-FUTURES", "DERIBIT"]);
   const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
   const HONEST_AXIS = "per_venue_per_data_type_per_day";
   // BINANCE-SPOT — all declared dts captured (no missing).
   venuesDict["BINANCE-SPOT"] = {
     ...venuesDict["BINANCE-SPOT"],
-    ..._mkMtdsHonest(
-      ["trades", "orderbook_snapshot_1s", "ticker"],
-      [],
-      120,
-      HONEST_AXIS,
-    ),
+    ..._mkMtdsHonest(["trades", "orderbook_snapshot_1s", "ticker"], [], 120, HONEST_AXIS),
   } as ReturnType<typeof _mkVenue>;
   // BINANCE-FUTURES — mixes all three Phase 8 unit axes.
   const binFutPerps = [
@@ -768,20 +705,11 @@ function _mkCefiMtdsHonest(): ReturnType<typeof _mkCategory> {
  * behaviour and letting the UI exercise the "large universe" branch.
  */
 function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
-  const base = _mkCategory("DEFI", "dense", 110, 102, 5, 3, [
-    "UNISWAP_V3-ETHEREUM",
-    "AAVE_V3-ETHEREUM",
-  ]);
+  const base = _mkCategory("DEFI", "dense", 110, 102, 5, 3, ["UNISWAP_V3-ETHEREUM", "AAVE_V3-ETHEREUM"]);
   const venuesDict = base.venues as Record<string, ReturnType<typeof _mkVenue>>;
   const HONEST_AXIS = "per_venue_per_data_type_per_day";
-  const uniPools = Array.from(
-    { length: 20 },
-    (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`,
-  );
-  const aaveIndices = Array.from(
-    { length: 10 },
-    (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`,
-  );
+  const uniPools = Array.from({ length: 20 }, (_v, i) => `POOL-${String(i + 1).padStart(2, "0")}`);
+  const aaveIndices = Array.from({ length: 10 }, (_v, i) => `IDX-${String(i + 1).padStart(2, "0")}`);
   venuesDict["UNISWAP_V3-ETHEREUM"] = {
     ...venuesDict["UNISWAP_V3-ETHEREUM"],
     ..._mkMtdsHonest(["dex_pools"], [], 90, HONEST_AXIS, {
@@ -813,27 +741,16 @@ function _mkDefiMtdsHonest(): ReturnType<typeof _mkCategory> {
 
 const _MOCK_CATS = {
   CEFI: _mkCefiMtdsHonest(),
-  TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, [
-    "DATABENTO-DBEQ",
-    "DATABENTO-GLBX",
-  ]),
+  TRADFI: _mkCategory("TRADFI", "dense", 100, 97, 2, 1, ["DATABENTO-DBEQ", "DATABENTO-GLBX"]),
   DEFI: _mkDefiMtdsHonest(),
   // SPORTS uses the new `breakdown_axis: "data_type"` shape (2026-04-20).
   // Drilldown lives under `data_types`, not `venues`.
   SPORTS: _mkSportsByDataType(),
-  PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, [
-    "POLYMARKET",
-  ]),
+  PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, ["POLYMARKET"]),
 };
 
-const _MOCK_TOTAL_EXPECTED = Object.values(_MOCK_CATS).reduce(
-  (acc, c) => acc + c.dates_expected,
-  0,
-);
-const _MOCK_TOTAL_CAPTURED = Object.values(_MOCK_CATS).reduce(
-  (acc, c) => acc + c.dates_found,
-  0,
-);
+const _MOCK_TOTAL_EXPECTED = Object.values(_MOCK_CATS).reduce((acc, c) => acc + c.dates_expected, 0);
+const _MOCK_TOTAL_CAPTURED = Object.values(_MOCK_CATS).reduce((acc, c) => acc + c.dates_found, 0);
 
 const MOCK_DATA_STATUS = {
   service: "instruments-service",
@@ -841,21 +758,15 @@ const MOCK_DATA_STATUS = {
   mode: "turbo" as const,
   sub_dimension: "venue" as const,
   overall_completion_pct: Math.min(
-    Math.round(
-      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
-    ) / 100,
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
     100,
   ),
   overall_completion_pct_dates: Math.min(
-    Math.round(
-      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
-    ) / 100,
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
     100,
   ),
   overall_completion_pct_shards_weighted: Math.min(
-    Math.round(
-      (_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000,
-    ) / 100,
+    Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
     100,
   ),
   overall_dates_found: _MOCK_TOTAL_CAPTURED,
@@ -981,14 +892,7 @@ function getStressServices(): typeof MOCK_SERVICES {
     return Array.from({ length: 100 }, (_, i) => ({
       name: `service-${String(i).padStart(3, "0")}`,
       layer: (i % 6) + 1,
-      category: [
-        "data",
-        "ingestion",
-        "features",
-        "ml",
-        "execution",
-        "monitoring",
-      ][i % 6],
+      category: ["data", "ingestion", "features", "ml", "execution", "monitoring"][i % 6],
       dimensions: ["asset_group", "date"],
       status: i % 10 === 0 ? "warning" : "healthy",
       lastDeployed: new Date(Date.now() - i * 86400000).toISOString(),
@@ -1011,6 +915,18 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     .replace(/^https?:\/\/[^/]+/, "")
     .replace(/\?.*$/, "")
     .replace("/api/v1/", "/api/");
+
+  // Test-injected error overrides — set window.__mockErrors before page.goto()
+  // to simulate backend failures without Playwright route mocks.
+  const testErrors = (window as typeof window & { __mockErrors?: Array<{ pattern: string; status: number }> })
+    .__mockErrors;
+  if (testErrors) {
+    for (const entry of testErrors) {
+      if (path.startsWith(entry.pattern) || path === entry.pattern) {
+        return json({ error: "Mock forced error", path }, entry.status);
+      }
+    }
+  }
 
   // Health
   if (path === "/api/health") {
@@ -1143,9 +1059,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // drill-down retry button. Return a deployment-shaped payload so the
   // UI flips the button to the "Retried ✓" state.
   if (path === "/api/deployments/deploy-missing" && method === "POST") {
-    const body = init?.body
-      ? (JSON.parse(init.body as string) as Record<string, unknown>)
-      : {};
+    const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
     const depId = `dep-retry-${Date.now()}`;
     return json({
       missing_analysis: {
@@ -1164,18 +1078,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path === "/api/deployments" && method === "POST") {
-    const body = init?.body
-      ? (JSON.parse(init.body as string) as Record<string, unknown>)
-      : {};
+    const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
     const newDep = {
       id: `dep-${Date.now()}`,
       service: (body.service as string | undefined) ?? "unknown",
       status: "running",
       startedAt: new Date().toISOString(),
       completedAt: null,
-      shards:
-        (body.shards as number | undefined) ??
-        Math.floor(Math.random() * 100) + 20,
+      shards: (body.shards as number | undefined) ?? Math.floor(Math.random() * 100) + 20,
       mode: (body.mode as string | undefined) ?? "batch",
       cloudProvider: "gcp",
       region: (body.region as string | undefined) ?? "asia-northeast1-c",
@@ -1208,9 +1118,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/quota$/)) {
-    const shards = parseInt(
-      new URL(url, "http://x").searchParams.get("shards") ?? "50",
-    );
+    const shards = parseInt(new URL(url, "http://x").searchParams.get("shards") ?? "50");
     return json({
       total_shards: shards,
       max_concurrent: 2000,
@@ -1232,16 +1140,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // `/api/deployments/<id>/rollback`, returning the wrong payload.
   if (path.match(/^\/api\/deployments\/[^/]+$/) && method !== "POST") {
     const id = path.split("/").pop();
-    const dep =
-      MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];
+    const dep = MOCK_DEPLOYMENTS.find((d) => d.id === id) ?? MOCK_DEPLOYMENTS[0];
     return json({ deployment: dep });
   }
 
   // Quota (standalone endpoint)
   if (path === "/api/quota" || path.startsWith("/api/quota")) {
-    const shards = parseInt(
-      new URL(url, "http://x").searchParams.get("shards") ?? "50",
-    );
+    const shards = parseInt(new URL(url, "http://x").searchParams.get("shards") ?? "50");
     return json({
       ...MOCK_QUOTA,
       estimatedCost: { ...MOCK_QUOTA.estimatedCost, total: shards * 0.18 },
@@ -1254,11 +1159,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Cloud builds
-  if (
-    path === "/api/cloud-builds" ||
-    path === "/cloud-builds/triggers" ||
-    path === "/api/cloud-builds/triggers"
-  ) {
+  if (path === "/api/cloud-builds" || path === "/cloud-builds/triggers" || path === "/api/cloud-builds/triggers") {
     return json({
       triggers: [
         {
@@ -1368,9 +1269,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Deploy a specific build
   if (path.match(/^\/api\/deployments\/.+\/deploy$/) && method === "POST") {
-    const body = init?.body
-      ? (JSON.parse(init.body as string) as Record<string, unknown>)
-      : {};
+    const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
     return json(
       {
         status: "deploying",
@@ -1439,10 +1338,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Services overview
-  if (
-    path === "/api/service-status/overview" ||
-    path === "/api/services/overview"
-  ) {
+  if (path === "/api/service-status/overview" || path === "/api/services/overview") {
     return json({
       services: MOCK_SERVICES.map((s) => ({
         name: s.name,
@@ -1500,13 +1396,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Capabilities
   if (path === "/api/capabilities") {
     return json({
-      capabilities: [
-        "batch_deploy",
-        "live_deploy",
-        "cloud_build",
-        "rollback",
-        "config_browse",
-      ],
+      capabilities: ["batch_deploy", "live_deploy", "cloud_build", "rollback", "config_browse"],
       version: "0.3.0",
     });
   }
@@ -1557,10 +1447,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path.startsWith("/api/data-status/turbo/cache/clear")) {
     return json({ cleared: true });
   }
-  if (
-    path.startsWith("/api/data-status/turbo") ||
-    path.startsWith("/api/data-status/manifest")
-  ) {
+  if (path.startsWith("/api/data-status/turbo") || path.startsWith("/api/data-status/manifest")) {
     return json(MOCK_DATA_STATUS);
   }
   if (path.startsWith("/api/data-status/venue-filters")) {
@@ -1579,8 +1466,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // the UI shows every badge colour + exercises the Retry button flow.
   if (path.startsWith("/api/data-status/instruments-for-shard")) {
     const venue = new URL(path, "http://x").searchParams.get("venue") ?? "MOCK";
-    const day =
-      new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
+    const day = new URL(path, "http://x").searchParams.get("day") ?? "2025-06-01";
     return json({
       service: "market-tick-data-service",
       category: "cefi",
@@ -1664,19 +1550,19 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (m) {
       return json(_mockVmDeployment(decodeURIComponent(m[1]), "running"));
     }
+    // Allow tests to inject custom vm-deployment list data via window.__mockVmDeploymentOverride
+    const vmDepOverride = (window as typeof window & { __mockVmDeploymentOverride?: unknown })
+      .__mockVmDeploymentOverride;
+    if (vmDepOverride) {
+      return json(vmDepOverride);
+    }
     return json({
       active: [
-        _mockVmDeployment(
-          "vm-2026-04-30-tradfi-bf-btc-heavy-2024-06",
-          "running",
-        ),
+        _mockVmDeployment("vm-2026-04-30-tradfi-bf-btc-heavy-2024-06", "running"),
         _mockVmDeployment("vm-2026-04-30-tradfi-bf-eth-light-2025", "running"),
       ],
       recent: [
-        _mockVmDeployment(
-          "vm-2026-04-29-cefi-binance-futures-2024",
-          "completed",
-        ),
+        _mockVmDeployment("vm-2026-04-29-cefi-binance-futures-2024", "completed"),
         _mockVmDeployment("vm-2026-04-29-cefi-bybit-2024", "completed"),
         _mockVmDeployment("vm-2026-04-28-mtds-options-may2025", "failed"),
       ],
@@ -1684,16 +1570,235 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // ─── VM deployments reconcile ───
+  if (path === "/api/vm-deployments/reconcile" && method === "POST") {
+    const reconcileError = (window as typeof window & { __mockReconcileError?: boolean }).__mockReconcileError;
+    if (reconcileError) {
+      return json({ error: "Mock reconcile error" }, 502);
+    }
+    return json({
+      reaped_count: 1737,
+      reaped: [],
+      running_vm_count: 25,
+      total_active_before: 1762,
+    });
+  }
+
+  // ─── Daily VM costs ───
+  if (path.startsWith("/api/costs/daily")) {
+    const date = new URL(url, "http://localhost").searchParams.get("date") ?? "2026-05-15";
+    return json({
+      date,
+      total_usd: 12.34,
+      by_asset_group: [
+        { asset_group: "cefi", vm_count: 2, total_usd: 8.0, archetype_count: 1 },
+        { asset_group: "defi", vm_count: 1, total_usd: 4.34, archetype_count: 1 },
+      ],
+      by_archetype: [
+        { archetype: "carry_staked_basis", vm_count: 2, total_usd: 8.0 },
+        { archetype: "arbitrage_price_dispersion", vm_count: 1, total_usd: 4.34 },
+      ],
+      by_vm: [
+        {
+          vm_name: "cefi-backfill-20260515",
+          asset_group: "cefi",
+          archetype: "carry_staked_basis",
+          machine_type: "n1-standard-4",
+          runtime_hours: 2.0,
+          compute_usd: 7.6,
+          disk_usd: 0.4,
+          total_usd: 8.0,
+        },
+        {
+          vm_name: "defi-backfill-20260515",
+          asset_group: "defi",
+          archetype: "arbitrage_price_dispersion",
+          machine_type: "n1-standard-2",
+          runtime_hours: 1.0,
+          compute_usd: 4.0,
+          disk_usd: 0.34,
+          total_usd: 4.34,
+        },
+      ],
+    });
+  }
+
+  // ─── VM events / health (smoke tests for DailyCosts + VmDetail) ───
+  const vmEventsMatch = path.match(/^\/api\/vm\/([^/]+)\/events/);
+  if (vmEventsMatch) {
+    const vmName = decodeURIComponent(vmEventsMatch[1]);
+    return json({
+      vm_name: vmName,
+      service: "instruments-service",
+      date: "2026-05-15",
+      hours_scanned: [0, 1],
+      total_events: 2,
+      events: [
+        {
+          event: "STARTED",
+          service: "instruments-service",
+          timestamp: "2026-05-15T00:00:01+00:00",
+          severity: "INFO",
+          correlation_id: null,
+          details: null,
+        },
+        {
+          event: "STOPPED",
+          service: "instruments-service",
+          timestamp: "2026-05-15T02:00:00+00:00",
+          severity: "INFO",
+          correlation_id: null,
+          details: null,
+        },
+      ],
+      truncated: false,
+      next_page_token: null,
+    });
+  }
+  const vmHealthMatch = path.match(/^\/api\/vm\/([^/]+)\/health/);
+  if (vmHealthMatch) {
+    const vmName = decodeURIComponent(vmHealthMatch[1]);
+    return json({ vm_name: vmName, status: "healthy", event_count: 2 });
+  }
+
+  // ─── Treasury / client NAV endpoints (Phase 6 — wallet treasury) ───
+  const clientTreasuryMatch = path.match(/^\/api\/clients\/([^/]+)\/treasury$/);
+  if (clientTreasuryMatch) {
+    const clientId = decodeURIComponent(clientTreasuryMatch[1]);
+    return json({
+      client_id: clientId,
+      as_of: "2026-05-13T10:00:00+00:00",
+      subscriptions: [
+        {
+          client_id: clientId,
+          share_class_id: "USDC_CUTOVER_V1",
+          archetype_id: "carry_staked_basis",
+          allocation_pct: "60",
+          max_drawdown_for_suspension_pct: "15",
+          subscribed_at: "2026-05-10T09:00:00+00:00",
+          suspended_at: null,
+          suspension_reason: "",
+          is_active: true,
+        },
+        {
+          client_id: clientId,
+          share_class_id: "USDC_CUTOVER_V1",
+          archetype_id: "arbitrage_price_dispersion",
+          allocation_pct: "40",
+          max_drawdown_for_suspension_pct: "20",
+          subscribed_at: "2026-05-10T09:00:00+00:00",
+          suspended_at: null,
+          suspension_reason: "",
+          is_active: true,
+        },
+      ],
+      treasury_attribution: [
+        {
+          source: "DEFI_HOT_WALLET",
+          client_share_pct: "100",
+          client_share_usd: "850000.00",
+          source_nav_usd: "850000.00",
+        },
+        {
+          source: "SUB_ACCOUNT_HYPERLIQUID",
+          client_share_pct: "100",
+          client_share_usd: "300000.00",
+          source_nav_usd: "300000.00",
+        },
+        {
+          source: "SUB_ACCOUNT_DRIFT",
+          client_share_pct: "100",
+          client_share_usd: "100000.00",
+          source_nav_usd: "100000.00",
+        },
+      ],
+      custody_ping_results: [
+        {
+          source: "DEFI_HOT_WALLET",
+          is_reachable: true,
+          balance_usd: "850000.00",
+          as_of_timestamp: "2026-05-13T10:00:00+00:00",
+          latency_ms: 42,
+          error_message: "",
+        },
+        {
+          source: "COPPER",
+          is_reachable: false,
+          balance_usd: null,
+          as_of_timestamp: null,
+          latency_ms: 0,
+          error_message: "June-1 credential delivery pending",
+        },
+      ],
+      allocations: [
+        {
+          archetype_id: "carry_staked_basis",
+          share_class_id: "USDC_CUTOVER_V1",
+          allocation_amount_usd: "750000.00",
+          decision_event_id: "alloc_carry_staked_basis_demo",
+          decided_at: "2026-05-13T10:00:00+00:00",
+        },
+      ],
+      last_settled: null,
+      nav_usd: "1250000.00",
+    });
+  }
+
+  const clientSubsMatch = path.match(/^\/api\/clients\/([^/]+)\/subscriptions$/);
+  if (clientSubsMatch) {
+    const clientId = decodeURIComponent(clientSubsMatch[1]);
+    return json({
+      client_id: clientId,
+      subscriptions: [
+        {
+          client_id: clientId,
+          share_class_id: "USDC_CUTOVER_V1",
+          archetype_id: "carry_staked_basis",
+          allocation_pct: "60",
+          max_drawdown_for_suspension_pct: "15",
+          subscribed_at: "2026-05-10T09:00:00+00:00",
+          suspended_at: null,
+          suspension_reason: "",
+          is_active: true,
+        },
+        {
+          client_id: clientId,
+          share_class_id: "USDC_CUTOVER_V1",
+          archetype_id: "arbitrage_price_dispersion",
+          allocation_pct: "40",
+          max_drawdown_for_suspension_pct: "20",
+          subscribed_at: "2026-05-10T09:00:00+00:00",
+          suspended_at: null,
+          suspension_reason: "",
+          is_active: true,
+        },
+      ],
+      onboarding_state: "LIVE",
+    });
+  }
+
+  const clientWithdrawMatch = path.match(/^\/api\/clients\/([^/]+)\/withdrawal-request$/);
+  if (clientWithdrawMatch && method === "POST") {
+    return json({ request_id: "wr-mock-001", status: "pending_approval" }, 201);
+  }
+
+  if (path.startsWith("/api/treasury/rollup")) {
+    return json({
+      as_of: "2026-05-13T10:00:00+00:00",
+      nav_usd: "1250000.00",
+      sources: [
+        { source: "DEFI_HOT_WALLET", nav_usd: "850000.00", is_reachable: true },
+        { source: "SUB_ACCOUNT_HYPERLIQUID", nav_usd: "300000.00", is_reachable: true },
+        { source: "SUB_ACCOUNT_DRIFT", nav_usd: "100000.00", is_reachable: true },
+      ],
+    });
+  }
+
   // ─── Client subscriptions (Phase 4b — SLA / isolation) ───
   if (path === "/subscriptions/" || path === "/subscriptions") {
     if (method === "POST") {
-      const sub = init?.body
-        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
-        : {};
-      return json(
-        _mockClientSubscription(String(sub.client_id ?? "client-new")),
-        201,
-      );
+      const sub = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+      return json(_mockClientSubscription(String(sub.client_id ?? "client-new")), 201);
     }
     return json([
       _mockClientSubscription("acme-trading", "premium"),
@@ -1705,9 +1810,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (subMatch) {
     const clientId = decodeURIComponent(subMatch[1]);
     if (method === "PUT") {
-      const patch = init?.body
-        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
-        : {};
+      const patch = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
       return json({
         ..._mockClientSubscription(clientId),
         ...patch,
@@ -1723,9 +1826,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       return json({ revoked: decodeURIComponent(idMatch[1]) });
     }
     if (method === "POST") {
-      const spec = init?.body
-        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
-        : {};
+      const spec = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
       return json(
         {
           injection_id: `chaos-${Date.now()}`,
@@ -1741,18 +1842,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       );
     }
     return json([
-      _mockChaosInjection(
-        "chaos-venue-latency-001",
-        "venue_latency",
-        "execution-service",
-        "staging",
-      ),
-      _mockChaosInjection(
-        "chaos-rpc-timeout-002",
-        "rpc_timeout",
-        "market-tick-data-service",
-        "paper",
-      ),
+      _mockChaosInjection("chaos-venue-latency-001", "venue_latency", "execution-service", "staging"),
+      _mockChaosInjection("chaos-rpc-timeout-002", "rpc_timeout", "market-tick-data-service", "paper"),
     ]);
   }
 
@@ -1762,10 +1853,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 function _mockVmDeployment(deploymentId: string, status: string) {
   const startedAt = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
   const lastHb = new Date(Date.now() - 30_000).toISOString();
-  const completedAt =
-    status === "running"
-      ? null
-      : new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const completedAt = status === "running" ? null : new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const exitCode = status === "running" ? null : status === "completed" ? 0 : 1;
   return {
     deployment_id: deploymentId,
@@ -1808,12 +1896,7 @@ function _mockClientSubscription(clientId: string, tier: string = "standard") {
   };
 }
 
-function _mockChaosInjection(
-  injectionId: string,
-  point: string,
-  targetService: string,
-  runtimeProfile: string,
-) {
+function _mockChaosInjection(injectionId: string, point: string, targetService: string, runtimeProfile: string) {
   return {
     injection_id: injectionId,
     point,
@@ -1831,12 +1914,7 @@ export function installDeploymentMockHandlers(enabled = MOCK_MODE) {
 
   const original = window.fetch.bind(window);
   window.fetch = async (input, init) => {
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.href
-          : (input as Request).url;
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
     if (
       url.includes("/api/") ||
       url.includes("/cloud-builds/") ||

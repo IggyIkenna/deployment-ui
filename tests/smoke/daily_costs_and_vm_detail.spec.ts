@@ -89,9 +89,11 @@ async function mockCostApiOk(page: Page) {
 }
 
 async function mockCostApiError(page: Page) {
-  await page.route("**/api/costs/daily**", (route) =>
-    route.fulfill({ status: 500, json: { detail: "GCS unavailable" } }),
-  );
+  await page.addInitScript(() => {
+    (window as typeof window & { __mockErrors?: Array<{ pattern: string; status: number }> }).__mockErrors = [
+      { pattern: "/api/costs/daily", status: 500 },
+    ];
+  });
 }
 
 async function mockVmEventsOk(page: Page) {
@@ -102,12 +104,11 @@ async function mockVmEventsOk(page: Page) {
 }
 
 async function mockVmEventsError(page: Page) {
-  await page.route("**/api/vm/*/events**", (route) =>
-    route.fulfill({ status: 503, json: { detail: "Storage unavailable" } }),
-  );
-  await page.route("**/api/vm/*/health**", (route) =>
-    route.fulfill({ status: 503, json: { detail: "Storage unavailable" } }),
-  );
+  await page.addInitScript(() => {
+    (window as typeof window & { __mockErrors?: Array<{ pattern: string; status: number }> }).__mockErrors = [
+      { pattern: "/api/vm/", status: 503 },
+    ];
+  });
 }
 
 // ── DailyCosts tests ──────────────────────────────────────────────────────
@@ -140,7 +141,7 @@ test.describe("DailyCosts page", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("By Asset Group")).toBeVisible();
-    await expect(page.getByText("cefi")).toBeVisible();
+    await expect(page.getByText("cefi").first()).toBeVisible();
   });
 
   test("date picker is present and interactive", async ({ page }) => {

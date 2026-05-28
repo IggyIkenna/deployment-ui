@@ -246,43 +246,33 @@ test.describe("ClientReportingTab", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("client-reporting-api").click();
+    await page.getByText("client reporting api").first().click();
 
-    await expect(
-      page.getByRole("tab", { name: /Client Reporting/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Client Reporting/i })).toBeVisible();
   });
 
   test("Client Reporting tab renders the root container", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("client-reporting-api").click();
+    await page.getByText("client reporting api").first().click();
     await page.getByRole("tab", { name: /Client Reporting/i }).click();
 
-    await expect(
-      page.locator('[data-testid="client-reporting-tab"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="client-reporting-tab"]')).toBeVisible();
   });
 
-  test("Client Reporting tab shows NAV and PnL section headings", async ({
-    page,
-  }) => {
+  test("Client Reporting tab shows NAV and PnL section headings", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("client-reporting-api").click();
+    await page.getByText("client reporting api").first().click();
     await page.getByRole("tab", { name: /Client Reporting/i }).click();
 
-    await expect(
-      page.locator('[data-testid="client-reporting-tab"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="client-reporting-tab"]')).toBeVisible();
     await expect(page.getByText(/NAV/i).first()).toBeVisible();
   });
 
-  test("non-client-reporting services do not show Client Reporting tab", async ({
-    page,
-  }) => {
+  test("non-client-reporting services do not show Client Reporting tab", async ({ page }) => {
     // Override with a different service list
     await page.route("**/api/services", async (route) => {
       await route.fulfill({
@@ -301,10 +291,8 @@ test.describe("ClientReportingTab", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("instruments-service").click();
+    await page.getByText("instruments").first().click();
 
-    await expect(
-      page.getByRole("tab", { name: /Client Reporting/i }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("tab", { name: /Client Reporting/i })).not.toBeVisible();
   });
 });

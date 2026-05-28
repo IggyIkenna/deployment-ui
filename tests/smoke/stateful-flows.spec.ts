@@ -64,9 +64,7 @@ async function mockAllApis(page: Page) {
       },
     }),
   );
-  await page.route("**/api/services", (route) =>
-    route.fulfill({ json: MOCK_SERVICES }),
-  );
+  await page.route("**/api/services", (route) => route.fulfill({ json: MOCK_SERVICES }));
   await page.route("**/api/services/*/dimensions", (route) =>
     route.fulfill({
       json: {
@@ -180,9 +178,7 @@ async function mockAllApis(page: Page) {
       },
     }),
   );
-  await page.route("**/cloud-builds/history/**", (route) =>
-    route.fulfill({ json: { builds: [] } }),
-  );
+  await page.route("**/cloud-builds/history/**", (route) => route.fulfill({ json: { builds: [] } }));
   await page.route("**/api/services/overview", (route) =>
     route.fulfill({
       json: { services: [], count: 1, healthy: 1, warnings: 0, errors: 0 },
@@ -198,9 +194,7 @@ async function mockAllApis(page: Page) {
       },
     }),
   );
-  await page.route("**/api/cache/clear", (route) =>
-    route.fulfill({ json: { cleared: true } }),
-  );
+  await page.route("**/api/cache/clear", (route) => route.fulfill({ json: { cleared: true } }));
   await page.route("**/api/deployments/*/quota**", (route) =>
     route.fulfill({
       json: {
@@ -285,7 +279,7 @@ test.describe("Flow 1: Deploy -> History -> Details", () => {
     await page.waitForLoadState("networkidle");
 
     // Step 1: Select service
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Step 2: Verify deploy tab is visible
@@ -301,24 +295,17 @@ test.describe("Flow 1: Deploy -> History -> Details", () => {
 
     // Fill required date fields if present
     const startInputs = page.getByLabel(/Start Date/i);
-    if ((await startInputs.count()) > 0)
-      await startInputs.first().fill("2026-01-01");
+    if ((await startInputs.count()) > 0) await startInputs.first().fill("2026-01-01");
     const endInputs = page.getByLabel(/End Date/i);
-    if ((await endInputs.count()) > 0)
-      await endInputs.first().fill("2026-03-15");
+    if ((await endInputs.count()) > 0) await endInputs.first().fill("2026-03-15");
 
     // Uncheck dry run if it's checked
     const dryRunCheckbox = page.getByLabel(/Dry Run/i);
-    if (
-      (await dryRunCheckbox.count()) > 0 &&
-      (await dryRunCheckbox.isChecked())
-    ) {
+    if ((await dryRunCheckbox.count()) > 0 && (await dryRunCheckbox.isChecked())) {
       await dryRunCheckbox.uncheck();
     }
 
-    const deployBtn = page
-      .getByRole("button", { name: /Deploy|Preview|Run/i })
-      .first();
+    const deployBtn = page.getByRole("button", { name: /Deploy|Preview|Run/i }).first();
     if (await deployBtn.isVisible()) {
       await deployBtn.click();
       await page.waitForTimeout(500);
@@ -336,9 +323,7 @@ test.describe("Flow 1: Deploy -> History -> Details", () => {
 // ── Flow 2: Browse tabs in sequence ─────────────────────────────────────────
 
 test.describe("Flow 2: Tab navigation sequence", () => {
-  test("navigate Deploy -> History -> Builds -> Readiness -> Status -> Config without errors", async ({
-    page,
-  }) => {
+  test("navigate Deploy -> History -> Builds -> Readiness -> Status -> Config without errors", async ({ page }) => {
     await mockAllApis(page);
     await page.route("**/api/deployments**", async (route) => {
       const url = route.request().url();
@@ -358,7 +343,7 @@ test.describe("Flow 2: Tab navigation sequence", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Deploy tab
@@ -389,9 +374,7 @@ test.describe("Flow 2: Tab navigation sequence", () => {
     await page.waitForLoadState("networkidle");
 
     // No errors anywhere
-    await expect(
-      page.getByText(/Unknown Error|TypeError|Cannot read/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
   });
 });
 
@@ -408,7 +391,7 @@ test.describe("Flow 3: Cloud provider switching", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Verify GCP is initially selected
@@ -419,20 +402,14 @@ test.describe("Flow 3: Cloud provider switching", () => {
 
     // Switch to AWS — should show warning
     await awsBtn.click();
-    await expect(
-      page.getByText(/AWS configured but unauthenticated/),
-    ).toBeVisible();
+    await expect(page.getByText(/AWS configured but unauthenticated/)).toBeVisible();
 
     // Switch back to GCP — warning should disappear
     await gcpBtn.click();
-    await expect(
-      page.getByText(/AWS configured but unauthenticated/),
-    ).not.toBeVisible();
+    await expect(page.getByText(/AWS configured but unauthenticated/)).not.toBeVisible();
 
     // Form should still be functional — deploy button visible
-    const deployBtn = page
-      .getByRole("button", { name: /Deploy|Preview|Run/i })
-      .first();
+    const deployBtn = page.getByRole("button", { name: /Deploy|Preview|Run/i }).first();
     await expect(deployBtn).toBeVisible();
   });
 });

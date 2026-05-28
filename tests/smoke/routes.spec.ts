@@ -77,7 +77,6 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ json: MOCK_DEPLOYMENTS });
     }
   });
-  await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/cloud-builds/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/service-status/**", (route) =>
     route.fulfill({
@@ -98,7 +97,7 @@ test("History tab is visible in service detail view", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await page.getByText("instruments-service").first().click();
+  await page.getByText("instruments", { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByRole("tab", { name: /History/i })).toBeVisible();
@@ -108,13 +107,13 @@ test("History tab renders deployment rows without crashing", async ({ page }) =>
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await page.getByText("instruments-service").first().click();
+  await page.getByText("instruments", { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("tab", { name: /History/i }).click();
 
-  await expect(page.getByText("dep-hist-001")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("dep-hist-002")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("dep-002")).toBeVisible({ timeout: 5_000 });
 
   const errors = (page as Record<string, unknown>).__runtimeErrors as string[];
   expect(errors).toEqual([]);
@@ -124,11 +123,11 @@ test("History tab shows Completed and Running badges", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await page.getByText("instruments-service").first().click();
+  await page.getByText("instruments", { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("tab", { name: /History/i }).click();
-  await expect(page.getByText("dep-hist-001")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10_000 });
 
   await expect(page.getByText("Completed").first()).toBeVisible();
   await expect(page.getByText("Running").first()).toBeVisible();
@@ -145,7 +144,7 @@ test("switching to History tab does not show ErrorBoundary crash", async ({ page
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await page.getByText("instruments-service").first().click();
+  await page.getByText("instruments", { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("tab", { name: /History/i }).click();

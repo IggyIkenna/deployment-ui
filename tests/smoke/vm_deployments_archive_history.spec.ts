@@ -7,17 +7,13 @@
  *   - Rows Captured column shows rows_out
  *   - Log link renders as clickable GCS console URL
  *   - Empty archive renders "None" without JS crash
+ *
+ * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright
+ * route mocks for /api/ paths are bypassed. We inject vm-deployment data via
+ * window.__mockVmDeploymentOverride (handled in mock-api.ts).
  */
 
 import { expect, type Page, test } from "@playwright/test";
-
-const MOCK_HEALTH = {
-  status: "ok",
-  version: "1.0.0-test",
-  config_dir: "/config",
-  mock_mode: false,
-  gcs_fuse: { active: true, reason: "mounted" },
-};
 
 function makeArchiveEntry(overrides: Record<string, unknown> = {}) {
   return {
@@ -46,36 +42,20 @@ function makeArchiveEntry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function mockBase(page: Page, recentRows: unknown[] = []) {
-  await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
-  await page.route("**/api/services", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/monitor/**", (route) =>
-    route.fulfill({ json: { jobs: [], total: 0, queried_at: new Date().toISOString(), cloud: "gcp", env: "dev" } }),
-  );
-  await page.route("**/api/dart/**", (route) => route.fulfill({ json: {} }));
-  await page.route("**/api/ml/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/strategy/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/research/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/ops/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
-  await page.route("**/api/costs/**", (route) =>
-    route.fulfill({ json: { date: "2026-05-28", total_usd: 0, by_asset_group: [], by_archetype: [], by_vm: [] } }),
-  );
-  await page.route("**/api/vm-deployments", (route) =>
-    route.fulfill({
-      json: {
-        active: [],
-        recent: recentRows,
-        archive_days: 7,
-      },
-    }),
-  );
+async function injectVmDeploymentData(page: Page, recentRows: unknown[]) {
+  await page.addInitScript((rows) => {
+    (window as typeof window & { __mockVmDeploymentOverride?: unknown }).__mockVmDeploymentOverride = {
+      active: [],
+      recent: rows,
+      archive_days: 7,
+    };
+  }, recentRows);
 }
 
 test.describe("VM Deployments — Archive History (§2.P1)", () => {
   test("COMPLETED entry shows outcome badge, duration, rows captured, log link", async ({ page }) => {
     const entry = makeArchiveEntry();
-    await mockBase(page, [entry]);
+    await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -116,7 +96,7 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       completed_at: "2026-04-20T09:00:00Z",
       log_uri: "gs://vm-logs-archive-central-element-323112/features-onchain-defi-20260420-080000/run.log",
     });
-    await mockBase(page, [entry]);
+    await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -136,7 +116,7 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       completed_at: "2026-04-20T09:00:00Z",
       rows_out: 0,
     });
-    await mockBase(page, [entry]);
+    await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -146,7 +126,7 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
   });
 
   test("empty archive renders None without JS crash", async ({ page }) => {
-    await mockBase(page, []);
+    await injectVmDeploymentData(page, []);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -159,7 +139,7 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       deployment_id: "dep-nolog-1",
       log_uri: "",
     });
-    await mockBase(page, [entry]);
+    await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 

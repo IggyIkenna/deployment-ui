@@ -200,9 +200,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "features-commodity-service": {
     description: "Commodity-specific features",
     dimensions: ["asset_group", "feature_group", "date"],
-    operations: [
-      { value: "compute", label: "Compute", description: "Commodity features" },
-    ],
+    operations: [{ value: "compute", label: "Compute", description: "Commodity features" }],
     modes: ["batch"],
     categories: ["TRADFI"],
   },
@@ -289,9 +287,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "trading-agent-service": {
     description: "Autonomous trading agents",
     dimensions: ["config"],
-    operations: [
-      { value: "run", label: "Run", description: "Run trading agents" },
-    ],
+    operations: [{ value: "run", label: "Run", description: "Run trading agents" }],
     modes: ["live"],
     operationalModes: ["live", "paper"],
   },
@@ -317,26 +313,32 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   "ibkr-gateway-infra": {
     description: "Interactive Brokers TWS gateway",
     dimensions: ["config"],
-    operations: [
-      { value: "start", label: "Start", description: "Start IBKR gateway" },
-    ],
+    operations: [{ value: "start", label: "Start", description: "Start IBKR gateway" }],
     modes: ["live"],
   },
   "deployment-service": {
     description: "Deployment orchestration & sharding",
     dimensions: ["service"],
-    operations: [
-      { value: "deploy", label: "Deploy", description: "Deploy services" },
-    ],
+    operations: [{ value: "deploy", label: "Deploy", description: "Deploy services" }],
     modes: ["batch"],
   },
   "odum-research-website": {
     description: "Corporate website",
     dimensions: ["environment"],
-    operations: [
-      { value: "build", label: "Build", description: "Build & deploy website" },
-    ],
+    operations: [{ value: "build", label: "Build", description: "Build & deploy website" }],
     modes: ["batch"],
+  },
+  "deployment-api": {
+    description: "Deployment orchestration & treasury",
+    dimensions: ["service"],
+    operations: [{ value: "deploy", label: "Deploy", description: "Deploy services" }],
+    modes: ["batch", "live"],
+  },
+  "client-reporting-api": {
+    description: "Client NAV, PnL & reporting",
+    dimensions: ["client_id"],
+    operations: [{ value: "report", label: "Report", description: "Generate client reports" }],
+    modes: ["batch", "live"],
   },
 };
 
@@ -406,11 +408,7 @@ const PIPELINE_LAYERS = [
     title: "L5: Execution",
     description: "Strategy, execution, agents",
     color: "var(--color-accent-green)",
-    services: [
-      "strategy-service",
-      "execution-service",
-      "trading-agent-service",
-    ],
+    services: ["strategy-service", "execution-service", "trading-agent-service"],
   },
   {
     id: "layer6",
@@ -427,6 +425,13 @@ const PIPELINE_LAYERS = [
     services: ["ibkr-gateway-infra", "deployment-service"],
   },
   {
+    id: "apis",
+    title: "APIs",
+    description: "Platform APIs",
+    color: "var(--color-accent-amber)",
+    services: ["deployment-api", "client-reporting-api"],
+  },
+  {
     id: "website",
     title: "Website",
     description: "Odum Research",
@@ -435,10 +440,7 @@ const PIPELINE_LAYERS = [
   },
 ];
 
-const TOTAL_SERVICES = PIPELINE_LAYERS.reduce(
-  (sum, layer) => sum + layer.services.length,
-  0,
-);
+const TOTAL_SERVICES = PIPELINE_LAYERS.reduce((sum, layer) => sum + layer.services.length, 0);
 
 // ── Selection type: service + optional operation ────────────────────────────
 export interface ServiceSelection {
@@ -451,10 +453,7 @@ interface ServiceListProps {
   onSelectService: (service: string, operation?: string) => void;
 }
 
-export function ServiceList({
-  selectedService,
-  onSelectService,
-}: ServiceListProps) {
+export function ServiceList({ selectedService, onSelectService }: ServiceListProps) {
   const [expandedService, setExpandedService] = useState<string | null>(null);
 
   const handleServiceClick = (serviceName: string) => {
@@ -496,10 +495,7 @@ export function ServiceList({
                 className="px-3 py-1 bg-[var(--color-bg-tertiary)]"
                 style={{ borderLeft: `3px solid ${layer.color}` }}
               >
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: layer.color }}
-                >
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: layer.color }}>
                   {layer.title}
                 </span>
               </div>
@@ -513,9 +509,7 @@ export function ServiceList({
                     isSelected={selectedService === serviceName}
                     isExpanded={expandedService === serviceName}
                     onClick={() => handleServiceClick(serviceName)}
-                    onOperationClick={(op) =>
-                      handleOperationClick(serviceName, op)
-                    }
+                    onOperationClick={(op) => handleOperationClick(serviceName, op)}
                   />
                 ))}
               </div>
@@ -560,17 +554,11 @@ function ServiceItem({
           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-bg-hover)] h-auto rounded-none",
           isSelected && "bg-[var(--color-bg-hover)]",
         )}
-        style={
-          isSelected ? { borderLeft: `2px solid ${layerColor}` } : undefined
-        }
+        style={isSelected ? { borderLeft: `2px solid ${layerColor}` } : undefined}
       >
         <div
           className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--color-bg-tertiary)]"
-          style={
-            isSelected
-              ? { color: layerColor }
-              : { color: "var(--color-text-tertiary)" }
-          }
+          style={isSelected ? { color: layerColor } : { color: "var(--color-text-tertiary)" }}
         >
           <Icon className="h-3 w-3" />
         </div>
@@ -578,9 +566,7 @@ function ServiceItem({
           <p
             className={cn(
               "text-xs font-medium font-mono truncate leading-tight",
-              isSelected
-                ? "text-[var(--color-text-primary)]"
-                : "text-[var(--color-text-secondary)]",
+              isSelected ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]",
             )}
           >
             {serviceName.replace("-service", "").replace(/-/g, " ")}
@@ -636,13 +622,9 @@ function ServiceItem({
             >
               <span className="w-1 h-1 rounded-full bg-[var(--color-text-muted)]" />
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate">
-                  {op.label}
-                </p>
+                <p className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate">{op.label}</p>
                 {op.description && (
-                  <p className="text-[9px] text-[var(--color-text-muted)] truncate">
-                    {op.description}
-                  </p>
+                  <p className="text-[9px] text-[var(--color-text-muted)] truncate">{op.description}</p>
                 )}
               </div>
             </button>

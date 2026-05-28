@@ -27,10 +27,9 @@ describe("ServiceList", () => {
 
   it("renders the total service count badge", () => {
     render(<ServiceList selectedService={null} onSelectService={vi.fn()} />);
-    // 1 + 2 + 8 + 2 + 3 + 1 + 2 + 1 = 20
-    // (L6 Risk now has 1 service: alerting-service; pnl/position/risk-and-exposure
-    //  were merged into strategy-service ops in d22f2ba)
-    expect(screen.getByText("20")).toBeTruthy();
+    // 1 + 2 + 8 + 2 + 3 + 1 + 2 + 2 + 1 = 22
+    // (APIs layer: deployment-api + client-reporting-api added)
+    expect(screen.getByText("22")).toBeTruthy();
   });
 
   it("calls onSelectService with the default operation when a single-op service is clicked", () => {
@@ -46,10 +45,7 @@ describe("ServiceList", () => {
     // market-tick-data-service has 4 operations — clicking should
     // expand AND emit the default operation (the first).
     fireEvent.click(screen.getByText("market tick data"));
-    expect(onSelect).toHaveBeenCalledWith(
-      "market-tick-data-service",
-      "download",
-    );
+    expect(onSelect).toHaveBeenCalledWith("market-tick-data-service", "download");
     // Sub-operations now visible.
     expect(screen.getByText("Gas Fees")).toBeTruthy();
     expect(screen.getByText("Solana DeFi")).toBeTruthy();
@@ -73,10 +69,7 @@ describe("ServiceList", () => {
     fireEvent.click(screen.getByText("market tick data"));
     onSelect.mockClear();
     fireEvent.click(screen.getByText("Gas Fees"));
-    expect(onSelect).toHaveBeenCalledWith(
-      "market-tick-data-service",
-      "collect-gas-fees",
-    );
+    expect(onSelect).toHaveBeenCalledWith("market-tick-data-service", "collect-gas-fees");
   });
 
   it("renders mode badges for each service", () => {
@@ -95,12 +88,7 @@ describe("ServiceList", () => {
   });
 
   it("highlights the selected service", () => {
-    const { container } = render(
-      <ServiceList
-        selectedService="strategy-service"
-        onSelectService={vi.fn()}
-      />,
-    );
+    const { container } = render(<ServiceList selectedService="strategy-service" onSelectService={vi.fn()} />);
     // The strategy-service row picks up the selected styling — assert
     // the rendered text + that some element references the layer color
     // border. We don't assert exact CSS; the branch under test is the
@@ -132,10 +120,7 @@ describe("ServiceList", () => {
     fireEvent.click(screen.getByText("execution"));
     onSelect.mockClear();
     fireEvent.click(screen.getByText("Live Execution"));
-    expect(onSelect).toHaveBeenCalledWith(
-      "execution-service",
-      "live_execution",
-    );
+    expect(onSelect).toHaveBeenCalledWith("execution-service", "live_execution");
   });
 
   it("supports services without operationalModes (no amber badges where absent)", () => {
@@ -174,10 +159,7 @@ describe("ServiceList", () => {
     render(<ServiceList selectedService={null} onSelectService={onSelect} />);
     // calendar service is multi-op too.
     fireEvent.click(screen.getByText("features calendar"));
-    expect(onSelect).toHaveBeenCalledWith(
-      "features-calendar-service",
-      "calendar",
-    );
+    expect(onSelect).toHaveBeenCalledWith("features-calendar-service", "calendar");
     expect(screen.getByText("Calendar")).toBeTruthy();
     expect(screen.getByText("Corporate Actions")).toBeTruthy();
   });

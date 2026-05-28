@@ -311,7 +311,7 @@ async function navigateToTreasuryTab(page: Page) {
   await page.waitForLoadState("networkidle");
 
   // Select the deployment-api service
-  await page.getByText("deployment-api").click();
+  await page.getByText("deployment api").first().click();
 
   // Click the Treasury tab
   await page.getByRole("tab", { name: /Treasury/i }).click();
@@ -325,22 +325,16 @@ test.describe("TreasuryTab smoke", () => {
     await mockDeploymentApiRoutes(page);
   });
 
-  test("deployment-api service shows Treasury tab trigger", async ({
-    page,
-  }) => {
+  test("deployment-api service shows Treasury tab trigger", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("deployment-api").click();
+    await page.getByText("deployment api").first().click();
 
-    await expect(
-      page.getByRole("tab", { name: /Treasury/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Treasury/i })).toBeVisible();
   });
 
-  test("Treasury tab renders NAV, LIVE badge, and subscriptions", async ({
-    page,
-  }) => {
+  test("Treasury tab renders NAV, LIVE badge, and subscriptions", async ({ page }) => {
     await mockDeploymentApiRoutes(page);
     await navigateToTreasuryTab(page);
 
@@ -350,18 +344,14 @@ test.describe("TreasuryTab smoke", () => {
     expect(navText).toContain("1,250,000");
 
     // Onboarding badge
-    await expect(page.getByText("LIVE")).toBeVisible();
+    await expect(page.getByText("LIVE", { exact: true })).toBeVisible();
 
     // Subscriptions archetypes visible (may appear multiple times in different tables)
     await expect(page.getByText("carry_staked_basis").first()).toBeVisible();
-    await expect(
-      page.getByText("arbitrage_price_dispersion").first(),
-    ).toBeVisible();
+    await expect(page.getByText("arbitrage_price_dispersion").first()).toBeVisible();
   });
 
-  test("Treasury tab shows COPPER as UNREACHABLE in custody pings", async ({
-    page,
-  }) => {
+  test("Treasury tab shows COPPER as UNREACHABLE in custody pings", async ({ page }) => {
     await navigateToTreasuryTab(page);
 
     await expect(page.getByText("COPPER")).toBeVisible();
@@ -380,9 +370,7 @@ test.describe("TreasuryTab smoke", () => {
     await expect(page.getByTestId("withdrawal-dialog")).toBeVisible();
   });
 
-  test("NAV reconciliation invariant — single-client treasury.nav_usd == rollup.nav_usd", async ({
-    page,
-  }) => {
+  test("NAV reconciliation invariant — single-client treasury.nav_usd == rollup.nav_usd", async ({ page }) => {
     // The reconciliation check works as follows:
     //   1. Fetch /api/treasury/rollup to get the canonical total NAV
     //   2. Fetch /api/clients/demo/treasury?rollup_nav_usd=<total> — when the
@@ -394,21 +382,17 @@ test.describe("TreasuryTab smoke", () => {
     // (1250000.00), so the reconciliation asserts numeric equality on the
     // client side after reading both JSON responses.
 
-    // Intercept the treasury endpoint to record the nav_usd returned.
-    let capturedClientNavUsd: string | null = null;
-    await page.route("**/api/clients/*/treasury**", async (route) => {
-      capturedClientNavUsd = String(MOCK_TREASURY.nav_usd);
-      await route.fulfill({ json: MOCK_TREASURY });
-    });
-
     await navigateToTreasuryTab(page);
 
-    // Wait for the NAV to render (confirms the treasury endpoint was called).
+    // Wait for the NAV to render.
     await expect(page.getByTestId("treasury-nav-usd")).toBeVisible();
 
-    // Reconciliation check: both values must be equal.
+    // Read the displayed nav_usd from the DOM and compare to rollup.
+    const navText = await page.getByTestId("treasury-nav-usd").textContent();
     const rollupNavUsd = MOCK_ROLLUP.nav_usd;
-    expect(capturedClientNavUsd).not.toBeNull();
-    expect(Number(capturedClientNavUsd)).toBe(Number(rollupNavUsd));
+    // Strip currency symbols/commas to get numeric value for comparison
+    const displayedUsd = Number((navText ?? "").replace(/[$,]/g, ""));
+    expect(displayedUsd).toBeGreaterThan(0);
+    expect(displayedUsd).toBe(Number(rollupNavUsd));
   });
 });

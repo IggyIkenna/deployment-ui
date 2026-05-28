@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlertCircle,
   BarChart2,
   Database,
@@ -20,6 +21,7 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { CloudBuildsTab } from "./components/CloudBuildsTab";
 import { DataStatusTab } from "./components/DataStatusTab";
 import { DeploymentHistory } from "./components/DeploymentHistory";
+import { ServiceStatusTab } from "./components/ServiceStatusTab";
 import { DeployForm } from "./components/DeployForm";
 import { DeploymentDetails } from "./components/DeploymentDetails";
 import { DeploymentResult } from "./components/DeploymentResult";
@@ -228,7 +230,7 @@ function App() {
                                     >
                                       <TabsList
                                         variant="pill"
-                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-8" : selectedService === "deployment-api" ? "grid-cols-9" : "grid-cols-7"} mb-6`}
+                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-9" : selectedService === "deployment-api" ? "grid-cols-10" : "grid-cols-8"} mb-6`}
                                       >
                                         {!isInfra && (
                                           <TabsTrigger value="deploy" className="gap-2">
@@ -268,6 +270,12 @@ function App() {
                                           <Settings className="h-4 w-4" />
                                           Config
                                         </TabsTrigger>
+                                        {!isInfra && (
+                                          <TabsTrigger value="status" className="gap-2">
+                                            <Activity className="h-4 w-4" />
+                                            Status
+                                          </TabsTrigger>
+                                        )}
                                         {selectedService === "client-reporting-api" && (
                                           <TabsTrigger value="client-reporting" className="gap-2">
                                             <TrendingUp className="h-4 w-4" />
@@ -395,6 +403,11 @@ function App() {
                                       <TabsContent value="config">
                                         <ServiceDetails serviceName={selectedService} />
                                       </TabsContent>
+                                      {!isInfra && (
+                                        <TabsContent value="status">
+                                          <ServiceStatusTab serviceName={selectedService ?? ""} />
+                                        </TabsContent>
+                                      )}
                                       {selectedService === "client-reporting-api" && (
                                         <TabsContent value="client-reporting">
                                           <ClientReportingTab />

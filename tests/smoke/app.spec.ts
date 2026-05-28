@@ -317,48 +317,48 @@ test.describe("App Layout & Core UI", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("API")).toBeVisible();
+    await expect(page.getByText("API", { exact: true })).toBeVisible();
   });
 
   test("renders 7 layer section headers in sidebar", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Layer 1: Root Services")).toBeVisible();
-    await expect(page.getByText("Layer 2: Data Ingestion")).toBeVisible();
-    await expect(page.getByText("Layer 3: Feature Engineering")).toBeVisible();
-    await expect(page.getByText("Layer 4: Machine Learning")).toBeVisible();
-    await expect(page.getByText("Layer 5: Strategy & Execution")).toBeVisible();
-    await expect(page.getByText("Layer 6: Risk & Monitoring")).toBeVisible();
-    await expect(page.getByText("Infrastructure")).toBeVisible();
+    await expect(page.getByText("L1: Root", { exact: true })).toBeVisible();
+    await expect(page.getByText("L2: Data", { exact: true })).toBeVisible();
+    await expect(page.getByText("L3: Features", { exact: true })).toBeVisible();
+    await expect(page.getByText("L4: ML", { exact: true })).toBeVisible();
+    await expect(page.getByText("L5: Execution", { exact: true })).toBeVisible();
+    await expect(page.getByText("L6: Risk", { exact: true })).toBeVisible();
+    await expect(page.getByText("Infra", { exact: true })).toBeVisible();
   });
 
   test("renders Pipeline Services heading", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Pipeline Services")).toBeVisible();
+    await expect(page.getByText("Services", { exact: true })).toBeVisible();
   });
 
   test("renders instruments-service in sidebar", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("instruments-service")).toBeVisible();
+    await expect(page.getByText("instruments", { exact: true })).toBeVisible();
   });
 
   test("renders execution-service in sidebar", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("execution-service")).toBeVisible();
+    await expect(page.getByText("execution", { exact: true })).toBeVisible();
   });
 
   test("sidebar service items are clickable buttons", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    const svcButton = page.getByText("instruments-service");
+    const svcButton = page.getByText("instruments").first();
     await expect(svcButton).toBeVisible();
     await svcButton.click();
     // After clicking, the service detail panel should show
@@ -373,19 +373,15 @@ test.describe("Service Selection & Navigation", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("clicking instruments-service shows Deploy tab by default", async ({
-    page,
-  }) => {
-    await page.getByText("instruments-service").click();
+  test("clicking instruments-service shows Deploy tab by default", async ({ page }) => {
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText(/Deploy instruments-service/)).toBeVisible();
   });
 
-  test("service detail shows tabs: Deploy, History, Builds, Readiness, Status", async ({
-    page,
-  }) => {
-    await page.getByText("instruments-service").first().click();
+  test("service detail shows tabs: Deploy, History, Builds, Readiness, Status", async ({ page }) => {
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Check for tab navigation
@@ -395,7 +391,7 @@ test.describe("Service Selection & Navigation", () => {
   });
 
   test("History tab renders and shows deployment rows", async ({ page }) => {
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
@@ -404,7 +400,7 @@ test.describe("Service Selection & Navigation", () => {
   });
 
   test("History tab shows Completed and Running badges", async ({ page }) => {
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
@@ -416,20 +412,18 @@ test.describe("Service Selection & Navigation", () => {
   });
 
   test("History tab shows LIVE badge for live deployment", async ({ page }) => {
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /History/i }).click();
     // Wait for deployment rows to appear before checking LIVE badge
     await expect(page.getByText("dep-001")).toBeVisible({ timeout: 10000 });
 
-    await expect(page.getByText("LIVE")).toBeVisible();
+    await expect(page.getByText("LIVE", { exact: true })).toBeVisible();
   });
 
-  test("Builds tab renders without error — shows Cloud Build Triggers heading", async ({
-    page,
-  }) => {
-    await page.getByText("instruments-service").first().click();
+  test("Builds tab renders without error — shows Cloud Build Triggers heading", async ({ page }) => {
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /Builds/i }).click();
@@ -438,15 +432,13 @@ test.describe("Service Selection & Navigation", () => {
       timeout: 10000,
     });
     // Should show the mocked trigger
-    await expect(page.getByText("instruments-service").first()).toBeVisible();
+    await expect(page.getByText("instruments").first()).toBeVisible();
     // Should NOT show an uncaught error
-    await expect(
-      page.getByText(/Unknown Error|TypeError|Cannot read/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
   });
 
   test("Builds tab shows trigger count badge", async ({ page }) => {
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: /Builds/i }).click();
@@ -459,10 +451,8 @@ test.describe("Service Selection & Navigation", () => {
     await expect(page.getByText(/1 trigger/i)).toBeVisible();
   });
 
-  test("Status tab renders without error — shows Service Health Timeline", async ({
-    page,
-  }) => {
-    await page.getByText("instruments-service").first().click();
+  test("Status tab renders without error — shows Service Health Timeline", async ({ page }) => {
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
@@ -473,15 +463,11 @@ test.describe("Service Selection & Navigation", () => {
     // Should show healthy status from mock
     await expect(page.getByText(/healthy/i).first()).toBeVisible();
     // Should NOT show an uncaught error
-    await expect(
-      page.getByText(/Unknown Error|TypeError|Cannot read/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
   });
 
-  test("Status tab Timeline section shows Last Data Update row", async ({
-    page,
-  }) => {
-    await page.getByText("instruments-service").first().click();
+  test("Status tab Timeline section shows Last Data Update row", async ({ page }) => {
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("tab", { name: "Status", exact: true }).click();
@@ -501,35 +487,29 @@ test.describe("DeployForm — Batch Mode", () => {
     await mockAllApis(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
   });
 
   test("Deploy tab shows Mode selector", async ({ page }) => {
-    await expect(page.getByText("Batch")).toBeVisible();
-    await expect(page.getByText("Live")).toBeVisible();
+    await expect(page.getByText("Batch", { exact: true })).toBeVisible();
+    await expect(page.getByText("Live", { exact: true })).toBeVisible();
   });
 
-  test("Deploy tab shows Cloud Provider (GCP and AWS buttons)", async ({
-    page,
-  }) => {
+  test("Deploy tab shows Cloud Provider (GCP and AWS buttons)", async ({ page }) => {
     await expect(page.getByRole("button", { name: "GCP" })).toBeVisible();
     await expect(page.getByRole("button", { name: "AWS" })).toBeVisible();
   });
 
   test("clicking AWS shows unauthenticated warning", async ({ page }) => {
     await page.getByRole("button", { name: "AWS" }).click();
-    await expect(
-      page.getByText(/AWS configured but unauthenticated/),
-    ).toBeVisible();
+    await expect(page.getByText(/AWS configured but unauthenticated/)).toBeVisible();
   });
 
   test("switching back to GCP hides AWS warning", async ({ page }) => {
     await page.getByRole("button", { name: "AWS" }).click();
     await page.getByRole("button", { name: "GCP" }).click();
-    await expect(
-      page.getByText(/AWS configured but unauthenticated/),
-    ).not.toBeVisible();
+    await expect(page.getByText(/AWS configured but unauthenticated/)).not.toBeVisible();
   });
 
   test("Dry Run checkbox is visible", async ({ page }) => {
@@ -571,9 +551,9 @@ test.describe("DeployForm — Live Mode", () => {
     await mockAllApis(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
-    await page.getByText("Live").click();
+    await page.getByText("Live", { exact: true }).click();
   });
 
   test("switching to Live mode shows Image Tag field", async ({ page }) => {
@@ -591,14 +571,12 @@ test.describe("DeployForm — Live Mode", () => {
 });
 
 test.describe("Deploy Button (Mocked)", () => {
-  test("clicking deploy button with dry run triggers API call", async ({
-    page,
-  }) => {
+  test("clicking deploy button with dry run triggers API call", async ({ page }) => {
     await mockAllApis(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Fill required date fields
@@ -632,9 +610,7 @@ test.describe("Deploy Button (Mocked)", () => {
     });
 
     // Find and click the deploy/preview button
-    const deployBtn = page
-      .getByRole("button", { name: /Preview Shards|Deploy|Run/i })
-      .first();
+    const deployBtn = page.getByRole("button", { name: /Preview Shards|Deploy|Run/i }).first();
     if (await deployBtn.isVisible()) {
       await deployBtn.click();
       // Allow time for any async operation
@@ -650,9 +626,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
     await mockAllApis(page);
   });
 
-  test("main page does not overflow viewport width at 1280px", async ({
-    page,
-  }) => {
+  test("main page does not overflow viewport width at 1280px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -667,7 +641,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
     await page.waitForLoadState("networkidle");
 
     // Pipeline Services sidebar should be visible
-    const sidebar = page.getByText("Pipeline Services");
+    const sidebar = page.getByText("Services", { exact: true });
     await expect(sidebar).toBeVisible();
 
     const box = await sidebar.boundingBox();
@@ -676,17 +650,11 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
     expect(box!.width).toBeGreaterThan(50);
   });
 
-  test("all text is readable — check key headers are visible", async ({
-    page,
-  }) => {
+  test("all text is readable — check key headers are visible", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    const elements = [
-      "Pipeline Services",
-      "Layer 1: Root Services",
-      "Unified Trading Deployment",
-    ];
+    const elements = ["Services", "L1: Root", "Unified Trading Deployment"];
 
     for (const text of elements) {
       const el = page.getByText(text).first();
@@ -699,18 +667,16 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
     }
   });
 
-  test("clicking service fills the right panel — no layout collapse", async ({
-    page,
-  }) => {
+  test("clicking service fills the right panel — no layout collapse", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
     // Both sidebar and detail panel should be visible simultaneously
-    const sidebar = page.getByText("Pipeline Services");
+    const sidebar = page.getByText("Services", { exact: true });
     const deployHeading = page.getByText(/Deploy instruments-service/);
 
     await expect(sidebar).toBeVisible();
@@ -728,9 +694,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
 });
 
 test.describe("Clear Cache Button", () => {
-  test("Clear Cache button is clickable and shows feedback", async ({
-    page,
-  }) => {
+  test("Clear Cache button is clickable and shows feedback", async ({ page }) => {
     await mockAllApis(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -752,9 +716,7 @@ test.describe("Mock Mode Banner", () => {
     await mockAllApis(page);
   });
 
-  test("mock mode banner is rendered with correct aria-label when in mock mode", async ({
-    page,
-  }) => {
+  test("mock mode banner is rendered with correct aria-label when in mock mode", async ({ page }) => {
     // playwright.config.ts sets VITE_MOCK_API=true in webServer.env.
     // When that env is active the banner will be present in the DOM.
     await page.goto("/");
@@ -782,9 +744,7 @@ test.describe("Mock Mode Banner", () => {
     await expect(banner).not.toBeVisible();
   });
 
-  test("mock mode banner contains simulated data notice text", async ({
-    page,
-  }) => {
+  test("mock mode banner contains simulated data notice text", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -803,7 +763,7 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
     await mockAllApis(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.getByText("instruments-service").first().click();
+    await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
   });
 
@@ -811,23 +771,17 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
     await page.getByRole("tab", { name: /Deploy/i }).click();
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(/Deploy instruments-service/i)).toBeVisible();
-    await expect(
-      page.getByText(/Unknown Error|Uncaught TypeError/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
   test("Data Status tab renders without crash", async ({ page }) => {
     await page.getByRole("tab", { name: /Data Status/i }).click();
     await page.waitForLoadState("networkidle");
     // Tab should render without a raw JavaScript error thrown to the UI
-    await expect(
-      page.getByText(/Unknown Error|Uncaught TypeError/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
-  test("Builds tab renders Cloud Build Triggers section in mock mode", async ({
-    page,
-  }) => {
+  test("Builds tab renders Cloud Build Triggers section in mock mode", async ({ page }) => {
     await page.getByRole("tab", { name: /Builds/i }).click();
     // Wait for the async trigger fetch to resolve
     await expect(page.getByText("Cloud Build Triggers")).toBeVisible({
@@ -842,9 +796,7 @@ test.describe("Tab Rendering — Mock Mode Coverage", () => {
     await expect(page.getByText(/Unknown Error|TypeError/i)).not.toBeVisible();
   });
 
-  test("Status tab renders Service Health Timeline in mock mode", async ({
-    page,
-  }) => {
+  test("Status tab renders Service Health Timeline in mock mode", async ({ page }) => {
     await page.getByRole("tab", { name: "Status", exact: true }).click();
     await page.waitForLoadState("networkidle");
     await expect(page.getByText("Service Health Timeline")).toBeVisible();

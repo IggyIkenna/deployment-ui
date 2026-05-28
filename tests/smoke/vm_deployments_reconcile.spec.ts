@@ -6,17 +6,15 @@
  *   - Clicking fires POST /api/vm-deployments/reconcile
  *   - Success banner shows reaped count
  *   - API error shows error banner (no JS crash)
+ *
+ * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright
+ * route mocks for /api/ paths are bypassed. We use window injection:
+ *   - window.__mockVmDeploymentOverride — overrides the GET /api/vm-deployments response
+ *   - window.__mockReconcileError — when truthy, reconcile endpoint returns 502
+ * Both hooks are handled in mock-api.ts.
  */
 
 import { expect, type Page, test } from "@playwright/test";
-
-const MOCK_HEALTH = {
-  status: "ok",
-  version: "1.0.0-test",
-  config_dir: "/config",
-  mock_mode: false,
-  gcs_fuse: { active: true, reason: "mounted" },
-};
 
 const MOCK_VM_LIST = {
   active: [
@@ -44,27 +42,15 @@ const MOCK_VM_LIST = {
   archive_days: 7,
 };
 
-async function mockBase(page: Page) {
-  await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
-  await page.route("**/api/services", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/monitor/**", (route) =>
-    route.fulfill({ json: { jobs: [], total: 0, queried_at: new Date().toISOString(), cloud: "gcp", env: "dev" } }),
-  );
-  await page.route("**/api/dart/**", (route) => route.fulfill({ json: {} }));
-  await page.route("**/api/ml/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/strategy/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/research/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/ops/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
-  await page.route("**/api/costs/**", (route) =>
-    route.fulfill({ json: { date: "2026-05-28", total_usd: 0, by_asset_group: [], by_archetype: [], by_vm: [] } }),
-  );
-  await page.route("**/api/vm-deployments", (route) => route.fulfill({ json: MOCK_VM_LIST }));
+async function injectVmDeploymentData(page: Page) {
+  await page.addInitScript((data) => {
+    (window as typeof window & { __mockVmDeploymentOverride?: unknown }).__mockVmDeploymentOverride = data;
+  }, MOCK_VM_LIST);
 }
 
 test.describe("VM Deployments — Reconcile Registry", () => {
   test("Reconcile button is visible on VM Deployments page", async ({ page }) => {
-    await mockBase(page);
+    await injectVmDeploymentData(page);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -74,26 +60,13 @@ test.describe("VM Deployments — Reconcile Registry", () => {
   });
 
   test("Clicking Reconcile fires POST to reconcile endpoint and shows result", async ({ page }) => {
-    await mockBase(page);
-
-    const reconcileResponse = {
-      reaped_count: 1737,
-      reaped: ["dep-stale-1", "dep-stale-2"],
-      running_vm_count: 25,
-      total_active_before: 1762,
-    };
-
-    await page.route("**/api/vm-deployments/reconcile", (route) => {
-      expect(route.request().method()).toBe("POST");
-      return route.fulfill({ json: reconcileResponse });
-    });
-
+    await injectVmDeploymentData(page);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
     await page.getByTestId("reconcile-registry-btn").click();
 
-    // Wait for the result banner to appear
+    // Wait for the result banner to appear — mock-api.ts returns reaped_count:1737, total_active_before:1762, running:25
     const result = page.getByTestId("reconcile-result");
     await expect(result).toBeVisible({ timeout: 5000 });
     await expect(result).toContainText("1737");
@@ -102,12 +75,10 @@ test.describe("VM Deployments — Reconcile Registry", () => {
   });
 
   test("Reconcile API error shows error banner without JS crash", async ({ page }) => {
-    await mockBase(page);
-
-    await page.route("**/api/vm-deployments/reconcile", (route) =>
-      route.fulfill({ status: 502, body: "GCP unavailable" }),
-    );
-
+    await page.addInitScript(() => {
+      (window as typeof window & { __mockReconcileError?: boolean }).__mockReconcileError = true;
+    });
+    await injectVmDeploymentData(page);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
@@ -121,7 +92,7 @@ test.describe("VM Deployments — Reconcile Registry", () => {
   });
 
   test("VM Deployments page renders without JS error (regression guard)", async ({ page }) => {
-    await mockBase(page);
+    await injectVmDeploymentData(page);
     await page.goto("/vm-deployments");
     await page.waitForLoadState("networkidle");
 
