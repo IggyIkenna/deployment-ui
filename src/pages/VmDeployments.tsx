@@ -64,6 +64,46 @@ function formatTimestamp(value: string | null): string {
   }
 }
 
+function formatDuration(startedAt: string, completedAt: string | null): string {
+  if (!completedAt) return "—";
+  try {
+    const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+    if (ms < 0) return "—";
+    const totalMin = Math.floor(ms / 60_000);
+    const hours = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${totalMin}m`;
+  } catch {
+    return "—";
+  }
+}
+
+function getOutcomeVariant(status: string, exitCode: number | null): "success" | "warning" | "error" | "default" {
+  if (status === "completed" && (exitCode === null || exitCode === 0)) return "success";
+  if (status === "failed" || (exitCode !== null && exitCode !== 0)) return "error";
+  if (status === "reaped") return "warning";
+  return "default";
+}
+
+function getOutcomeLabel(status: string, exitCode: number | null): string {
+  if (status === "completed" && (exitCode === null || exitCode === 0)) return "COMPLETED";
+  if (status === "failed") return exitCode !== null ? `FAILED (rc=${exitCode})` : "FAILED";
+  if (status === "reaped") return "reaped";
+  if (exitCode !== null && exitCode !== 0) return `${status.toUpperCase()} (rc=${exitCode})`;
+  return status.toUpperCase();
+}
+
+function logUriToConsoleUrl(logUri: string): string | null {
+  if (!logUri || !logUri.startsWith("gs://")) return null;
+  const withoutScheme = logUri.slice(5);
+  const slashIdx = withoutScheme.indexOf("/");
+  if (slashIdx === -1) return null;
+  const bucket = withoutScheme.slice(0, slashIdx);
+  const path = withoutScheme.slice(slashIdx + 1);
+  return `https://console.cloud.google.com/storage/browser/_details/${bucket}/${path}`;
+}
+
 export function VmDeployments() {
   const [active, setActive] = useState<VmDeploymentEntry[]>([]);
   const [recent, setRecent] = useState<VmDeploymentEntry[]>([]);
@@ -222,6 +262,117 @@ export function VmDeployments() {
     </Card>
   );
 
+  const renderArchiveTable = (rows: VmDeploymentEntry[], heading: string, count: number) => (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>{heading}</CardTitle>
+          <Badge variant="info">{count}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="table-header-cell">Name</th>
+                <th className="table-header-cell">Asset Group</th>
+                <th className="table-header-cell">Task</th>
+                <th className="table-header-cell">Outcome</th>
+                <th className="table-header-cell">Duration</th>
+                <th className="table-header-cell text-right">Rows Captured</th>
+                <th className="table-header-cell">Completed</th>
+                <th className="table-header-cell">Log</th>
+                <th className="table-header-cell"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="table-cell text-center text-[var(--color-text-muted)] py-6">
+                    None
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => {
+                  const consoleUrl = logUriToConsoleUrl(r.log_uri);
+                  return (
+                    <tr key={r.deployment_id} className="table-row" data-testid={`archive-row-${r.deployment_id}`}>
+                      <td className="table-cell font-semibold text-xs">
+                        <div title={`ID: ${r.deployment_id}`}>{r.vm_name}</div>
+                      </td>
+                      <td className="table-cell">{r.asset_group}</td>
+                      <td className="table-cell text-xs">
+                        <div>{r.task}</div>
+                        <div className="text-[var(--color-text-muted)]">{r.mode}</div>
+                      </td>
+                      <td className="table-cell">
+                        <Badge
+                          variant={getOutcomeVariant(r.status, r.exit_code)}
+                          data-testid={`outcome-${r.deployment_id}`}
+                        >
+                          {getOutcomeLabel(r.status, r.exit_code)}
+                        </Badge>
+                      </td>
+                      <td
+                        className="table-cell text-xs text-[var(--color-text-muted)]"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                        data-testid={`duration-${r.deployment_id}`}
+                      >
+                        {formatDuration(r.started_at, r.completed_at)}
+                      </td>
+                      <td
+                        className="table-cell text-right font-mono text-xs"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                        data-testid={`rows-captured-${r.deployment_id}`}
+                      >
+                        {r.rows_out > 0 ? r.rows_out.toLocaleString() : "—"}
+                      </td>
+                      <td
+                        className="table-cell text-xs text-[var(--color-text-muted)]"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {formatTimestamp(r.completed_at)}
+                      </td>
+                      <td className="table-cell text-xs">
+                        {consoleUrl ? (
+                          <a
+                            href={consoleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--color-accent-blue)] hover:underline font-mono"
+                            title={r.log_uri}
+                            data-testid={`log-link-${r.deployment_id}`}
+                          >
+                            run.log
+                          </a>
+                        ) : r.log_uri ? (
+                          <span className="text-[var(--color-text-muted)] font-mono" title={r.log_uri}>
+                            {r.log_uri.split("/").pop() ?? "log"}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--color-text-muted)]">—</span>
+                        )}
+                      </td>
+                      <td className="table-cell">
+                        <Link
+                          to={`/vm-deployments/${encodeURIComponent(r.deployment_id)}`}
+                          className="text-xs text-[var(--color-accent-blue)] hover:underline"
+                        >
+                          Details
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -280,7 +431,7 @@ export function VmDeployments() {
       {error && <div className="text-[var(--color-error)] text-sm py-2">Error: {error}</div>}
 
       {renderTable(active, "Active", active.length)}
-      {renderTable(recent, `Recent (${days}d)`, recent.length)}
+      {renderArchiveTable(recent, `Recent (${days}d)`, recent.length)}
     </div>
   );
 }
