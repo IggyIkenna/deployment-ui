@@ -516,7 +516,11 @@ select.field {
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* layout */
-.app-shell { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+/* Natural block flow — earlier `grid-template-rows: auto 1fr; min-height: 100vh`
+ * forced the 2nd child to stretch and fill the viewport whenever the page
+ * content was shorter than 100vh (e.g. when Needs Attention was collapsed),
+ * producing a large empty gap inside the InventoryStats card. */
+.app-shell { display: block; }
 .app-body  { display: grid; grid-template-columns: 240px 1fr; gap: 0; }
 .app-body[data-no-sidebar="true"] { grid-template-columns: 1fr; }
 .app-main  { padding: 22px 28px 80px; min-width: 0; }
