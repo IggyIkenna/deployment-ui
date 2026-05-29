@@ -452,3 +452,23 @@ export async function fetchVmFilteredEvents(
   const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`);
   return handleResponse<VMEventListResult>(response);
 }
+
+// -------------------------------------------------------------------------
+// Venue credentials — GET /api/venue-credentials
+// Returns per-venue API key name + status. Key values are NEVER returned.
+// -------------------------------------------------------------------------
+
+export type VenueCredentialStatusValue = "active" | "expired" | "missing" | "error" | "mock" | string;
+
+export interface VenueCredentialStatus {
+  name: string;
+  venue: string;
+  status: VenueCredentialStatusValue;
+  probe_detail: string | null;
+  checked_at: string;
+}
+
+export async function fetchVenueCredentials(): Promise<VenueCredentialStatus[]> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-credentials`);
+  return handleResponse<VenueCredentialStatus[]>(response);
+}

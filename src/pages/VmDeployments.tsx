@@ -9,6 +9,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { VenueCredentialsPanel } from "../components/VenueCredentialsPanel";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "default"> = {
   running: "warning",
@@ -430,6 +431,7 @@ export function VmDeployments() {
 
       {error && <div className="text-[var(--color-error)] text-sm py-2">Error: {error}</div>}
 
+      <VenueCredentialsPanel />
       {renderTable(active, "Active", active.length)}
       {renderArchiveTable(recent, `Recent (${days}d)`, recent.length)}
     </div>

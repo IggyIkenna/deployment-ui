@@ -1584,6 +1584,19 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // ─── Venue credentials ───
+  if (path === "/api/venue-credentials" && method === "GET") {
+    return json([
+      {
+        name: "tardis-api-key",
+        venue: "tardis",
+        status: "expired",
+        probe_detail: "mock mode — api-key-info returned [] (no datasets accessible)",
+        checked_at: new Date().toISOString(),
+      },
+    ]);
+  }
+
   // ─── Daily VM costs ───
   if (path.startsWith("/api/costs/daily")) {
     const date = new URL(url, "http://localhost").searchParams.get("date") ?? "2026-05-15";
