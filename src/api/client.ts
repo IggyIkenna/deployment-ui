@@ -24,23 +24,12 @@ interface ApiClient {
   delete<T>(url: string, opts?: RequestInit): Promise<T>;
 }
 
-function createClientConfig(
-  baseUrl: string,
-  options?: ApiClientOptions,
-): { baseUrl: string; timeoutMs: number } {
+function createClientConfig(baseUrl: string, options?: ApiClientOptions): { baseUrl: string; timeoutMs: number } {
   return { baseUrl, timeoutMs: options?.timeoutMs ?? 120_000 };
 }
 
-function createApiClient(config: {
-  baseUrl: string;
-  timeoutMs: number;
-}): ApiClient {
-  async function request<T>(
-    method: string,
-    url: string,
-    body?: unknown,
-    opts?: RequestInit,
-  ): Promise<T> {
+function createApiClient(config: { baseUrl: string; timeoutMs: number }): ApiClient {
+  async function request<T>(method: string, url: string, body?: unknown, opts?: RequestInit): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
@@ -55,9 +44,7 @@ function createApiClient(config: {
         signal: opts?.signal ?? controller.signal,
       });
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ detail: "Unknown error" }));
+        const error = await response.json().catch(() => ({ detail: "Unknown error" }));
         throw new ApiClientError({
           status: response.status,
           code: `HTTP_${response.status}`,
@@ -72,14 +59,10 @@ function createApiClient(config: {
   }
 
   return {
-    get: <T>(url: string, opts?: RequestInit) =>
-      request<T>("GET", url, undefined, opts),
-    post: <T>(url: string, body?: unknown, opts?: RequestInit) =>
-      request<T>("POST", url, body, opts),
-    put: <T>(url: string, body?: unknown, opts?: RequestInit) =>
-      request<T>("PUT", url, body, opts),
-    delete: <T>(url: string, opts?: RequestInit) =>
-      request<T>("DELETE", url, undefined, opts),
+    get: <T>(url: string, opts?: RequestInit) => request<T>("GET", url, undefined, opts),
+    post: <T>(url: string, body?: unknown, opts?: RequestInit) => request<T>("POST", url, body, opts),
+    put: <T>(url: string, body?: unknown, opts?: RequestInit) => request<T>("PUT", url, body, opts),
+    delete: <T>(url: string, opts?: RequestInit) => request<T>("DELETE", url, undefined, opts),
   };
 }
 
@@ -185,10 +168,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 /** Direct fetch fallback for methods not in ApiClient (e.g. PATCH) */
-async function fetchJsonDirect<T>(
-  url: string,
-  options?: RequestInit,
-): Promise<T> {
+async function fetchJsonDirect<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
@@ -199,9 +179,7 @@ async function fetchJsonDirect<T>(
   });
 
   if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Unknown error" }));
+    const error = await response.json().catch(() => ({ detail: "Unknown error" }));
     throw new ApiClientError({
       status: response.status,
       code: `HTTP_${response.status}`,
@@ -229,21 +207,14 @@ export async function getServices(): Promise<{
   return fetchJson("/services");
 }
 
-export async function getServiceDimensions(
-  serviceName: string,
-): Promise<ServiceDimensionsResponse> {
+export async function getServiceDimensions(serviceName: string): Promise<ServiceDimensionsResponse> {
   return fetchJson(`/services/${serviceName}/dimensions`);
 }
 
-export async function discoverConfigs(
-  serviceName: string,
-  cloudPath: string,
-): Promise<DiscoverConfigsResponse> {
+export async function discoverConfigs(serviceName: string, cloudPath: string): Promise<DiscoverConfigsResponse> {
   const params = new URLSearchParams();
   params.set("cloud_path", cloudPath);
-  return fetchJson(
-    `/services/${serviceName}/discover-configs?${params.toString()}`,
-  );
+  return fetchJson(`/services/${serviceName}/discover-configs?${params.toString()}`);
 }
 
 export interface ListDirectoriesResponse {
@@ -253,15 +224,10 @@ export interface ListDirectoriesResponse {
   count: number;
 }
 
-export async function listDirectories(
-  serviceName: string,
-  cloudPath: string,
-): Promise<ListDirectoriesResponse> {
+export async function listDirectories(serviceName: string, cloudPath: string): Promise<ListDirectoriesResponse> {
   const params = new URLSearchParams();
   params.set("cloud_path", cloudPath);
-  return fetchJson(
-    `/services/${serviceName}/list-directories?${params.toString()}`,
-  );
+  return fetchJson(`/services/${serviceName}/list-directories?${params.toString()}`);
 }
 
 export interface ConfigBucketsResponse {
@@ -271,9 +237,7 @@ export interface ConfigBucketsResponse {
   message?: string;
 }
 
-export async function getConfigBuckets(
-  serviceName: string,
-): Promise<ConfigBucketsResponse> {
+export async function getConfigBuckets(serviceName: string): Promise<ConfigBucketsResponse> {
   return fetchJson(`/services/${serviceName}/config-buckets`);
 }
 
@@ -290,21 +254,14 @@ export async function getVenues(): Promise<VenuesResponse> {
   return raw as VenuesResponse;
 }
 
-export async function getVenuesByAssetGroup(
-  assetGroup: string,
-): Promise<AssetGroupVenuesResponse> {
+export async function getVenuesByAssetGroup(assetGroup: string): Promise<AssetGroupVenuesResponse> {
   return fetchJson(`/config/venues/${assetGroup}`);
 }
 
-export async function getStartDates(
-  serviceName: string,
-): Promise<StartDatesResponse> {
+export async function getStartDates(serviceName: string): Promise<StartDatesResponse> {
   const raw = await fetchJson<
     StartDatesResponse & {
-      start_dates?: Record<
-        string,
-        AssetGroupStartDates & { category_start?: string }
-      >;
+      start_dates?: Record<string, AssetGroupStartDates & { category_start?: string }>;
     }
   >(`/config/expected-start-dates/${serviceName}`);
   if (!raw.start_dates) return raw;
@@ -321,9 +278,7 @@ export async function getStartDates(
   return { ...raw, start_dates: next };
 }
 
-export async function getDependencies(
-  serviceName: string,
-): Promise<DependenciesResponse> {
+export async function getDependencies(serviceName: string): Promise<DependenciesResponse> {
   return fetchJson(`/config/dependencies/${serviceName}`);
 }
 
@@ -350,9 +305,7 @@ export async function getDeployment(id: string): Promise<Deployment> {
   return fetchJson(`/deployments/${id}`);
 }
 
-export async function createDeployment(
-  request: DeploymentRequest,
-): Promise<CreateDeploymentResponse> {
+export async function createDeployment(request: DeploymentRequest): Promise<CreateDeploymentResponse> {
   return fetchJson("/deployments", {
     method: "POST",
     body: JSON.stringify(request),
@@ -376,9 +329,7 @@ export interface QuotaInfoResponse {
   recommended_max_concurrent?: number | null;
 }
 
-export async function getDeploymentQuotaInfo(
-  request: DeploymentRequest,
-): Promise<QuotaInfoResponse> {
+export async function getDeploymentQuotaInfo(request: DeploymentRequest): Promise<QuotaInfoResponse> {
   return fetchJson("/deployments/quota-info", {
     method: "POST",
     body: JSON.stringify(request),
@@ -393,9 +344,7 @@ export interface CancelDeploymentResult {
   message: string;
 }
 
-export async function cancelDeployment(
-  id: string,
-): Promise<CancelDeploymentResult> {
+export async function cancelDeployment(id: string): Promise<CancelDeploymentResult> {
   return fetchJson(`/deployments/${id}/cancel`, { method: "POST" });
 }
 
@@ -408,9 +357,7 @@ export interface ResumeDeploymentResult {
   message: string;
 }
 
-export async function resumeDeployment(
-  id: string,
-): Promise<ResumeDeploymentResult> {
+export async function resumeDeployment(id: string): Promise<ResumeDeploymentResult> {
   return fetchJson(`/deployments/${id}/resume`, { method: "POST" });
 }
 
@@ -428,10 +375,7 @@ export async function verifyDeploymentCompletion(
   const params = new URLSearchParams();
   if (options?.force) params.set("force", "true");
   const query = params.toString();
-  return fetchJson(
-    `/deployments/${id}/verify-completion${query ? `?${query}` : ""}`,
-    { method: "POST" },
-  );
+  return fetchJson(`/deployments/${id}/verify-completion${query ? `?${query}` : ""}`, { method: "POST" });
 }
 
 export interface RetryFailedResult {
@@ -459,12 +403,8 @@ export async function retryFailedShards(
   const query = params.toString();
 
   // Retry can take 30-60 seconds as it creates VMs — use a dedicated client with 2-minute timeout
-  const retryClient = createApiClient(
-    createClientConfig(API_BASE, { timeoutMs: 120_000 }),
-  );
-  return retryClient.post<RetryFailedResult>(
-    `/deployments/${id}/retry-failed${query ? `?${query}` : ""}`,
-  );
+  const retryClient = createApiClient(createClientConfig(API_BASE, { timeoutMs: 120_000 }));
+  return retryClient.post<RetryFailedResult>(`/deployments/${id}/retry-failed${query ? `?${query}` : ""}`);
 }
 
 // Single Shard Actions
@@ -475,10 +415,7 @@ export interface CancelShardResult {
   message: string;
 }
 
-export async function cancelShard(
-  deploymentId: string,
-  shardId: string,
-): Promise<CancelShardResult> {
+export async function cancelShard(deploymentId: string, shardId: string): Promise<CancelShardResult> {
   return fetchJson(`/deployments/${deploymentId}/shards/${shardId}/cancel`, {
     method: "POST",
   });
@@ -491,10 +428,7 @@ export interface UpdateDeploymentResult {
   message: string;
 }
 
-export async function updateDeploymentTag(
-  id: string,
-  tag: string | null,
-): Promise<UpdateDeploymentResult> {
+export async function updateDeploymentTag(id: string, tag: string | null): Promise<UpdateDeploymentResult> {
   return fetchJson(`/deployments/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ tag }),
@@ -519,9 +453,7 @@ export interface BulkDeleteResult {
   }>;
 }
 
-export async function bulkDeleteDeployments(
-  deploymentIds: string[],
-): Promise<BulkDeleteResult> {
+export async function bulkDeleteDeployments(deploymentIds: string[]): Promise<BulkDeleteResult> {
   return fetchJson("/deployments/bulk-delete", {
     method: "POST",
     body: JSON.stringify({ deployment_ids: deploymentIds }),
@@ -565,9 +497,7 @@ export interface DeploymentReport {
   };
 }
 
-export async function getDeploymentReport(
-  id: string,
-): Promise<DeploymentReport> {
+export async function getDeploymentReport(id: string): Promise<DeploymentReport> {
   return fetchJson(`/deployments/${id}/report`);
 }
 
@@ -594,21 +524,15 @@ export async function getRerunCommands(
   if (options?.failedOnly) params.set("failed_only", "true");
   if (options?.shardId) params.set("shard_id", options.shardId);
   const query = params.toString();
-  return fetchJson(
-    `/deployments/${id}/rerun-commands${query ? `?${query}` : ""}`,
-  );
+  return fetchJson(`/deployments/${id}/rerun-commands${query ? `?${query}` : ""}`);
 }
 
 // Checklists
-export async function getChecklist(
-  serviceName: string,
-): Promise<ChecklistResponse> {
+export async function getChecklist(serviceName: string): Promise<ChecklistResponse> {
   return fetchJson(`/checklists/${serviceName}/checklist`);
 }
 
-export async function validateChecklist(
-  serviceName: string,
-): Promise<ChecklistValidateResponse> {
+export async function validateChecklist(serviceName: string): Promise<ChecklistValidateResponse> {
   return fetchJson(`/checklists/${serviceName}/checklist/validate`);
 }
 
@@ -666,20 +590,14 @@ export async function getDataStatus(params: {
   if (params.force_refresh) {
     searchParams.set("force_refresh", "true");
   }
-  const raw = await fetchJson<
-    DataStatusResponse | VenueCheckResponse | DataTypeCheckResponse
-  >(`/data-status?${searchParams.toString()}`);
+  const raw = await fetchJson<DataStatusResponse | VenueCheckResponse | DataTypeCheckResponse>(
+    `/data-status?${searchParams.toString()}`,
+  );
   // Legacy data-status CLI JSON used `categories`; deployment-api and current
   // CLIs emit `asset_groups`. Accept both for one release. Use
   // ``overall_excluded`` to disambiguate from ``DataTypeCheckResponse`` (which
   // also has ``overall_completion`` but no per-asset-group block).
-  if (
-    raw &&
-    typeof raw === "object" &&
-    "overall_excluded" in raw &&
-    "categories" in raw &&
-    !("asset_groups" in raw)
-  ) {
+  if (raw && typeof raw === "object" && "overall_excluded" in raw && "categories" in raw && !("asset_groups" in raw)) {
     const legacy = raw as DataStatusResponse & {
       categories: DataStatusResponse["asset_groups"];
     };
@@ -797,13 +715,8 @@ export async function getHierarchicalDrilldown(params: {
   );
 }
 
-export async function getDrilldownSupportedPairs(opts?: {
-  signal?: AbortSignal;
-}): Promise<DrilldownPair[]> {
-  const res = await fetchJson<{ pairs: DrilldownPair[] }>(
-    `/data-status/drilldown-pairs`,
-    { signal: opts?.signal },
-  );
+export async function getDrilldownSupportedPairs(opts?: { signal?: AbortSignal }): Promise<DrilldownPair[]> {
+  const res = await fetchJson<{ pairs: DrilldownPair[] }>(`/data-status/drilldown-pairs`, { signal: opts?.signal });
   return res.pairs ?? [];
 }
 
@@ -848,29 +761,21 @@ export async function postDeployMissingPreview(params: {
   mode?: DeployMissingMode;
   signal?: AbortSignal;
 }): Promise<DeployMissingPreviewResponse> {
-  return fetchJson<DeployMissingPreviewResponse>(
-    `/data-status/deploy-missing-preview`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service: params.service,
-        asset_group: params.asset_group,
-        row_key: params.row_key,
-        mode: params.mode ?? "preview",
-      }),
-      signal: params.signal,
-    },
-  );
+  return fetchJson<DeployMissingPreviewResponse>(`/data-status/deploy-missing-preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service: params.service,
+      asset_group: params.asset_group,
+      row_key: params.row_key,
+      mode: params.mode ?? "preview",
+    }),
+    signal: params.signal,
+  });
 }
 
-export async function getDeployMissingServices(opts?: {
-  signal?: AbortSignal;
-}): Promise<string[]> {
-  const res = await fetchJson<{ services: string[] }>(
-    `/data-status/deploy-missing-services`,
-    { signal: opts?.signal },
-  );
+export async function getDeployMissingServices(opts?: { signal?: AbortSignal }): Promise<string[]> {
+  const res = await fetchJson<{ services: string[] }>(`/data-status/deploy-missing-services`, { signal: opts?.signal });
   return res.services ?? [];
 }
 
@@ -901,21 +806,18 @@ export async function postDeployMissingLaunch(params: {
   dry_run?: boolean;
   signal?: AbortSignal;
 }): Promise<DeployMissingLaunchResult> {
-  return fetchJson<DeployMissingLaunchResult>(
-    `/data-status/deploy-missing-launch`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service: params.service,
-        asset_group: params.asset_group,
-        row_key: params.row_key,
-        operator_id: params.operator_id ?? "ui-operator",
-        dry_run: params.dry_run ?? false,
-      }),
-      signal: params.signal,
-    },
-  );
+  return fetchJson<DeployMissingLaunchResult>(`/data-status/deploy-missing-launch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service: params.service,
+      asset_group: params.asset_group,
+      row_key: params.row_key,
+      operator_id: params.operator_id ?? "ui-operator",
+      dry_run: params.dry_run ?? false,
+    }),
+    signal: params.signal,
+  });
 }
 
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
@@ -947,10 +849,7 @@ export async function fetchUpcomingFixtures(opts?: {
   }
   const q = searchParams.toString();
   const path = `/fixtures/upcoming${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ fixtures: UpcomingFixture[]; mock?: boolean }>(
-    path,
-    { signal: opts?.signal },
-  );
+  const res = await fetchJson<{ fixtures: UpcomingFixture[]; mock?: boolean }>(path, { signal: opts?.signal });
   return res.fixtures ?? [];
 }
 
@@ -1200,10 +1099,7 @@ export interface TurboFeatureGroupStatus {
   dates_found: number;
   dates_expected: number;
   completion_pct: number;
-  timeframes?: Record<
-    string,
-    { dates_found: number; dates_expected: number; completion_pct: number }
-  >;
+  timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
   // Optional feature_family axis (Phase 8B of features_repo_consolidation_
   // 2026_05_08.plan). When the manifest row carries a non-null
   // feature_family value the deployment-api propagates it here so the UI
@@ -1439,15 +1335,11 @@ export async function getDataStatusManifest(params: {
   if (params.asset_group) {
     params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
-  if (params.secondary_axis)
-    searchParams.set("secondary_axis", params.secondary_axis);
+  if (params.secondary_axis) searchParams.set("secondary_axis", params.secondary_axis);
   if (params.league_id) searchParams.set("league_id", params.league_id);
   if (params.fixture_id) searchParams.set("fixture_id", params.fixture_id);
   if (params.canonical_question_group) {
-    searchParams.set(
-      "canonical_question_group",
-      params.canonical_question_group,
-    );
+    searchParams.set("canonical_question_group", params.canonical_question_group);
   }
   if (params.job_id) searchParams.set("job_id", params.job_id);
   if (params.chain) searchParams.set("chain", params.chain);
@@ -1480,10 +1372,7 @@ export interface ShardAxisMatrixResponse {
   breakdown_axes: Record<string, Record<string, string[]>>;
 }
 
-export async function getShardAxisMatrix(
-  service?: string,
-  signal?: AbortSignal,
-): Promise<ShardAxisMatrixResponse> {
+export async function getShardAxisMatrix(service?: string, signal?: AbortSignal): Promise<ShardAxisMatrixResponse> {
   const qs = service ? `?service=${encodeURIComponent(service)}` : "";
   return fetchJson(`/config/shard-axis-matrix${qs}`, { signal });
 }
@@ -1535,8 +1424,7 @@ export async function getDataCoverageSummary(params?: {
 }): Promise<CoverageSummaryResponse> {
   const searchParams = new URLSearchParams();
   if (params?.service) searchParams.set("service", params.service);
-  if (params?.asset_groups)
-    searchParams.set("asset_groups", params.asset_groups);
+  if (params?.asset_groups) searchParams.set("asset_groups", params.asset_groups);
   const qs = searchParams.toString();
   return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
     signal: params?.signal,
@@ -1554,10 +1442,7 @@ export interface VenueFiltersResponse {
   error?: string;
 }
 
-export async function getVenueFilters(
-  assetGroup: string,
-  venue: string,
-): Promise<VenueFiltersResponse> {
+export async function getVenueFilters(assetGroup: string, venue: string): Promise<VenueFiltersResponse> {
   const searchParams = new URLSearchParams();
   searchParams.set("asset_group", assetGroup);
   searchParams.set("venue", venue);
@@ -1664,12 +1549,9 @@ export async function listFiles(params: {
   if (params.timeframe) {
     searchParams.set("timeframe", params.timeframe);
   }
-  const raw = await fetchJson<unknown>(
-    `/data-status/list-files?${searchParams.toString()}`,
-    {
-      signal: params.signal,
-    },
-  );
+  const raw = await fetchJson<unknown>(`/data-status/list-files?${searchParams.toString()}`, {
+    signal: params.signal,
+  });
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
@@ -1921,9 +1803,7 @@ export async function getExecutionDataStatus(params: {
   if (params.start_date) searchParams.set("start_date", params.start_date);
   if (params.end_date) searchParams.set("end_date", params.end_date);
   if (params.include_dates_list) searchParams.set("include_dates_list", "true");
-  return fetchJson(
-    `/service-status/execution-services/data-status?${searchParams.toString()}`,
-  );
+  return fetchJson(`/service-status/execution-services/data-status?${searchParams.toString()}`);
 }
 
 // Execution Services Missing Shards
@@ -1978,18 +1858,13 @@ export async function getExecutionMissingShards(params: {
   if (params.mode) searchParams.set("mode", params.mode);
   if (params.timeframe) searchParams.set("timeframe", params.timeframe);
   if (params.algo) searchParams.set("algo", params.algo);
-  return fetchJson(
-    `/service-status/execution-services/missing-shards?${searchParams.toString()}`,
-    {
-      method: "POST",
-    },
-  );
+  return fetchJson(`/service-status/execution-services/missing-shards?${searchParams.toString()}`, {
+    method: "POST",
+  });
 }
 
 // Service Status (Temporal Audit Trail)
-export async function getServiceStatus(
-  serviceName: string,
-): Promise<ServiceStatus> {
+export async function getServiceStatus(serviceName: string): Promise<ServiceStatus> {
   return fetchJson(`/service-status/${serviceName}/status`);
 }
 
@@ -2011,9 +1886,7 @@ export interface ServiceAssetGroupsResponse {
   asset_groups: string[];
 }
 
-export async function getServiceAssetGroups(
-  serviceName: string,
-): Promise<ServiceAssetGroupsResponse> {
+export async function getServiceAssetGroups(serviceName: string): Promise<ServiceAssetGroupsResponse> {
   return fetchJson(`/capabilities/service-asset-groups/${serviceName}`);
 }
 
@@ -2126,8 +1999,7 @@ export async function fetchShardSchema(params: {
   if (params.model_family) qp.set("model_family", params.model_family);
   if (params.training_period) qp.set("training_period", params.training_period);
   if (params.strategy_id) qp.set("strategy_id", params.strategy_id);
-  if (params.instruction_type)
-    qp.set("instruction_type", params.instruction_type);
+  if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
   if (params.feature_group) qp.set("feature_group", params.feature_group);
   if (params.timeframe) qp.set("timeframe", params.timeframe);
   if (params.feature_family) qp.set("feature_family", params.feature_family);
@@ -2139,28 +2011,16 @@ export async function fetchShardSchema(params: {
 // Upstream: deployment-api types/shard_detail.py (commit 9d93236).
 // ---------------------------------------------------------------------------
 
-export type ShardClassLiteral =
-  | "grouped"
-  | "per_symbol"
-  | "reference"
-  | "fixtures";
+export type ShardClassLiteral = "grouped" | "per_symbol" | "reference" | "fixtures";
 
-export type CaptureStatusLiteral =
-  | "captured"
-  | "empty_confirmed"
-  | "attempted_failed"
-  | "missing";
+export type CaptureStatusLiteral = "captured" | "empty_confirmed" | "attempted_failed" | "missing";
 
 // Mirrors UAC ``ServiceEmissionStateEnum`` (writegate slice (b) / v8). The
 // SSOT for the value set is the Python enum at
 // ``unified_api_contracts.canonical.crosscutting.service_emission_state``;
 // this TS union is the type-level alias for the API response shape. Drift
 // between these and the UAC enum is review-blocking.
-export type ServiceEmissionState =
-  | "PUBLISHED_OK"
-  | "PUBLISHED_DEGRADED"
-  | "STALE_DATA_HEARTBEAT_ONLY"
-  | "BLOCKED";
+export type ServiceEmissionState = "PUBLISHED_OK" | "PUBLISHED_DEGRADED" | "STALE_DATA_HEARTBEAT_ONLY" | "BLOCKED";
 
 export interface ShardDetailCoord {
   service: string;
@@ -2269,9 +2129,7 @@ export async function fetchShardDetail(params: {
   if (params.venue) qp.set("venue", params.venue);
   if (params.underlying) qp.set("underlying", params.underlying);
   if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
-  return fetchJson<ShardDetailResponse>(
-    `/data-status/shard-detail?${qp.toString()}`,
-  );
+  return fetchJson<ShardDetailResponse>(`/data-status/shard-detail?${qp.toString()}`);
 }
 
 // LeafParquetStats — writegate Phase 4.A.3 (deployment-api@3b0477a).
@@ -2354,9 +2212,7 @@ export async function fetchLeafParquetStats(params: {
   if (params.underlying) qp.set("underlying", params.underlying);
   if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
   if (params.feature_family) qp.set("feature_family", params.feature_family);
-  return fetchJson<LeafParquetStatsResponse>(
-    `/data-status/leaf-stats?${qp.toString()}`,
-  );
+  return fetchJson<LeafParquetStatsResponse>(`/data-status/leaf-stats?${qp.toString()}`);
 }
 
 // VenueDetail v2 — DeFi-aware.  Composite (PROTOCOL-CHAIN) vs chain-only
@@ -2389,9 +2245,7 @@ export async function fetchVenueDetailV2(params: {
     asset_group: params.asset_group,
     venue: params.venue,
   });
-  return fetchJson<VenueDetailV2Response>(
-    `/data-status/venue-detail?${qp.toString()}`,
-  );
+  return fetchJson<VenueDetailV2Response>(`/data-status/venue-detail?${qp.toString()}`);
 }
 
 export interface ShardInstrumentEntry {
@@ -2478,11 +2332,8 @@ export async function fetchInstrumentsForShard(params: {
   });
   if (params.limit !== undefined) qp.set("limit", String(params.limit));
   if (params.offset !== undefined) qp.set("offset", String(params.offset));
-  if (params.search !== undefined && params.search !== "")
-    qp.set("search", params.search);
-  return fetchJson<InstrumentsForShardResponse>(
-    `/data-status/instruments-for-shard?${qp.toString()}`,
-  );
+  if (params.search !== undefined && params.search !== "") qp.set("search", params.search);
+  return fetchJson<InstrumentsForShardResponse>(`/data-status/instruments-for-shard?${qp.toString()}`);
 }
 
 export interface BundlePreviewResponse {
@@ -2512,9 +2363,7 @@ export async function fetchShardInfo(params: {
   data_type: string;
 }): Promise<ShardInfoResponse> {
   const qp = new URLSearchParams(params);
-  return fetchJson<ShardInfoResponse>(
-    `/data-status/shard-info?${qp.toString()}`,
-  );
+  return fetchJson<ShardInfoResponse>(`/data-status/shard-info?${qp.toString()}`);
 }
 
 export async function fetchBundlePreview(params: {
@@ -2535,9 +2384,7 @@ export async function fetchBundlePreview(params: {
     data_type: params.data_type,
   });
   if (params.limit !== undefined) qp.set("limit", String(params.limit));
-  return fetchJson<BundlePreviewResponse>(
-    `/data-status/bundle-preview?${qp.toString()}`,
-  );
+  return fetchJson<BundlePreviewResponse>(`/data-status/bundle-preview?${qp.toString()}`);
 }
 
 export interface BucketCountsResponse {
@@ -2553,9 +2400,7 @@ export async function fetchBucketCounts(params: {
   data_type: string;
 }): Promise<BucketCountsResponse> {
   const qp = new URLSearchParams(params);
-  return fetchJson<BucketCountsResponse>(
-    `/data-status/bucket-counts?${qp.toString()}`,
-  );
+  return fetchJson<BucketCountsResponse>(`/data-status/bucket-counts?${qp.toString()}`);
 }
 
 /** Build the CSV download URL — used in an <a href> so the browser handles the download. */
@@ -2646,10 +2491,7 @@ export function buildShardDownloadUrl(params: {
  * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
  * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
  */
-export function buildFixturesCsvDownloadUrl(params: {
-  day: string;
-  league_id: string;
-}): string {
+export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
   const qp = new URLSearchParams({
     day: params.day,
     league_id: params.league_id,
@@ -2700,9 +2542,7 @@ export interface ShardDownloadResult {
   rowCount?: number;
 }
 
-export async function smartShardDownload(
-  url: string,
-): Promise<ShardDownloadResult> {
+export async function smartShardDownload(url: string): Promise<ShardDownloadResult> {
   let resp: Response;
   try {
     resp = await fetch(url, { credentials: "include" });
@@ -2753,11 +2593,7 @@ export async function smartShardDownload(
 
   // Trigger the actual download for captured AND honest empties /
   // attempted_failed (the body has the explanation in CSV comment lines).
-  if (
-    status === "captured" ||
-    status === "empty_confirmed" ||
-    status === "attempted_failed"
-  ) {
+  if (status === "captured" || status === "empty_confirmed" || status === "attempted_failed") {
     let blob: Blob;
     try {
       blob = await resp.blob();
@@ -2788,11 +2624,7 @@ export async function smartShardDownload(
  * ``capture_status`` values per entity match the v5 honest-coverage manifest:
  * ``captured`` / ``empty_confirmed`` / ``missing`` / ``attempted_failed``.
  */
-export type FixtureCoverageStatus =
-  | "captured"
-  | "empty_confirmed"
-  | "missing"
-  | "attempted_failed";
+export type FixtureCoverageStatus = "captured" | "empty_confirmed" | "missing" | "attempted_failed";
 
 export interface FixtureCoverageSummary {
   captured: number;
@@ -2835,12 +2667,9 @@ export async function fetchFixtureBreakdown(params: {
     day: params.day,
     league_id: params.league_id,
   });
-  const res = await fetch(
-    `${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`,
-    {
-      credentials: "include",
-    },
-  );
+  const res = await fetch(`${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     throw new Error(`fetchFixtureBreakdown ${res.status}: ${await res.text()}`);
   }
@@ -2852,11 +2681,7 @@ export async function fetchFixtureBreakdown(params: {
  * denormalised union CSV (one leading ``entity`` column); ``format='json'``
  * returns structured JSON keyed by entity with ``capture_status`` sentinels.
  */
-export function buildFixtureDownloadUrl(params: {
-  fixture_id: string;
-  day: string;
-  format: "csv" | "json";
-}): string {
+export function buildFixtureDownloadUrl(params: { fixture_id: string; day: string; format: "csv" | "json" }): string {
   const qp = new URLSearchParams({
     fixture_id: params.fixture_id,
     day: params.day,
@@ -2916,20 +2741,14 @@ export async function getCloudBuildTriggers(): Promise<BuildTriggersResponse> {
   return fetchJson("/cloud-builds/triggers");
 }
 
-export async function triggerCloudBuild(
-  service: string,
-  branch: string = "main",
-): Promise<TriggerBuildResponse> {
+export async function triggerCloudBuild(service: string, branch: string = "main"): Promise<TriggerBuildResponse> {
   return fetchJson("/cloud-builds/trigger", {
     method: "POST",
     body: JSON.stringify({ service, branch }),
   });
 }
 
-export async function getCloudBuildHistory(
-  service: string,
-  limit: number = 10,
-): Promise<BuildHistoryResponse> {
+export async function getCloudBuildHistory(service: string, limit: number = 10): Promise<BuildHistoryResponse> {
   return fetchJson(`/cloud-builds/history/${service}?limit=${limit}`);
 }
 
@@ -3023,9 +2842,7 @@ export async function getInstrumentsList(params: {
   searchParams.set("asset_group", params.asset_group);
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
-  const raw = await fetchJson<unknown>(
-    `/data-status/instruments?${searchParams.toString()}`,
-  );
+  const raw = await fetchJson<unknown>(`/data-status/instruments?${searchParams.toString()}`);
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
@@ -3073,9 +2890,7 @@ export async function searchInstruments(params: {
   qp.set("query", params.query);
   if (params.asset_group) qp.set("asset_group", params.asset_group);
   if (params.limit !== undefined) qp.set("limit", params.limit.toString());
-  return fetchJson<InstrumentSearchResponse>(
-    `/data-status/instruments/search?${qp.toString()}`,
-  );
+  return fetchJson<InstrumentSearchResponse>(`/data-status/instruments/search?${qp.toString()}`);
 }
 
 /**
@@ -3084,11 +2899,7 @@ export async function searchInstruments(params: {
  * row per pool ID surfaced under the (day, venue, chain) shard with a
  * coverage map showing which data_types captured each pool.
  */
-export type PoolCoverageState =
-  | "captured"
-  | "empty_confirmed"
-  | "missing"
-  | "failed";
+export type PoolCoverageState = "captured" | "empty_confirmed" | "missing" | "failed";
 
 export interface PoolCoverageRow {
   pool_id: string;
@@ -3121,9 +2932,7 @@ export async function getPoolBreakdown(params: {
   qp.set("day", params.day);
   qp.set("venue", params.venue);
   qp.set("chain", params.chain);
-  return fetchJson<PoolBreakdownResponse>(
-    `/data-status/pools/breakdown?${qp.toString()}`,
-  );
+  return fetchJson<PoolBreakdownResponse>(`/data-status/pools/breakdown?${qp.toString()}`);
 }
 
 export async function getInstrumentAvailability(params: {
@@ -3142,24 +2951,17 @@ export async function getInstrumentAvailability(params: {
   searchParams.set("start_date", params.start_date);
   searchParams.set("end_date", params.end_date);
   if (params.data_type) searchParams.set("data_type", params.data_type);
-  if (params.first_day_of_month_only)
-    searchParams.set("first_day_of_month_only", "true");
+  if (params.first_day_of_month_only) searchParams.set("first_day_of_month_only", "true");
   if (params.service) searchParams.set("service", params.service);
   if (params.timeframe) searchParams.set("timeframe", params.timeframe);
-  if (params.available_from)
-    searchParams.set("available_from", params.available_from);
-  if (params.available_to)
-    searchParams.set("available_to", params.available_to);
+  if (params.available_from) searchParams.set("available_from", params.available_from);
+  if (params.available_to) searchParams.set("available_to", params.available_to);
   const raw = await fetchJson<
     InstrumentAvailabilityResponse & {
       parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
     }
   >(`/data-status/instrument-availability?${searchParams.toString()}`);
-  if (
-    raw?.parsed &&
-    "category" in raw.parsed &&
-    !("asset_group" in raw.parsed)
-  ) {
+  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
     const p = raw.parsed as Record<string, unknown>;
     const cat = p["category"];
     const { category: _category, ...rest } = p;
@@ -3181,16 +2983,11 @@ export async function getInstrumentAvailability(params: {
  * Each event captures a lifecycle step (JOB_STARTED, VM_PREEMPTED, etc.)
  * with timestamp, message, and optional metadata.
  */
-export async function getDeploymentEvents(
-  deploymentId: string,
-  shardId?: string,
-): Promise<DeploymentEventStream> {
+export async function getDeploymentEvents(deploymentId: string, shardId?: string): Promise<DeploymentEventStream> {
   const params = new URLSearchParams();
   if (shardId) params.set("shard_id", shardId);
   const query = params.toString();
-  return fetchJson(
-    `/deployments/${deploymentId}/events${query ? `?${query}` : ""}`,
-  );
+  return fetchJson(`/deployments/${deploymentId}/events${query ? `?${query}` : ""}`);
 }
 
 /**
@@ -3198,9 +2995,7 @@ export async function getDeploymentEvents(
  * Filters to: VM_PREEMPTED, VM_DELETED, VM_QUOTA_EXHAUSTED, VM_ZONE_UNAVAILABLE,
  * VM_TIMEOUT, CONTAINER_OOM, CLOUD_RUN_REVISION_FAILED.
  */
-export async function getDeploymentVmEvents(
-  deploymentId: string,
-): Promise<DeploymentEventStream> {
+export async function getDeploymentVmEvents(deploymentId: string): Promise<DeploymentEventStream> {
   return fetchJson(`/deployments/${deploymentId}/vm-events`);
 }
 
@@ -3230,36 +3025,24 @@ export async function getLiveDeploymentHealth(
   region: string,
 ): Promise<LiveHealthStatus> {
   const params = new URLSearchParams({ service, region });
-  return fetchJson(
-    `/deployments/${deploymentId}/live-health?${params.toString()}`,
-  );
+  return fetchJson(`/deployments/${deploymentId}/live-health?${params.toString()}`);
 }
 
 // ---------------------------------------------------------------------------
 // v7 — Client subscriptions + chaos injections (Phase 4b)
 // ---------------------------------------------------------------------------
 
-import type {
-  ChaosInjectionSpec,
-  ClientSubscription,
-  RuntimeProfile,
-} from "../types";
+import type { ChaosInjectionSpec, ClientSubscription, RuntimeProfile } from "../types";
 
 export async function listClientSubscriptions(): Promise<ClientSubscription[]> {
   return fetchJson<ClientSubscription[]>("/subscriptions/");
 }
 
-export async function getClientSubscription(
-  clientId: string,
-): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(
-    `/subscriptions/${encodeURIComponent(clientId)}`,
-  );
+export async function getClientSubscription(clientId: string): Promise<ClientSubscription> {
+  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`);
 }
 
-export async function createClientSubscription(
-  sub: ClientSubscription,
-): Promise<ClientSubscription> {
+export async function createClientSubscription(sub: ClientSubscription): Promise<ClientSubscription> {
   return fetchJson<ClientSubscription>("/subscriptions/", {
     method: "POST",
     body: JSON.stringify(sub),
@@ -3270,27 +3053,18 @@ export async function updateClientSubscription(
   clientId: string,
   patch: Partial<ClientSubscription>,
 ): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(
-    `/subscriptions/${encodeURIComponent(clientId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    },
-  );
+  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
-export async function listActiveChaosInjections(
-  runtimeProfile?: RuntimeProfile,
-): Promise<ChaosInjectionSpec[]> {
-  const qs = runtimeProfile
-    ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}`
-    : "";
+export async function listActiveChaosInjections(runtimeProfile?: RuntimeProfile): Promise<ChaosInjectionSpec[]> {
+  const qs = runtimeProfile ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}` : "";
   return fetchJson<ChaosInjectionSpec[]>(`/chaos/injections/${qs}`);
 }
 
-export async function createChaosInjection(
-  spec: ChaosInjectionSpec,
-): Promise<ChaosInjectionSpec> {
+export async function createChaosInjection(spec: ChaosInjectionSpec): Promise<ChaosInjectionSpec> {
   return fetchJson<ChaosInjectionSpec>("/chaos/injections/", {
     method: "POST",
     body: JSON.stringify(spec),
@@ -3298,12 +3072,9 @@ export async function createChaosInjection(
 }
 
 export async function deleteChaosInjection(injectionId: string): Promise<void> {
-  await fetchJson<void>(
-    `/chaos/injections/${encodeURIComponent(injectionId)}`,
-    {
-      method: "DELETE",
-    },
-  );
+  await fetchJson<void>(`/chaos/injections/${encodeURIComponent(injectionId)}`, {
+    method: "DELETE",
+  });
 }
 
 /** Per-capture-status counts for one shard population. */
@@ -3329,22 +3100,15 @@ export interface HonestCoverageResponse {
   date: string;
   by_asset_group: Record<string, HonestCoverageStatusCounts>;
   by_venue: Record<string, Record<string, HonestCoverageStatusCounts>>;
-  by_venue_data_type: Record<
-    string,
-    Record<string, Record<string, HonestCoverageStatusCounts>>
-  >;
+  by_venue_data_type: Record<string, Record<string, Record<string, HonestCoverageStatusCounts>>>;
 }
 
 /** Fetch cross-asset-group honest coverage for a given date (default: today UTC).
  * Returns null when the API responds 404 (cron VM hasn't run yet). */
-export async function getHonestCoverage(
-  date?: string,
-): Promise<HonestCoverageResponse | null> {
+export async function getHonestCoverage(date?: string): Promise<HonestCoverageResponse | null> {
   const qs = date ? `?date=${encodeURIComponent(date)}` : "";
   try {
-    return await fetchJson<HonestCoverageResponse>(
-      `/data-status/honest-coverage${qs}`,
-    );
+    return await fetchJson<HonestCoverageResponse>(`/data-status/honest-coverage${qs}`);
   } catch (err) {
     if (err instanceof ApiClientError && err.status === 404) return null;
     throw err;
@@ -3355,11 +3119,7 @@ export async function getHonestCoverage(
 // Recursive-borrow coverage — Phase 11 of defi_recursive_borrow_archetypes.
 // ===========================================================================
 
-export type CellStatus =
-  | "design-ready"
-  | "coverage-ready"
-  | "live-ready"
-  | "paused";
+export type CellStatus = "design-ready" | "coverage-ready" | "live-ready" | "paused";
 
 export interface RecursiveBorrowCell {
   protocol: string;
@@ -3388,9 +3148,35 @@ export interface RecursiveBorrowCoverageResponse {
 }
 
 export async function getRecursiveBorrowCoverage(): Promise<RecursiveBorrowCoverageResponse> {
-  return fetchJson<RecursiveBorrowCoverageResponse>(
-    "/data-status/recursive-borrow-coverage",
-  );
+  return fetchJson<RecursiveBorrowCoverageResponse>("/data-status/recursive-borrow-coverage");
+}
+
+// ===========================================================================
+// Venue × Year coverage — deployment_ui_vm_and_venue_coverage_visibility.
+// ===========================================================================
+
+export interface VenueYearRow {
+  venue: string;
+  asset_group: string;
+  year: number;
+  captured: number;
+  empty_confirmed: number;
+  expected_unattempted: number;
+  pending_paid_key: number;
+  attempted_failed: number;
+  total: number;
+}
+
+export interface VenueYearCoverageResponse {
+  rows: VenueYearRow[];
+  asset_groups_loaded: string[];
+  asset_groups_failed: string[];
+}
+
+export async function getVenueYearCoverage(assetGroups: string[]): Promise<VenueYearCoverageResponse> {
+  const params = new URLSearchParams();
+  params.set("asset_groups", assetGroups.join(","));
+  return fetchJson<VenueYearCoverageResponse>(`/data-status/venue-year-coverage?${params.toString()}`);
 }
 
 export { ApiError };

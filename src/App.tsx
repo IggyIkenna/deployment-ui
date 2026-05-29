@@ -37,6 +37,7 @@ import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { RepoCoverageTab } from "./components/RepoCoverageTab";
 import { TreasuryTab } from "./components/TreasuryTab";
+import { VenueCoverageTable } from "./components/VenueCoverageTable";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -230,7 +231,7 @@ function App() {
                                     >
                                       <TabsList
                                         variant="pill"
-                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-9" : selectedService === "deployment-api" ? "grid-cols-10" : "grid-cols-8"} mb-6`}
+                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-9" : selectedService === "deployment-api" ? "grid-cols-10" : selectedService === "market-tick-data-service" ? "grid-cols-9" : "grid-cols-8"} mb-6`}
                                       >
                                         {!isInfra && (
                                           <TabsTrigger value="deploy" className="gap-2">
@@ -298,6 +299,16 @@ function App() {
                                           <TabsTrigger value="repo-coverage" className="gap-2">
                                             <BarChart2 className="h-4 w-4" />
                                             Coverage
+                                          </TabsTrigger>
+                                        )}
+                                        {selectedService === "market-tick-data-service" && (
+                                          <TabsTrigger
+                                            value="venue-coverage"
+                                            className="gap-2"
+                                            data-testid="venue-coverage-tab-trigger"
+                                          >
+                                            <BarChart2 className="h-4 w-4" />
+                                            Venue Coverage
                                           </TabsTrigger>
                                         )}
                                       </TabsList>
@@ -426,6 +437,11 @@ function App() {
                                       {selectedService === "deployment-api" && (
                                         <TabsContent value="repo-coverage">
                                           <RepoCoverageTab />
+                                        </TabsContent>
+                                      )}
+                                      {selectedService === "market-tick-data-service" && (
+                                        <TabsContent value="venue-coverage">
+                                          <VenueCoverageTable />
                                         </TabsContent>
                                       )}
                                     </Tabs>
