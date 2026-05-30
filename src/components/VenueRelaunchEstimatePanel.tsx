@@ -44,7 +44,7 @@ function SummaryBar({ summary }: { summary: VenueRelaunchEstimateResponse["summa
       </div>
       <div className="text-xs">
         <span className="text-[var(--color-text-muted)]">After key renewal: </span>
-        <span className="font-semibold text-[var(--color-accent-blue,#3b82f6)]">
+        <span className="font-semibold text-[var(--color-accent-blue)]">
           {summary.total_after_renewal.toLocaleString()}
         </span>
         <span className="text-[var(--color-text-muted)] ml-1">(100%)</span>
@@ -77,9 +77,7 @@ function EstimateRow({ row }: { row: RelaunchEstimateRow }) {
         <span className="text-[var(--color-text-muted)] ml-1">({nowPct}%)</span>
       </td>
       <td className="table-cell text-xs" style={{ fontVariantNumeric: "tabular-nums" }}>
-        <span className="text-[var(--color-accent-blue,#3b82f6)] font-semibold">
-          {row.est_after_renewal.toLocaleString()}
-        </span>
+        <span className="text-[var(--color-accent-blue)] font-semibold">{row.est_after_renewal.toLocaleString()}</span>
         <span className="text-[var(--color-text-muted)] ml-1">(100%)</span>
       </td>
       <td className="table-cell text-xs text-[var(--color-text-muted)]" style={{ fontVariantNumeric: "tabular-nums" }}>
