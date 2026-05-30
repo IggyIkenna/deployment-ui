@@ -23,6 +23,46 @@ const MOCK_HEALTH = {
   gcs_fuse: { active: true, reason: "mounted" },
 };
 
+const MOCK_COVERAGE_RESPONSE = {
+  rows: [
+    {
+      venue: "BINANCE-SPOT",
+      asset_group: "CEFI",
+      year: 2024,
+      captured: 320,
+      empty_confirmed: 5,
+      expected_unattempted: 10,
+      pending_paid_key: 0,
+      attempted_failed: 2,
+      total: 337,
+    },
+    {
+      venue: "COINBASE-SPOT",
+      asset_group: "CEFI",
+      year: 2024,
+      captured: 200,
+      empty_confirmed: 0,
+      expected_unattempted: 0,
+      pending_paid_key: 30,
+      attempted_failed: 0,
+      total: 230,
+    },
+    {
+      venue: "DERIBIT",
+      asset_group: "CEFI",
+      year: 2023,
+      captured: 365,
+      empty_confirmed: 0,
+      expected_unattempted: 0,
+      pending_paid_key: 0,
+      attempted_failed: 0,
+      total: 365,
+    },
+  ],
+  asset_groups_loaded: ["cefi"],
+  asset_groups_failed: [],
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 async function mockBase(page: Page) {
@@ -30,17 +70,17 @@ async function mockBase(page: Page) {
   await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
 }
 
-// mock-api.ts (window.fetch patch) intercepts /api/data-status/venue-year-coverage
-// before Playwright page.route() fires. mockCoverageOk is a no-op — the mock
-// already returns the expected rows. mockCoverageError sets a window flag that
-// the mock-api handler checks to simulate a 500 error.
-async function mockCoverageOk(_page: Page) {
-  // mock-api.ts serves the default MOCK_COVERAGE_RESPONSE for this endpoint.
+async function mockCoverageOk(page: Page) {
+  await page.route("**/api/data-status/venue-year-coverage**", (route) =>
+    route.fulfill({ json: MOCK_COVERAGE_RESPONSE }),
+  );
 }
 
 async function mockCoverageError(page: Page) {
-  await page.addInitScript(() => {
-    (window as typeof window & { __mockVenueYearCoverageError?: boolean }).__mockVenueYearCoverageError = true;
+  // mock-api.ts replaces window.fetch before Playwright route intercepts fire,
+  // so we use the window override flag instead of page.route.
+  await page.evaluate(() => {
+    (window as typeof window & { __mockVenueCoverageError?: boolean }).__mockVenueCoverageError = true;
   });
 }
 
@@ -48,13 +88,12 @@ async function navigateToVenueCoverage(page: Page) {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // Select market-tick-data-service — scroll into view first (item may be off-screen in a list of 22)
+  // Select market-tick-data-service
   const serviceItem = page.locator('[data-testid="service-item-market-tick-data-service"]');
-  if ((await serviceItem.count()) > 0) {
-    await serviceItem.first().scrollIntoViewIfNeeded();
-    await serviceItem.first().click();
+  if (await serviceItem.isVisible()) {
+    await serviceItem.click();
   } else {
-    await page.locator("text=market-tick-data-service").first().scrollIntoViewIfNeeded();
+    // fallback: click the service in the list
     await page.locator("text=market-tick-data-service").first().click();
   }
   await page.waitForLoadState("networkidle");
@@ -111,8 +150,20 @@ test.describe("VenueCoverageTable", () => {
 
   test("shows error alert when API fails", async ({ page }) => {
     await mockBase(page);
+    // Navigate to service page first, then set the error flag before clicking tab
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const serviceItem = page.locator('[data-testid="service-item-market-tick-data-service"]');
+    if (await serviceItem.isVisible()) {
+      await serviceItem.click();
+    } else {
+      await page.locator("text=market tick data").first().click();
+    }
+    await page.waitForLoadState("networkidle");
+    // Set error flag after page load so it isn't reset by navigation
     await mockCoverageError(page);
-    await navigateToVenueCoverage(page);
+    await page.locator('[data-testid="venue-coverage-tab-trigger"]').click();
+    await page.waitForLoadState("networkidle");
 
     const alert = page.locator('[data-testid="venue-coverage-error"]');
     await expect(alert).toBeVisible();

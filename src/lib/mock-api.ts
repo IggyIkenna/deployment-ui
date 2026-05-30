@@ -1153,12 +1153,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  // ─── Venue-year coverage (§4.P1 — must precede the generic data-status catch-all) ───
+  // Venue × year coverage (§4 of deployment_ui plan)
   if (path.startsWith("/api/data-status/venue-year-coverage")) {
-    const coverageError = (window as typeof window & { __mockVenueYearCoverageError?: boolean })
-      .__mockVenueYearCoverageError;
+    // Allow tests to inject an error via window.__mockVenueCoverageError
+    const coverageError = (window as typeof window & { __mockVenueCoverageError?: boolean }).__mockVenueCoverageError;
     if (coverageError) {
-      return json({ detail: "Mock: GCS unavailable" }, 500);
+      return json({ detail: "GCS unavailable" }, 500);
     }
     return json({
       rows: [
