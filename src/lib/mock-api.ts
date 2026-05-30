@@ -1153,6 +1153,54 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // ─── Venue-year coverage (§4.P1 — must precede the generic data-status catch-all) ───
+  if (path.startsWith("/api/data-status/venue-year-coverage")) {
+    const coverageError = (window as typeof window & { __mockVenueYearCoverageError?: boolean })
+      .__mockVenueYearCoverageError;
+    if (coverageError) {
+      return json({ detail: "Mock: GCS unavailable" }, 500);
+    }
+    return json({
+      rows: [
+        {
+          venue: "BINANCE-SPOT",
+          asset_group: "CEFI",
+          year: 2024,
+          captured: 320,
+          empty_confirmed: 5,
+          expected_unattempted: 10,
+          pending_paid_key: 0,
+          attempted_failed: 2,
+          total: 337,
+        },
+        {
+          venue: "COINBASE-SPOT",
+          asset_group: "CEFI",
+          year: 2024,
+          captured: 200,
+          empty_confirmed: 0,
+          expected_unattempted: 0,
+          pending_paid_key: 30,
+          attempted_failed: 0,
+          total: 230,
+        },
+        {
+          venue: "DERIBIT",
+          asset_group: "CEFI",
+          year: 2023,
+          captured: 365,
+          empty_confirmed: 0,
+          expected_unattempted: 0,
+          pending_paid_key: 0,
+          attempted_failed: 0,
+          total: 365,
+        },
+      ],
+      asset_groups_loaded: ["cefi"],
+      asset_groups_failed: [],
+    });
+  }
+
   // Data status (standalone)
   if (path.match(/^\/api\/data-status/)) {
     return json(MOCK_DATA_STATUS);

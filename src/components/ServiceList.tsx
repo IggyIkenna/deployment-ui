@@ -550,6 +550,7 @@ function ServiceItem({
       <Button
         variant="ghost"
         onClick={onClick}
+        data-testid={`service-item-${serviceName}`}
         className={cn(
           "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-bg-hover)] h-auto rounded-none",
           isSelected && "bg-[var(--color-bg-hover)]",
