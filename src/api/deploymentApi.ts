@@ -496,3 +496,35 @@ export async function fetchVenueDateRanges(): Promise<VenueDateRangeInfo[]> {
   const response = await fetch(`${DEPLOYMENT_API}/api/venue-date-ranges`);
   return handleResponse<VenueDateRangeInfo[]>(response);
 }
+
+// -------------------------------------------------------------------------
+// Venue Relaunch Estimate — §4.P2: cells unlockable now vs after key renewal
+// -------------------------------------------------------------------------
+
+export interface RelaunchEstimateRow {
+  venue: string;
+  asset_group: string;
+  year: number;
+  pending_total: number;
+  est_now_unlockable: number;
+  est_after_renewal: number;
+  free_pct: number;
+}
+
+export interface RelaunchEstimateSummary {
+  total_pending: number;
+  total_now_unlockable: number;
+  total_after_renewal: number;
+  key_status: string;
+}
+
+export interface VenueRelaunchEstimateResponse {
+  rows: RelaunchEstimateRow[];
+  summary: RelaunchEstimateSummary;
+  assessed_at: string;
+}
+
+export async function fetchVenueRelaunchEstimate(): Promise<VenueRelaunchEstimateResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-relaunch-estimate`);
+  return handleResponse<VenueRelaunchEstimateResponse>(response);
+}

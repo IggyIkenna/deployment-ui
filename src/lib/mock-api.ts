@@ -1688,6 +1688,56 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     return json(["binance", "okx", "bybit", "deribit", "kraken", "bitfinex"].map(makeRow));
   }
 
+  if (path === "/api/venue-relaunch-estimate" && method === "GET") {
+    const today = new Date();
+    const _freePctForYear = (year: number): number => {
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(Math.min(new Date(year, 11, 31).getTime(), today.getTime()));
+      if (yearEnd < yearStart) return 0;
+      let free = 0;
+      const total = Math.round((yearEnd.getTime() - yearStart.getTime()) / 86400000) + 1;
+      const recentCutoff = new Date(today.getTime() - 29 * 86400000);
+      const cur = new Date(yearStart);
+      while (cur <= yearEnd) {
+        if (cur.getDate() === 1 || cur >= recentCutoff) free++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return Math.round((1000 * free) / total) / 10;
+    };
+    const rawRows = [
+      ["COINBASE-SPOT", "cefi", 2024, 30],
+      ["BINANCE-SPOT", "cefi", 2025, 120],
+      ["BINANCE-SPOT", "cefi", 2026, 45],
+      ["OKX-SPOT", "cefi", 2025, 85],
+      ["BYBIT-LINEAR", "cefi", 2024, 50],
+    ] as const;
+    const rows = rawRows.map(([venue, ag, year, pending]) => {
+      const pct = _freePctForYear(year);
+      const now = Math.round((pending * pct) / 100);
+      return {
+        venue,
+        asset_group: ag,
+        year,
+        pending_total: pending,
+        est_now_unlockable: now,
+        est_after_renewal: pending,
+        free_pct: pct,
+      };
+    });
+    const totalPending = rows.reduce((s, r) => s + r.pending_total, 0);
+    const totalNow = rows.reduce((s, r) => s + r.est_now_unlockable, 0);
+    return json({
+      rows,
+      summary: {
+        total_pending: totalPending,
+        total_now_unlockable: totalNow,
+        total_after_renewal: totalPending,
+        key_status: "mock",
+      },
+      assessed_at: new Date().toISOString(),
+    });
+  }
+
   // ─── Daily VM costs ───
   if (path.startsWith("/api/costs/daily")) {
     const date = new URL(url, "http://localhost").searchParams.get("date") ?? "2026-05-15";
