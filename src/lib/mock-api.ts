@@ -1201,6 +1201,23 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // Venue Tardis Windows — must be before the general /api/data-status catch-all
+  if (path === "/api/data-status/venue-tardis-windows" && method === "GET") {
+    const today = new Date().toISOString().slice(0, 10);
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return json({
+      as_of: today,
+      key_name: "tardis-api-key",
+      key_status: "expired",
+      free_tier: {
+        rolling_window_days: 7,
+        rolling_window_cutoff: cutoff,
+        monthly_firsts: true,
+        rule_description: `day-of-month == 1  OR  date >= ${cutoff}`,
+      },
+    });
+  }
+
   // Data status (standalone)
   if (path.match(/^\/api\/data-status/)) {
     return json(MOCK_DATA_STATUS);

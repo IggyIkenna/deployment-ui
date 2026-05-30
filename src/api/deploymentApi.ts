@@ -528,3 +528,27 @@ export async function fetchVenueRelaunchEstimate(): Promise<VenueRelaunchEstimat
   const response = await fetch(`${DEPLOYMENT_API}/api/venue-relaunch-estimate`);
   return handleResponse<VenueRelaunchEstimateResponse>(response);
 }
+
+// -------------------------------------------------------------------------
+// Venue Tardis Windows — GET /api/data-status/venue-tardis-windows
+// Returns Tardis free-tier access rules + current key status.
+// -------------------------------------------------------------------------
+
+export interface TardisFreeTierRules {
+  rolling_window_days: number;
+  rolling_window_cutoff: string;
+  monthly_firsts: boolean;
+  rule_description: string;
+}
+
+export interface VenueTardisWindowsResponse {
+  as_of: string;
+  key_name: string;
+  key_status: VenueCredentialStatusValue;
+  free_tier: TardisFreeTierRules;
+}
+
+export async function fetchVenueTardisWindows(): Promise<VenueTardisWindowsResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/venue-tardis-windows`);
+  return handleResponse<VenueTardisWindowsResponse>(response);
+}

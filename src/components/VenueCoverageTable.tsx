@@ -30,7 +30,7 @@ function StatusCell({ count, kind }: StatusCellProps): React.ReactElement {
     captured: "text-[var(--color-accent-green)] font-medium",
     empty_confirmed: "text-[var(--color-text-secondary)]",
     expected_unattempted: "text-[var(--color-accent-blue)]",
-    pending_paid_key: "text-[var(--color-accent-yellow,#d97706)] font-medium",
+    pending_paid_key: "text-[var(--color-accent-yellow)] font-medium",
     attempted_failed: "text-[var(--color-accent-red)] font-medium",
   };
 
@@ -45,7 +45,7 @@ function PendingPaidKeyNote({ row }: { row: VenueYearRow }): React.ReactElement 
   if (row.pending_paid_key === 0) return null;
   return (
     <span
-      className="ml-1 text-[10px] text-[var(--color-accent-yellow,#d97706)] font-medium"
+      className="ml-1 text-[10px] text-[var(--color-accent-yellow)] font-medium"
       title={`${row.pending_paid_key} day(s) blocked by credentials — downloadable once key active`}
     >
       ★key
@@ -139,8 +139,8 @@ export function VenueCoverageTable(): React.ReactElement {
             <CardTitle className="text-base">Venue × Year Coverage</CardTitle>
             <CardDescription className="text-xs mt-0.5">
               Per-venue daily-capture status rolled up by year. Cells marked{" "}
-              <span className="font-medium text-[var(--color-accent-yellow,#d97706)]">★key</span> are blocked by
-              credentials — downloadable once key active.
+              <span className="font-medium text-[var(--color-accent-yellow)]">★key</span> are blocked by credentials —
+              downloadable once key active.
             </CardDescription>
           </div>
           <Button
@@ -195,9 +195,7 @@ export function VenueCoverageTable(): React.ReactElement {
                   <th className="py-2 pr-3 text-right font-medium text-[var(--color-text-secondary)]">Captured</th>
                   <th className="py-2 pr-3 text-right font-medium text-[var(--color-text-secondary)]">Empty</th>
                   <th className="py-2 pr-3 text-right font-medium text-[var(--color-text-secondary)]">Unattempted</th>
-                  <th className="py-2 pr-3 text-right font-medium text-[var(--color-accent-yellow,#d97706)]">
-                    Pending Key
-                  </th>
+                  <th className="py-2 pr-3 text-right font-medium text-[var(--color-accent-yellow)]">Pending Key</th>
                   <th className="py-2 pr-3 text-right font-medium text-[var(--color-text-secondary)]">Failed</th>
                   <th className="py-2 text-right font-medium text-[var(--color-text-secondary)]">Total</th>
                 </tr>

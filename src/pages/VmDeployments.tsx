@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { VenueCredentialsPanel } from "../components/VenueCredentialsPanel";
 import { VenueDateRangePanel } from "../components/VenueDateRangePanel";
 import { VenueRelaunchEstimatePanel } from "../components/VenueRelaunchEstimatePanel";
+import { VenueTardisWindowsPanel } from "../components/VenueTardisWindowsPanel";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "default"> = {
   running: "warning",
@@ -449,6 +450,7 @@ export function VmDeployments() {
       <VenueCredentialsPanel />
       <VenueDateRangePanel />
       <VenueRelaunchEstimatePanel />
+      <VenueTardisWindowsPanel />
       {renderTable(active, "Active", active.length)}
       {renderArchiveTable(recent, `Recent (${days}d)`, recent.length)}
     </div>
