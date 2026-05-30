@@ -474,3 +474,25 @@ export async function fetchVenueCredentials(): Promise<VenueCredentialStatus[]> 
   const response = await fetch(`${DEPLOYMENT_API}/api/venue-credentials`);
   return handleResponse<VenueCredentialStatus[]>(response);
 }
+
+// -------------------------------------------------------------------------
+// Venue Date Ranges — §3.P2: free-tier vs paid-tier fetchable date ranges
+// -------------------------------------------------------------------------
+
+export interface VenueDateRangeInfo {
+  venue: string;
+  key_name: string;
+  key_status: string;
+  coverage_start: string;
+  free_date_count: number;
+  paid_date_count: number;
+  free_description: string;
+  paid_description: string;
+  free_sample_dates: string[];
+  assessed_at: string;
+}
+
+export async function fetchVenueDateRanges(): Promise<VenueDateRangeInfo[]> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-date-ranges`);
+  return handleResponse<VenueDateRangeInfo[]>(response);
+}

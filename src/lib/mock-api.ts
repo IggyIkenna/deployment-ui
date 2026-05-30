@@ -1645,6 +1645,49 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     ]);
   }
 
+  if (path === "/api/venue-date-ranges" && method === "GET") {
+    const today = new Date();
+    const coverageStart = new Date("2020-01-01");
+    // Count free dates: 1st-of-month + last 30 days
+    let freeDates = 0;
+    let paidDates = 0;
+    const recentCutoff = new Date(today);
+    recentCutoff.setDate(today.getDate() - 29);
+    const cur = new Date(coverageStart);
+    while (cur <= today) {
+      const isFirst = cur.getDate() === 1;
+      const isRecent = cur >= recentCutoff;
+      if (isFirst || isRecent) freeDates++;
+      else paidDates++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    const fmtDate = (d: Date) => d.toISOString().split("T")[0];
+    const recentCutoffStr = fmtDate(recentCutoff);
+    const todayStr = fmtDate(today);
+    const freeSampleDates = [
+      fmtDate(new Date("2026-03-01")),
+      fmtDate(new Date("2026-04-01")),
+      fmtDate(new Date("2026-05-01")),
+      recentCutoffStr,
+      todayStr,
+    ];
+    const freeDes = `1st-of-month days (2020-01-01 → ${todayStr}) + last 30 days (${recentCutoffStr} → ${todayStr}) — ${freeDates} dates total`;
+    const paidDes = `All other historical dates (2020-01-01 → ${fmtDate(new Date(recentCutoff.getTime() - 86400000))}) — ${paidDates} dates require active paid key`;
+    const makeRow = (venue: string) => ({
+      venue,
+      key_name: "tardis-api-key",
+      key_status: "mock",
+      coverage_start: "2020-01-01",
+      free_date_count: freeDates,
+      paid_date_count: paidDates,
+      free_description: freeDes,
+      paid_description: paidDes,
+      free_sample_dates: freeSampleDates,
+      assessed_at: new Date().toISOString(),
+    });
+    return json(["binance", "okx", "bybit", "deribit", "kraken", "bitfinex"].map(makeRow));
+  }
+
   // ─── Daily VM costs ───
   if (path.startsWith("/api/costs/daily")) {
     const date = new URL(url, "http://localhost").searchParams.get("date") ?? "2026-05-15";
