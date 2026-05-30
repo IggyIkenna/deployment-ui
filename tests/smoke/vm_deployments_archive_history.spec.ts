@@ -1,11 +1,12 @@
 /**
- * Regression spec: VM Deployments — Archive History tab (§2.P1)
+ * Regression spec: VM Deployments — Archive History tab (§2.P1 + canonical_vm_log_archival-005)
  *
  * Covers the archive table added for completed/failed/reaped VM deployments:
  *   - Outcome badge shows COMPLETED / FAILED / reaped
  *   - Duration column shows formatted elapsed time
  *   - Rows Captured column shows rows_out
- *   - Log link renders as clickable GCS console URL
+ *   - run.log link → durable log-archive/rolling/ path (deployment-scripts-{pid}, no 14-day TTL)
+ *   - serial link → durable log-archive/serial-rolling/ path (for VMs with serial capture)
  *   - Empty archive renders "None" without JS crash
  *
  * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright
@@ -33,7 +34,11 @@ function makeArchiveEntry(overrides: Record<string, unknown> = {}) {
     rows_out: 29987,
     rows_error: 13,
     events_emitted: 120,
-    log_uri: "gs://vm-logs-archive-central-element-323112/canonical-migration-cefi-20260418-042359/run.log",
+    log_uri: "gs://deployment-scripts-central-element-323112/vm-logs/canonical-migration-cefi-20260418-042359/run.log",
+    archive_run_log_uri:
+      "gs://deployment-scripts-central-element-323112/log-archive/rolling/20260418/canonical-migration-cefi-20260418-042359/run.log",
+    archive_serial_uri:
+      "gs://deployment-scripts-central-element-323112/log-archive/serial-rolling/20260418/canonical-migration-cefi-20260418-042359/serial-console.txt",
     machine_type: null,
     zone: null,
     uptime_hours: null,
@@ -77,13 +82,22 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
     await expect(rowsCaptured).toBeVisible();
     await expect(rowsCaptured).toContainText("29,987");
 
-    // Log link renders as clickable "run.log"
+    // run.log link → durable log-archive/rolling/ path (canonical, no 14-day TTL)
     const logLink = page.getByTestId("log-link-dep-archive-1");
     await expect(logLink).toBeVisible();
     await expect(logLink).toContainText("run.log");
     const href = await logLink.getAttribute("href");
     expect(href).toContain("console.cloud.google.com");
-    expect(href).toContain("vm-logs-archive-central-element-323112");
+    expect(href).toContain("deployment-scripts-central-element-323112");
+    expect(href).toContain("log-archive");
+
+    // serial link → durable log-archive/serial-rolling/ path
+    const serialLink = page.getByTestId("serial-link-dep-archive-1");
+    await expect(serialLink).toBeVisible();
+    await expect(serialLink).toContainText("serial");
+    const serialHref = await serialLink.getAttribute("href");
+    expect(serialHref).toContain("console.cloud.google.com");
+    expect(serialHref).toContain("serial-rolling");
   });
 
   test("FAILED entry shows error outcome badge with exit code", async ({ page }) => {
@@ -94,7 +108,9 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       exit_code: 1,
       rows_out: 0,
       completed_at: "2026-04-20T09:00:00Z",
-      log_uri: "gs://vm-logs-archive-central-element-323112/features-onchain-defi-20260420-080000/run.log",
+      log_uri: "gs://deployment-scripts-central-element-323112/vm-logs/features-onchain-defi-20260420-080000/run.log",
+      archive_run_log_uri:
+        "gs://deployment-scripts-central-element-323112/log-archive/rolling/20260420/features-onchain-defi-20260420-080000/run.log",
     });
     await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");
@@ -134,10 +150,12 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
     await expect(page.getByText("None").first()).toBeVisible();
   });
 
-  test("entry with no log_uri shows dash instead of link", async ({ page }) => {
+  test("entry with no archive URIs shows dash instead of link", async ({ page }) => {
     const entry = makeArchiveEntry({
       deployment_id: "dep-nolog-1",
       log_uri: "",
+      archive_run_log_uri: "",
+      archive_serial_uri: "",
     });
     await injectVmDeploymentData(page, [entry]);
     await page.goto("/vm-deployments");

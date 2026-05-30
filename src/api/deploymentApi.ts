@@ -75,6 +75,8 @@ export interface VmDeploymentEntry {
   rows_error: number;
   events_emitted: number;
   log_uri: string;
+  archive_run_log_uri?: string;
+  archive_serial_uri?: string;
   machine_type?: string | null;
   zone?: string | null;
   uptime_hours?: number | null;

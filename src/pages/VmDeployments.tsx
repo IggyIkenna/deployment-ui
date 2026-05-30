@@ -283,7 +283,7 @@ export function VmDeployments() {
                 <th className="table-header-cell">Duration</th>
                 <th className="table-header-cell text-right">Rows Captured</th>
                 <th className="table-header-cell">Completed</th>
-                <th className="table-header-cell">Log</th>
+                <th className="table-header-cell">Archive</th>
                 <th className="table-header-cell"></th>
               </tr>
             </thead>
@@ -296,7 +296,10 @@ export function VmDeployments() {
                 </tr>
               ) : (
                 rows.map((r) => {
-                  const consoleUrl = logUriToConsoleUrl(r.log_uri);
+                  // Prefer durable archive URI (log-archive/rolling/ — no TTL) over live stream (vm-logs/ — 14-day TTL).
+                  const archiveRunLogUrl = logUriToConsoleUrl(r.archive_run_log_uri || "");
+                  const archiveSerialUrl = logUriToConsoleUrl(r.archive_serial_uri || "");
+                  const fallbackLogUrl = archiveRunLogUrl ?? logUriToConsoleUrl(r.log_uri);
                   return (
                     <tr key={r.deployment_id} className="table-row" data-testid={`archive-row-${r.deployment_id}`}>
                       <td className="table-cell font-semibold text-xs">
@@ -336,24 +339,34 @@ export function VmDeployments() {
                         {formatTimestamp(r.completed_at)}
                       </td>
                       <td className="table-cell text-xs">
-                        {consoleUrl ? (
-                          <a
-                            href={consoleUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--color-accent-blue)] hover:underline font-mono"
-                            title={r.log_uri}
-                            data-testid={`log-link-${r.deployment_id}`}
-                          >
-                            run.log
-                          </a>
-                        ) : r.log_uri ? (
-                          <span className="text-[var(--color-text-muted)] font-mono" title={r.log_uri}>
-                            {r.log_uri.split("/").pop() ?? "log"}
-                          </span>
-                        ) : (
-                          <span className="text-[var(--color-text-muted)]">—</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {fallbackLogUrl ? (
+                            <a
+                              href={fallbackLogUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--color-accent-blue)] hover:underline font-mono"
+                              title={r.archive_run_log_uri || r.log_uri}
+                              data-testid={`log-link-${r.deployment_id}`}
+                            >
+                              run.log
+                            </a>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)]">—</span>
+                          )}
+                          {archiveSerialUrl && (
+                            <a
+                              href={archiveSerialUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--color-accent-blue)] hover:underline font-mono"
+                              title={r.archive_serial_uri}
+                              data-testid={`serial-link-${r.deployment_id}`}
+                            >
+                              serial
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="table-cell">
                         <Link
