@@ -20,7 +20,8 @@ function makeResponse(
     asset_group: "tradfi",
     row_key: { venue: "CME", data_type: "ohlcv_1m", date: "2024-01-02" },
     shard_key: "venue=CME/data_type=ohlcv_1m/date=2024-01-02",
-    launcher_script: "deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh",
+    launcher_script:
+      "deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh",
     command:
       "bash deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh --shard-key venue=CME/...",
     notes: ["note-one", "note-two"],
@@ -80,9 +81,7 @@ describe("DeployMissingButton", () => {
       />,
     );
     fireEvent.click(screen.getByText("Deploy Missing"));
-    await waitFor(() =>
-      expect(screen.getByRole("dialog")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith({
       service: "market-tick-data-service",
@@ -105,9 +104,7 @@ describe("DeployMissingButton", () => {
       />,
     );
     fireEvent.click(screen.getByText("Deploy Missing"));
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     expect(screen.getByRole("alert").textContent).toMatch(/backend exploded/);
   });
 
@@ -127,9 +124,7 @@ describe("DeployMissingButton", () => {
       />,
     );
     fireEvent.click(screen.getByText("Deploy Missing"));
-    await waitFor(() =>
-      expect(screen.getByText("Building...")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText("Building...")).toBeTruthy());
     resolve(makeResponse());
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
   });
@@ -217,7 +212,9 @@ describe("DeployMissingButton", () => {
     fireEvent.click(screen.getByText("Deploy Missing"));
     await waitFor(() => expect(screen.getByText("Copy")).toBeTruthy());
     fireEvent.click(screen.getByText("Copy"));
-    await waitFor(() => expect(writeTextSpy).toHaveBeenCalledWith("bash run.sh --foo"));
+    await waitFor(() =>
+      expect(writeTextSpy).toHaveBeenCalledWith("bash run.sh --foo"),
+    );
     await waitFor(() => expect(screen.getByText("Copied")).toBeTruthy());
   });
 
@@ -277,7 +274,9 @@ describe("DeployMissingButton", () => {
       makeResponse({ mode: "tarball-from-local", warnings: ["LOCAL-ONLY"] }),
     );
     fireEvent.click(
-      screen.getByLabelText(/tarball-from-local \(bundle my local code first\)/),
+      screen.getByLabelText(
+        /tarball-from-local \(bundle my local code first\)/,
+      ),
     );
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
     expect(spy).toHaveBeenLastCalledWith(
@@ -299,5 +298,422 @@ describe("DeployMissingButton", () => {
     // initial render path (loading=false, preview=null, error=null).
     expect(screen.queryByText("Copy")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  describe("env-based tarball blocking", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function mockRegionFetch(deploymentEnv: string) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({ deployment_env: deploymentEnv }),
+        }),
+      );
+    }
+
+    it("disables tarball-from-local radio when deployment env is staging", async () => {
+      mockRegionFetch("staging");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(
+        makeResponse(),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() => {
+        const radio = screen.getByLabelText(
+          /tarball-from-local \(bundle my local code first\)/,
+        );
+        expect((radio as HTMLInputElement).disabled).toBe(true);
+      });
+    });
+
+    it("disables tarball-from-local radio when deployment env is production", async () => {
+      mockRegionFetch("production");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(
+        makeResponse(),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() => {
+        const radio = screen.getByLabelText(
+          /tarball-from-local \(bundle my local code first\)/,
+        );
+        expect((radio as HTMLInputElement).disabled).toBe(true);
+      });
+    });
+
+    it("leaves tarball-from-local radio enabled when deployment env is development", async () => {
+      mockRegionFetch("development");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(
+        makeResponse(),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      const radio = screen.getByLabelText(
+        /tarball-from-local \(bundle my local code first\)/,
+      );
+      expect((radio as HTMLInputElement).disabled).toBe(false);
+    });
+
+    it("shows blocked badge with env name when staging", async () => {
+      mockRegionFetch("staging");
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(
+        makeResponse(),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+      await waitFor(() =>
+        expect(screen.getByText(/blocked in staging/)).toBeTruthy(),
+      );
+    });
+  });
+
+  describe("auto-launch (Phase 2)", () => {
+    function makeLaunchResult(
+      overrides: Partial<apiClient.DeployMissingLaunchResult> = {},
+    ): apiClient.DeployMissingLaunchResult {
+      return {
+        service: "market-tick-data-service",
+        asset_group: "tradfi",
+        shard_key: "venue=CME/data_type=ohlcv_1m/date=2024-01-02",
+        shard_key_hash: "abcd1234",
+        vm_name: "dm-abcd1234-20260517-120000",
+        correlation_id: "corr-001",
+        events_uri: "gs://bucket/events/abcd1234",
+        dry_run: false,
+        started_confirmed: true,
+        inflight_vm_name: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      localStorage.clear();
+      vi.spyOn(apiClient, "postDeployMissingPreview").mockResolvedValue(
+        makeResponse(),
+      );
+    });
+
+    async function openPreview() {
+      fireEvent.click(screen.getByText("Deploy Missing"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    }
+
+    it("auto-launch checkbox is rendered after preview opens", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      expect(screen.getByLabelText("Enable auto-launch")).toBeTruthy();
+    });
+
+    it("Launch VM button is hidden when auto-launch is disabled", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      expect(screen.queryByLabelText("Launch VM for this shard")).toBeNull();
+    });
+
+    it("Launch VM button appears after enabling auto-launch toggle", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      expect(screen.getByLabelText("Launch VM for this shard")).toBeTruthy();
+    });
+
+    it("clicking Launch VM shows confirmation dialog with shard_key", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      expect(screen.getByText(/Launch GCE VM for shard/)).toBeTruthy();
+    });
+
+    it("Cancel hides the confirmation dialog", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(screen.getByLabelText("Cancel VM launch"));
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+
+    it("Confirm calls postDeployMissingLaunch + shows result panel", async () => {
+      const launchSpy = vi
+        .spyOn(apiClient, "postDeployMissingLaunch")
+        .mockResolvedValue(makeLaunchResult());
+      render(
+        <DeployMissingButton
+          service="market-tick-data-service"
+          assetGroup="tradfi"
+          rowKey={{ venue: "CME" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(launchSpy).toHaveBeenCalledTimes(1));
+      expect(launchSpy).toHaveBeenCalledWith({
+        service: "market-tick-data-service",
+        asset_group: "tradfi",
+        row_key: { venue: "CME" },
+      });
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+      expect(screen.getByText(/VM launched \+ STARTED/)).toBeTruthy();
+    });
+
+    it("shows vm_name and events_uri in the result panel", async () => {
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockResolvedValue(
+        makeLaunchResult({
+          vm_name: "dm-deadbeef-20260517-120000",
+          events_uri: "gs://bucket/events/deadbeef",
+        }),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+      expect(screen.getByText("dm-deadbeef-20260517-120000")).toBeTruthy();
+      expect(screen.getByText("gs://bucket/events/deadbeef")).toBeTruthy();
+    });
+
+    it("shows 'Existing in-flight VM returned' when inflight_vm_name is set", async () => {
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockResolvedValue(
+        makeLaunchResult({
+          inflight_vm_name: "dm-existing-vm",
+          started_confirmed: false,
+        }),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+      expect(screen.getByText(/Existing in-flight VM returned/)).toBeTruthy();
+    });
+
+    it("shows 'STARTED poll timed out' when started_confirmed is false and no inflight vm", async () => {
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockResolvedValue(
+        makeLaunchResult({ started_confirmed: false, inflight_vm_name: null }),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+      expect(screen.getByText(/STARTED poll timed out/)).toBeTruthy();
+    });
+
+    it("shows 'Launching…' while the launch request is in flight", async () => {
+      let resolve!: (v: apiClient.DeployMissingLaunchResult) => void;
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockImplementation(
+        () =>
+          new Promise<apiClient.DeployMissingLaunchResult>((r) => {
+            resolve = r;
+          }),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(screen.getByText(/Launching/)).toBeTruthy());
+      resolve(makeLaunchResult());
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+    });
+
+    it("shows launch error panel when postDeployMissingLaunch rejects", async () => {
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockRejectedValue(
+        new Error("rate limit exceeded"),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() =>
+        expect(screen.getByText(/Launch failed/)).toBeTruthy(),
+      );
+      expect(screen.getByText(/rate limit exceeded/)).toBeTruthy();
+    });
+
+    it("close resets launch state (result panel gone after close + reopen)", async () => {
+      vi.spyOn(apiClient, "postDeployMissingLaunch").mockResolvedValue(
+        makeLaunchResult(),
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      fireEvent.click(screen.getByLabelText("Launch VM for this shard"));
+      await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+      fireEvent.click(
+        screen.getByRole("button", { name: "Confirm VM launch" }),
+      );
+      await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
+      fireEvent.click(screen.getByLabelText("Close"));
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("persists auto-launch preference to localStorage on toggle", async () => {
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      expect(
+        localStorage.getItem(
+          "deployment-ui/deploy-missing-auto-launch-enabled",
+        ),
+      ).toBeNull();
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      expect(
+        localStorage.getItem(
+          "deployment-ui/deploy-missing-auto-launch-enabled",
+        ),
+      ).toBe("true");
+      fireEvent.click(screen.getByLabelText("Enable auto-launch"));
+      expect(
+        localStorage.getItem(
+          "deployment-ui/deploy-missing-auto-launch-enabled",
+        ),
+      ).toBe("false");
+    });
+
+    it("restores auto-launch=true preference from localStorage on mount", async () => {
+      localStorage.setItem(
+        "deployment-ui/deploy-missing-auto-launch-enabled",
+        "true",
+      );
+      render(
+        <DeployMissingButton
+          service="mtds"
+          assetGroup="cefi"
+          rowKey={{ venue: "BINANCE" }}
+        />,
+      );
+      await openPreview();
+      expect(screen.getByLabelText("Launch VM for this shard")).toBeTruthy();
+    });
   });
 });

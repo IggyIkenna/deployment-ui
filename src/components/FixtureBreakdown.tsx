@@ -68,7 +68,11 @@ interface HoveredDot {
   label: string;
 }
 
-export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBreakdownProps) {
+export function FixtureBreakdown({
+  day,
+  league_id,
+  readOnly = false,
+}: FixtureBreakdownProps) {
   const [data, setData] = useState<FixtureBreakdownResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +128,8 @@ export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBr
         data-testid="fixture-breakdown-no-schedule"
         className="ml-5 pl-2 text-[8px] text-[var(--color-text-muted)] italic py-1"
       >
-        No schedule recorded for {league_id} on {day} — master fixtures parquet absent.
+        No schedule recorded for {league_id} on {day} — master fixtures parquet
+        absent.
       </div>
     );
   }
@@ -160,12 +165,18 @@ export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBr
               aria-label={`fixture rollup ${rollup}`}
               title={rollupSummary(fx)}
               onMouseEnter={() =>
-                setHovered({ fixtureId: fx.fixture_id, label: rollupSummary(fx) })
+                setHovered({
+                  fixtureId: fx.fixture_id,
+                  label: rollupSummary(fx),
+                })
               }
               onMouseLeave={() => setHovered(null)}
               data-testid={`fixture-rollup-${fx.fixture_id}`}
             />
-            <span className="truncate min-w-0" title={`${fx.home_team_name} v ${fx.away_team_name}`}>
+            <span
+              className="truncate min-w-0"
+              title={`${fx.home_team_name} v ${fx.away_team_name}`}
+            >
               {fx.home_team_name || fx.fixture_id} v {fx.away_team_name || ""}
             </span>
             <span className="text-[8px] text-[var(--color-text-muted)] shrink-0">
@@ -189,7 +200,10 @@ export function FixtureBreakdown({ day, league_id, readOnly = false }: FixtureBr
                   style={{ backgroundColor: coverageColor(status) }}
                   data-testid={`coverage-${fx.fixture_id}-${entity}`}
                   onMouseEnter={() =>
-                    setHovered({ fixtureId: fx.fixture_id, label: `${entity} · ${status}` })
+                    setHovered({
+                      fixtureId: fx.fixture_id,
+                      label: `${entity} · ${status}`,
+                    })
                   }
                   onMouseLeave={() => setHovered(null)}
                 />

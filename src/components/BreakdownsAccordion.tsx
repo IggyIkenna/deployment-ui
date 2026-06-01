@@ -1,7 +1,7 @@
 /**
  * Per-asset-group breakdowns accordion for the Data Status panel.
  *
- * Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan
  * — first deliverable for the multi-axis-shard rollout.
  *
  * Design principle ("deliver-with-empty-data"):
@@ -76,9 +76,7 @@ const HUMAN_AXIS_LABELS: Record<string, string> = {
 function formatAxisLabel(axis: string): string {
   return (
     HUMAN_AXIS_LABELS[axis] ??
-    axis
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    axis.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
   );
 }
 
@@ -100,14 +98,14 @@ export function BreakdownsAccordion({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)]">
       {title ? (
-        <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">
+        <div className="flex items-center gap-2 border-b border-[var(--color-border-default)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)]">
           <Layers className="h-4 w-4" />
           {title}
         </div>
       ) : null}
-      <ul className="divide-y divide-slate-200">
+      <ul className="divide-y divide-[var(--color-border-default)]">
         {axes.map((axis) => {
           const values = breakdowns[axis] ?? {};
           const entries = Object.entries(values).sort((a, b) => b[1] - a[1]);
@@ -126,27 +124,29 @@ export function BreakdownsAccordion({
               >
                 <span className="flex items-center gap-2 text-sm">
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                    <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                    <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                   )}
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-[var(--color-text-secondary)]">
                     {formatAxisLabel(axis)}
                   </span>
-                  <span className="text-xs text-slate-500">{axis}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {axis}
+                  </span>
                 </span>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[var(--color-text-muted)]">
                   {empty
                     ? "no data yet"
                     : `${entries.length} value${entries.length === 1 ? "" : "s"} · ${total.toLocaleString()} rows`}
                 </span>
               </button>
               {isOpen && empty ? (
-                <p className="mt-2 ml-6 text-xs italic text-slate-500">
-                  This axis is declared in the SSOT for this asset group but
-                  the manifest hasn&apos;t populated it yet (Phase&nbsp;1
-                  writer work). Data will fill in here automatically once
-                  the writer for this service ships.
+                <p className="mt-2 ml-6 text-xs italic text-[var(--color-text-muted)]">
+                  This axis is declared in the SSOT for this asset group but the
+                  manifest hasn&apos;t populated it yet (Phase&nbsp;1 writer
+                  work). Data will fill in here automatically once the writer
+                  for this service ships.
                 </p>
               ) : null}
               {isOpen && !empty ? (
@@ -160,27 +160,26 @@ export function BreakdownsAccordion({
                           {...(clickable
                             ? {
                                 type: "button" as const,
-                                onClick: () =>
-                                  onSelectValue?.(axis, value),
+                                onClick: () => onSelectValue?.(axis, value),
                               }
                             : {})}
                           className={
                             "flex w-full items-center justify-between text-left text-xs " +
                             (clickable
-                              ? "rounded px-2 py-1 hover:bg-slate-100"
+                              ? "rounded px-2 py-1 hover:bg-[var(--color-bg-secondary)]"
                               : "px-2 py-1")
                           }
                         >
                           <span
                             className={
                               value === "__legacy__"
-                                ? "italic text-slate-500"
-                                : "text-slate-700"
+                                ? "italic text-[var(--color-text-muted)]"
+                                : "text-[var(--color-text-secondary)]"
                             }
                           >
                             {formatValueLabel(value)}
                           </span>
-                          <span className="font-mono text-slate-500">
+                          <span className="font-mono text-[var(--color-text-muted)]">
                             {count.toLocaleString()}
                           </span>
                         </Tag>

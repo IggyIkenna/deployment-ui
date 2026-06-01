@@ -19,7 +19,8 @@
     "test:integration": "vitest run tests/integration",
     "orphan-audit": "tsx scripts/orphan-audit.ts",
     "orphan-audit:blocking": "tsx scripts/orphan-audit.ts --blocking",
-    "orphan-audit:write-baseline": "tsx scripts/orphan-audit.ts --write-baseline"
+    "orphan-audit:write-baseline": "tsx scripts/orphan-audit.ts --write-baseline",
+    "prepare": "husky"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.1.0",
@@ -39,6 +40,7 @@
     "tailwind-merge": "^2.5.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
     "@testing-library/dom": "^10.4.0",
@@ -48,15 +50,22 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.0",
-    "eslint": "^9.0.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-react-hooks": "^5.0.0",
     "globals": "^17.3.0",
+    "husky": "^9.1.7",
     "jsdom": "^29.0.0",
-    "prettier": "^3.1.1",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.6.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.3.0",
+    "typescript": "5.7.3",
     "typescript-eslint": "^8.57.0",
     "vite": "^8.0.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,json,css,md,yaml,yml,html}": "prettier --write --ignore-unknown",
+    "*.{js,jsx,ts,tsx,mjs}": "eslint --fix --max-warnings 0"
   }
 }

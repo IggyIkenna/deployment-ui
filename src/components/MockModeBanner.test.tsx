@@ -56,9 +56,7 @@ describe("MockModeBanner", () => {
     mockFetchOk({ mock_mode: true, cloud_provider: "gcp" });
     render(<MockModeBanner />);
     await waitFor(() =>
-      expect(
-        screen.getByText(/frontend interceptors \+ backend/),
-      ).toBeTruthy(),
+      expect(screen.getByText(/frontend interceptors \+ backend/)).toBeTruthy(),
     );
   });
 
@@ -124,9 +122,7 @@ describe("MockModeBanner", () => {
   it("falls back to 'fetch failed' for non-Error rejection values", async () => {
     mockFetchReject("not-an-error-instance");
     render(<MockModeBanner />);
-    await waitFor(() =>
-      expect(screen.getByText(/fetch failed/)).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(/fetch failed/)).toBeTruthy());
   });
 
   it("falls back to cloud_provider 'unknown' when omitted from response", async () => {
@@ -134,9 +130,7 @@ describe("MockModeBanner", () => {
     render(<MockModeBanner />);
     // OK + mock + FRONTEND_MOCK=true → both-mock rung renders.
     await waitFor(() =>
-      expect(
-        screen.getByText(/frontend interceptors \+ backend/),
-      ).toBeTruthy(),
+      expect(screen.getByText(/frontend interceptors \+ backend/)).toBeTruthy(),
     );
   });
 });

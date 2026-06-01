@@ -31,7 +31,12 @@ describe("FixtureBreakdown", () => {
             XG: "captured",
             WEATHER: "captured",
           },
-          coverage_summary: { captured: 7, empty_confirmed: 1, missing: 0, failed: 0 },
+          coverage_summary: {
+            captured: 7,
+            empty_confirmed: 1,
+            missing: 0,
+            failed: 0,
+          },
         },
         {
           fixture_id: "fx-2",
@@ -50,7 +55,12 @@ describe("FixtureBreakdown", () => {
             XG: "missing",
             WEATHER: "attempted_failed",
           },
-          coverage_summary: { captured: 5, empty_confirmed: 1, missing: 1, failed: 1 },
+          coverage_summary: {
+            captured: 5,
+            empty_confirmed: 1,
+            missing: 1,
+            failed: 1,
+          },
         },
       ],
     });
@@ -66,12 +76,17 @@ describe("FixtureBreakdown", () => {
       expect(screen.getByTestId("fixture-row-fx-1")).toBeTruthy();
       expect(screen.getByTestId("fixture-row-fx-2")).toBeTruthy();
     });
-    expect(fetchSpy).toHaveBeenCalledWith({ day: "2024-09-15", league_id: "EPL" });
+    expect(fetchSpy).toHaveBeenCalledWith({
+      day: "2024-09-15",
+      league_id: "EPL",
+    });
     // per-entity coverage pills rendered
     expect(screen.getByTestId("coverage-fx-1-FIXTURES")).toBeTruthy();
     expect(screen.getByTestId("coverage-fx-2-XG")).toBeTruthy();
     // download affordances present when not readOnly
-    const csv = screen.getByTestId("fixture-download-csv-fx-1") as HTMLAnchorElement;
+    const csv = screen.getByTestId(
+      "fixture-download-csv-fx-1",
+    ) as HTMLAnchorElement;
     expect(csv.href).toContain("fixture_id=fx-1");
     expect(csv.href).toContain("format=csv");
     expect(csv.href).toContain("day=2024-09-15");

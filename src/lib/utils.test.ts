@@ -24,7 +24,11 @@ describe("formatEventDrivenCoverageLabel", () => {
   });
 
   it("handles undefined inputs without throwing", () => {
-    const label = formatEventDrivenCoverageLabel(undefined, undefined, undefined);
+    const label = formatEventDrivenCoverageLabel(
+      undefined,
+      undefined,
+      undefined,
+    );
     // 0.0% / 0.0% with no empty-rate suffix; captured first
     expect(label.text).toBe("0.0% captured · 0.0% attempted");
   });

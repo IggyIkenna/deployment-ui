@@ -14,6 +14,24 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  ERR_FAILED_TO_LOAD_DETAILS,
+  FIELD_ASSET_GROUP,
+  FIELD_COMPLETED,
+  FIELD_DATE_RANGE,
+  FIELD_DEPLOYMENT_ID,
+  FIELD_EVENTS_EMITTED,
+  FIELD_EXIT_CODE,
+  FIELD_LAST_HEARTBEAT,
+  FIELD_LOG_URI,
+  FIELD_MODE,
+  FIELD_ROWS_ERROR,
+  FIELD_ROWS_IN,
+  FIELD_ROWS_OUT,
+  FIELD_STARTED,
+  FIELD_TASK,
+  FIELD_VM_NAME,
+} from "../lib/strings";
 
 const STATUS_VARIANT: Record<
   string,
@@ -47,9 +65,11 @@ export function VmDeploymentDetails() {
     setError(null);
     Promise.all([
       fetchVmDeployment(deploymentId),
-      fetchVmDeploymentEvents(deploymentId).catch(
-        () => ({ deployment_id: deploymentId, events: [], count: 0 }),
-      ),
+      fetchVmDeploymentEvents(deploymentId).catch(() => ({
+        deployment_id: deploymentId,
+        events: [],
+        count: 0,
+      })),
     ])
       .then(([e, ev]) => {
         setEntry(e);
@@ -57,9 +77,7 @@ export function VmDeploymentDetails() {
       })
       .catch((err: unknown) =>
         setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load deployment details",
+          err instanceof Error ? err.message : ERR_FAILED_TO_LOAD_DETAILS,
         ),
       )
       .finally(() => setLoading(false));
@@ -99,21 +117,21 @@ export function VmDeploymentDetails() {
   if (!entry) return <div className="p-6">Not found.</div>;
 
   const fields: Array<[string, string | number | null]> = [
-    ["Deployment ID", entry.deployment_id],
-    ["VM name", entry.vm_name],
-    ["Asset group", entry.asset_group],
-    ["Task", entry.task],
-    ["Mode", entry.mode],
-    ["Date range", `${entry.start_date} → ${entry.end_date}`],
-    ["Started", entry.started_at],
-    ["Last heartbeat", entry.last_heartbeat_at],
-    ["Completed", entry.completed_at],
-    ["Exit code", entry.exit_code],
-    ["Rows in", entry.rows_in],
-    ["Rows out", entry.rows_out],
-    ["Rows error", entry.rows_error],
-    ["Events emitted", entry.events_emitted],
-    ["Log URI", entry.log_uri],
+    [FIELD_DEPLOYMENT_ID, entry.deployment_id],
+    [FIELD_VM_NAME, entry.vm_name],
+    [FIELD_ASSET_GROUP, entry.asset_group],
+    [FIELD_TASK, entry.task],
+    [FIELD_MODE, entry.mode],
+    [FIELD_DATE_RANGE, `${entry.start_date} → ${entry.end_date}`],
+    [FIELD_STARTED, entry.started_at],
+    [FIELD_LAST_HEARTBEAT, entry.last_heartbeat_at],
+    [FIELD_COMPLETED, entry.completed_at],
+    [FIELD_EXIT_CODE, entry.exit_code],
+    [FIELD_ROWS_IN, entry.rows_in],
+    [FIELD_ROWS_OUT, entry.rows_out],
+    [FIELD_ROWS_ERROR, entry.rows_error],
+    [FIELD_EVENTS_EMITTED, entry.events_emitted],
+    [FIELD_LOG_URI, entry.log_uri],
   ];
 
   return (

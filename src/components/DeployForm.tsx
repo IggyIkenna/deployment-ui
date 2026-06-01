@@ -160,7 +160,7 @@ export function DeployForm({
           data.storage_region ?? data.gcs_region ?? "asia-northeast1",
         ),
       )
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -413,7 +413,8 @@ export function DeployForm({
       request.vm_zone = vmZone;
     }
 
-    if (selectedAssetGroups.length > 0) request.asset_group = selectedAssetGroups;
+    if (selectedAssetGroups.length > 0)
+      request.asset_group = selectedAssetGroups;
     if (selectedVenues.length > 0) request.venue = selectedVenues;
     if (selectedFeatureGroups.length > 0)
       request.feature_group = selectedFeatureGroups;
@@ -701,11 +702,11 @@ export function DeployForm({
                 v === "__none__"
                   ? ""
                   : (v as
-                    | "backtest"
-                    | "paper"
-                    | "mock-live"
-                    | "staging"
-                    | "prod"),
+                      | "backtest"
+                      | "paper"
+                      | "mock-live"
+                      | "staging"
+                      | "prod"),
               )
             }
           >
@@ -723,8 +724,8 @@ export function DeployForm({
           </Select>
           <p className="text-xs text-muted-foreground">
             Selecting a profile fans out to CLOUD_MOCK_MODE, MOCK_STATE_MODE,
-            DISABLE_AUTH, VITE_MOCK_API, VITE_SKIP_AUTH at VM/pod boot. Chaos
-            is forbidden when runtime_profile=prod.
+            DISABLE_AUTH, VITE_MOCK_API, VITE_SKIP_AUTH at VM/pod boot. Chaos is
+            forbidden when runtime_profile=prod.
           </p>
         </div>
 
@@ -1004,7 +1005,9 @@ export function DeployForm({
             selected={selectedVenues}
             onChange={setSelectedVenues}
             disabled={!primaryAssetGroup}
-            hint={!primaryAssetGroup ? "Select an asset group first" : undefined}
+            hint={
+              !primaryAssetGroup ? "Select an asset group first" : undefined
+            }
           />
         )}
 
@@ -1219,13 +1222,13 @@ export function DeployForm({
                     {Math.ceil(
                       (new Date(endDate).getTime() -
                         new Date(startDate).getTime()) /
-                      (1000 * 60 * 60 * 24),
+                        (1000 * 60 * 60 * 24),
                     ) + 1}{" "}
                     × {selectedAssetGroups.length || 3} = ~
                     {(Math.ceil(
                       (new Date(endDate).getTime() -
                         new Date(startDate).getTime()) /
-                      (1000 * 60 * 60 * 24),
+                        (1000 * 60 * 60 * 24),
                     ) +
                       1) *
                       (selectedAssetGroups.length || 3)}{" "}
@@ -1278,11 +1281,11 @@ export function DeployForm({
                   onValueChange={(value) =>
                     setDateGranularity(
                       value as
-                      | "default"
-                      | "daily"
-                      | "weekly"
-                      | "monthly"
-                      | "none",
+                        | "default"
+                        | "daily"
+                        | "weekly"
+                        | "monthly"
+                        | "none",
                     )
                   }
                 >
@@ -1336,66 +1339,66 @@ export function DeployForm({
           {(containerMaxWorkers ||
             skipVenueSharding ||
             skipFeatureGroupSharding) && (
-              <div className="mt-4 p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-accent-yellow)]/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[var(--color-accent-yellow)]">⚡</span>
-                  <Label className="font-medium text-[var(--color-accent-yellow)]">
-                    Auto-Scaled Compute Resources
-                  </Label>
-                </div>
-                <div className="text-xs text-[var(--color-text-muted)] space-y-1">
-                  {(() => {
-                    const baseWorkers = 4;
-                    const maxWorkers = containerMaxWorkers
-                      ? parseInt(containerMaxWorkers)
-                      : baseWorkers;
-                    let scaleFactor = Math.max(1.0, maxWorkers / baseWorkers);
-
-                    if (skipVenueSharding) {
-                      scaleFactor *= 2.0;
-                    }
-
-                    const factors: string[] = [];
-                    if (
-                      containerMaxWorkers &&
-                      parseInt(containerMaxWorkers) > baseWorkers
-                    ) {
-                      factors.push(
-                        `${maxWorkers}/${baseWorkers} workers = ${(maxWorkers / baseWorkers).toFixed(1)}x`,
-                      );
-                    }
-                    if (skipVenueSharding) {
-                      factors.push("venue consolidation = 2x");
-                    }
-
-                    if (scaleFactor > 1.0) {
-                      return (
-                        <>
-                          <p>
-                            Machine resources will be scaled up by{" "}
-                            <span className="text-[var(--color-accent-yellow)] font-semibold">
-                              {scaleFactor.toFixed(1)}x
-                            </span>
-                          </p>
-                          {factors.length > 0 && (
-                            <p className="text-[var(--color-text-muted)]">
-                              Factors: {factors.join(" × ")}
-                            </p>
-                          )}
-                          <p className="mt-1 text-[var(--color-accent-cyan)]">
-                            Example: c2-standard-16 → c2-standard-
-                            {Math.min(60, Math.round(16 * scaleFactor))}
-                          </p>
-                        </>
-                      );
-                    }
-                    return (
-                      <p>Using base compute resources (no scaling needed)</p>
-                    );
-                  })()}
-                </div>
+            <div className="mt-4 p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-accent-yellow)]/50">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[var(--color-accent-yellow)]">⚡</span>
+                <Label className="font-medium text-[var(--color-accent-yellow)]">
+                  Auto-Scaled Compute Resources
+                </Label>
               </div>
-            )}
+              <div className="text-xs text-[var(--color-text-muted)] space-y-1">
+                {(() => {
+                  const baseWorkers = 4;
+                  const maxWorkers = containerMaxWorkers
+                    ? parseInt(containerMaxWorkers)
+                    : baseWorkers;
+                  let scaleFactor = Math.max(1.0, maxWorkers / baseWorkers);
+
+                  if (skipVenueSharding) {
+                    scaleFactor *= 2.0;
+                  }
+
+                  const factors: string[] = [];
+                  if (
+                    containerMaxWorkers &&
+                    parseInt(containerMaxWorkers) > baseWorkers
+                  ) {
+                    factors.push(
+                      `${maxWorkers}/${baseWorkers} workers = ${(maxWorkers / baseWorkers).toFixed(1)}x`,
+                    );
+                  }
+                  if (skipVenueSharding) {
+                    factors.push("venue consolidation = 2x");
+                  }
+
+                  if (scaleFactor > 1.0) {
+                    return (
+                      <>
+                        <p>
+                          Machine resources will be scaled up by{" "}
+                          <span className="text-[var(--color-accent-yellow)] font-semibold">
+                            {scaleFactor.toFixed(1)}x
+                          </span>
+                        </p>
+                        {factors.length > 0 && (
+                          <p className="text-[var(--color-text-muted)]">
+                            Factors: {factors.join(" × ")}
+                          </p>
+                        )}
+                        <p className="mt-1 text-[var(--color-accent-cyan)]">
+                          Example: c2-standard-16 → c2-standard-
+                          {Math.min(60, Math.round(16 * scaleFactor))}
+                        </p>
+                      </>
+                    );
+                  }
+                  return (
+                    <p>Using base compute resources (no scaling needed)</p>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
           {/* Extra CLI Arguments */}
           <div className="space-y-2 mt-4">
@@ -1432,7 +1435,7 @@ export function DeployForm({
               dateGranularity !== "default" ? dateGranularity : undefined,
             max_workers:
               containerMaxWorkers &&
-                !Number.isNaN(parseInt(containerMaxWorkers, 10))
+              !Number.isNaN(parseInt(containerMaxWorkers, 10))
                 ? parseInt(containerMaxWorkers, 10)
                 : undefined,
             extra_args: extraArgs.trim() || undefined,
@@ -1646,7 +1649,7 @@ export function DeployForm({
                                 </div>
                                 <div className="p-2 text-[var(--color-text-secondary)]">
                                   {remaining !== undefined &&
-                                    remaining !== null ? (
+                                  remaining !== null ? (
                                     Number(remaining).toLocaleString()
                                   ) : (
                                     <span className="text-[var(--color-text-muted)]">
@@ -1770,7 +1773,7 @@ function MultiSelectDimension({
               className={cn(
                 "px-2.5 py-1 text-xs font-mono",
                 isSelected &&
-                "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]",
+                  "bg-[var(--color-accent-cyan)]/20 border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]",
               )}
             >
               {isSelected && <CheckCircle2 className="h-3 w-3 inline mr-1" />}

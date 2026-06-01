@@ -139,8 +139,7 @@ export function useDeployEventStream(
     function connect() {
       if (disposed) return;
 
-      const sseUrl =
-        customUrl ?? `/api/deployments/${deploymentId}/stream`;
+      const sseUrl = customUrl ?? `/api/deployments/${deploymentId}/stream`;
 
       const es = new EventSource(sseUrl);
       esRef.current = es;

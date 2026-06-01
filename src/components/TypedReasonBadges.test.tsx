@@ -46,8 +46,12 @@ describe("TypedReasonBadges", () => {
     expect(
       screen.getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO"),
     ).toBeTruthy();
-    expect(screen.getByTestId("typed-reason-badge-failed_cluster")).toBeTruthy();
-    expect(screen.queryByTestId("typed-reason-badge-EXPECTED_WEEKEND")).toBeNull();
+    expect(
+      screen.getByTestId("typed-reason-badge-failed_cluster"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByTestId("typed-reason-badge-EXPECTED_WEEKEND"),
+    ).toBeNull();
     expect(screen.queryByTestId("typed-reason-badge-failed_other")).toBeNull();
   });
 
@@ -60,7 +64,9 @@ describe("TypedReasonBadges", () => {
       />,
     );
     const root = screen.getByTestId("my-row-typed-reason-badges");
-    const badges = root.querySelectorAll("[data-testid^='my-row-typed-reason-badge-']");
+    const badges = root.querySelectorAll(
+      "[data-testid^='my-row-typed-reason-badge-']",
+    );
     expect(badges.length).toBe(2);
     expect(badges[0].getAttribute("data-badge-kind")).toBe("failure_pillar");
     expect(badges[1].getAttribute("data-badge-kind")).toBe("empty_reason");
@@ -74,10 +80,14 @@ describe("TypedReasonBadges", () => {
       />,
     );
     expect(
-      screen.getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO").getAttribute("data-badge-count"),
+      screen
+        .getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO")
+        .getAttribute("data-badge-count"),
     ).toBe("17");
     expect(
-      screen.getByTestId("typed-reason-badge-failed_timestamp_bias").getAttribute("data-badge-count"),
+      screen
+        .getByTestId("typed-reason-badge-failed_timestamp_bias")
+        .getAttribute("data-badge-count"),
     ).toBe("4");
   });
 
@@ -101,17 +111,13 @@ describe("TypedReasonBadges", () => {
   });
 
   it("renders non-interactive spans when onBadgeClick is omitted", () => {
-    render(
-      <TypedReasonBadges emptyReasons={{ EXPECTED_HOLIDAY: 1 }} />,
-    );
+    render(<TypedReasonBadges emptyReasons={{ EXPECTED_HOLIDAY: 1 }} />);
     const empty = screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY");
     expect(empty.tagName).toBe("SPAN");
   });
 
   it("renders an aria-label tooltip with key + description + count", () => {
-    render(
-      <TypedReasonBadges failurePillars={{ failed_lookahead_bias: 9 }} />,
-    );
+    render(<TypedReasonBadges failurePillars={{ failed_lookahead_bias: 9 }} />);
     const pill = screen.getByTestId("typed-reason-badge-failed_lookahead_bias");
     const aria = pill.getAttribute("aria-label") ?? "";
     expect(aria).toContain("failed_lookahead_bias");
@@ -128,20 +134,32 @@ describe("TypedReasonBadges", () => {
   it("ignores unrecognised keys (typed taxonomy is closed-set)", () => {
     render(
       <TypedReasonBadges
-        emptyReasons={{
-          EXPECTED_HOLIDAY: 1,
-          NEWLY_INVENTED_REASON: 5,
-        } as Record<string, number>}
-        failurePillars={{
-          failed_cluster: 2,
-          failed_invented: 9,
-        } as Record<string, number>}
+        emptyReasons={
+          {
+            EXPECTED_HOLIDAY: 1,
+            NEWLY_INVENTED_REASON: 5,
+          } as Record<string, number>
+        }
+        failurePillars={
+          {
+            failed_cluster: 2,
+            failed_invented: 9,
+          } as Record<string, number>
+        }
       />,
     );
-    expect(screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY")).toBeTruthy();
-    expect(screen.getByTestId("typed-reason-badge-failed_cluster")).toBeTruthy();
-    expect(screen.queryByTestId("typed-reason-badge-NEWLY_INVENTED_REASON")).toBeNull();
-    expect(screen.queryByTestId("typed-reason-badge-failed_invented")).toBeNull();
+    expect(
+      screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("typed-reason-badge-failed_cluster"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByTestId("typed-reason-badge-NEWLY_INVENTED_REASON"),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId("typed-reason-badge-failed_invented"),
+    ).toBeNull();
   });
 });
 

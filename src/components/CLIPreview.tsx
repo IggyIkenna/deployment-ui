@@ -211,14 +211,6 @@ export function ContainerCommandPreview({
     "ml-inference-service": ["--operation", "infer", "--mode", "batch"],
     "strategy-service": ["--operation", "backtest", "--mode", "batch"],
     "execution-services": ["--operation", "execute", "--mode", "live"],
-    "risk-and-exposure-service": ["--operation", "compute", "--mode", "batch"],
-    "position-balance-monitor-service": [
-      "--operation",
-      "monitor",
-      "--mode",
-      "batch",
-    ],
-    "pnl-attribution-service": ["--operation", "compute", "--mode", "batch"],
   };
 
   const flags = containerFlags[serviceName];

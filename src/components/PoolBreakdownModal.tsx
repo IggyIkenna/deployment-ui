@@ -154,13 +154,18 @@ export function PoolBreakdownModal({
                   <>
                     {" / "}
                     <span className="font-mono">{response.pools_expected}</span>
-                    <span className="text-[var(--color-text-muted)]"> expected</span>
+                    <span className="text-[var(--color-text-muted)]">
+                      {" "}
+                      expected
+                    </span>
                   </>
                 )}
               </span>
               {response.data_types_expected.length > 0 && (
                 <span>
-                  <span className="text-[var(--color-text-muted)]">data_types:</span>{" "}
+                  <span className="text-[var(--color-text-muted)]">
+                    data_types:
+                  </span>{" "}
                   <span className="font-mono">
                     {response.data_types_expected.join(", ")}
                   </span>
@@ -185,10 +190,10 @@ export function PoolBreakdownModal({
                       className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0"
                       title={`captured=${row.coverage_summary.captured} · empty=${row.coverage_summary.empty_confirmed} · missing=${row.coverage_summary.missing} · failed=${row.coverage_summary.failed}`}
                     >
-                      ✓{row.coverage_summary.captured} ·{" "}
-                      ∅{row.coverage_summary.empty_confirmed} ·{" "}
-                      ?{row.coverage_summary.missing} ·{" "}
-                      ✗{row.coverage_summary.failed}
+                      ✓{row.coverage_summary.captured} · ∅
+                      {row.coverage_summary.empty_confirmed} · ?
+                      {row.coverage_summary.missing} · ✗
+                      {row.coverage_summary.failed}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -208,8 +213,8 @@ export function PoolBreakdownModal({
                 className="text-[10px] text-[var(--color-text-muted)] italic text-center pt-1"
                 data-testid="defi-pools-truncation-footer"
               >
-                + {response.pools.length - MAX_VISIBLE_POOLS} more pools (showing first{" "}
-                {MAX_VISIBLE_POOLS})
+                + {response.pools.length - MAX_VISIBLE_POOLS} more pools
+                (showing first {MAX_VISIBLE_POOLS})
               </div>
             )}
           </>

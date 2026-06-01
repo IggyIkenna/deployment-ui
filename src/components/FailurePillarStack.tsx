@@ -41,9 +41,10 @@ interface Segment {
   description: string;
 }
 
-function buildSegments(
-  failurePillars: Record<string, number> | undefined,
-): { total: number; segments: Segment[] } {
+function buildSegments(failurePillars: Record<string, number> | undefined): {
+  total: number;
+  segments: Segment[];
+} {
   let total = 0;
   for (const key of FAILURE_PILLAR_KEYS) {
     total += failurePillars?.[key] ?? 0;

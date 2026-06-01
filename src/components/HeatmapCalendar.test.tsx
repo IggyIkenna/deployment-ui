@@ -123,9 +123,7 @@ describe("HeatmapCalendar 4-state rendering (Phase C)", () => {
       "empty_confirmed",
       "attempted_failed",
     ]);
-    const cells = document.querySelectorAll(
-      '[data-testid^="heatmap-day-"]',
-    );
+    const cells = document.querySelectorAll('[data-testid^="heatmap-day-"]');
     expect(cells.length).toBeGreaterThan(0);
     cells.forEach((cell) => {
       const status = cell.getAttribute("data-status");

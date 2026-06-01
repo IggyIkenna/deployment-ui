@@ -224,12 +224,7 @@ export function VmDeployments() {
               refreshed {lastRefreshed}
             </span>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={load}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             Refresh
           </Button>
         </div>

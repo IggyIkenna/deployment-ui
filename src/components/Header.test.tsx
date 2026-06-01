@@ -62,7 +62,9 @@ describe("Header", () => {
   });
 
   it("shows the Disconnected badge on health error", async () => {
-    vi.spyOn(apiClient, "getHealth").mockRejectedValue(new Error("backend down"));
+    vi.spyOn(apiClient, "getHealth").mockRejectedValue(
+      new Error("backend down"),
+    );
     renderHeader();
     await waitFor(() => expect(screen.getByText("Disconnected")).toBeTruthy());
   });
@@ -98,9 +100,9 @@ describe("Header", () => {
 
   it("clears cache + flips Cleared! when the button is clicked", async () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
-    const clearSpy = vi
-      .spyOn(apiClient, "clearCache")
-      .mockResolvedValue({ status: "ok" } as unknown as apiClient.ClearCacheResponse);
+    const clearSpy = vi.spyOn(apiClient, "clearCache").mockResolvedValue({
+      status: "ok",
+    } as unknown as apiClient.ClearCacheResponse);
     renderHeader();
     fireEvent.click(screen.getByText("Clear Cache"));
     await waitFor(() => expect(clearSpy).toHaveBeenCalled());

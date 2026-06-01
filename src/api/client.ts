@@ -730,7 +730,7 @@ export interface DrilldownResponse {
   manifest_uri?: string;
   mock?: boolean;
   /** Pagination — Phase 6 of
-   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.md.
+   * data_status_drilldown_shard_atom_alignment_2026_05_07.plan.
    * ``total_top_axis_children`` is the unfiltered child count at the
    * head axis; ``child_offset`` / ``child_limit`` echo the page
    * requested. UI uses them to render "showing N–M of T" + load-more.
@@ -874,6 +874,50 @@ export async function getDeployMissingServices(opts?: {
   return res.services ?? [];
 }
 
+// ===========================================================================
+// Deploy-Missing auto-launch — deploy_missing_auto_launch_2026_05_07 Phase 2.
+// ===========================================================================
+
+/** Response from ``POST /api/data-status/deploy-missing-launch``. Mirrors
+ * the Python ``DeployMissingLaunchResult.to_dict()`` shape. */
+export interface DeployMissingLaunchResult {
+  service: string;
+  asset_group: string;
+  shard_key: string;
+  shard_key_hash: string;
+  vm_name: string;
+  correlation_id: string;
+  events_uri: string;
+  dry_run: boolean;
+  started_confirmed: boolean;
+  inflight_vm_name: string | null;
+}
+
+export async function postDeployMissingLaunch(params: {
+  service: string;
+  asset_group: string;
+  row_key: Record<string, string>;
+  operator_id?: string;
+  dry_run?: boolean;
+  signal?: AbortSignal;
+}): Promise<DeployMissingLaunchResult> {
+  return fetchJson<DeployMissingLaunchResult>(
+    `/data-status/deploy-missing-launch`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service: params.service,
+        asset_group: params.asset_group,
+        row_key: params.row_key,
+        operator_id: params.operator_id ?? "ui-operator",
+        dry_run: params.dry_run ?? false,
+      }),
+      signal: params.signal,
+    },
+  );
+}
+
 /** One sports fixture row from ``GET /fixtures/upcoming`` (deployment-api). */
 export interface UpcomingFixture {
   fixture_id: string;
@@ -962,6 +1006,7 @@ export interface TurboLeagueStatus {
   missing_shards?: number;
   found_dates_list?: string[];
   missing_dates?: string[];
+  missing_count?: number; // Total missing count (list may be a truncated sample)
   completion_pct: number;
   unit?: string;
   not_applicable?: boolean;
@@ -1030,7 +1075,20 @@ export interface TurboSubDimension {
     captured: number;
     empty_confirmed: number;
     attempted_failed: number;
+    // Phase 4 P1: all 5 fields exposed (expected_unattempted split)
+    expected_unattempted_known_empty?: number;
+    expected_unattempted_pending_fetch?: number;
   };
+  // Phase 4 P1: canonical alias for capture_status_counts (all 5 fields always present)
+  counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty: number;
+    expected_unattempted_pending_fetch: number;
+  };
+  // Phase 4 P1: honest_coverage float (0–1) pre-computed by API; never re-derive client-side
+  coverage?: number;
   attempt_coverage_pct?: number;
   capture_coverage_pct?: number;
   empty_rate?: number;
@@ -1103,13 +1161,69 @@ export interface TurboChainStatus {
   completion_pct: number;
   venues: string[];
   venue_count: number;
+  shards_found?: number;
+  shards_expected?: number;
+}
+
+// Closed-set enum mirroring UAC `FeatureFamily` (Phase 1A of
+// features_repo_consolidation_2026_05_08.plan). Each value corresponds
+// to one ``features-{family}-service`` repo. The 8 values are the
+// SSOT — adding a new family is a deliberate UAC change paired with
+// this type. Source:
+// unified_api_contracts/canonical/domain/features/registry.py.
+export type FeatureFamily =
+  | "calendar"
+  | "commodity"
+  | "cross_instrument"
+  | "delta_one"
+  | "multi_timeframe"
+  | "onchain"
+  | "sports"
+  | "volatility";
+
+export const FEATURE_FAMILIES: ReadonlyArray<FeatureFamily> = [
+  "calendar",
+  "commodity",
+  "cross_instrument",
+  "delta_one",
+  "multi_timeframe",
+  "onchain",
+  "sports",
+  "volatility",
+];
+
+export function isFeatureFamily(value: string): value is FeatureFamily {
+  return (FEATURE_FAMILIES as readonly string[]).includes(value);
 }
 
 export interface TurboFeatureGroupStatus {
   dates_found: number;
   dates_expected: number;
   completion_pct: number;
-  timeframes?: Record<string, { dates_found: number; dates_expected: number; completion_pct: number }>;
+  timeframes?: Record<
+    string,
+    { dates_found: number; dates_expected: number; completion_pct: number }
+  >;
+  // Optional feature_family axis (Phase 8B of features_repo_consolidation_
+  // 2026_05_08.plan). When the manifest row carries a non-null
+  // feature_family value the deployment-api propagates it here so the UI
+  // can group feature_groups by family. Null / absent on non-features
+  // rows (MTDS / MDPS) or pre-Phase-8B manifest rows.
+  feature_family?: FeatureFamily | null;
+}
+
+// Phase 8B feature_family rollup (Phase 8B of
+// features_repo_consolidation_2026_05_08.plan). The deployment-api
+// populates this when ``feature_groups`` rows carry a populated
+// ``feature_family``; the UI drills feature_family -> feature_group ->
+// timeframe. Backwards-compatible: a feature_groups response without
+// any feature_family rows simply has no `feature_families` map and the
+// UI falls back to the flat feature_groups view.
+export interface TurboFeatureFamilyStatus {
+  dates_found: number;
+  dates_expected: number;
+  completion_pct: number;
+  feature_groups: Record<string, TurboFeatureGroupStatus>;
 }
 
 export interface TurboVenueSummary {
@@ -1146,6 +1260,24 @@ export interface TurboAssetGroupStatus {
   attempt_coverage_pct?: number;
   capture_coverage_pct?: number;
   empty_rate_estimate?: number | null;
+  failure_rate?: number;
+  // Phase 4 P1: category-level capture-status counts + honest-coverage float
+  capture_status_counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty?: number;
+    expected_unattempted_pending_fetch?: number;
+  };
+  counts?: {
+    captured: number;
+    empty_confirmed: number;
+    attempted_failed: number;
+    expected_unattempted_known_empty: number;
+    expected_unattempted_pending_fetch: number;
+  };
+  // honest_coverage float (0–1); use instead of recomputing from counts client-side
+  coverage?: number;
   missing_dates: string[] | string;
   // Category-level dates lists (with truncation for UI display)
   dates_found_count?: number; // Total found count
@@ -1167,12 +1299,18 @@ export interface TurboAssetGroupStatus {
   venue_weighted?: boolean;
   venue_dates_found?: number;
   venue_dates_expected?: number;
+  overall_shards_found?: number;
+  overall_shards_expected?: number;
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
   folders?: { [name: string]: TurboSubDimension }; // Instrument type breakdown
   chains?: { [name: string]: TurboChainStatus }; // DeFi chain breakdown (v4)
   feature_groups?: { [name: string]: TurboFeatureGroupStatus }; // Feature service breakdown (v4)
+  // Phase 8B feature-family rollup. When present, UI prefers this for the
+  // features-service drilldown (feature_family -> feature_group -> timeframe);
+  // when absent, the flat feature_groups map renders unchanged.
+  feature_families?: { [family: string]: TurboFeatureFamilyStatus };
   venue_summary?: TurboVenueSummary;
 }
 
@@ -1185,13 +1323,15 @@ export interface TurboDataStatusResponse {
   };
   mode: "turbo";
   first_day_of_month_only?: boolean; // True if only checking first day of each month (TARDIS free tier)
-  sub_dimension?: string | null; // 'venue', 'data_type', 'feature_group', or null
+  sub_dimension?: string | null; // 'venue' | 'data_type' | 'feature_group' | 'feature_family' | null
   overall_completion_pct: number;
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
   // Category-level totals for reference (not venue-weighted)
   overall_dates_found_asset_group?: number;
   overall_dates_expected_asset_group?: number;
+  overall_shards_found?: number;
+  overall_shards_expected?: number;
   total_missing?: number;
   unexpected_missing?: number;
   expected_missing?: number;
@@ -1265,7 +1405,7 @@ export async function getDataStatusTurbo(params: {
  * Works with both GCS and S3 (cloud-agnostic).
  * Returns the same shape as turbo for UI compatibility.
  *
- * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+ * Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan
  * adds optional `secondary_axis` + per-shard filter params (league_id /
  * fixture_id / canonical_question_group / job_id / chain) for the
  * deployment-ui axis-selector drill-down. Empty/omitted == today's
@@ -1284,6 +1424,12 @@ export async function getDataStatusManifest(params: {
   canonical_question_group?: string;
   job_id?: string;
   chain?: string;
+  // Phase 8B of features_repo_consolidation_2026_05_08.plan — slice the
+  // manifest by feature_family. UAC `FeatureFamily` enum values
+  // (calendar / commodity / cross_instrument / delta_one /
+  // multi_timeframe / onchain / sports / volatility). Empty/omitted ==
+  // unfiltered behaviour preserved.
+  feature_family?: FeatureFamily | string;
   signal?: AbortSignal;
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
@@ -1293,14 +1439,21 @@ export async function getDataStatusManifest(params: {
   if (params.asset_group) {
     params.asset_group.forEach((c) => searchParams.append("asset_group", c));
   }
-  if (params.secondary_axis) searchParams.set("secondary_axis", params.secondary_axis);
+  if (params.secondary_axis)
+    searchParams.set("secondary_axis", params.secondary_axis);
   if (params.league_id) searchParams.set("league_id", params.league_id);
   if (params.fixture_id) searchParams.set("fixture_id", params.fixture_id);
   if (params.canonical_question_group) {
-    searchParams.set("canonical_question_group", params.canonical_question_group);
+    searchParams.set(
+      "canonical_question_group",
+      params.canonical_question_group,
+    );
   }
   if (params.job_id) searchParams.set("job_id", params.job_id);
   if (params.chain) searchParams.set("chain", params.chain);
+  if (params.feature_family) {
+    searchParams.set("feature_family", params.feature_family);
+  }
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,
   });
@@ -1310,7 +1463,7 @@ export async function getDataStatusManifest(params: {
  * Per-(service, asset_group) shard / display / primary axis SSOT.
  *
  * Source: unified_api_contracts.registry.data_status_axis_matrix (Phase 0
- * of data_status_multi_axis_shard_propagation_2026_05_06.plan.md). Drives
+ * of data_status_multi_axis_shard_propagation_2026_05_06.plan). Drives
  * the axis-selector dropdowns in DataStatusTab — DEFI panels render a
  * chain dropdown, sports a league_id dropdown, strategy/execution a
  * job_id picker, ml-training a model_family + training_period selector,
@@ -1337,7 +1490,7 @@ export async function getShardAxisMatrix(
 
 // Coverage summary — manifest totals + latest-day unique instrument counts.
 //
-// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md
+// Phase 2 of data_status_multi_axis_shard_propagation_2026_05_06.plan
 // adds the `breakdowns` map: per-axis (chain / league_id / job_id /
 // model_family / canonical_question_group / etc.) value->count from the
 // UAC SHARD_AXIS_MATRIX SSOT. Each axis's empty `{}` means the axis
@@ -1370,6 +1523,8 @@ export interface CoverageSummaryResponse {
     dates_across_asset_groups: number;
     latest_day_instruments: number;
   };
+  totals_source?: "rollup" | "manifest";
+  served_from?: string;
   mock?: boolean;
 }
 
@@ -1380,7 +1535,8 @@ export async function getDataCoverageSummary(params?: {
 }): Promise<CoverageSummaryResponse> {
   const searchParams = new URLSearchParams();
   if (params?.service) searchParams.set("service", params.service);
-  if (params?.asset_groups) searchParams.set("asset_groups", params.asset_groups);
+  if (params?.asset_groups)
+    searchParams.set("asset_groups", params.asset_groups);
   const qs = searchParams.toString();
   return fetchJson(`/data-status/coverage-summary${qs ? `?${qs}` : ""}`, {
     signal: params?.signal,
@@ -1412,12 +1568,19 @@ export async function getVenueFilters(
 export interface VenueDetailResult {
   venue: string;
   asset_group: string;
-  date: string;
+  date?: string;
+  day?: string | null;
   total_instruments: number;
-  columns: string[];
+  total_instruments_unfiltered?: number;
+  columns?: string[];
   instrument_types?: Record<string, number>;
   statuses?: Record<string, number>;
-  top_instruments?: Array<{ key: string; type: string; base: string; quote: string }>;
+  instruments?: Array<{
+    key: string;
+    type: string;
+    base: string;
+    quote: string;
+  }>;
 }
 
 export async function fetchVenueDetail(
@@ -1501,9 +1664,12 @@ export async function listFiles(params: {
   if (params.timeframe) {
     searchParams.set("timeframe", params.timeframe);
   }
-  const raw = await fetchJson<unknown>(`/data-status/list-files?${searchParams.toString()}`, {
-    signal: params.signal,
-  });
+  const raw = await fetchJson<unknown>(
+    `/data-status/list-files?${searchParams.toString()}`,
+    {
+      signal: params.signal,
+    },
+  );
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
@@ -1562,8 +1728,6 @@ export const MANIFEST_MODE_SERVICES = [
   "execution-service",
   "ml-training-service",
   "ml-inference-service",
-  "risk-and-exposure-service",
-  "pnl-attribution-service",
   "alerting-service",
 ];
 
@@ -1597,8 +1761,6 @@ export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "execution-service": "domain",
   "ml-training-service": "model_id",
   "ml-inference-service": "mode",
-  "risk-and-exposure-service": "client_id",
-  "pnl-attribution-service": "strategy_id",
   "alerting-service": "alert_type",
 };
 
@@ -1640,7 +1802,8 @@ export interface DataTypeCheckResponse {
           completion_percent: number;
         };
       };
-      feature_groups?: Record<string, DimensionStatus>;
+      feature_groups?: Record<string, TurboFeatureGroupStatus>;
+      feature_families?: { [family: string]: TurboFeatureFamilyStatus };
       timeframes?: Record<string, DimensionStatus>;
     };
   };
@@ -1897,7 +2060,7 @@ export interface ShardSchemaResponse {
    * - `CONTRACT_REGISTRY` / `VENUE_CONTRACT_OVERRIDES` — UAC contract.
    * - `PARQUET_PROJECTION` — registry has no entry, columns are
    *   projected from the actual parquet on GCS at `projected_from`.
-   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+   *   Phase 3 of data_status_multi_axis_shard_propagation_2026_05_06.plan.
    * - `none` — no contract AND no parquet found; the UI should show
    *   "no schema yet" rather than blank.
    */
@@ -1922,7 +2085,7 @@ export async function fetchShardSchema(params: {
   data_type: string;
   venue?: string;
   // v7 multi-axis params (Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md). The
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan). The
   // /api/data-status/schema endpoint uses these to probe the DEEPEST
   // shard parquet — DEFI per-chain, sports per-league/per-fixture, ML
   // per-experiment-run, strategy/execution per-job_id, etc. Each leaf
@@ -1941,6 +2104,8 @@ export async function fetchShardSchema(params: {
   instruction_type?: string;
   feature_group?: string;
   timeframe?: string;
+  // Phase 8B feature_family filter for the consolidated features-service.
+  feature_family?: FeatureFamily | string;
 }): Promise<ShardSchemaResponse> {
   const qp = new URLSearchParams({
     service: params.service,
@@ -1961,9 +2126,11 @@ export async function fetchShardSchema(params: {
   if (params.model_family) qp.set("model_family", params.model_family);
   if (params.training_period) qp.set("training_period", params.training_period);
   if (params.strategy_id) qp.set("strategy_id", params.strategy_id);
-  if (params.instruction_type) qp.set("instruction_type", params.instruction_type);
+  if (params.instruction_type)
+    qp.set("instruction_type", params.instruction_type);
   if (params.feature_group) qp.set("feature_group", params.feature_group);
   if (params.timeframe) qp.set("timeframe", params.timeframe);
+  if (params.feature_family) qp.set("feature_family", params.feature_family);
   return fetchJson<ShardSchemaResponse>(`/data-status/schema?${qp.toString()}`);
 }
 
@@ -1983,6 +2150,17 @@ export type CaptureStatusLiteral =
   | "empty_confirmed"
   | "attempted_failed"
   | "missing";
+
+// Mirrors UAC ``ServiceEmissionStateEnum`` (writegate slice (b) / v8). The
+// SSOT for the value set is the Python enum at
+// ``unified_api_contracts.canonical.crosscutting.service_emission_state``;
+// this TS union is the type-level alias for the API response shape. Drift
+// between these and the UAC enum is review-blocking.
+export type ServiceEmissionState =
+  | "PUBLISHED_OK"
+  | "PUBLISHED_DEGRADED"
+  | "STALE_DATA_HEARTBEAT_ONLY"
+  | "BLOCKED";
 
 export interface ShardDetailCoord {
   service: string;
@@ -2025,6 +2203,16 @@ export interface ShardDetailGcs {
   captured_at: string | null;
   capture_status: CaptureStatusLiteral;
   error_reason: string | null;
+  // v8 manifest columns (writegate Phase 4 — surfaced via deployment-api
+  // ``ShardGcsMetadata``). All four optional + nullable for forward-compat
+  // with pre-v8 manifest rows that lack these columns. UI renders the
+  // ``ServiceEmissionStateBadge`` next to ``capture_status`` and a small
+  // ``pipeline_mode`` label when populated; a muted ``—`` placeholder
+  // when null/undefined.
+  pipeline_mode?: string | null;
+  service_emission_state?: ServiceEmissionState | null;
+  last_emission_decision_at?: string | null;
+  expected_window_completeness_fraction?: number | null;
 }
 
 export interface ShardDetailDownloadUrls {
@@ -2086,6 +2274,91 @@ export async function fetchShardDetail(params: {
   );
 }
 
+// LeafParquetStats — writegate Phase 4.A.3 (deployment-api@3b0477a).
+// Live per-leaf-parquet stats: row count, per-column non_null + NaN ratio,
+// available_at envelope (min / max ISO + null count), and file size.
+// Distinct from `fetchShardSchema` which returns the DECLARED SchemaContract.
+// Used by LeafSchemaModal (Phase 4.B.3) to surface real shard health
+// alongside the contract-declared columns.
+export interface LeafParquetColumnStat {
+  name: string;
+  dtype: string;
+  non_null_count: number;
+  null_count: number;
+  nan_ratio: number;
+}
+
+export interface LeafAvailableAtEnvelope {
+  present: boolean;
+  min_iso: string | null;
+  max_iso: string | null;
+  null_count: number;
+}
+
+export interface LeafCompletenessEnvelope {
+  present: boolean;
+  min_fraction: number | null;
+  max_fraction: number | null;
+  mean_fraction: number | null;
+  null_count: number;
+  incomplete_window_present_count: number;
+}
+
+export interface LeafParquetStatsResponse {
+  coord: {
+    service: string;
+    asset_group: string;
+    instrument_type: string;
+    data_type: string;
+    day: string;
+    venue: string | null;
+    underlying: string | null;
+    instrument_id: string | null;
+  };
+  gs_uri: string | null;
+  available: boolean;
+  error_reason: string | null;
+  row_count: number;
+  column_count: number;
+  columns: LeafParquetColumnStat[];
+  available_at: LeafAvailableAtEnvelope;
+  /** Writegate slice (b) Phase 5.5 — completeness envelope (forward-compatible).
+   * `present: false` when the parquet predates the slice (c) per-service
+   * emission-policy rollout. UI renders a placeholder pill in that case. */
+  completeness: LeafCompletenessEnvelope;
+  file_size_bytes: number | null;
+  truncated: boolean;
+  truncated_at_rows: number | null;
+}
+
+export async function fetchLeafParquetStats(params: {
+  service: string;
+  asset_group: string;
+  instrument_type: string;
+  data_type: string;
+  day: string;
+  venue?: string | null;
+  underlying?: string | null;
+  instrument_id?: string | null;
+  // Phase 8B feature_family filter for the consolidated features-service.
+  feature_family?: FeatureFamily | string | null;
+}): Promise<LeafParquetStatsResponse> {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+    instrument_type: params.instrument_type,
+    data_type: params.data_type,
+    day: params.day,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.underlying) qp.set("underlying", params.underlying);
+  if (params.instrument_id) qp.set("instrument_id", params.instrument_id);
+  if (params.feature_family) qp.set("feature_family", params.feature_family);
+  return fetchJson<LeafParquetStatsResponse>(
+    `/data-status/leaf-stats?${qp.toString()}`,
+  );
+}
+
 // VenueDetail v2 — DeFi-aware.  Composite (PROTOCOL-CHAIN) vs chain-only
 // paths are disambiguated via ``chain`` / ``protocol`` / ``pools`` /
 // ``protocols`` being populated.  CeFi branches populate ``instruments`` +
@@ -2096,6 +2369,7 @@ export interface VenueDetailV2Response {
   chain: string | null;
   protocol: string | null;
   total_instruments: number;
+  total_instruments_unfiltered?: number;
   total_pools: number;
   total_tokens: number;
   instruments: Record<string, unknown>[];
@@ -2238,7 +2512,9 @@ export async function fetchShardInfo(params: {
   data_type: string;
 }): Promise<ShardInfoResponse> {
   const qp = new URLSearchParams(params);
-  return fetchJson<ShardInfoResponse>(`/data-status/shard-info?${qp.toString()}`);
+  return fetchJson<ShardInfoResponse>(
+    `/data-status/shard-info?${qp.toString()}`,
+  );
 }
 
 export async function fetchBundlePreview(params: {
@@ -2292,7 +2568,7 @@ export function buildCsvDownloadUrl(params: {
   data_type: string;
   instrument_ids: string[];
   // v7 multi-axis filters — Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // data_status_multi_axis_shard_propagation_2026_05_06.plan.
   // Server reads manifest capture_status using these axes BEFORE
   // touching the parquet so the response distinguishes empty_confirmed
   // (honest empty) from path_drift (manifest claims captured but
@@ -2370,7 +2646,10 @@ export function buildShardDownloadUrl(params: {
  * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
  * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
  */
-export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
+export function buildFixturesCsvDownloadUrl(params: {
+  day: string;
+  league_id: string;
+}): string {
   const qp = new URLSearchParams({
     day: params.day,
     league_id: params.league_id,
@@ -2380,7 +2659,7 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
 
 /**
  * Smart shard CSV download — Phase 3 of
- * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ * data_status_multi_axis_shard_propagation_2026_05_06.plan.
  *
  * Fetches the URL via fetch(), reads the ``X-Capture-Status`` response
  * header, and returns one of five branches so the UI can render the
@@ -2556,9 +2835,12 @@ export async function fetchFixtureBreakdown(params: {
     day: params.day,
     league_id: params.league_id,
   });
-  const res = await fetch(`${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`, {
-    credentials: "include",
-  });
+  const res = await fetch(
+    `${API_BASE}/data-status/fixtures/breakdown?${qp.toString()}`,
+    {
+      credentials: "include",
+    },
+  );
   if (!res.ok) {
     throw new Error(`fetchFixtureBreakdown ${res.status}: ${await res.text()}`);
   }
@@ -2741,12 +3023,17 @@ export async function getInstrumentsList(params: {
   searchParams.set("asset_group", params.asset_group);
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
-  const raw = await fetchJson<unknown>(`/data-status/instruments?${searchParams.toString()}`);
+  const raw = await fetchJson<unknown>(
+    `/data-status/instruments?${searchParams.toString()}`,
+  );
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const r = raw as Record<string, unknown>;
     if ("category" in r && !("asset_group" in r)) {
       const { category, ...rest } = r;
-      return { ...rest, asset_group: category ?? "" } as InstrumentsListResponse;
+      return {
+        ...rest,
+        asset_group: category ?? "",
+      } as InstrumentsListResponse;
     }
   }
   return raw as InstrumentsListResponse;
@@ -2868,10 +3155,14 @@ export async function getInstrumentAvailability(params: {
       parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
     }
   >(`/data-status/instrument-availability?${searchParams.toString()}`);
-  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
+  if (
+    raw?.parsed &&
+    "category" in raw.parsed &&
+    !("asset_group" in raw.parsed)
+  ) {
     const p = raw.parsed as Record<string, unknown>;
     const cat = p["category"];
-    const { category: _omit, ...rest } = p;
+    const { category: _category, ...rest } = p;
     return {
       ...raw,
       parsed: {
@@ -3012,6 +3303,93 @@ export async function deleteChaosInjection(injectionId: string): Promise<void> {
     {
       method: "DELETE",
     },
+  );
+}
+
+/** Per-capture-status counts for one shard population. */
+export interface HonestCoverageStatusCounts {
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  expected_unattempted_known_empty: number;
+  expected_unattempted_pending_fetch: number;
+  total: number;
+  /**
+   * Honest coverage: (captured + empty_confirmed + expected_unattempted_known_empty)
+   *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)
+   */
+  coverage_pct: number;
+  /** Legacy all-shards formula including empty_confirmed in denominator. */
+  all_shards_coverage_pct?: number;
+}
+
+/** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
+export interface HonestCoverageResponse {
+  generated_at: string;
+  date: string;
+  by_asset_group: Record<string, HonestCoverageStatusCounts>;
+  by_venue: Record<string, Record<string, HonestCoverageStatusCounts>>;
+  by_venue_data_type: Record<
+    string,
+    Record<string, Record<string, HonestCoverageStatusCounts>>
+  >;
+}
+
+/** Fetch cross-asset-group honest coverage for a given date (default: today UTC).
+ * Returns null when the API responds 404 (cron VM hasn't run yet). */
+export async function getHonestCoverage(
+  date?: string,
+): Promise<HonestCoverageResponse | null> {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  try {
+    return await fetchJson<HonestCoverageResponse>(
+      `/data-status/honest-coverage${qs}`,
+    );
+  } catch (err) {
+    if (err instanceof ApiClientError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+// ===========================================================================
+// Recursive-borrow coverage — Phase 11 of defi_recursive_borrow_archetypes.
+// ===========================================================================
+
+export type CellStatus =
+  | "design-ready"
+  | "coverage-ready"
+  | "live-ready"
+  | "paused";
+
+export interface RecursiveBorrowCell {
+  protocol: string;
+  chain: string;
+  collateral_asset: string;
+  debt_asset: string;
+  family: "lending-only" | "perp-hedged";
+  perp_venue: string | null;
+  lending_rate_coverage_pct: number;
+  funding_rate_coverage_pct: number;
+  spread_history_horizon_days: number;
+  last_observed_at: string | null;
+  cell_status: CellStatus;
+}
+
+export interface RecursiveBorrowCoverageResponse {
+  generated_at: string;
+  cache_ttl_seconds: number;
+  cells: RecursiveBorrowCell[];
+  summary: {
+    total_cells: number;
+    coverage_ready: number;
+    live_ready: number;
+    avg_lending_rate_coverage_pct: number;
+  };
+}
+
+export async function getRecursiveBorrowCoverage(): Promise<RecursiveBorrowCoverageResponse> {
+  return fetchJson<RecursiveBorrowCoverageResponse>(
+    "/data-status/recursive-borrow-coverage",
   );
 }
 

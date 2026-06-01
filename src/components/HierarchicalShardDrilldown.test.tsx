@@ -24,7 +24,9 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     vi.restoreAllMocks();
   });
 
-  function _mockResponse(tree: apiClient.DrilldownNode[]): apiClient.DrilldownResponse {
+  function _mockResponse(
+    tree: apiClient.DrilldownNode[],
+  ): apiClient.DrilldownResponse {
     const captured = tree.reduce((s, n) => s + n.captured, 0);
     const empty_confirmed = tree.reduce((s, n) => s + n.empty_confirmed, 0);
     const attempted_failed = tree.reduce((s, n) => s + n.attempted_failed, 0);
@@ -39,13 +41,16 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         empty_confirmed,
         attempted_failed,
         total,
-        completion_pct: total > 0 ? Math.round((captured / total) * 10000) / 100 : 0,
+        completion_pct:
+          total > 0 ? Math.round((captured / total) * 10000) / 100 : 0,
       },
       filtered_by: {},
     };
   }
 
-  function _node(partial: Partial<apiClient.DrilldownNode>): apiClient.DrilldownNode {
+  function _node(
+    partial: Partial<apiClient.DrilldownNode>,
+  ): apiClient.DrilldownNode {
     return {
       axis: "venue",
       value: "TEST",
@@ -64,7 +69,14 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
   it("renders the tree axes + totals", async () => {
     vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
       _mockResponse([
-        _node({ axis: "venue", value: "CME", captured: 10, total: 10, completion_pct: 100, row_key: { venue: "CME" } }),
+        _node({
+          axis: "venue",
+          value: "CME",
+          captured: 10,
+          total: 10,
+          completion_pct: 100,
+          row_key: { venue: "CME" },
+        }),
       ]),
     );
     render(
@@ -182,9 +194,9 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     // Regression: the API client must thread service / asset_group /
     // start_date / end_date through correctly. Catches drift where a
     // refactor swaps args.
-    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
-      _mockResponse([]),
-    );
+    const spy = vi
+      .spyOn(apiClient, "getHierarchicalDrilldown")
+      .mockResolvedValue(_mockResponse([]));
     render(
       <HierarchicalShardDrilldown
         service="market-tick-data-service"
@@ -231,12 +243,16 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toMatch(/Failed to load drill-down/),
+      expect(screen.getByRole("alert").textContent).toMatch(
+        /Failed to load drill-down/,
+      ),
     );
   });
 
   it("ignores AbortError without surfacing an error banner", async () => {
-    const abortErr = Object.assign(new Error("aborted"), { name: "AbortError" });
+    const abortErr = Object.assign(new Error("aborted"), {
+      name: "AbortError",
+    });
     vi.spyOn(apiClient, "getHierarchicalDrilldown").mockRejectedValue(abortErr);
     render(
       <HierarchicalShardDrilldown
@@ -295,19 +311,34 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
   });
 
   it("renders the load-more button when total_top_axis_children exceeds shown rows", async () => {
-    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue({
-      service: "mtds",
-      asset_group: "cefi",
-      axes: ["venue"],
-      tree: [
-        _node({ axis: "venue", value: "V1", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V1" } }),
-      ],
-      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
-      filtered_by: {},
-      total_top_axis_children: 5,
-      child_offset: 0,
-      child_limit: 1,
-    });
+    const spy = vi
+      .spyOn(apiClient, "getHierarchicalDrilldown")
+      .mockResolvedValue({
+        service: "mtds",
+        asset_group: "cefi",
+        axes: ["venue"],
+        tree: [
+          _node({
+            axis: "venue",
+            value: "V1",
+            captured: 1,
+            total: 1,
+            completion_pct: 100,
+            row_key: { venue: "V1" },
+          }),
+        ],
+        totals: {
+          captured: 1,
+          empty_confirmed: 0,
+          attempted_failed: 0,
+          total: 1,
+          completion_pct: 100,
+        },
+        filtered_by: {},
+        total_top_axis_children: 5,
+        child_offset: 0,
+        child_limit: 1,
+      });
     render(
       <HierarchicalShardDrilldown
         service="mtds"
@@ -328,9 +359,22 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
       asset_group: "cefi",
       axes: ["venue"],
       tree: [
-        _node({ axis: "venue", value: "V2", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V2" } }),
+        _node({
+          axis: "venue",
+          value: "V2",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "V2" },
+        }),
       ],
-      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
+      totals: {
+        captured: 1,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        total: 1,
+        completion_pct: 100,
+      },
       filtered_by: {},
       total_top_axis_children: 5,
       child_offset: 1,
@@ -346,9 +390,22 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
       asset_group: "cefi",
       axes: ["venue"],
       tree: [
-        _node({ axis: "venue", value: "V1", captured: 1, total: 1, completion_pct: 100, row_key: { venue: "V1" } }),
+        _node({
+          axis: "venue",
+          value: "V1",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "V1" },
+        }),
       ],
-      totals: { captured: 1, empty_confirmed: 0, attempted_failed: 0, total: 1, completion_pct: 100 },
+      totals: {
+        captured: 1,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        total: 1,
+        completion_pct: 100,
+      },
       filtered_by: {},
       total_top_axis_children: 1,
       child_offset: 0,

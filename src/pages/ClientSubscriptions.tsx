@@ -41,9 +41,6 @@ import type {
 // Mirrors runtime-topology.yaml `isolation_policies` entries with allowed=[shared, isolated].
 const OVERRIDABLE_SERVICES: string[] = [
   "strategy-service",
-  "position-balance-monitor-service",
-  "risk-and-exposure-service",
-  "pnl-attribution-service",
   "alerting-service",
 ];
 
@@ -214,7 +211,10 @@ function SubscriptionForm({
   );
   const [note, setNote] = useState(initial.note ?? "");
 
-  const setOverride = (service: string, isolation: IsolationPolicy | "none") => {
+  const setOverride = (
+    service: string,
+    isolation: IsolationPolicy | "none",
+  ) => {
     setOverrides((prev) => {
       const filtered = prev.filter((o) => o.service_name !== service);
       if (isolation === "none") return filtered;
@@ -276,7 +276,7 @@ function SubscriptionForm({
               Choose SHARED or ISOLATED for each service. Only services that
               allow both policies in runtime-topology.yaml appear here.
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {OVERRIDABLE_SERVICES.map((svc) => {
                 const current =
                   overrides.find((o) => o.service_name === svc)?.isolation ??

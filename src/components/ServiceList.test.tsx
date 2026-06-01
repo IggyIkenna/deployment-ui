@@ -27,24 +27,22 @@ describe("ServiceList", () => {
 
   it("renders the total service count badge", () => {
     render(<ServiceList selectedService={null} onSelectService={vi.fn()} />);
-    // 1 + 2 + 8 + 2 + 3 + 4 + 2 + 1 = 23
-    expect(screen.getByText("23")).toBeTruthy();
+    // 1 + 2 + 8 + 2 + 3 + 1 + 2 + 1 = 20
+    // (L6 Risk now has 1 service: alerting-service; pnl/position/risk-and-exposure
+    //  were merged into strategy-service ops in d22f2ba)
+    expect(screen.getByText("20")).toBeTruthy();
   });
 
   it("calls onSelectService with the default operation when a single-op service is clicked", () => {
     const onSelect = vi.fn();
-    render(
-      <ServiceList selectedService={null} onSelectService={onSelect} />,
-    );
+    render(<ServiceList selectedService={null} onSelectService={onSelect} />);
     fireEvent.click(screen.getByText("instruments"));
     expect(onSelect).toHaveBeenCalledWith("instruments-service", "instruments");
   });
 
   it("expands operations + selects default operation when a multi-op service is clicked", () => {
     const onSelect = vi.fn();
-    render(
-      <ServiceList selectedService={null} onSelectService={onSelect} />,
-    );
+    render(<ServiceList selectedService={null} onSelectService={onSelect} />);
     // market-tick-data-service has 4 operations — clicking should
     // expand AND emit the default operation (the first).
     fireEvent.click(screen.getByText("market tick data"));
@@ -60,9 +58,7 @@ describe("ServiceList", () => {
 
   it("collapses an expanded service when clicked a second time", () => {
     const onSelect = vi.fn();
-    render(
-      <ServiceList selectedService={null} onSelectService={onSelect} />,
-    );
+    render(<ServiceList selectedService={null} onSelectService={onSelect} />);
     const trigger = screen.getByText("market tick data");
     fireEvent.click(trigger);
     expect(screen.getByText("Gas Fees")).toBeTruthy();
@@ -73,9 +69,7 @@ describe("ServiceList", () => {
 
   it("emits the chosen operation when an operation row is clicked", () => {
     const onSelect = vi.fn();
-    render(
-      <ServiceList selectedService={null} onSelectService={onSelect} />,
-    );
+    render(<ServiceList selectedService={null} onSelectService={onSelect} />);
     fireEvent.click(screen.getByText("market tick data"));
     onSelect.mockClear();
     fireEvent.click(screen.getByText("Gas Fees"));
@@ -146,9 +140,9 @@ describe("ServiceList", () => {
 
   it("supports services without operationalModes (no amber badges where absent)", () => {
     render(<ServiceList selectedService={null} onSelectService={vi.fn()} />);
-    // pnl-attribution-service has no operationalModes — its rendering
+    // alerting-service has no operationalModes — its rendering
     // path goes through opModes.map([]) which is the empty-list branch.
-    expect(screen.getByText("pnl attribution")).toBeTruthy();
+    expect(screen.getByText("alerting")).toBeTruthy();
   });
 
   it("handles deployment-service single-op click", () => {

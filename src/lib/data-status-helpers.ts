@@ -1,7 +1,4 @@
-import type {
-  TurboAssetGroupStatus,
-  TurboSubDimension,
-} from "../api/client";
+import type { TurboAssetGroupStatus, TurboSubDimension } from "../api/client";
 
 /**
  * Return the populated sub-dimension drilldown for an asset-group entry from

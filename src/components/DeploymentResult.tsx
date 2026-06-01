@@ -70,7 +70,10 @@ function groupShards(shards: ShardPreviewInfo[]): GroupedShards {
   const grouped: GroupedShards = {};
 
   for (const shard of shards) {
-    const dims = shard.dimensions as Record<string, string | number | undefined>;
+    const dims = shard.dimensions as Record<
+      string,
+      string | number | undefined
+    >;
     const ag = String(dims.asset_group ?? dims.category ?? "unknown");
     const date = extractDate(shard);
 
@@ -271,7 +274,7 @@ export function DeploymentResult({
                       {typeof values === "number"
                         ? values
                         : Object.keys(values as Record<string, unknown>)
-                          .length}{" "}
+                            .length}{" "}
                       values
                     </span>
                   </div>

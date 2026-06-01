@@ -345,6 +345,7 @@ export interface RegionConfigResponse {
   cloud_provider?: "gcp" | "aws";
   zones?: string[];
   enforce_single_region?: boolean;
+  deployment_env?: string;
 }
 
 // Health

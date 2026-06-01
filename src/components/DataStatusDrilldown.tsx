@@ -85,7 +85,7 @@ export interface ShardCoordinate {
   instrument_type: string;
   data_type: string;
   // v7 multi-axis fields — Phase 3 of
-  // data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+  // data_status_multi_axis_shard_propagation_2026_05_06.md.
   // Populated when the operator drills into a multi-axis leaf
   // (DEFI chain, sports per-league/per-fixture, ML per-experiment-run,
   // strategy/execution per-job, prediction per-question-group, or
@@ -124,7 +124,7 @@ function isPlausibleInstrumentId(candidate: string): boolean {
 
 /* =========================================================================
  * SmartDownloadButton — Phase 3 of
- * data_status_multi_axis_shard_propagation_2026_05_06.plan.md.
+ * data_status_multi_axis_shard_propagation_2026_05_06.md.
  *
  * Wraps the deployment-api download endpoints (which now return
  * ``X-Capture-Status`` per the multi-axis-drilldown contract) so the
@@ -182,7 +182,9 @@ function statusBannerBody(result: ShardDownloadResult): string {
   switch (result.status) {
     case "captured":
       return `${result.filename ?? "shard.csv"}${
-        result.rowCount !== undefined ? ` · ${result.rowCount.toLocaleString()} rows` : ""
+        result.rowCount !== undefined
+          ? ` · ${result.rowCount.toLocaleString()} rows`
+          : ""
       }`;
     case "empty_confirmed":
       return (
@@ -193,7 +195,9 @@ function statusBannerBody(result: ShardDownloadResult): string {
       );
     case "attempted_failed":
       return (
-        result.message?.split("\n").find((l) => l.startsWith("# error_reason:"))
+        result.message
+          ?.split("\n")
+          .find((l) => l.startsWith("# error_reason:"))
           ?.replace("# error_reason:", "")
           .trim() ??
         result.message ??
@@ -265,7 +269,9 @@ export function SmartDownloadButton({
             result.status,
           )}`}
         >
-          <div className="font-medium">{statusBannerHeadline(result.status)}</div>
+          <div className="font-medium">
+            {statusBannerHeadline(result.status)}
+          </div>
           <div className="text-[10px] text-[var(--color-text-muted)] break-words whitespace-pre-wrap">
             {statusBannerBody(result)}
           </div>
@@ -404,7 +410,9 @@ export function SchemaModal({
   return (
     <ModalShell title={`Schema: ${titleSuffix}`} onClose={onClose}>
       {error && (
-        <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
+        <div className="text-xs text-[var(--color-accent-red)]">
+          Error: {error}
+        </div>
       )}
       {!schema && !error && <div className="text-xs">Loading…</div>}
       {schema && (
@@ -415,7 +423,9 @@ export function SchemaModal({
             {schema.symbol_column && (
               <>
                 {" · "}
-                <span className="text-[var(--color-text-muted)]">symbol_column:</span>{" "}
+                <span className="text-[var(--color-text-muted)]">
+                  symbol_column:
+                </span>{" "}
                 <span className="font-mono">{schema.symbol_column}</span>
               </>
             )}
@@ -423,7 +433,9 @@ export function SchemaModal({
           {isProjection && schema.projected_from && (
             <div className="text-xs text-[var(--color-text-muted)]">
               Projected from{" "}
-              <span className="font-mono break-all">{schema.projected_from}</span>
+              <span className="font-mono break-all">
+                {schema.projected_from}
+              </span>
             </div>
           )}
           {noSchemaYet && (
@@ -454,10 +466,15 @@ export function SchemaModal({
               </thead>
               <tbody>
                 {schema.columns.map((col) => (
-                  <tr key={col.name} className="border-b border-[var(--color-border-subtle)]">
+                  <tr
+                    key={col.name}
+                    className="border-b border-[var(--color-border-subtle)]"
+                  >
                     <td className="font-mono py-0.5 pr-2">{col.name}</td>
                     <td className="font-mono py-0.5 pr-2">{col.dtype}</td>
-                    <td className="py-0.5 pr-2">{col.nullable ? "yes" : "no"}</td>
+                    <td className="py-0.5 pr-2">
+                      {col.nullable ? "yes" : "no"}
+                    </td>
                     <td className="text-[var(--color-text-muted)] py-0.5">
                       {col.description}
                     </td>
@@ -478,7 +495,6 @@ export function SchemaModal({
  * file by policy — see vitest.config.ts).
  * ========================================================================= */
 
-
 /* =========================================================================
  * Instruments modal (per-day, per-shard drill-down)
  * -------------------------------------------------------------------------
@@ -495,7 +511,9 @@ function InstrumentsModalStandard({
   onClose: () => void;
 }) {
   // Paginated / searchable state for the normal flow.
-  const [listing, setListing] = useState<InstrumentsForShardResponse | null>(null);
+  const [listing, setListing] = useState<InstrumentsForShardResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [schemaOpen, setSchemaOpen] = useState(false);
@@ -505,7 +523,9 @@ function InstrumentsModalStandard({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
   // Accumulated instruments across "Load more" clicks when search is empty.
-  const [loadedInstruments, setLoadedInstruments] = useState<ShardInstrumentEntry[]>([]);
+  const [loadedInstruments, setLoadedInstruments] = useState<
+    ShardInstrumentEntry[]
+  >([]);
 
   // Paste-instrument-id input (skips list flow entirely).
   const [pasteInput, setPasteInput] = useState("");
@@ -578,7 +598,10 @@ function InstrumentsModalStandard({
         if (cancelled) return;
         setShardInfo(info);
         const known = info.instrument_types.map((t) => t.name);
-        if (!known.includes(activeInstrumentType) && info.recommended_instrument_type) {
+        if (
+          !known.includes(activeInstrumentType) &&
+          info.recommended_instrument_type
+        ) {
           setActiveInstrumentType(info.recommended_instrument_type);
         }
       })
@@ -658,6 +681,7 @@ function InstrumentsModalStandard({
     coord.data_type,
     offset,
     debouncedSearch,
+    activeInstrumentType,
   ]);
 
   const isBundled = listing?.bundling === "per_underlying";
@@ -684,7 +708,9 @@ function InstrumentsModalStandard({
   async function submitPaste() {
     const candidate = pasteInput.trim();
     if (!isPlausibleInstrumentId(candidate)) {
-      setPasteError("Invalid instrument_id — no spaces, commas, or newlines allowed.");
+      setPasteError(
+        "Invalid instrument_id — no spaces, commas, or newlines allowed.",
+      );
       return;
     }
     setPasteError(null);
@@ -722,14 +748,14 @@ function InstrumentsModalStandard({
 
   const downloadUrl = listing
     ? buildCsvDownloadUrl({
-      service: coord.service,
-      asset_group: coord.asset_group,
-      venue: coord.venue,
-      day: coord.day,
-      instrument_type: activeInstrumentType,
-      data_type: coord.data_type,
-      instrument_ids: Array.from(selected),
-    })
+        service: coord.service,
+        asset_group: coord.asset_group,
+        venue: coord.venue,
+        day: coord.day,
+        instrument_type: activeInstrumentType,
+        data_type: coord.data_type,
+        instrument_ids: Array.from(selected),
+      })
     : null;
 
   // Active coordinate used for downstream children (bundle rows, schema
@@ -772,7 +798,8 @@ function InstrumentsModalStandard({
         : "One parquet per symbol — each checkbox downloads that one file.";
 
   const totalCount = listing?.total_count ?? 0;
-  const rangeStart = loadedInstruments.length === 0 ? 0 : offset === 0 ? 1 : offset + 1;
+  const rangeStart =
+    loadedInstruments.length === 0 ? 0 : offset === 0 ? 1 : offset + 1;
   const rangeEnd = offset + loadedInstruments.length;
 
   // If bundled, render the bundle variant (per-underlying rows with Download buttons + preview).
@@ -783,7 +810,9 @@ function InstrumentsModalStandard({
         onClose={onClose}
       >
         {error && (
-          <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
+          <div className="text-xs text-[var(--color-accent-red)]">
+            Error: {error}
+          </div>
         )}
         {!listing && !error && <div className="text-xs">Loading…</div>}
         {listing && (
@@ -808,7 +837,11 @@ function InstrumentsModalStandard({
                 </div>
               )}
               {loadedInstruments.map((i) => (
-                <BundleRow key={i.instrument_id} coord={effectiveCoord} instrument={i} />
+                <BundleRow
+                  key={i.instrument_id}
+                  coord={effectiveCoord}
+                  instrument={i}
+                />
               ))}
             </div>
             {listing.has_more && (
@@ -844,7 +877,9 @@ function InstrumentsModalStandard({
       onClose={onClose}
     >
       {error && (
-        <div className="text-xs text-[var(--color-accent-red)]">Error: {error}</div>
+        <div className="text-xs text-[var(--color-accent-red)]">
+          Error: {error}
+        </div>
       )}
       {!listing && !error && <div className="text-xs">Loading…</div>}
       {listing && (
@@ -868,12 +903,16 @@ function InstrumentsModalStandard({
             </span>
           </div>
           {typePicker}
-          <div className="text-[11px] text-[var(--color-text-muted)]">{bundlingHint}</div>
+          <div className="text-[11px] text-[var(--color-text-muted)]">
+            {bundlingHint}
+          </div>
 
           {/* Search + paste row */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <label className="flex flex-col gap-0.5">
-              <span className="text-[var(--color-text-muted)]">Search instrument_id</span>
+              <span className="text-[var(--color-text-muted)]">
+                Search instrument_id
+              </span>
               <input
                 type="text"
                 value={searchInput}
@@ -883,7 +922,9 @@ function InstrumentsModalStandard({
               />
             </label>
             <label className="flex flex-col gap-0.5">
-              <span className="text-[var(--color-text-muted)]">Paste instrument_id</span>
+              <span className="text-[var(--color-text-muted)]">
+                Paste instrument_id
+              </span>
               <div className="flex gap-1">
                 <input
                   type="text"
@@ -934,7 +975,8 @@ function InstrumentsModalStandard({
               </div>
             )}
             {loadedInstruments.map((i) => {
-              const status = (i.capture_status ?? "captured") as CaptureStatusValue;
+              const status = (i.capture_status ??
+                "captured") as CaptureStatusValue;
               return (
                 <div
                   key={i.instrument_id}
@@ -977,7 +1019,11 @@ function InstrumentsModalStandard({
           {/* Load more */}
           {listing.has_more && (
             <div className="flex justify-center">
-              <button className="text-xs underline" onClick={loadMore} type="button">
+              <button
+                className="text-xs underline"
+                onClick={loadMore}
+                type="button"
+              >
                 Load more ({totalCount - loadedInstruments.length} remaining)
               </button>
             </div>
@@ -987,7 +1033,9 @@ function InstrumentsModalStandard({
           <div className="flex justify-between items-center text-xs">
             <span className="text-[var(--color-text-muted)]">
               {selected.size} selected
-              {selected.size === 0 && loadedInstruments.length > 0 && " (empty = full shard)"}
+              {selected.size === 0 &&
+                loadedInstruments.length > 0 &&
+                " (empty = full shard)"}
             </span>
             {downloadUrl && (
               <SmartDownloadButton
@@ -1085,7 +1133,10 @@ function BundleRow({
   return (
     <div className="py-1 px-1 border-b border-[var(--color-border-subtle)] last:border-b-0">
       <div className="flex items-center gap-2 text-[11px]">
-        <span className="font-mono font-medium truncate" title={instrument.instrument_id}>
+        <span
+          className="font-mono font-medium truncate"
+          title={instrument.instrument_id}
+        >
           {instrument.instrument_id}
         </span>
         <span className="text-[var(--color-text-muted)] text-[10px]">
@@ -1114,7 +1165,9 @@ function BundleRow({
             </div>
           )}
           {!preview && !previewError && (
-            <div className="text-[10px] text-[var(--color-text-muted)]">Loading…</div>
+            <div className="text-[10px] text-[var(--color-text-muted)]">
+              Loading…
+            </div>
           )}
           {preview && preview.symbols.length === 0 && (
             <div className="text-[10px] italic text-[var(--color-text-muted)]">
@@ -1168,7 +1221,8 @@ function InstrumentsServiceShardModal({
     >
       <div className="space-y-3 text-xs">
         <div className="text-[var(--color-text-muted)]">
-          Instruments reference data is low-cardinality — one file per day per venue.
+          Instruments reference data is low-cardinality — one file per day per
+          venue.
         </div>
         <div className="flex gap-2">
           <SmartDownloadButton
@@ -1187,10 +1241,7 @@ function InstrumentsServiceShardModal({
         </div>
       </div>
       {schemaOpen && (
-        <SchemaModal
-          coord={coord}
-          onClose={() => setSchemaOpen(false)}
-        />
+        <SchemaModal coord={coord} onClose={() => setSchemaOpen(false)} />
       )}
     </ModalShell>
   );
@@ -1250,7 +1301,8 @@ export function BucketCountsBadge({
 
   if (error) return null;
   if (!counts) return null;
-  if (counts.named_market_count === 0 && counts.other_market_count === 0) return null;
+  if (counts.named_market_count === 0 && counts.other_market_count === 0)
+    return null;
 
   const label =
     counts.other_market_count > 0
@@ -1305,7 +1357,6 @@ export function ModalShell({
   );
 }
 
-
 // ---------------------------------------------------------------------------
 // Phase C retry affordance — "Retry" button per attempted_failed shard row.
 // Wraps a confirm() dialog around the deploy-trigger POST so the user can't
@@ -1332,7 +1383,7 @@ function RetryShardButton({
   async function onRetry() {
     const confirmed = window.confirm(
       `Retry ${instrument_id} on ${day} (${service} / ${venue})?\n\n` +
-      "This re-triggers the adapter with force=true and can spin up a VM.",
+        "This re-triggers the adapter with force=true and can spin up a VM.",
     );
     if (!confirmed) return;
     setPending(true);
@@ -1342,7 +1393,7 @@ function RetryShardButton({
       const depId = resp.deployment?.deployment_id ?? "";
       setResult("ok");
       setResultMessage(
-        depId ? `queued (deployment_id=${depId})` : resp.message ?? "queued",
+        depId ? `queued (deployment_id=${depId})` : (resp.message ?? "queued"),
       );
     } catch (err) {
       setResult("err");
@@ -1362,7 +1413,13 @@ function RetryShardButton({
       title={resultMessage || "Retry this failed shard"}
       className="text-[9px] px-1.5 py-0.5 rounded border border-[var(--color-accent-red)] text-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)] hover:text-[var(--color-bg-primary)] disabled:opacity-50"
     >
-      {pending ? "…" : result === "ok" ? "Retried ✓" : result === "err" ? "Retry failed" : "Retry"}
+      {pending
+        ? "…"
+        : result === "ok"
+          ? "Retried ✓"
+          : result === "err"
+            ? "Retry failed"
+            : "Retry"}
     </button>
   );
 }

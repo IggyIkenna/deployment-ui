@@ -35,7 +35,11 @@ interface HierarchicalShardDrilldownProps {
   topPageSize?: number;
 }
 
-function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<string, string>): string | null {
+function _leafDownloadUrl(
+  service: string,
+  assetGroup: string,
+  rowKey: Record<string, string>,
+): string | null {
   const date = rowKey.day ?? rowKey.date;
   const venue = rowKey.venue;
   if (!date || !venue) {
@@ -140,10 +144,23 @@ export function HierarchicalShardDrilldown({
       .finally(() => {
         setLoadingMore(false);
       });
-  }, [topLevel, loadingMore, service, assetGroup, startDate, endDate, initialDepth, topPageSize]);
+  }, [
+    topLevel,
+    loadingMore,
+    service,
+    assetGroup,
+    startDate,
+    endDate,
+    initialDepth,
+    topPageSize,
+  ]);
 
   if (loading && !topLevel) {
-    return <div className="drilldown-loading">Loading {assetGroup} drill-down...</div>;
+    return (
+      <div className="drilldown-loading">
+        Loading {assetGroup} drill-down...
+      </div>
+    );
   }
   if (error) {
     return (
@@ -158,11 +175,11 @@ export function HierarchicalShardDrilldown({
 
   return (
     <div className="hierarchical-shard-drilldown" data-asset-group={assetGroup}>
-      <div className="drilldown-axes">
-        Axes: {topLevel.axes.join(" → ")}
-      </div>
+      <div className="drilldown-axes">Axes: {topLevel.axes.join(" → ")}</div>
       <div className="drilldown-totals">
-        <span className="captured">{topLevel.totals.captured.toLocaleString()}</span>
+        <span className="captured">
+          {topLevel.totals.captured.toLocaleString()}
+        </span>
         <span className="separator"> / </span>
         <span className="total">{topLevel.totals.total.toLocaleString()}</span>
         <span className="pct">
@@ -170,7 +187,10 @@ export function HierarchicalShardDrilldown({
           ({topLevel.totals.completion_pct.toFixed(1)}%)
         </span>
         {topLevel.totals.empty_confirmed > 0 && (
-          <span className="empty-pill" title="Honest empty (source returned 0 rows)">
+          <span
+            className="empty-pill"
+            title="Honest empty (source returned 0 rows)"
+          >
             {topLevel.totals.empty_confirmed.toLocaleString()} empty
           </span>
         )}
@@ -292,7 +312,16 @@ function DrilldownNodeRow({
         setLoading(false);
       });
     return () => controller.abort();
-  }, [expanded, children, isLeaf, service, assetGroup, startDate, endDate, node.row_key]);
+  }, [
+    expanded,
+    children,
+    isLeaf,
+    service,
+    assetGroup,
+    startDate,
+    endDate,
+    node.row_key,
+  ]);
 
   const ariaLabel = useMemo(
     () =>
@@ -301,8 +330,15 @@ function DrilldownNodeRow({
   );
 
   return (
-    <li className="drilldown-row" role="treeitem" aria-expanded={isLeaf ? undefined : expanded}>
-      <div className="drilldown-row-content" style={{ paddingLeft: `${depth * 16}px` }}>
+    <li
+      className="drilldown-row"
+      role="treeitem"
+      aria-expanded={isLeaf ? undefined : expanded}
+    >
+      <div
+        className="drilldown-row-content"
+        style={{ paddingLeft: `${depth * 16}px` }}
+      >
         <button
           className="drilldown-toggle"
           type="button"
@@ -328,51 +364,54 @@ function DrilldownNodeRow({
             </span>
           )}
         </button>
-        {isLeaf && (() => {
-          // Leaf-row controls: per-leaf CSV download + Deploy-Missing
-          // surgical-recovery button. Only render when the row_key has
-          // enough fields to produce a meaningful action.
-          //
-          // Deploy-Missing requires the FULL shard-atom (venue +
-          // data_type + day at minimum). Intermediate "leaves" at
-          // ``expand_to_depth=1`` may have ``is_leaf=true`` for the
-          // tree-rendering shape but only carry the partial row_key
-          // matching their depth (e.g. just {venue}). Calling the
-          // /deploy-missing-preview endpoint with such a row_key
-          // returns 400 from the backend's required-field validation.
-          // Render the button only when the row_key composes a
-          // workable shard.
-          const downloadUrl = _leafDownloadUrl(service, assetGroup, node.row_key);
-          const rk = node.row_key;
-          const hasFullShardKey =
-            !!rk.venue &&
-            !!rk.data_type &&
-            (!!rk.day || !!rk.date);
-          const isMissingShard = node.captured === 0;
-          return (
-            <span className="drilldown-leaf-controls">
-              {downloadUrl && (
-                <a
-                  className="drilldown-download"
-                  href={downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Download this shard's parquet as CSV"
-                >
-                  ↓ csv
-                </a>
-              )}
-              {isMissingShard && hasFullShardKey && (
-                <DeployMissingButton
-                  service={service}
-                  assetGroup={assetGroup}
-                  rowKey={node.row_key}
-                  label="↻ deploy"
-                />
-              )}
-            </span>
-          );
-        })()}
+        {isLeaf &&
+          (() => {
+            // Leaf-row controls: per-leaf CSV download + Deploy-Missing
+            // surgical-recovery button. Only render when the row_key has
+            // enough fields to produce a meaningful action.
+            //
+            // Deploy-Missing requires the FULL shard-atom (venue +
+            // data_type + day at minimum). Intermediate "leaves" at
+            // ``expand_to_depth=1`` may have ``is_leaf=true`` for the
+            // tree-rendering shape but only carry the partial row_key
+            // matching their depth (e.g. just {venue}). Calling the
+            // /deploy-missing-preview endpoint with such a row_key
+            // returns 400 from the backend's required-field validation.
+            // Render the button only when the row_key composes a
+            // workable shard.
+            const downloadUrl = _leafDownloadUrl(
+              service,
+              assetGroup,
+              node.row_key,
+            );
+            const rk = node.row_key;
+            const hasFullShardKey =
+              !!rk.venue && !!rk.data_type && (!!rk.day || !!rk.date);
+            const isMissingShard = node.captured === 0;
+            return (
+              <span className="drilldown-leaf-controls">
+                {downloadUrl && (
+                  <a
+                    className="drilldown-download"
+                    href={downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Download this shard's parquet as CSV"
+                  >
+                    ↓ csv
+                  </a>
+                )}
+                {isMissingShard && hasFullShardKey && (
+                  <DeployMissingButton
+                    service={service}
+                    assetGroup={assetGroup}
+                    rowKey={node.row_key}
+                    label="↻ deploy"
+                  />
+                )}
+              </span>
+            );
+          })()}
       </div>
       {expanded && !isLeaf && (
         <ul className="drilldown-tree-nested" role="group">

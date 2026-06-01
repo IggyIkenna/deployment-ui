@@ -97,7 +97,9 @@ function getStatusOpacity(status: DayData["status"]): number {
 // Diagonal-hash / cross-hatch overlays — makes the two "attempted" states
 // (empty_confirmed + attempted_failed) visually distinct from plain fills
 // even in monochrome / high-contrast modes, satisfying WCAG shape-not-colour.
-function getStatusBackgroundImage(status: DayData["status"]): string | undefined {
+function getStatusBackgroundImage(
+  status: DayData["status"],
+): string | undefined {
   switch (status) {
     case "empty_confirmed":
       // Grey cross-hatch: attempted, confirmed empty.
@@ -117,8 +119,7 @@ function getStatusBackgroundImage(status: DayData["status"]): string | undefined
 }
 
 function getStatusAriaLabel(day: DayData): string {
-  const pct =
-    day.coverage !== undefined ? ` (${day.coverage}%)` : "";
+  const pct = day.coverage !== undefined ? ` (${day.coverage}%)` : "";
   const err = day.errorReason ? ` — error: ${day.errorReason}` : "";
   const statusHuman: Record<DayData["status"], string> = {
     complete: "captured",
@@ -376,9 +377,7 @@ export function HeatmapCalendar({
                               backgroundImage: bgImage,
                               opacity: getStatusOpacity(day.status),
                             }}
-                            title={
-                              day.tooltip || getStatusAriaLabel(day)
-                            }
+                            title={day.tooltip || getStatusAriaLabel(day)}
                           >
                             <span className="absolute inset-0 flex items-center justify-center text-white mix-blend-difference">
                               {dayNum}

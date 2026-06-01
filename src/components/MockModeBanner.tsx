@@ -57,11 +57,14 @@ function useBackendHealth(): BackendState {
         // blob is older than 120s; the live merge can take 5-10s on cold
         // caches). Short enough to surface a genuine backend outage within
         // half a poll interval.
-        const res = await fetch("/api/health", { signal: AbortSignal.timeout(15000) });
+        const res = await fetch("/api/health", {
+          signal: AbortSignal.timeout(15000),
+        });
         if (!res.ok) {
           const reason = `HTTP ${res.status}`;
           if (!cancelled) {
-            const inGrace = !hasEverConnected && Date.now() - mountedAt < STARTUP_GRACE_MS;
+            const inGrace =
+              !hasEverConnected && Date.now() - mountedAt < STARTUP_GRACE_MS;
             setState({ kind: inGrace ? "starting" : "unreachable", reason });
             nextDelay = inGrace ? STARTUP_POLL_MS : STEADY_POLL_MS;
           }
@@ -81,7 +84,8 @@ function useBackendHealth(): BackendState {
       } catch (err) {
         if (!cancelled) {
           const reason = err instanceof Error ? err.message : "fetch failed";
-          const inGrace = !hasEverConnected && Date.now() - mountedAt < STARTUP_GRACE_MS;
+          const inGrace =
+            !hasEverConnected && Date.now() - mountedAt < STARTUP_GRACE_MS;
           setState({ kind: inGrace ? "starting" : "unreachable", reason });
           nextDelay = inGrace ? STARTUP_POLL_MS : STEADY_POLL_MS;
         }
@@ -108,7 +112,8 @@ export function MockModeBanner() {
   const backendUnreachable = backend.kind === "unreachable";
   const backendStarting = backend.kind === "starting";
   const dataStale = backend.kind === "ok" && Boolean(backend.stale);
-  const lastDate = backend.kind === "ok" ? backend.last_processed_date : undefined;
+  const lastDate =
+    backend.kind === "ok" ? backend.last_processed_date : undefined;
 
   // Priority: unreachable > starting > both-mock > backend-mock > frontend-mock > stale.
   if (backendUnreachable) {
@@ -130,7 +135,8 @@ export function MockModeBanner() {
   if (FRONTEND_MOCK && backendMock) {
     return (
       <div className="w-full bg-amber-500/25 border-b border-amber-500/40 px-4 py-1.5 text-center text-xs font-medium text-amber-300">
-        Mock Mode — frontend interceptors + backend <code>CLOUD_MOCK_MODE=true</code> (no real cloud data)
+        Mock Mode — frontend interceptors + backend{" "}
+        <code>CLOUD_MOCK_MODE=true</code> (no real cloud data)
       </div>
     );
   }
@@ -138,7 +144,8 @@ export function MockModeBanner() {
   if (backendMock) {
     return (
       <div className="w-full bg-amber-500/20 border-b border-amber-500/30 px-4 py-1.5 text-center text-xs font-medium text-amber-300">
-        Backend Mock Mode — API has <code>CLOUD_MOCK_MODE=true</code> (sample data, not live GCS/AWS)
+        Backend Mock Mode — API has <code>CLOUD_MOCK_MODE=true</code> (sample
+        data, not live GCS/AWS)
       </div>
     );
   }
@@ -146,7 +153,8 @@ export function MockModeBanner() {
   if (FRONTEND_MOCK) {
     return (
       <div className="w-full bg-amber-500/20 border-b border-amber-500/30 px-4 py-1.5 text-center text-xs font-medium text-amber-300">
-        Frontend Mock Mode — UI intercepts <code>/api/*</code> calls with sample data (backend live but unused)
+        Frontend Mock Mode — UI intercepts <code>/api/*</code> calls with sample
+        data (backend live but unused)
       </div>
     );
   }

@@ -28,8 +28,12 @@ describe("FailurePillarStack", () => {
       />,
     );
     expect(screen.getByTestId("failure-pillar-stack")).toBeTruthy();
-    expect(screen.getByTestId("failure-pillar-segment-failed_cluster")).toBeTruthy();
-    expect(screen.getByTestId("failure-pillar-segment-failed_other")).toBeTruthy();
+    expect(
+      screen.getByTestId("failure-pillar-segment-failed_cluster"),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId("failure-pillar-segment-failed_other"),
+    ).toBeTruthy();
     expect(
       screen.queryByTestId("failure-pillar-segment-failed_timestamp_bias"),
     ).toBeNull();
@@ -61,7 +65,9 @@ describe("FailurePillarStack", () => {
       />,
     );
     expect(
-      screen.getByTestId("failure-pillar-stack").getAttribute("data-failure-total"),
+      screen
+        .getByTestId("failure-pillar-stack")
+        .getAttribute("data-failure-total"),
     ).toBe("7");
   });
 
@@ -109,12 +115,16 @@ describe("FailurePillarStack", () => {
         }
       />,
     );
-    expect(screen.getByTestId("failure-pillar-segment-failed_cluster")).toBeTruthy();
+    expect(
+      screen.getByTestId("failure-pillar-segment-failed_cluster"),
+    ).toBeTruthy();
     expect(
       screen.queryByTestId("failure-pillar-segment-failed_invented_unknown"),
     ).toBeNull();
     expect(
-      screen.getByTestId("failure-pillar-stack").getAttribute("data-failure-total"),
+      screen
+        .getByTestId("failure-pillar-stack")
+        .getAttribute("data-failure-total"),
     ).toBe("1");
   });
 });

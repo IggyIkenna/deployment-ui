@@ -54,7 +54,10 @@ export function isRateMetricRow(
 }
 
 /** Format a rate-metric row right-column label (e.g. "6,319/day"). */
-export function formatRatePerDay(numerator: number, denominator: number): string {
+export function formatRatePerDay(
+  numerator: number,
+  denominator: number,
+): string {
   if (denominator <= 0) return `${numerator}/day`;
   const rate = Math.round(numerator / denominator);
   return `${rate.toLocaleString()}/day`;

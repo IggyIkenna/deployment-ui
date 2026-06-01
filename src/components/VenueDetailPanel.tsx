@@ -12,10 +12,7 @@
  * hunt for the CeFi venue-level render block.
  */
 
-import type {
-  VenueDetailResult,
-  VenueDetailV2Response,
-} from "../api/client";
+import type { VenueDetailResult, VenueDetailV2Response } from "../api/client";
 
 type AnyVenueDetail = VenueDetailResult | VenueDetailV2Response;
 
@@ -92,10 +89,7 @@ export function VenueDetailPanel({
                     className="flex gap-2 text-[8px] font-mono items-center"
                     data-testid={`defi-pool-row-${address}`}
                   >
-                    <span
-                      className="truncate max-w-[160px]"
-                      title={address}
-                    >
+                    <span className="truncate max-w-[160px]" title={address}>
                       {address}
                     </span>
                     <span className="text-[var(--color-text-muted)]">
@@ -178,7 +172,7 @@ export function VenueDetailPanel({
     >
       <div className="space-y-1">
         <div className="text-[9px] text-[var(--color-text-muted)]">
-          {v1.total_instruments} instruments (as of {v1.date})
+          {v1.total_instruments} instruments (as of {v1.day ?? v1.date})
         </div>
         {v1.instrument_types && (
           <div className="space-y-0.5">
@@ -197,13 +191,20 @@ export function VenueDetailPanel({
             ))}
           </div>
         )}
-        {v1.top_instruments && v1.top_instruments.length > 0 && (
+        {v1.instruments && v1.instruments.length > 0 && (
           <details className="mt-0.5">
             <summary className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline">
-              Top {v1.top_instruments.length} instruments
+              Top {v1.instruments.length} instruments
+              {v1.total_instruments_unfiltered !== undefined &&
+                v1.total_instruments_unfiltered > v1.instruments.length && (
+                  <span className="text-[var(--color-text-muted)] ml-1">
+                    (showing {v1.instruments.length} of{" "}
+                    {v1.total_instruments_unfiltered})
+                  </span>
+                )}
             </summary>
             <div className="mt-0.5 space-y-0.5 max-h-48 overflow-y-auto">
-              {v1.top_instruments.map((inst) => (
+              {v1.instruments.map((inst) => (
                 <div
                   key={inst.key}
                   className="flex justify-between text-[8px] font-mono"
