@@ -8,7 +8,7 @@
 # the ghost cache on the old "quality-gates" / "Quality Gates" context (Option D).
 #
 # Authentication: GH_PAT is passed directly as a secret (deployment-ui has GH_PAT
-# as a GHA secret). The inner ui-quality-gates.yml accepts GH_PAT as optional —
+# as a GHA secret). The inner ui-quality-gates-v2.yml accepts GH_PAT as optional —
 # if absent, the PM clone step is skipped with a warning (quality gates still run).
 #
 # Trigger surface:
