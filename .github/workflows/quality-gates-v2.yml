@@ -36,7 +36,7 @@ permissions:
 jobs:
   quality-gates-v2:
     name: Quality Gates (deployment-ui)
-    uses: ./.github/workflows/ui-quality-gates.yml
+    uses: ./.github/workflows/ui-quality-gates-v2.yml
     with:
       node-version: "22"
     secrets:
