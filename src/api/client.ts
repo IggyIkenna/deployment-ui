@@ -934,6 +934,10 @@ export interface TurboSubDimension {
   dates_missing_list_tail?: string[]; // Last 25 missing dates (if truncated)
   dates_missing_truncated?: boolean; // True if list was truncated
   data_types?: Record<string, TurboDataTypeStatus>; // NEW: per-data-type breakdown
+  // Post-v9 PREDICTION bundled-atom cluster drilldown. Keyed by
+  // market_id (conditionId), value = row count within the cqg bundle.
+  // Populated on `data_types` entries when `breakdown_axis === "canonical_question_group"`.
+  observed_clusters?: Record<string, number>;
   instrument_types?: Record<string, TurboInstrumentTypeStatus>; // v4: per-instrument-type (spot, perpetuals, etc.)
   leagues?: Record<string, TurboLeagueStatus>; // Per-league breakdown (SPORTS/PREDICTION)
   // Canonical shard totals (populated for SPORTS data_type entries from the
@@ -1142,9 +1146,10 @@ export interface TurboAssetGroupStatus {
   completion_pct: number;
   // Axis discriminator added 2026-04-20. Controls whether the sub-dimension
   // drilldown lives under `venues` ("venue", legacy default used by CEFI /
-  // TRADFI / DEFI / PREDICTION) or under `data_types` ("data_type", used by
-  // SPORTS). Consumers MUST branch on this when reading sub-dimensions.
-  breakdown_axis?: "venue" | "data_type";
+  // TRADFI / DEFI) or under `data_types` ("data_type", used by SPORTS or, for
+  // post-v9 PREDICTION, "canonical_question_group" keyed by cqg group name).
+  // Consumers MUST branch on this when reading sub-dimensions.
+  breakdown_axis?: "venue" | "data_type" | "canonical_question_group";
   // Coverage semantics (2026-04-19): distinguishes "dense" categories where
   // every underlying is expected to produce data every day (CeFi / TradFi /
   // DeFi) from "event_driven" categories where underlyings only trade on a

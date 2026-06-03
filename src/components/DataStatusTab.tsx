@@ -38,7 +38,10 @@ import {
   buildShardDownloadUrl,
   searchInstruments,
 } from "../api/client";
-import { getAssetGroupBreakdown } from "../lib/data-status-helpers";
+import {
+  getAssetGroupBreakdown,
+  isPredictionCqgAxis,
+} from "../lib/data-status-helpers";
 import {
   cn,
   formatEventDrivenCoverageLabel,
@@ -172,17 +175,25 @@ function getSubDimensionData(catData: TurboAssetGroupStatus): {
   label: string;
 } {
   // Honour the `breakdown_axis` discriminator emitted by deployment-api's
-  // aggregator (2026-04-20). SPORTS uses `data_type` axis; CEFI / TRADFI /
-  // DEFI / PREDICTION use `venue` axis. Consumers MUST branch on this when
-  // the drilldown lives under either key — both are present on the response,
-  // but only one is populated.
-  if (catData.breakdown_axis === "data_type") {
+  // aggregator. SPORTS uses `data_type` axis; CEFI / TRADFI / DEFI use
+  // `venue` axis; PREDICTION post-v9 uses `canonical_question_group` axis
+  // (drilldown also lives under `data_types`, keyed by cqg group name).
+  // Consumers MUST branch on this when the drilldown lives under either key
+  // — both are present on the response, but only one is populated.
+  if (
+    catData.breakdown_axis === "data_type" ||
+    catData.breakdown_axis === "canonical_question_group"
+  ) {
     const dt = catData.data_types;
     if (dt && typeof dt === "object") {
+      const label =
+        catData.breakdown_axis === "canonical_question_group"
+          ? "Question Groups"
+          : (SUB_DIMENSION_LABELS["data_types"] ?? "data_types");
       return {
         data: dt as Record<string, TurboSubDimension>,
         key: "data_types",
-        label: SUB_DIMENSION_LABELS["data_types"] || "data_types",
+        label,
       };
     }
   }
@@ -4998,6 +5009,17 @@ function DataStatusTabInternal({
                                               />
                                             );
                                           })()}
+                                          {/* Prediction v9 source badge — shown for cqg-axis entries */}
+                                          {isPredictionCqgAxis(catData) &&
+                                            subData.source && (
+                                              <span
+                                                className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)] shrink-0"
+                                                title={`Source API: ${subData.source}`}
+                                                data-testid="prediction-cqg-row-source"
+                                              >
+                                                {subData.source}
+                                              </span>
+                                            )}
                                           <div className="flex-1" />
                                           <div className="flex items-center gap-2 shrink-0">
                                             {venueStartDate && (
@@ -6094,6 +6116,76 @@ function DataStatusTabInternal({
                                                     </details>
                                                   );
                                                 })}
+                                              </div>
+                                            )}
+
+                                          {/* Prediction v9 — per-market cluster drilldown.
+                                            Shown for PREDICTION asset groups using the
+                                            canonical_question_group breakdown_axis (post-v9
+                                            bundled-atom). Each cqg group row carries
+                                            `observed_clusters` = {conditionId: row_count}
+                                            from the manifest `record_captured_from_counts`
+                                            call, and `source` = the data-source API
+                                            (polymarket_clob / polymarket_gamma_api / kalshi_*).
+                                            This replaces the old flat `venues` table for PREDICTION. */}
+                                          {isPredictionCqgAxis(catData) &&
+                                            subData.observed_clusters &&
+                                            Object.keys(
+                                              subData.observed_clusters,
+                                            ).length > 0 && (
+                                              <div
+                                                className="space-y-0.5 pt-1"
+                                                data-testid="prediction-cqg-clusters"
+                                              >
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                    Markets (conditionId clusters)
+                                                  </span>
+                                                  {subData.source && (
+                                                    <span
+                                                      className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]"
+                                                      title={`Data source API: ${subData.source}`}
+                                                      data-testid="prediction-cqg-source-badge"
+                                                    >
+                                                      {subData.source}
+                                                    </span>
+                                                  )}
+                                                  <span className="text-[8px] text-[var(--color-text-muted)] ml-auto font-mono">
+                                                    {
+                                                      Object.keys(
+                                                        subData.observed_clusters,
+                                                      ).length
+                                                    }{" "}
+                                                    markets
+                                                  </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                                                  {Object.entries(
+                                                    subData.observed_clusters,
+                                                  )
+                                                    .sort(([, a], [, b]) => b - a)
+                                                    .map(
+                                                      ([
+                                                        conditionId,
+                                                        rowCount,
+                                                      ]) => (
+                                                        <span
+                                                          key={conditionId}
+                                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] font-mono"
+                                                          title={`conditionId: ${conditionId} — ${rowCount.toLocaleString()} rows`}
+                                                          data-testid={`prediction-cluster-${conditionId}`}
+                                                        >
+                                                          {conditionId.length >
+                                                          12
+                                                            ? `${conditionId.slice(0, 6)}…${conditionId.slice(-4)}`
+                                                            : conditionId}
+                                                          <strong>
+                                                            {rowCount.toLocaleString()}
+                                                          </strong>
+                                                        </span>
+                                                      ),
+                                                    )}
+                                                </div>
                                               </div>
                                             )}
 

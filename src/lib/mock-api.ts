@@ -444,6 +444,118 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
 }
 
 /**
+ * PREDICTION v9 fixture builder — emits the post-v9 `breakdown_axis:
+ * "canonical_question_group"` shape. The manifest atom is ONE row per
+ * `(asset_group, venue, data_type=prediction_canonical_question_group,
+ *  canonical_question_group, day, pipeline_mode)` with `observed_clusters =
+ * {conditionId: row_count}`. The UI drilldown reads `data_types` (keyed by
+ * cqg group name) and shows per-market conditionId clusters inside each row.
+ *
+ * Two venues (Polymarket / Kalshi) × three canonical question groups each.
+ * Numbers are loosely representative of the live manifest (~16 k rows).
+ */
+function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
+  const mkCqgEntry = (
+    found: number,
+    expected: number,
+    source: string,
+    clusters: Record<string, number>,
+  ) => ({
+    ..._mkVenue(expected, found, 0, 0),
+    source,
+    observed_clusters: clusters,
+    dates_missing_list: [] as string[],
+    missing_dates: [] as string[],
+    dates_found_list: ["2025-03-14", "2025-03-15", "2025-03-16"],
+  });
+
+  const dataTypesDict = {
+    "crypto-price-prediction": mkCqgEntry(
+      280,
+      300,
+      "polymarket_clob",
+      {
+        "0xabc123def456abc123def456abc123def456abc1": 14200,
+        "0xbcd234efa567bcd234efa567bcd234efa567bcd2": 9800,
+        "0xcde345f0b678cde345f0b678cde345f0b678cde3": 6100,
+      },
+    ),
+    "election-outcome": mkCqgEntry(
+      95,
+      120,
+      "polymarket_clob",
+      {
+        "0xdef456012789def456012789def456012789def4": 5500,
+        "0xef0567123890ef0567123890ef0567123890ef05": 4300,
+      },
+    ),
+    "sports-result": mkCqgEntry(
+      410,
+      450,
+      "polymarket_gamma_api",
+      {
+        "0xf06678234901f06678234901f06678234901f066": 22000,
+        "0x017789345012017789345012017789345012017f": 18500,
+        "0x12889a456123128899a4561231288994561231289": 11200,
+      },
+    ),
+    "kalshi-economic-event": mkCqgEntry(
+      60,
+      80,
+      "kalshi_rest_api",
+      {
+        KXINFL_24JAN: 3200,
+        KXGDP_24Q1: 2800,
+      },
+    ),
+  };
+
+  const totalFound = Object.values(dataTypesDict).reduce((s, v) => s + v.dates_found, 0);
+  const totalExpected = Object.values(dataTypesDict).reduce((s, v) => s + v.dates_expected, 0);
+  const pct = Math.round((totalFound / Math.max(1, totalExpected)) * 10000) / 100;
+  const attempted = totalFound;
+  const attemptPct = pct;
+
+  return {
+    category: "PREDICTION",
+    asset_group: "PREDICTION",
+    bucket: "mock-bucket-prediction",
+    prefixes_queried: 0,
+    dates_found: totalFound,
+    dates_expected: totalExpected,
+    dates_missing: totalExpected - totalFound,
+    completion_pct: pct,
+    attempt_coverage_pct: attemptPct,
+    capture_coverage_pct: pct,
+    coverage_semantics: "event_driven",
+    empty_rate_estimate: 0,
+    failure_rate: 0,
+    capture_status_counts: {
+      captured: totalFound,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+    },
+    counts: {
+      captured: totalFound,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted_known_empty: 0,
+      expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+    },
+    coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
+    missing_dates: [],
+    dates_found_list: [],
+    dates_missing_list: [],
+    // Post-v9 PREDICTION: drilldown lives under `data_types` keyed by cqg name.
+    breakdown_axis: "canonical_question_group" as const,
+    venues: {} as Record<string, never>,
+    data_types: dataTypesDict,
+  } as unknown as ReturnType<typeof _mkCategory>;
+}
+
+/**
  * Annotate a venue row with MTDS honest-coverage fields
  * (deployment-api `_apply_mtds_honest_coverage`, commit 9d21ac8). Builds a
  * realistic per-data-type `honest_data_types` dict so the Phase 6e.3 UI
@@ -746,7 +858,10 @@ const _MOCK_CATS = {
   // SPORTS uses the new `breakdown_axis: "data_type"` shape (2026-04-20).
   // Drilldown lives under `data_types`, not `venues`.
   SPORTS: _mkSportsByDataType(),
-  PREDICTION: _mkCategory("PREDICTION", "event_driven", 800, 185, 550, 65, ["POLYMARKET"]),
+  // PREDICTION uses the post-v9 `breakdown_axis: "canonical_question_group"` shape.
+  // Drilldown lives under `data_types` keyed by cqg group name; each entry
+  // carries `observed_clusters` (conditionId → row_count) + `source`.
+  PREDICTION: _mkPredictionByQuestionGroup(),
 };
 
 const _MOCK_TOTAL_EXPECTED = Object.values(_MOCK_CATS).reduce((acc, c) => acc + c.dates_expected, 0);
