@@ -1457,7 +1457,13 @@ export async function getVenueFilters(assetGroup: string, venue: string): Promis
 // Venue detail drill-down — reads a parquet file and returns instrument breakdown
 export interface VenueDetailResult {
   venue: string;
+  // ``asset_group`` mirrors the Python ``category`` field.  The backend now
+  // emits both ``category`` and ``asset_group`` (computed_field alias) so this
+  // key is always present.  SSOT: prediction_manifest_canonicalisation_2026_06_01.md.
   asset_group: string;
+  /** Legacy field name from the Python VenueDetailResponse (``category``).
+   * Prefer ``asset_group``; both carry the same value. */
+  category?: string;
   date?: string;
   day?: string | null;
   total_instruments: number;
@@ -1468,8 +1474,15 @@ export interface VenueDetailResult {
   instruments?: Array<{
     key: string;
     type: string;
-    base: string;
-    quote: string;
+    base?: string;
+    quote?: string;
+    // Prediction v9 (canonical_question_group) venue-detail fields.
+    // Populated by deployment-api ``_prediction_venue_detail`` when the
+    // asset_group is PREDICTION.  SSOT: shard_detail.py:1405-1423.
+    canonical_question_group?: string;
+    instrument_count?: number;
+    pipeline_mode?: string;
+    source?: string;
   }>;
 }
 
