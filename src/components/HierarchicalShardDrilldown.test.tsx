@@ -24,13 +24,13 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     vi.restoreAllMocks();
   });
 
-  function _mockResponse(
-    tree: apiClient.DrilldownNode[],
-  ): apiClient.DrilldownResponse {
+  function _mockResponse(tree: apiClient.DrilldownNode[]): apiClient.DrilldownResponse {
     const captured = tree.reduce((s, n) => s + n.captured, 0);
     const empty_confirmed = tree.reduce((s, n) => s + n.empty_confirmed, 0);
     const attempted_failed = tree.reduce((s, n) => s + n.attempted_failed, 0);
-    const total = captured + empty_confirmed + attempted_failed;
+    const expected_unattempted = tree.reduce((s, n) => s + n.expected_unattempted, 0);
+    // B3: denominator includes the 4th bin (expected_unattempted)
+    const total = captured + empty_confirmed + attempted_failed + expected_unattempted;
     return {
       service: "market-tick-data-service",
       asset_group: "tradfi",
@@ -40,23 +40,22 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         captured,
         empty_confirmed,
         attempted_failed,
+        expected_unattempted,
         total,
-        completion_pct:
-          total > 0 ? Math.round((captured / total) * 10000) / 100 : 0,
+        completion_pct: total > 0 ? Math.round((captured / total) * 10000) / 100 : 0,
       },
       filtered_by: {},
     };
   }
 
-  function _node(
-    partial: Partial<apiClient.DrilldownNode>,
-  ): apiClient.DrilldownNode {
+  function _node(partial: Partial<apiClient.DrilldownNode>): apiClient.DrilldownNode {
     return {
       axis: "venue",
       value: "TEST",
       captured: 0,
       empty_confirmed: 0,
       attempted_failed: 0,
+      expected_unattempted: 0,
       total: 0,
       completion_pct: 0,
       row_key: {},
@@ -89,6 +88,36 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     );
     await waitFor(() => expect(screen.getByText(/Axes:/)).toBeTruthy());
     expect(screen.getByText(/CME/)).toBeTruthy();
+  });
+
+  it("B5: renders the expected_unattempted 4th state — totals 'pending' pill + per-node 'u' badge + legend", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "venue",
+          value: "AAVE_V3",
+          captured: 4,
+          expected_unattempted: 6,
+          total: 10,
+          completion_pct: 40,
+          row_key: { venue: "AAVE_V3" },
+        }),
+      ]),
+    );
+    render(
+      <HierarchicalShardDrilldown
+        service="market-tick-data-service"
+        assetGroup="defi"
+        startDate="2024-01-01"
+        endDate="2024-01-05"
+      />,
+    );
+    // totals pill: "6 pending"
+    await waitFor(() => expect(screen.getByText(/6 pending/)).toBeTruthy());
+    // legend documents the 4th state
+    expect(screen.getByText(/pending \/ expected-unattempted/)).toBeTruthy();
+    // per-node badge: "6u"
+    expect(screen.getByText(/^6u$/)).toBeTruthy();
   });
 
   it("does NOT render Deploy-Missing button on captured=0 venue-level node (partial row_key)", async () => {
@@ -194,9 +223,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     // Regression: the API client must thread service / asset_group /
     // start_date / end_date through correctly. Catches drift where a
     // refactor swaps args.
-    const spy = vi
-      .spyOn(apiClient, "getHierarchicalDrilldown")
-      .mockResolvedValue(_mockResponse([]));
+    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(_mockResponse([]));
     render(
       <HierarchicalShardDrilldown
         service="market-tick-data-service"
@@ -214,9 +241,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
   });
 
   it("renders the empty state when tree is empty", async () => {
-    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
-      _mockResponse([]),
-    );
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(_mockResponse([]));
     render(
       <HierarchicalShardDrilldown
         service="market-tick-data-service"
@@ -225,15 +250,11 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         endDate="2024-01-05"
       />,
     );
-    await waitFor(() =>
-      expect(screen.getByText(/No data for cefi/)).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(/No data for cefi/)).toBeTruthy());
   });
 
   it("renders the error state when the fetch rejects", async () => {
-    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockRejectedValue(
-      new Error("API down"),
-    );
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockRejectedValue(new Error("API down"));
     render(
       <HierarchicalShardDrilldown
         service="market-tick-data-service"
@@ -242,11 +263,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         endDate="2024-01-05"
       />,
     );
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toMatch(
-        /Failed to load drill-down/,
-      ),
-    );
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/Failed to load drill-down/));
   });
 
   it("ignores AbortError without surfacing an error banner", async () => {
@@ -290,19 +307,13 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         captured: 5,
         empty_confirmed: 2,
         attempted_failed: 1,
+        expected_unattempted: 0,
         total: 8,
         completion_pct: 62.5,
       },
       filtered_by: {},
     });
-    render(
-      <HierarchicalShardDrilldown
-        service="mtds"
-        assetGroup="cefi"
-        startDate="2024-01-01"
-        endDate="2024-01-05"
-      />,
-    );
+    render(<HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2024-01-01" endDate="2024-01-05" />);
     await waitFor(() => expect(screen.getByText(/2 empty/)).toBeTruthy());
     expect(screen.getByText(/1 failed/)).toBeTruthy();
     // Per-node empty + failed badges also render.
@@ -311,34 +322,33 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
   });
 
   it("renders the load-more button when total_top_axis_children exceeds shown rows", async () => {
-    const spy = vi
-      .spyOn(apiClient, "getHierarchicalDrilldown")
-      .mockResolvedValue({
-        service: "mtds",
-        asset_group: "cefi",
-        axes: ["venue"],
-        tree: [
-          _node({
-            axis: "venue",
-            value: "V1",
-            captured: 1,
-            total: 1,
-            completion_pct: 100,
-            row_key: { venue: "V1" },
-          }),
-        ],
-        totals: {
+    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue({
+      service: "mtds",
+      asset_group: "cefi",
+      axes: ["venue"],
+      tree: [
+        _node({
+          axis: "venue",
+          value: "V1",
           captured: 1,
-          empty_confirmed: 0,
-          attempted_failed: 0,
           total: 1,
           completion_pct: 100,
-        },
-        filtered_by: {},
-        total_top_axis_children: 5,
-        child_offset: 0,
-        child_limit: 1,
-      });
+          row_key: { venue: "V1" },
+        }),
+      ],
+      totals: {
+        captured: 1,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        expected_unattempted: 0,
+        total: 1,
+        completion_pct: 100,
+      },
+      filtered_by: {},
+      total_top_axis_children: 5,
+      child_offset: 0,
+      child_limit: 1,
+    });
     render(
       <HierarchicalShardDrilldown
         service="mtds"
@@ -348,9 +358,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         topPageSize={1}
       />,
     );
-    await waitFor(() =>
-      expect(screen.getByText(/Showing 1 of 5/)).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText(/Showing 1 of 5/)).toBeTruthy());
     expect(screen.getByText(/Show more/)).toBeTruthy();
 
     // Click load-more — second fetch with bumped offset should fire.
@@ -372,6 +380,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         captured: 1,
         empty_confirmed: 0,
         attempted_failed: 0,
+        expected_unattempted: 0,
         total: 1,
         completion_pct: 100,
       },
@@ -403,6 +412,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         captured: 1,
         empty_confirmed: 0,
         attempted_failed: 0,
+        expected_unattempted: 0,
         total: 1,
         completion_pct: 100,
       },
@@ -411,43 +421,27 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
       child_offset: 0,
       child_limit: 200,
     });
-    render(
-      <HierarchicalShardDrilldown
-        service="mtds"
-        assetGroup="cefi"
-        startDate="2024-01-01"
-        endDate="2024-01-05"
-      />,
-    );
+    render(<HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2024-01-01" endDate="2024-01-05" />);
     await waitFor(() => expect(screen.getByText(/V1/)).toBeTruthy());
     expect(screen.queryByText(/Show more/)).toBeNull();
   });
 
   it("expands a non-leaf node + lazy-loads children on click", async () => {
-    const spy = vi
-      .spyOn(apiClient, "getHierarchicalDrilldown")
-      .mockResolvedValueOnce(
-        _mockResponse([
-          _node({
-            axis: "venue",
-            value: "BINANCE",
-            captured: 10,
-            total: 20,
-            completion_pct: 50,
-            row_key: { venue: "BINANCE" },
-            children: [],
-            is_leaf: false,
-          }),
-        ]),
-      );
-    render(
-      <HierarchicalShardDrilldown
-        service="mtds"
-        assetGroup="cefi"
-        startDate="2024-01-01"
-        endDate="2024-01-05"
-      />,
+    const spy = vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValueOnce(
+      _mockResponse([
+        _node({
+          axis: "venue",
+          value: "BINANCE",
+          captured: 10,
+          total: 20,
+          completion_pct: 50,
+          row_key: { venue: "BINANCE" },
+          children: [],
+          is_leaf: false,
+        }),
+      ]),
     );
+    render(<HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2024-01-01" endDate="2024-01-05" />);
     await waitFor(() => expect(screen.getByText(/BINANCE/)).toBeTruthy());
 
     spy.mockResolvedValueOnce(
@@ -463,9 +457,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         }),
       ]),
     );
-    fireEvent.click(
-      screen.getByLabelText(/venue=BINANCE: 10 captured of 20 total/),
-    );
+    fireEvent.click(screen.getByLabelText(/venue=BINANCE: 10 captured of 20 total/));
     await waitFor(() => expect(screen.getByText(/trades/)).toBeTruthy());
   });
 
@@ -489,12 +481,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
       ]),
     );
     render(
-      <HierarchicalShardDrilldown
-        service="mtds"
-        assetGroup="tradfi"
-        startDate="2024-01-01"
-        endDate="2024-01-05"
-      />,
+      <HierarchicalShardDrilldown service="mtds" assetGroup="tradfi" startDate="2024-01-01" endDate="2024-01-05" />,
     );
     await waitFor(() => expect(screen.getByText(/csv/)).toBeTruthy());
   });
@@ -513,14 +500,7 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
         }),
       ]),
     );
-    render(
-      <HierarchicalShardDrilldown
-        service="mtds"
-        assetGroup="cefi"
-        startDate="2024-01-01"
-        endDate="2024-01-05"
-      />,
-    );
+    render(<HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2024-01-01" endDate="2024-01-05" />);
     await waitFor(() => expect(screen.getByText(/BINANCE/)).toBeTruthy());
     expect(screen.queryByText(/csv/)).toBeNull();
   });

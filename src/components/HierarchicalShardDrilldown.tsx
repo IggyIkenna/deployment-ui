@@ -35,11 +35,7 @@ interface HierarchicalShardDrilldownProps {
   topPageSize?: number;
 }
 
-function _leafDownloadUrl(
-  service: string,
-  assetGroup: string,
-  rowKey: Record<string, string>,
-): string | null {
+function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<string, string>): string | null {
   const date = rowKey.day ?? rowKey.date;
   const venue = rowKey.venue;
   if (!date || !venue) {
@@ -144,23 +140,10 @@ export function HierarchicalShardDrilldown({
       .finally(() => {
         setLoadingMore(false);
       });
-  }, [
-    topLevel,
-    loadingMore,
-    service,
-    assetGroup,
-    startDate,
-    endDate,
-    initialDepth,
-    topPageSize,
-  ]);
+  }, [topLevel, loadingMore, service, assetGroup, startDate, endDate, initialDepth, topPageSize]);
 
   if (loading && !topLevel) {
-    return (
-      <div className="drilldown-loading">
-        Loading {assetGroup} drill-down...
-      </div>
-    );
+    return <div className="drilldown-loading">Loading {assetGroup} drill-down...</div>;
   }
   if (error) {
     return (
@@ -177,20 +160,12 @@ export function HierarchicalShardDrilldown({
     <div className="hierarchical-shard-drilldown" data-asset-group={assetGroup}>
       <div className="drilldown-axes">Axes: {topLevel.axes.join(" → ")}</div>
       <div className="drilldown-totals">
-        <span className="captured">
-          {topLevel.totals.captured.toLocaleString()}
-        </span>
+        <span className="captured">{topLevel.totals.captured.toLocaleString()}</span>
         <span className="separator"> / </span>
         <span className="total">{topLevel.totals.total.toLocaleString()}</span>
-        <span className="pct">
-          {" "}
-          ({topLevel.totals.completion_pct.toFixed(1)}%)
-        </span>
+        <span className="pct"> ({topLevel.totals.completion_pct.toFixed(1)}%)</span>
         {topLevel.totals.empty_confirmed > 0 && (
-          <span
-            className="empty-pill"
-            title="Honest empty (source returned 0 rows)"
-          >
+          <span className="empty-pill" title="Honest empty (source returned 0 rows)">
             {topLevel.totals.empty_confirmed.toLocaleString()} empty
           </span>
         )}
@@ -199,6 +174,20 @@ export function HierarchicalShardDrilldown({
             {topLevel.totals.attempted_failed.toLocaleString()} failed
           </span>
         )}
+        {topLevel.totals.expected_unattempted > 0 && (
+          <span
+            className="pending-pill"
+            title="Expected but not yet attempted — instrument is IS-listed + post-launch but the backfill has not run yet (the could-exist universe; counts in the denominator, diluting completion %)"
+          >
+            {topLevel.totals.expected_unattempted.toLocaleString()} pending
+          </span>
+        )}
+      </div>
+      <div className="drilldown-legend" aria-label="capture-status legend">
+        <span className="legend-item captured">captured</span>
+        <span className="legend-item empty">empty (e)</span>
+        <span className="legend-item failed">failed (f)</span>
+        <span className="legend-item pending">pending / expected-unattempted (u)</span>
       </div>
       <ul className="drilldown-tree" role="tree">
         {topLevel.tree.map((node) => (
@@ -227,8 +216,7 @@ export function HierarchicalShardDrilldown({
         return (
           <div className="drilldown-load-more">
             <span className="drilldown-load-more-summary">
-              Showing {shown.toLocaleString()} of {total.toLocaleString()}{" "}
-              {topLevel.axes[0] ?? "items"}
+              Showing {shown.toLocaleString()} of {total.toLocaleString()} {topLevel.axes[0] ?? "items"}
             </span>
             <button
               className="drilldown-load-more-button"
@@ -237,9 +225,7 @@ export function HierarchicalShardDrilldown({
               disabled={loadingMore}
               aria-label={`Load next ${Math.min(topPageSize, remaining)} of ${remaining} remaining`}
             >
-              {loadingMore
-                ? "Loading…"
-                : `Show more (${remaining.toLocaleString()} remaining)`}
+              {loadingMore ? "Loading…" : `Show more (${remaining.toLocaleString()} remaining)`}
             </button>
           </div>
         );
@@ -257,18 +243,9 @@ interface DrilldownNodeRowProps {
   depth: number;
 }
 
-function DrilldownNodeRow({
-  node,
-  service,
-  assetGroup,
-  startDate,
-  endDate,
-  depth,
-}: DrilldownNodeRowProps) {
+function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth }: DrilldownNodeRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const [children, setChildren] = useState<DrilldownNode[] | null>(
-    node.children.length > 0 ? node.children : null,
-  );
+  const [children, setChildren] = useState<DrilldownNode[] | null>(node.children.length > 0 ? node.children : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -312,33 +289,16 @@ function DrilldownNodeRow({
         setLoading(false);
       });
     return () => controller.abort();
-  }, [
-    expanded,
-    children,
-    isLeaf,
-    service,
-    assetGroup,
-    startDate,
-    endDate,
-    node.row_key,
-  ]);
+  }, [expanded, children, isLeaf, service, assetGroup, startDate, endDate, node.row_key]);
 
   const ariaLabel = useMemo(
-    () =>
-      `${node.axis}=${node.value}: ${node.captured} captured of ${node.total} total`,
+    () => `${node.axis}=${node.value}: ${node.captured} captured of ${node.total} total`,
     [node.axis, node.value, node.captured, node.total],
   );
 
   return (
-    <li
-      className="drilldown-row"
-      role="treeitem"
-      aria-expanded={isLeaf ? undefined : expanded}
-    >
-      <div
-        className="drilldown-row-content"
-        style={{ paddingLeft: `${depth * 16}px` }}
-      >
+    <li className="drilldown-row" role="treeitem" aria-expanded={isLeaf ? undefined : expanded}>
+      <div className="drilldown-row-content" style={{ paddingLeft: `${depth * 16}px` }}>
         <button
           className="drilldown-toggle"
           type="button"
@@ -363,6 +323,11 @@ function DrilldownNodeRow({
               {node.attempted_failed}f
             </span>
           )}
+          {node.expected_unattempted > 0 && (
+            <span className="pending-badge" title="Expected, not yet attempted (could-exist universe)">
+              {node.expected_unattempted}u
+            </span>
+          )}
         </button>
         {isLeaf &&
           (() => {
@@ -379,14 +344,9 @@ function DrilldownNodeRow({
             // returns 400 from the backend's required-field validation.
             // Render the button only when the row_key composes a
             // workable shard.
-            const downloadUrl = _leafDownloadUrl(
-              service,
-              assetGroup,
-              node.row_key,
-            );
+            const downloadUrl = _leafDownloadUrl(service, assetGroup, node.row_key);
             const rk = node.row_key;
-            const hasFullShardKey =
-              !!rk.venue && !!rk.data_type && (!!rk.day || !!rk.date);
+            const hasFullShardKey = !!rk.venue && !!rk.data_type && (!!rk.day || !!rk.date);
             const isMissingShard = node.captured === 0;
             return (
               <span className="drilldown-leaf-controls">
@@ -432,9 +392,7 @@ function DrilldownNodeRow({
               depth={depth + 1}
             />
           ))}
-          {children?.length === 0 && !loading && (
-            <li className="drilldown-empty">(no data)</li>
-          )}
+          {children?.length === 0 && !loading && <li className="drilldown-empty">(no data)</li>}
         </ul>
       )}
     </li>

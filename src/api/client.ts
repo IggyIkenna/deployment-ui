@@ -623,6 +623,7 @@ export interface DrilldownNode {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
+  expected_unattempted: number;
   total: number;
   completion_pct: number;
   row_key: Record<string, string>;
@@ -634,6 +635,7 @@ export interface DrilldownTotals {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
+  expected_unattempted: number;
   total: number;
   completion_pct: number;
 }
