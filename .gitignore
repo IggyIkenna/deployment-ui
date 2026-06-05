@@ -130,3 +130,7 @@ test-results/
 
 # Orphan-route audit runtime report (scanner regenerates on every run)
 scripts/.orphan-audit-report.json
+
+# Quality-gate local caches (regenerated each run — never commit; SSOT: CLAUDE.md + cicd_contract_hardening item H)
+.qg_last_passed_sha
+.qg_content_sentinel
