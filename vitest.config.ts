@@ -39,6 +39,17 @@ export default defineConfig({
     // Use forks pool to avoid memory issues with V8 coverage on macOS
     // (threads pool causes SIGURG/exit-144 when all 178 tests run with coverage)
     pool: "forks",
+    // The unit suite (782 tests) runs under jsdom + V8 coverage + the forks
+    // pool, which on a contended 2-core CI runner (and on a busy multi-slot
+    // laptop) starves individual fork processes of CPU.  At the vitest default
+    // per-test timeout of 5000ms this manifested as NON-DETERMINISTIC reds: a
+    // DIFFERENT test would time out each run (even a synchronous render()),
+    // never the same one twice — classic resource-contention flakiness, not a
+    // code regression.  Raise the budget rather than skip/deselect slow tests
+    // (workspace rule: "bump the budget when a suite organically outgrows it").
+    // A genuine hang still fails; only contention-slowed tests are protected.
+    testTimeout: 20000,
+    hookTimeout: 20000,
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],

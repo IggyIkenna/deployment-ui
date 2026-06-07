@@ -15,22 +15,12 @@
  */
 
 // @vitest-environment jsdom
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-} from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import * as apiClient from "../../../src/api/client";
-import {
-  CloudProviderProvider,
-  useCloudProvider,
-} from "../../../src/contexts/CloudProviderContext";
+import { CloudProviderProvider, useCloudProvider } from "../../../src/contexts/CloudProviderContext";
 import { Header } from "../../../src/components/Header";
 
 // ---------------------------------------------------------------------------
@@ -133,54 +123,38 @@ describe("CloudProviderToggle — target transitions + clearCache", () => {
   it("clicking AWS sets target to aws", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
   });
 
   it("clicking GCP after AWS reverts target to gcp", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     fireEvent.click(screen.getByText("to-gcp"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("gcp"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("gcp"));
   });
 
   it("clearCache is called once for GCP→AWS transition", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     expect(apiClient.clearCache).toHaveBeenCalledTimes(1);
   });
 
   it("clearCache is called for each transition (AWS→GCP also clears)", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     fireEvent.click(screen.getByText("to-gcp"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("gcp"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("gcp"));
     expect(apiClient.clearCache).toHaveBeenCalledTimes(2);
   });
 
   it("switch still completes when clearCache rejects", async () => {
-    vi.spyOn(apiClient, "clearCache").mockRejectedValue(
-      new Error("backend down"),
-    );
+    vi.spyOn(apiClient, "clearCache").mockRejectedValue(new Error("backend down"));
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
   });
 });
 
@@ -208,9 +182,7 @@ describe("CloudProviderToggle — DEV mode apiBaseUrl (always /api)", () => {
   it("apiBaseUrl remains /api after switching to aws in DEV mode", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     // DEV mode: proxy always wins regardless of target.
     expect(screen.getByTestId("apiBaseUrl").textContent).toBe("/api");
   });
@@ -225,7 +197,7 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   beforeEach(() => {
     // Simulate `vite preview` against locally-running backends.
     // Direct assignment works in Vitest (import.meta.env is a plain object).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (import.meta.env as Record<string, unknown>)["DEV"] = false;
     vi.spyOn(apiClient, "clearCache").mockResolvedValue({
       status: "ok",
@@ -234,7 +206,7 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   });
 
   afterEach(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (import.meta.env as Record<string, unknown>)["DEV"] = true;
     vi.restoreAllMocks();
   });
@@ -250,9 +222,7 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   it("apiBaseUrl contains port 8005 for aws after switch in local-prod mode", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     const url = screen.getByTestId("apiBaseUrl").textContent ?? "";
     expect(url).toContain("8005");
     expect(url).toContain("/api");
@@ -261,13 +231,9 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   it("apiBaseUrl returns to port 8004 after switching back to gcp", async () => {
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
     fireEvent.click(screen.getByText("to-gcp"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("gcp"),
-    );
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("gcp"));
     const url = screen.getByTestId("apiBaseUrl").textContent ?? "";
     expect(url).toContain("8004");
   });
@@ -276,12 +242,15 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
     const setUrlSpy = vi.spyOn(apiClient, "setApiBaseUrl");
     renderProbeWithProvider();
     fireEvent.click(screen.getByText("to-aws"));
-    await waitFor(() =>
-      expect(screen.getByTestId("target").textContent).toBe("aws"),
-    );
-    const calls = setUrlSpy.mock.calls.map(([url]) => url);
-    const awsCall = calls.find((url) => url.includes("8005"));
-    expect(awsCall).toBeTruthy();
-    expect(awsCall).toContain("http://localhost:8005/api");
+    await waitFor(() => expect(screen.getByTestId("target").textContent).toBe("aws"));
+    // setApiBaseUrl fires in a separate effect that may not have flushed at the
+    // moment the target text flips, so assert the spy INSIDE waitFor — polling
+    // on the text alone raced the effect and intermittently saw zero calls
+    // (`awsCall` undefined) under CI/laptop contention.
+    await waitFor(() => {
+      const calls = setUrlSpy.mock.calls.map(([url]) => url);
+      const awsCall = calls.find((url) => url.includes("8005"));
+      expect(awsCall).toBe("http://localhost:8005/api");
+    });
   });
 });
