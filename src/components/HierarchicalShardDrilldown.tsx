@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   type DrilldownNode,
+  type DrilldownProvenance,
   type DrilldownResponse,
   buildShardDownloadUrl,
   getHierarchicalDrilldown,
@@ -59,6 +60,17 @@ function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<st
     chain: rowKey.chain,
     league_id: rowKey.league_id,
   });
+}
+
+/** Collapse a per-(pipeline_mode, source) breakdown row to its single honest
+ * capture_status, by the M5 union precedence (captured > empty_confirmed >
+ * attempted_failed > expected_unattempted). Drives the per-mode badge colour. */
+function _provenanceStatus(p: DrilldownProvenance): string {
+  if (p.captured > 0) return "captured";
+  if (p.empty_confirmed > 0) return "empty_confirmed";
+  if (p.attempted_failed > 0) return "attempted_failed";
+  if (p.expected_unattempted > 0) return "expected_unattempted";
+  return "missing";
 }
 
 export function HierarchicalShardDrilldown({
@@ -373,6 +385,35 @@ function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth
             );
           })()}
       </div>
+      {isLeaf && node.provenance != null && node.provenance.length > 0 && (
+        // G3/M5 per-cell provenance: how each pipeline_mode x source answered
+        // this shard-atom (e.g. captured via batch + replay, missing in live).
+        // The leaf count above is the honest UNION across these rows.
+        <ul
+          className="drilldown-provenance"
+          role="group"
+          aria-label="Per-pipeline_mode/source breakdown"
+          style={{ paddingLeft: `${(depth + 1) * 16}px` }}
+        >
+          {node.provenance.map((p) => {
+            const status = _provenanceStatus(p);
+            return (
+              <li
+                key={`${p.pipeline_mode}:${p.source}:${p.transport}`}
+                className={`drilldown-provenance-row provenance-${status}`}
+                title={`${p.pipeline_mode || "—"} / ${p.source || "—"}${
+                  p.transport ? ` / ${p.transport}` : ""
+                }: ${status}`}
+              >
+                <span className="provenance-mode">{p.pipeline_mode || "—"}</span>
+                <span className="provenance-source">{p.source || "—"}</span>
+                {p.transport && <span className="provenance-transport">{p.transport}</span>}
+                <span className={`provenance-status status-${status}`}>{status}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {expanded && !isLeaf && (
         <ul className="drilldown-tree-nested" role="group">
           {loading && <li className="drilldown-loading">Loading...</li>}

@@ -504,4 +504,72 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     await waitFor(() => expect(screen.getByText(/BINANCE/)).toBeTruthy());
     expect(screen.queryByText(/csv/)).toBeNull();
   });
+
+  it("renders the per-(pipeline_mode, source) provenance breakdown at a leaf (G3/M5)", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2026-06-01",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "BINANCE-FUTURES", data_type: "funding_rate", date: "2026-06-01" },
+          is_leaf: true,
+          provenance: [
+            {
+              pipeline_mode: "batch_binance",
+              source: "binance",
+              transport: "rest",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+            {
+              pipeline_mode: "live_binance",
+              source: "binance",
+              transport: "websocket",
+              captured: 0,
+              empty_confirmed: 0,
+              attempted_failed: 1,
+              expected_unattempted: 0,
+            },
+          ],
+        }),
+      ]),
+    );
+    const { container } = render(
+      <HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2026-06-01" endDate="2026-06-30" />,
+    );
+    await waitFor(() => expect(screen.getByText("batch_binance")).toBeTruthy());
+    // The leaf count is the honest union (captured); per-mode rows show HOW
+    // each pipeline_mode answered (batch captured, live failed).
+    expect(screen.getByText("live_binance")).toBeTruthy();
+    const provRows = container.querySelectorAll(".drilldown-provenance .drilldown-provenance-row");
+    expect(provRows.length).toBe(2);
+    expect(container.querySelector(".provenance-status.status-captured")).toBeTruthy();
+    expect(container.querySelector(".provenance-status.status-attempted_failed")).toBeTruthy();
+  });
+
+  it("renders no provenance list when a leaf has no provenance (v8 manifest)", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2024-01-01",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "CME", data_type: "ohlcv_1m", date: "2024-01-01" },
+          is_leaf: true,
+        }),
+      ]),
+    );
+    const { container } = render(
+      <HierarchicalShardDrilldown service="mtds" assetGroup="tradfi" startDate="2024-01-01" endDate="2024-01-05" />,
+    );
+    await waitFor(() => expect(screen.getByText(/2024-01-01/)).toBeTruthy());
+    expect(container.querySelector(".drilldown-provenance")).toBeNull();
+  });
 });

@@ -617,6 +617,24 @@ export async function getDataStatus(params: {
  * Mirrors ``DrilldownNode.to_dict()`` in
  * ``deployment_api/services/data_status_hierarchical.py``.
  */
+/** Per-(pipeline_mode, source) capture_status CELL counts for one cell/node.
+ *
+ * G3/M5 v9 manifest UNION drilldown: a single logical cell carries one
+ * manifest row per (source x pipeline_mode); this row reports how each
+ * provenance combination answered the cell, so the UI can show "captured via
+ * batch_databento + replay_databento, missing in live_databento". Mirrors
+ * ``provenance_breakdown()`` in ``deployment_api/services/data_status_union.py``.
+ */
+export interface DrilldownProvenance {
+  pipeline_mode: string;
+  source: string;
+  transport: string;
+  captured: number;
+  empty_confirmed: number;
+  attempted_failed: number;
+  expected_unattempted: number;
+}
+
 export interface DrilldownNode {
   axis: string;
   value: string;
@@ -627,6 +645,9 @@ export interface DrilldownNode {
   total: number;
   completion_pct: number;
   row_key: Record<string, string>;
+  /** G3/M5: per-(pipeline_mode, source) breakdown, populated at shard-atom
+   * leaves only (empty on non-leaf nodes and on v8 manifests). */
+  provenance?: DrilldownProvenance[];
   children: DrilldownNode[];
   is_leaf: boolean;
 }
@@ -658,6 +679,9 @@ export interface DrilldownResponse {
   total_top_axis_children?: number;
   child_offset?: number;
   child_limit?: number | null;
+  /** G3/M5: top-level per-(pipeline_mode, source) breakdown across the whole
+   * filtered slice (cell-grain union). Empty on v8 manifests. */
+  provenance?: DrilldownProvenance[];
 }
 
 export interface DrilldownPair {
@@ -676,6 +700,9 @@ const _DRILLDOWN_FILTER_KEYS: readonly string[] = [
   "feature_group",
   "timeframe",
   "canonical_question_group",
+  // G3/M5 v9 provenance filter axes.
+  "pipeline_mode",
+  "source",
 ] as const;
 
 export async function getHierarchicalDrilldown(params: {
@@ -689,6 +716,9 @@ export async function getHierarchicalDrilldown(params: {
   child_offset?: number;
   /** Max top-level children returned. ``undefined`` = no slice. */
   child_limit?: number;
+  /** G3/M5 provenance group-by axes (``pipeline_mode`` / ``source``) inserted
+   * at the top of the tree to compare batch-vs-live / per-source coverage. */
+  group_by?: string[];
   signal?: AbortSignal;
 }): Promise<DrilldownResponse> {
   const sp = new URLSearchParams();
@@ -702,6 +732,9 @@ export async function getHierarchicalDrilldown(params: {
   }
   if (params.child_limit != null) {
     sp.set("child_limit", String(params.child_limit));
+  }
+  for (const groupAxis of params.group_by ?? []) {
+    sp.append("group_by", groupAxis);
   }
   for (const key of _DRILLDOWN_FILTER_KEYS) {
     const val = params.filters?.[key];
