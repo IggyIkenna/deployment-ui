@@ -64,6 +64,19 @@ export function AlertsContent() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
           <BellRing className="h-5 w-5 text-amber-400" /> Alerts — lifecycle traceability
+          {data && (
+            <span
+              data-testid="alerts-source-badge"
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium border ${
+                data.source === "live"
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
+                  : "bg-amber-500/15 text-amber-400 border-amber-500/40"
+              }`}
+              title={`generated_at: ${data.generated_at}`}
+            >
+              {data.source.toUpperCase()} · as of {data.generated_at.slice(11, 19)}Z
+            </span>
+          )}
         </h1>
         <Button onClick={load} variant="ghost" size="sm" disabled={loading} data-testid="alerts-refresh">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />

@@ -352,7 +352,22 @@ export function RepoCiContent() {
   return (
     <div className="space-y-4" data-testid="repo-ci-page">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">Repos CI</h1>
+        <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+          Repos CI
+          {overview && (
+            <span
+              data-testid="repo-ci-source-badge"
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium border ${
+                overview.source === "live"
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
+                  : "bg-amber-500/15 text-amber-400 border-amber-500/40"
+              }`}
+              title={`generated_at: ${overview.generated_at}`}
+            >
+              {overview.source.toUpperCase()} · as of {overview.generated_at.slice(11, 19)}Z
+            </span>
+          )}
+        </h1>
         <div className="flex items-center gap-2">
           <select
             data-testid="repo-dropdown"
