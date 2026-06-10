@@ -174,6 +174,13 @@ export function Header() {
             Repos CI
           </Link>
           <Link
+            to="/alerts"
+            data-testid="nav-alerts"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
+          >
+            Alerts
+          </Link>
+          <Link
             to="/dart"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
           >

@@ -3353,4 +3353,34 @@ export async function getRepoCiDetail(repo: string): Promise<RepoCiDetail> {
   return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail`);
 }
 
+export interface RepoCiAlertEntry {
+  kind: string;
+  timestamp: string;
+  repo: string;
+  workflow_name: string;
+  severity: string | null;
+  conclusion: string | null;
+  message: string | null;
+  run_url: string | null;
+}
+
+export interface RepoCiAlertStream {
+  repo: string;
+  workflow_name: string;
+  current: RepoCiAlertEntry;
+  previous: RepoCiAlertEntry | null;
+  count: number;
+}
+
+export interface RepoCiAlerts {
+  generated_at: string;
+  source: string;
+  alerts: RepoCiAlertEntry[];
+  streams: RepoCiAlertStream[];
+}
+
+export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
+  return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
+}
+
 export { ApiError };

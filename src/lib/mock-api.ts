@@ -1167,6 +1167,75 @@ function mockRepoCiDetail(repo: string) {
   };
 }
 
+function mockRepoCiAlerts() {
+  const entries = [
+    {
+      kind: "alert",
+      timestamp: "2026-06-10T12:10:00Z",
+      repo: "unified-trading-pm",
+      workflow_name: "ci-status-update",
+      severity: "CRITICAL",
+      conclusion: "failure",
+      message: "CI REGRESSION: deployment-api is now FAILING (was MAIN_GREEN)",
+      run_url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/1",
+    },
+    {
+      kind: "alert",
+      timestamp: "2026-06-10T12:50:00Z",
+      repo: "unified-trading-pm",
+      workflow_name: "ci-status-update",
+      severity: "INFO",
+      conclusion: "success",
+      message: "RESOLVED: deployment-api recovered (FAILING -> MAIN_GREEN)",
+      run_url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/2",
+    },
+    {
+      kind: "alert",
+      timestamp: "2026-06-10T13:00:00Z",
+      repo: "unified-trading-pm",
+      workflow_name: "sit-unlock",
+      severity: "INFO",
+      conclusion: "success",
+      message: "SIT PASSED — staging UNLOCKED, breaking_pending cleared.",
+      run_url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/3",
+    },
+    {
+      kind: "alert",
+      timestamp: "2026-06-10T13:05:00Z",
+      repo: "execution-service",
+      workflow_name: "quality-gates-v2",
+      severity: "CRITICAL",
+      conclusion: "failure",
+      message: "quality-gates-v2 FAILED on main",
+      run_url: "https://github.com/IggyIkenna/execution-service/actions/runs/4",
+    },
+  ];
+  const byStream = new Map<string, typeof entries>();
+  for (const e of entries) {
+    const k = `${e.repo}/${e.workflow_name}`;
+    byStream.set(k, [...(byStream.get(k) ?? []), e]);
+  }
+  const streams = [...byStream.entries()].map(([, es]) => {
+    const ordered = [...es].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return {
+      repo: ordered[0].repo,
+      workflow_name: ordered[0].workflow_name,
+      current: ordered[ordered.length - 1],
+      previous: ordered.length > 1 ? ordered[ordered.length - 2] : null,
+      count: ordered.length,
+    };
+  });
+  const rank = (e: { severity: string | null; conclusion: string | null }) =>
+    e.severity === "CRITICAL" || e.conclusion === "failure" ? 0 : e.severity === "WARNING" ? 1 : 2;
+  streams.sort((a, b) => rank(a.current) - rank(b.current));
+  return {
+    generated_at: new Date().toISOString(),
+    source: "mock",
+    alerts: [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
+    streams,
+  };
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -1190,6 +1259,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
   // every stuck class + stuck-in-SIT + the live SIT-run panel, pinned by the
   // playwright regression spec tests/e2e/repos-stuck-panel.spec.ts)
+  if (path === "/api/repo-ci/alerts") {
+    return json(mockRepoCiAlerts());
+  }
   if (path === "/api/repo-ci/overview") {
     return json(mockRepoCiOverview());
   }
