@@ -39,7 +39,7 @@ function EntryChip({ entry, testId }: { entry: RepoCiAlertEntry; testId?: string
   );
 }
 
-export function Alerts() {
+export function AlertsContent() {
   const [data, setData] = useState<RepoCiAlerts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export function Alerts() {
   }, [load]);
 
   return (
-    <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px] space-y-4" data-testid="alerts-page">
+    <div className="space-y-4" data-testid="alerts-page">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
           <BellRing className="h-5 w-5 text-amber-400" /> Alerts — lifecycle traceability
@@ -142,6 +142,6 @@ export function Alerts() {
         </>
       )}
       {!data && !error && <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>}
-    </main>
+    </div>
   );
 }

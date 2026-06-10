@@ -7,13 +7,21 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Alerts page", () => {
-  test("nav routes to /alerts and both panels render", async ({ page }) => {
+  test("nav routes to /alerts which renders as a home-shell tab", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("nav-alerts").click();
     await expect(page).toHaveURL(/\/alerts$/);
+    await expect(page.getByTestId("landing-alerts-tab")).toBeVisible();
     await expect(page.getByTestId("alerts-page")).toBeVisible();
     await expect(page.getByTestId("alert-streams")).toBeVisible();
     await expect(page.getByTestId("alert-timeline")).toBeVisible();
+  });
+
+  test("alerts tab trigger sits beside Overview/Epics/Repos CI (single pane)", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("landing-alerts-tab-trigger").click();
+    await expect(page).toHaveURL(/\/alerts$/);
+    await expect(page.getByTestId("alerts-page")).toBeVisible();
   });
 
   test("lifecycle stream shows previous -> current state pair (traceability)", async ({ page }) => {

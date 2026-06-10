@@ -13,16 +13,19 @@
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GitBranch, LayoutGrid, Trophy } from "lucide-react";
+import { BellRing, GitBranch, LayoutGrid, Trophy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ServicesOverviewTab } from "./ServicesOverviewTab";
 import { EpicReadinessView } from "./EpicReadinessView";
 import { RepoCiContent } from "../pages/RepoCi";
+import { AlertsContent } from "../pages/Alerts";
 
-type LandingTab = "overview" | "epics" | "repos";
+type LandingTab = "overview" | "epics" | "repos" | "alerts";
 
 function tabForPath(pathname: string): LandingTab {
-  return pathname === "/repos" ? "repos" : "overview";
+  if (pathname === "/repos") return "repos";
+  if (pathname === "/alerts") return "alerts";
+  return "overview";
 }
 
 export function LandingTabs({ onSelectService }: { onSelectService: (service: string) => void }) {
@@ -39,14 +42,15 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
   const handleTabChange = (next: string) => {
     const value = next as LandingTab;
     setTab(value);
-    // Mirror the repos tab onto the /repos route; Overview/Epics share `/`.
-    if (value === "repos" && location.pathname !== "/repos") navigate("/repos");
-    else if (value !== "repos" && location.pathname === "/repos") navigate("/");
+    // Mirror URL-synced tabs onto their routes; Overview/Epics share `/`.
+    const routeFor: Partial<Record<LandingTab, string>> = { repos: "/repos", alerts: "/alerts" };
+    const target = routeFor[value] ?? "/";
+    if (location.pathname !== target) navigate(target);
   };
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
-      <TabsList variant="pill" className="grid w-full grid-cols-3 mb-6">
+      <TabsList variant="pill" className="grid w-full grid-cols-4 mb-6">
         <TabsTrigger value="overview" className="gap-2">
           <LayoutGrid className="h-4 w-4" />
           Overview
@@ -59,6 +63,10 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
           <GitBranch className="h-4 w-4" />
           Repos CI
         </TabsTrigger>
+        <TabsTrigger value="alerts" className="gap-2" data-testid="landing-alerts-tab-trigger">
+          <BellRing className="h-4 w-4" />
+          Alerts
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
         <ServicesOverviewTab onSelectService={onSelectService} />
@@ -68,6 +76,9 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
       </TabsContent>
       <TabsContent value="repos" data-testid="landing-repos-ci-tab">
         <RepoCiContent />
+      </TabsContent>
+      <TabsContent value="alerts" data-testid="landing-alerts-tab">
+        <AlertsContent />
       </TabsContent>
     </Tabs>
   );
