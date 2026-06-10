@@ -236,7 +236,9 @@ function OverviewTable({
   );
 }
 
-function RepoDetailPanel({ repo }: { repo: string }) {
+/** Exported for the per-service "CI" tab on the home view (operator add 2026-06-10) —
+ * one drill-down component serves both the fleet page and the single-service context. */
+export function RepoDetailPanel({ repo }: { repo: string }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 

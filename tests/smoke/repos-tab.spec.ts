@@ -45,4 +45,15 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("repo-detail")).toBeVisible();
     await expect(page.getByTestId("repo-detail")).toContainText("greeks-service");
   });
+
+  test("per-service CI tab renders the same drill-down in service context", async ({ page }) => {
+    await page.goto("/");
+    // Select a service from the home-view list, then open its CI tab.
+    await page.getByText("market-tick-data-service", { exact: true }).first().click();
+    await page.getByTestId("service-ci-tab-trigger").click();
+    const tab = page.getByTestId("service-ci-tab");
+    await expect(tab).toBeVisible();
+    await expect(tab.getByTestId("repo-detail")).toBeVisible();
+    await expect(tab.getByTestId("repo-detail")).toContainText("market-tick-data-service");
+  });
 });

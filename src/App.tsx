@@ -3,6 +3,7 @@ import {
   AlertCircle,
   BarChart2,
   Database,
+  GitBranch,
   Hammer,
   History,
   Info,
@@ -48,7 +49,7 @@ import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
 import { DailyCosts } from "./pages/DailyCosts";
 import { Dart } from "./pages/Dart";
-import { RepoCi } from "./pages/RepoCi";
+import { RepoCi, RepoDetailPanel } from "./pages/RepoCi";
 import { VmDetail } from "./pages/VmDetail";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
@@ -233,7 +234,7 @@ function App() {
                                     >
                                       <TabsList
                                         variant="pill"
-                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-9" : selectedService === "deployment-api" ? "grid-cols-10" : selectedService === "market-tick-data-service" ? "grid-cols-9" : "grid-cols-8"} mb-6`}
+                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-10" : selectedService === "deployment-api" ? "grid-cols-11" : selectedService === "market-tick-data-service" ? "grid-cols-10" : "grid-cols-9"} mb-6`}
                                       >
                                         {!isInfra && (
                                           <TabsTrigger value="deploy" className="gap-2">
@@ -277,6 +278,16 @@ function App() {
                                           <TabsTrigger value="status" className="gap-2">
                                             <Activity className="h-4 w-4" />
                                             Status
+                                          </TabsTrigger>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsTrigger
+                                            value="ci"
+                                            className="gap-2"
+                                            data-testid="service-ci-tab-trigger"
+                                          >
+                                            <GitBranch className="h-4 w-4" />
+                                            CI
                                           </TabsTrigger>
                                         )}
                                         {selectedService === "client-reporting-api" && (
@@ -419,6 +430,14 @@ function App() {
                                       {!isInfra && (
                                         <TabsContent value="status">
                                           <ServiceStatusTab serviceName={selectedService ?? ""} />
+                                        </TabsContent>
+                                      )}
+                                      {!isInfra && (
+                                        <TabsContent value="ci" data-testid="service-ci-tab">
+                                          {/* Same drill-down component as /repos — single-service context.
+                                              Service names that aren't repo names degrade honestly via the
+                                              panel's own error state (mapping todo tracked in the CI plan). */}
+                                          <RepoDetailPanel repo={selectedService ?? ""} />
                                         </TabsContent>
                                       )}
                                       {selectedService === "client-reporting-api" && (
