@@ -100,4 +100,17 @@ test.describe("Repos CI page", () => {
     await expect(degraded).toBeVisible();
     await expect(degraded).toContainText("ml-service");
   });
+
+  // Operator cross-link rule (2026-06-10): repo drill-down deep-links the existing surfaces.
+  test("repo drill-down cross-links to GitHub / data-status / fleet", async ({ page }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("execution-service");
+    const links = page.getByTestId("repo-detail-crosslinks");
+    await expect(links).toBeVisible();
+    await expect(links.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/IggyIkenna/execution-service",
+    );
+    await expect(page.getByTestId("repo-detail-fleet-link")).toHaveAttribute("href", "/fleet");
+  });
 });

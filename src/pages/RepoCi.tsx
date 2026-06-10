@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, ExternalLink, GitBranch, RefreshCw } from "lucide-react";
 import {
   getRepoCiDetail,
@@ -296,12 +297,35 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
 
   return (
     <div className="space-y-4" data-testid="repo-detail">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <GitBranch className="h-4 w-4 text-[var(--color-text-muted)]" />
         <span className="font-mono text-sm text-[var(--color-text-primary)]">{detail.repo}</span>
         <Chip tone={ciStatusTone(detail.ci_status)}>{detail.ci_status}</Chip>
         {detail.sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
         {detail.image.deployed_version && <Chip tone="gray">deployed {detail.image.deployed_version}</Chip>}
+      </div>
+      {/* Cross-links to the EXISTING surfaces for this repo — don't redo those tabs
+          (operator add 2026-06-10: repo drill-down deep-links data-status / monitor /
+          fleet git-health / GitHub). */}
+      <div className="flex items-center gap-3 text-xs" data-testid="repo-detail-crosslinks">
+        <span className="text-[var(--color-text-muted)]">Open:</span>
+        <a
+          href={`https://github.com/IggyIkenna/${detail.repo}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+        >
+          GitHub <ExternalLink className="h-3 w-3" />
+        </a>
+        <Link to={`/service/${detail.repo}/data-status`} className="text-cyan-400 hover:underline">
+          Data status
+        </Link>
+        <Link to={`/service/${detail.repo}/monitor`} className="text-cyan-400 hover:underline">
+          Deployments
+        </Link>
+        <Link to="/fleet" className="text-cyan-400 hover:underline" data-testid="repo-detail-fleet-link">
+          Fleet Git
+        </Link>
       </div>
       {detail.open_prs.length > 0 && (
         <div className="space-y-1" data-testid="repo-detail-prs">
