@@ -23,6 +23,8 @@ import {
   ciStatusTone,
   deltaLabel,
   formatAge,
+  githubChecksUrl,
+  githubCommitUrl,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -49,6 +51,24 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
     >
       {children}
     </span>
+  );
+}
+
+/** A short-SHA that deep-links to its GitHub commit page (operator click-through rule:
+ * GitHub-authoritative atoms link to GitHub). Renders a plain dash when no SHA. */
+function ShaLink({ repo, sha }: { repo: string; sha: string | null }) {
+  const url = githubCommitUrl(repo, sha);
+  if (!url) return <span>—</span>;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="hover:underline text-[var(--color-text-secondary)]"
+    >
+      {shortSha(sha)}
+    </a>
   );
 }
 
@@ -185,16 +205,24 @@ function OverviewTable({
             >
               <td className="py-1.5 font-mono text-[var(--color-text-primary)]">{row.repo}</td>
               <td className="py-1.5">
-                <Chip tone={ciStatusTone(row.ci_status)}>{row.ci_status}</Chip>
+                {/* CI "feature green" chip click-throughs to the GitHub checks of the LDR head. */}
+                <a
+                  href={githubChecksUrl(row.repo, bySha.get("live-defi-rollout") ?? null)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Chip tone={ciStatusTone(row.ci_status)}>{row.ci_status}</Chip>
+                </a>
               </td>
-              <td className="py-1.5 font-mono text-[var(--color-text-secondary)]">
-                {shortSha(bySha.get("live-defi-rollout") ?? null)}
+              <td className="py-1.5 font-mono">
+                <ShaLink repo={row.repo} sha={bySha.get("live-defi-rollout") ?? null} />
               </td>
-              <td className="py-1.5 font-mono text-[var(--color-text-secondary)]">
-                {shortSha(bySha.get("staging") ?? null)}
+              <td className="py-1.5 font-mono">
+                <ShaLink repo={row.repo} sha={bySha.get("staging") ?? null} />
               </td>
-              <td className="py-1.5 font-mono text-[var(--color-text-secondary)]">
-                {shortSha(bySha.get("main") ?? null)}
+              <td className="py-1.5 font-mono">
+                <ShaLink repo={row.repo} sha={bySha.get("main") ?? null} />
               </td>
               <td className="py-1.5 text-[var(--color-text-secondary)]">
                 {ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}
@@ -303,14 +331,23 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
             <CardContent className="space-y-1">
               {branchHistory.commits.map((commit) => (
                 <div key={commit.sha} className="flex items-center gap-2 text-xs">
-                  <Chip
-                    tone={
-                      commit.v2_conclusion === "success" ? "green" : commit.v2_conclusion === "failure" ? "red" : "gray"
-                    }
-                  >
-                    v2
-                  </Chip>
-                  <span className="font-mono text-[var(--color-text-secondary)]">{shortSha(commit.sha)}</span>
+                  {/* v2 chip click-throughs to the commit's GitHub checks page. */}
+                  <a href={githubChecksUrl(detail.repo, commit.sha)} target="_blank" rel="noreferrer">
+                    <Chip
+                      tone={
+                        commit.v2_conclusion === "success"
+                          ? "green"
+                          : commit.v2_conclusion === "failure"
+                            ? "red"
+                            : "gray"
+                      }
+                    >
+                      v2
+                    </Chip>
+                  </a>
+                  <span className="font-mono">
+                    <ShaLink repo={detail.repo} sha={commit.sha} />
+                  </span>
                   <span className="text-[var(--color-text-muted)] truncate">{commit.message}</span>
                 </div>
               ))}
@@ -394,6 +431,23 @@ export function RepoCiContent() {
       )}
       {overview && (
         <>
+          {overview.errors && overview.errors.length > 0 && (
+            <div
+              className="p-3 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm"
+              data-testid="repo-ci-degraded"
+            >
+              <div className="text-amber-400 font-medium mb-1">
+                Degraded repos ({overview.errors.length}) — GitHub aggregation failed, row dropped (not silent)
+              </div>
+              <div className="space-y-0.5 text-xs text-[var(--color-text-muted)]">
+                {overview.errors.map((e) => (
+                  <div key={e.repo}>
+                    <span className="font-mono text-[var(--color-text-secondary)]">{e.repo}</span>: {e.error}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />

@@ -83,3 +83,27 @@ export function formatAge(ageMin: number | null | undefined): string {
   if (hours < 24) return `${hours}h ${ageMin % 60}m`;
   return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
+
+// --- GitHub deep-links (operator add 2026-06-10: every status atom click-throughs
+// to the authoritative existing UI — GitHub for GitHub-authoritative atoms). The org
+// is the workspace constant; repo names match the GitHub repo slugs 1:1. ----------
+
+export const GITHUB_ORG = "IggyIkenna";
+
+/** Commit page for a SHA — used to deep-link branch-head + history SHAs. */
+export function githubCommitUrl(repo: string, sha: string | null): string | null {
+  return sha ? `https://github.com/${GITHUB_ORG}/${repo}/commit/${sha}` : null;
+}
+
+/** Branch tree page — deep-link a branch-head label. */
+export function githubBranchUrl(repo: string, branch: string): string {
+  return `https://github.com/${GITHUB_ORG}/${repo}/tree/${branch}`;
+}
+
+/** Checks page for a SHA — deep-link a `quality-gates-v2` / "feature green" CI chip
+ * to where the check runs live (answers "why is it this colour"). */
+export function githubChecksUrl(repo: string, sha: string | null): string {
+  return sha
+    ? `https://github.com/${GITHUB_ORG}/${repo}/commit/${sha}/checks`
+    : `https://github.com/${GITHUB_ORG}/${repo}/actions`;
+}

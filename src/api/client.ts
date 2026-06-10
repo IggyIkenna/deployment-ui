@@ -3317,6 +3317,11 @@ export interface RepoCiOverviewRow {
   image: RepoCiImageSignal;
 }
 
+export interface RepoCiError {
+  repo: string;
+  error: string;
+}
+
 export interface RepoCiOverview {
   generated_at: string;
   source: string;
@@ -3324,6 +3329,7 @@ export interface RepoCiOverview {
   stuck_prs: RepoCiPr[];
   stuck_in_sit: string[];
   sit_last_run: RepoCiSitLastRun | null;
+  errors?: RepoCiError[];
 }
 
 export interface RepoCiBranchCommits {
@@ -3381,6 +3387,71 @@ export interface RepoCiAlerts {
 
 export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
   return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
+}
+
+// --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
+
+export interface FleetGitRepoHealth {
+  name: string;
+  state: string;
+  dirty_files: number;
+  ahead: number;
+  behind: number;
+  local_sha: string;
+  not_clean_since: string | null;
+  unpushed_plans: string[];
+  drift_violation: boolean;
+}
+
+export interface FleetGitSlotHealth {
+  slot_id: number;
+  host: string | null;
+  reported_at: string | null;
+  reporter_stale: boolean;
+  ff_pull_last_run: string | null;
+  ff_pull_last_result: string | null;
+  ff_cron_stale: boolean;
+  repos: FleetGitRepoHealth[];
+}
+
+export interface FleetGitHostHealth {
+  host: string;
+  vm_id: string | null;
+  slots: FleetGitSlotHealth[];
+}
+
+export interface FleetGitSummary {
+  hosts: number;
+  slots: number;
+  repos_total: number;
+  dirty: number;
+  behind: number;
+  ahead: number;
+  diverged: number;
+  clean: number;
+  drift_violations: number;
+  reporter_stale_slots: number;
+  ff_cron_stale_slots: number;
+}
+
+export interface FleetGitData {
+  generated_at: string;
+  scope: string;
+  summary: FleetGitSummary;
+  hosts: FleetGitHostHealth[];
+  drift_violations: Array<Record<string, string>>;
+  vm_errors: Array<Record<string, string>>;
+}
+
+export interface FleetGitHealthProxy {
+  available: boolean;
+  reason: string;
+  orchestrator_url: string;
+  data: FleetGitData | null;
+}
+
+export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
+  return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
 export { ApiError };

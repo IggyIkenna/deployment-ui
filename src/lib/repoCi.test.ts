@@ -2,7 +2,18 @@
 
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow } from "../api/client";
-import { ciStatusTone, deltaLabel, formatAge, rowSeverity, shortSha, sitJobTone, stuckClassTone } from "./repoCi";
+import {
+  ciStatusTone,
+  deltaLabel,
+  formatAge,
+  githubBranchUrl,
+  githubChecksUrl,
+  githubCommitUrl,
+  rowSeverity,
+  shortSha,
+  sitJobTone,
+  stuckClassTone,
+} from "./repoCi";
 
 describe("ciStatusTone", () => {
   it("maps the 9-state lifecycle to tones", () => {
@@ -108,5 +119,21 @@ describe("rowSeverity", () => {
       ),
     ).toBe(1);
     expect(rowSeverity(row({}))).toBe(0);
+  });
+});
+
+describe("github deep-links (operator click-through rule)", () => {
+  it("githubCommitUrl builds the commit page, null when no SHA", () => {
+    expect(githubCommitUrl("mtds", "abc1234")).toBe("https://github.com/IggyIkenna/mtds/commit/abc1234");
+    expect(githubCommitUrl("mtds", null)).toBeNull();
+  });
+  it("githubChecksUrl points at the SHA's checks, falls back to actions when no SHA", () => {
+    expect(githubChecksUrl("mtds", "abc1234")).toBe("https://github.com/IggyIkenna/mtds/commit/abc1234/checks");
+    expect(githubChecksUrl("mtds", null)).toBe("https://github.com/IggyIkenna/mtds/actions");
+  });
+  it("githubBranchUrl builds the tree page", () => {
+    expect(githubBranchUrl("mtds", "live-defi-rollout")).toBe(
+      "https://github.com/IggyIkenna/mtds/tree/live-defi-rollout",
+    );
   });
 });

@@ -84,4 +84,20 @@ test.describe("Repos CI page", () => {
     await expect(tab.getByTestId("repo-detail")).toBeVisible();
     await expect(tab.getByTestId("repo-detail")).toContainText("market-tick-data-service");
   });
+
+  // Operator click-through rule (2026-06-10): SHA/CI atoms deep-link to GitHub.
+  test("branch SHAs link to their GitHub commit pages", async ({ page }) => {
+    await page.goto("/repos");
+    const row = page.getByTestId("repo-row-unified-trading-library");
+    const shaLink = row.getByRole("link", { name: "abc1234" });
+    await expect(shaLink).toHaveAttribute("href", /github\.com\/IggyIkenna\/unified-trading-library\/commit\/abc1234/);
+  });
+
+  // Operator errors[] visibility (2026-06-10): degraded repos are shown, not silent.
+  test("degraded-repos strip surfaces a per-repo GitHub-5xx degradation", async ({ page }) => {
+    await page.goto("/repos");
+    const degraded = page.getByTestId("repo-ci-degraded");
+    await expect(degraded).toBeVisible();
+    await expect(degraded).toContainText("ml-service");
+  });
 });
