@@ -49,8 +49,7 @@ steps:
 
   - name: "gcr.io/cloud-builders/gcloud"
     id: "configure-docker"
-    args:
-      ["auth", "configure-docker", "asia-northeast1-docker.pkg.dev", "--quiet"]
+    args: ["auth", "configure-docker", "asia-northeast1-docker.pkg.dev", "--quiet"]
     waitFor: ["-"]
 
   - name: "gcr.io/cloud-builders/gcloud"
@@ -85,12 +84,7 @@ steps:
 
   - name: "gcr.io/cloud-builders/docker"
     id: "push"
-    args:
-      [
-        "push",
-        "--all-tags",
-        "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}",
-      ]
+    args: ["push", "--all-tags", "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}"]
     waitFor: ["build"]
 
   - name: "gcr.io/cloud-builders/gcloud"
