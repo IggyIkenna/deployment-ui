@@ -322,7 +322,13 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
   );
 }
 
-export function RepoCi() {
+/**
+ * RepoCiContent — the Repos-CI dashboard body, rendered as a tab inside the
+ * deployment-ui home shell (LandingTabs) AND as the /repos deep-link. It owns no
+ * page chrome (no `<main>`); the host shell supplies layout + padding so this is a
+ * first-class dashboard tab, not a separate full-page app (operator add 2026-06-10).
+ */
+export function RepoCiContent() {
   const [overview, setOverview] = useState<RepoCiOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -344,7 +350,7 @@ export function RepoCi() {
   }, [load]);
 
   return (
-    <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px] space-y-4" data-testid="repo-ci-page">
+    <div className="space-y-4" data-testid="repo-ci-page">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">Repos CI</h1>
         <div className="flex items-center gap-2">
@@ -392,6 +398,6 @@ export function RepoCi() {
         </>
       )}
       {!overview && !error && <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>}
-    </main>
+    </div>
   );
 }

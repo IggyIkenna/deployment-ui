@@ -7,13 +7,11 @@ import {
   Hammer,
   History,
   Info,
-  LayoutGrid,
   Monitor,
   Play,
   Settings,
   ShieldCheck,
   TrendingUp,
-  Trophy,
 } from "lucide-react";
 import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -26,14 +24,12 @@ import { ServiceStatusTab } from "./components/ServiceStatusTab";
 import { DeployForm } from "./components/DeployForm";
 import { DeploymentDetails } from "./components/DeploymentDetails";
 import { DeploymentResult } from "./components/DeploymentResult";
-import { EpicReadinessView } from "./components/EpicReadinessView";
 import { Header } from "./components/Header";
 import { MockModeBanner } from "./components/MockModeBanner";
 import { MonitorTab } from "./components/MonitorTab";
 import { ReadinessTab } from "./components/ReadinessTab";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
-import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { RepoCoverageTab } from "./components/RepoCoverageTab";
@@ -49,7 +45,8 @@ import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
 import { DailyCosts } from "./pages/DailyCosts";
 import { Dart } from "./pages/Dart";
-import { RepoCi, RepoDetailPanel } from "./pages/RepoCi";
+import { RepoDetailPanel } from "./pages/RepoCi";
+import { LandingTabs } from "./components/LandingTabs";
 import { VmDetail } from "./pages/VmDetail";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
@@ -132,7 +129,8 @@ function App() {
                   <Route path="/ops/costs" element={<DailyCosts />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   <Route path="/dart" element={<Dart />} />
-                  <Route path="/repos" element={<RepoCi />} />
+                  {/* /repos falls through to the home shell (`*`) so Repos CI renders as a
+                      first-class LandingTabs tab, not a separate full-page app. */}
                   <Route path="/safety-ops" element={<SafetyOps />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
@@ -470,24 +468,7 @@ function App() {
                                 );
                               })()
                             ) : (
-                              <Tabs defaultValue="overview" className="w-full">
-                                <TabsList variant="pill" className="grid w-full grid-cols-2 mb-6">
-                                  <TabsTrigger value="overview" className="gap-2">
-                                    <LayoutGrid className="h-4 w-4" />
-                                    Overview
-                                  </TabsTrigger>
-                                  <TabsTrigger value="epics" className="gap-2">
-                                    <Trophy className="h-4 w-4" />
-                                    Epics
-                                  </TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="overview">
-                                  <ServicesOverviewTab onSelectService={setSelectedService} />
-                                </TabsContent>
-                                <TabsContent value="epics">
-                                  <EpicReadinessView />
-                                </TabsContent>
-                              </Tabs>
+                              <LandingTabs onSelectService={setSelectedService} />
                             )}
                           </div>
                         </div>

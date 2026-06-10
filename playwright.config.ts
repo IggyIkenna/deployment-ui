@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// PLAYWRIGHT_BASE_URL lets a run target a dedicated mock dev server (e.g. on a
+// spare port) when the default 5183 is occupied by a non-mock live dev stack —
+// smoke specs require the mock API, so they must not reuse a LIVE-mode server.
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5183";
+
 export default defineConfig({
   testDir: "./tests",
   testMatch: ["smoke/**/*.spec.ts", "e2e/**/*.spec.ts"],
@@ -10,7 +15,7 @@ export default defineConfig({
   reporter: "html",
 
   use: {
-    baseURL: "http://localhost:5183",
+    baseURL: BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     colorScheme: "dark",

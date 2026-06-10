@@ -46,10 +46,38 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("repo-detail")).toContainText("greeks-service");
   });
 
+  test("Repos CI is a landing tab in the home shell, not a separate page", async ({ page }) => {
+    // Regression: operator add 2026-06-10 — /repos must render as a sibling tab of
+    // Overview/Epics inside the deployment-ui home shell, not a standalone full-page app.
+    await page.goto("/");
+    // Sibling landing tabs prove this is the unified home shell, not a separate UI.
+    await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Epics" })).toBeVisible();
+    await page.getByTestId("landing-repos-ci-tab-trigger").click();
+    await expect(page).toHaveURL(/\/repos$/);
+    const tab = page.getByTestId("landing-repos-ci-tab");
+    await expect(tab).toBeVisible();
+    await expect(tab.getByTestId("repo-ci-page")).toBeVisible();
+    await expect(tab.getByTestId("repo-ci-table")).toBeVisible();
+    // Overview tab is still a reachable sibling — confirms tab integration, not a route swap.
+    await page.getByRole("tab", { name: "Overview" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+  });
+
+  test("deep-link to /repos opens the Repos CI landing tab in the home shell", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("landing-repos-ci-tab")).toBeVisible();
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    // The home shell's sibling tabs are present (proves shell, not standalone page).
+    await expect(page.getByRole("tab", { name: "Epics" })).toBeVisible();
+  });
+
   test("per-service CI tab renders the same drill-down in service context", async ({ page }) => {
     await page.goto("/");
-    // Select a service from the home-view list, then open its CI tab.
-    await page.getByText("market-tick-data-service", { exact: true }).first().click();
+    // Select a service from the home-view sidebar, then open its CI tab. The sidebar
+    // item carries a stable testid (the overview table is not auto-fetched), so this
+    // is robust under the mock API.
+    await page.getByTestId("service-item-market-tick-data-service").click();
     await page.getByTestId("service-ci-tab-trigger").click();
     const tab = page.getByTestId("service-ci-tab");
     await expect(tab).toBeVisible();
