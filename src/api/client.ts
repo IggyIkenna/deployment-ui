@@ -3232,4 +3232,125 @@ export async function getVenueYearCoverage(assetGroups: string[]): Promise<Venue
   return fetchJson<VenueYearCoverageResponse>(`/data-status/venue-year-coverage?${params.toString()}`);
 }
 
+// ---------------------------------------------------------------------------
+// Repo-CI dashboard (plan: ci_dashboard_deployment_ui_2026_06_10.md)
+// Mirrors deployment-api routes/_repo_ci_types.py — keep the two in lockstep.
+// ---------------------------------------------------------------------------
+
+export type StuckClass = "conflicting" | "skip_ci_jammed" | "v2_never_reported" | "failing_check" | "automerge_stuck";
+
+export interface RepoCiBranchHead {
+  branch: string;
+  sha: string | null;
+  committed_at: string | null;
+}
+
+export interface RepoCiBranchDelta {
+  base: string;
+  head: string;
+  ahead_by: number;
+  behind_by: number;
+  files_changed: number;
+}
+
+export interface RepoCiCommit {
+  sha: string;
+  message: string;
+  author: string;
+  committed_at: string | null;
+  v2_conclusion: string | null;
+}
+
+export interface RepoCiPr {
+  repo: string;
+  number: number;
+  title?: string;
+  base?: string;
+  head?: string;
+  url?: string;
+  age_min?: number;
+  auto_merge?: boolean;
+  merge_state?: string;
+  failed_check?: boolean;
+  v2_present?: boolean;
+  stuck_class?: StuckClass | null;
+}
+
+export interface RepoCiSitState {
+  in_breaking_pending: boolean;
+  staging_locked: boolean;
+  staging_locked_reason: string | null;
+  last_sit_run_status: string | null;
+  last_sit_run_age_min: number | null;
+  stuck_in_sit: boolean;
+}
+
+export interface RepoCiSitJob {
+  name: string;
+  status: string;
+  conclusion: string | null;
+}
+
+export interface RepoCiSitLastRun {
+  url: string;
+  status: string;
+  conclusion: string | null;
+  age_min: number | null;
+  jobs: RepoCiSitJob[];
+}
+
+export interface RepoCiImageSignal {
+  last_build_status: string | null;
+  last_build_sha: string | null;
+  deployed_version: string | null;
+  image_stale: boolean | null;
+}
+
+export interface RepoCiOverviewRow {
+  repo: string;
+  repo_type: string;
+  ci_status: string;
+  branches: RepoCiBranchHead[];
+  deltas: RepoCiBranchDelta[];
+  open_prs: RepoCiPr[];
+  sit: RepoCiSitState;
+  image: RepoCiImageSignal;
+}
+
+export interface RepoCiOverview {
+  generated_at: string;
+  source: string;
+  repos: RepoCiOverviewRow[];
+  stuck_prs: RepoCiPr[];
+  stuck_in_sit: string[];
+  sit_last_run: RepoCiSitLastRun | null;
+}
+
+export interface RepoCiBranchCommits {
+  branch: string;
+  commits: RepoCiCommit[];
+}
+
+export interface RepoCiDetail {
+  repo: string;
+  repo_type: string;
+  ci_status: string;
+  generated_at: string;
+  source: string;
+  branches: RepoCiBranchHead[];
+  deltas: RepoCiBranchDelta[];
+  history: RepoCiBranchCommits[];
+  open_prs: RepoCiPr[];
+  sit: RepoCiSitState;
+  image: RepoCiImageSignal;
+}
+
+export async function getRepoCiOverview(): Promise<RepoCiOverview> {
+  return fetchJson<RepoCiOverview>("/repo-ci/overview");
+}
+
+export async function getRepoCiDetail(repo: string): Promise<RepoCiDetail> {
+  return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail`);
+}
+
 export { ApiError };

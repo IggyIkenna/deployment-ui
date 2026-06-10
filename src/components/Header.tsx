@@ -15,10 +15,7 @@ import {
 } from "lucide-react";
 import { MOCK_MODE as FRONTEND_MOCK } from "../lib/mock-api";
 import { useHealth } from "../hooks/useHealth";
-import {
-  useCloudProvider,
-  type CloudTarget,
-} from "../contexts/CloudProviderContext";
+import { useCloudProvider, type CloudTarget } from "../contexts/CloudProviderContext";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import * as api from "../api/client";
@@ -83,9 +80,7 @@ export function Header() {
             <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">
               Unified Trading Deployment
             </h1>
-            <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
-              deployment monitoring & orchestration
-            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] font-mono">deployment monitoring & orchestration</p>
           </div>
         </div>
 
@@ -96,11 +91,7 @@ export function Header() {
           aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           data-testid="mobile-menu-btn"
         >
-          {mobileMenuOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
 
         <div className="hidden md:flex items-center gap-3">
@@ -176,6 +167,13 @@ export function Header() {
             Live Ops
           </Link>
           <Link
+            to="/repos"
+            data-testid="nav-repos-ci"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Repos CI
+          </Link>
+          <Link
             to="/dart"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
           >
@@ -223,33 +221,19 @@ export function Header() {
             </button>
             {envTooltipOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 min-w-48 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-3 shadow-xl text-xs">
-                <div className="font-semibold text-[var(--color-text-primary)] mb-2">
-                  Environment
-                </div>
+                <div className="font-semibold text-[var(--color-text-primary)] mb-2">Environment</div>
                 <div className="flex flex-col gap-1 font-mono">
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">
-                      env:{" "}
-                    </span>
-                    <span className="text-[var(--color-text-secondary)]">
-                      {envTier}
-                    </span>
+                    <span className="text-[var(--color-text-tertiary)]">env: </span>
+                    <span className="text-[var(--color-text-secondary)]">{envTier}</span>
                   </span>
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">
-                      api:{" "}
-                    </span>
-                    <span className="text-[var(--color-text-secondary)]">
-                      {window.location.origin}/api
-                    </span>
+                    <span className="text-[var(--color-text-tertiary)]">api: </span>
+                    <span className="text-[var(--color-text-secondary)]">{window.location.origin}/api</span>
                   </span>
                   <span>
-                    <span className="text-[var(--color-text-tertiary)]">
-                      cloud:{" "}
-                    </span>
-                    <span className="text-[var(--color-text-secondary)]">
-                      {target}
-                    </span>
+                    <span className="text-[var(--color-text-tertiary)]">cloud: </span>
+                    <span className="text-[var(--color-text-secondary)]">{target}</span>
                   </span>
                 </div>
               </div>
@@ -284,9 +268,7 @@ export function Header() {
             </button>
           </div>
 
-          {switching && (
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
-          )}
+          {switching && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-muted)]" />}
 
           {/* Clear Cache Button */}
           <Button
@@ -312,25 +294,19 @@ export function Header() {
             {isHealthy ? (
               <>
                 <Activity className="h-4 w-4 text-[var(--color-accent-green)] animate-pulse" />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  API
-                </span>
+                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
                 <Badge variant="success">Connected</Badge>
               </>
             ) : error ? (
               <>
                 <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  API
-                </span>
+                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
                 <Badge variant="error">Disconnected</Badge>
               </>
             ) : (
               <>
                 <Activity className="h-4 w-4 text-[var(--color-text-tertiary)] animate-pulse" />
-                <span className="text-sm text-[var(--color-text-secondary)]">
-                  API
-                </span>
+                <span className="text-sm text-[var(--color-text-secondary)]">API</span>
                 <Badge variant="pending">Checking...</Badge>
               </>
             )}
@@ -343,9 +319,7 @@ export function Header() {
               className="text-xs"
               title={health.gcs_fuse.reason}
               style={{
-                color: health.gcs_fuse.active
-                  ? "var(--color-accent-green)"
-                  : "var(--color-accent-red)",
+                color: health.gcs_fuse.active ? "var(--color-accent-green)" : "var(--color-accent-red)",
               }}
             >
               {target === "aws"
