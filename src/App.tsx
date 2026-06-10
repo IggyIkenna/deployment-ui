@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { createDeployment } from "./api/client";
 import { RequireAuth } from "./auth/RequireAuth";
@@ -38,6 +38,7 @@ import { VenueCoverageTable } from "./components/VenueCoverageTable";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ServiceUrlSync } from "./components/ServiceUrlSync";
 import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -70,6 +71,16 @@ function App() {
   const [lastRequest, setLastRequest] = useState<DeploymentRequest | null>(null);
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("deploy");
+
+  // URL is the source of truth for the home shell (ServiceUrlSync): /service/{name}/{tab}
+  // drives the state; landing paths (/ /epics /repos /alerts) clear the selection.
+  const handleUrlService = useCallback((service: string | null, tab: string | null) => {
+    setSelectedService(service);
+    if (service) setActiveTab(tab ?? "deploy");
+    setDeploymentResult(null);
+    setDeploymentError(null);
+    setSelectedDeploymentId(null);
+  }, []);
 
   const handleDeploy = async (request: DeploymentRequest) => {
     setIsDeploying(true);
@@ -120,6 +131,11 @@ function App() {
               <div className="min-h-screen bg-[var(--color-bg-primary)]">
                 <MockModeBanner />
                 <Header />
+                <ServiceUrlSync
+                  selectedService={selectedService}
+                  activeTab={activeTab}
+                  onUrlService={handleUrlService}
+                />
                 <Routes>
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />

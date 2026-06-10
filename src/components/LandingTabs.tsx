@@ -27,6 +27,7 @@ function tabForPath(pathname: string): LandingTab {
   if (pathname === "/repos") return "repos";
   if (pathname === "/alerts") return "alerts";
   if (pathname === "/fleet") return "fleet";
+  if (pathname === "/epics") return "epics";
   return "overview";
 }
 
@@ -49,6 +50,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
       repos: "/repos",
       alerts: "/alerts",
       fleet: "/fleet",
+      epics: "/epics",
     };
     const target = routeFor[value] ?? "/";
     if (location.pathname !== target) navigate(target);

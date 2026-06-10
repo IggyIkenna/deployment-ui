@@ -22,16 +22,11 @@ function CoverageBar({
   expected_unattempted_pending_fetch: number;
   total: number;
 }) {
-  if (total === 0)
-    return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
+  if (total === 0) return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
   const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%`;
   return (
     <div className="flex h-2 rounded overflow-hidden w-full">
-      <div
-        className="bg-emerald-500"
-        style={{ width: pct(captured) }}
-        title={`captured: ${captured}`}
-      />
+      <div className="bg-emerald-500" style={{ width: pct(captured) }} title={`captured: ${captured}`} />
       <div
         className="bg-teal-400"
         style={{ width: pct(empty_confirmed) }}
@@ -100,11 +95,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           >
             reachable
           </span>
-          {data?.date && (
-            <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">
-              {data.date}
-            </span>
-          )}
+          {data?.date && <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">{data.date}</span>}
         </div>
       </CardHeader>
       <CardContent>
@@ -119,12 +110,11 @@ export function HonestCoverageCard({ date }: { date?: string }) {
             data-testid="honest-coverage-not-yet-computed"
           >
             <Info className="h-4 w-4" />
-            Coverage data not yet computed for{date ? ` ${date}` : " this date"}
-            .
+            Coverage data not yet computed for{date ? ` ${date}` : " this date"}.
           </div>
         ) : error ? (
           <div className="text-xs text-red-500">{error}</div>
-        ) : data ? (
+        ) : data?.by_asset_group ? (
           <div className="space-y-2">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
               {AG_ORDER.filter((ag) => ag in data.by_asset_group).map((ag) => {
@@ -135,10 +125,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                     className="p-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] space-y-1"
                   >
                     <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-mono uppercase"
-                      >
+                      <Badge variant="outline" className="text-[10px] font-mono uppercase">
                         {ag}
                       </Badge>
                       <span
@@ -161,9 +148,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                       expected_unattempted_pending_fetch={s.expected_unattempted_pending_fetch}
                       total={s.total}
                     />
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      {s.total.toLocaleString()} shards
-                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">{s.total.toLocaleString()} shards</div>
                   </div>
                 );
               })}
