@@ -41,7 +41,9 @@ test.describe("Repos CI page", () => {
 
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {
     await page.goto("/repos");
-    await page.getByTestId("repo-row-greeks-service").click();
+    // Click the repo-NAME cell (not a SHA/CI link — those deep-link to GitHub and
+    // stopPropagation, so a row-center click lands on a link, not the row select).
+    await page.getByTestId("repo-row-greeks-service").getByText("greeks-service", { exact: true }).click();
     await expect(page.getByTestId("repo-detail")).toBeVisible();
     await expect(page.getByTestId("repo-detail")).toContainText("greeks-service");
   });

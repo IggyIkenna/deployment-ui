@@ -552,6 +552,46 @@ export async function getEpicDetail(epicId: string): Promise<EpicDetail> {
   return fetchJson(`/epics/${epicId}`);
 }
 
+// --- Epics tab v2 — live PM epics + active-plan drilldown (operator add 2026-06-10) ----
+
+export interface EpicPlanRow {
+  slug: string;
+  parent_epic: string;
+  status: string;
+  estimate_class: string;
+  done: number;
+  open: number;
+  open_p0p1: number;
+  pct: number;
+  github_url: string;
+}
+
+export interface EpicCard {
+  name: string;
+  title: string;
+  tier: string;
+  priority: string;
+  assigned_vm: string;
+  status: string;
+  github_url: string;
+  plans: EpicPlanRow[];
+  plan_count: number;
+  done_total: number;
+  open_total: number;
+}
+
+export interface EpicsPlansResponse {
+  generated_at: string;
+  source: string;
+  epics: EpicCard[];
+  orphans: EpicPlanRow[];
+  orphan_count: number;
+}
+
+export async function getEpicsPlans(): Promise<EpicsPlansResponse> {
+  return fetchJson<EpicsPlansResponse>("/epics/plans");
+}
+
 // Data Status
 export async function getDataStatus(params: {
   service: string;

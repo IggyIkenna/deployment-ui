@@ -7,16 +7,10 @@ vi.mock("./auth/RequireAuth", () => ({
 }));
 vi.mock("./components/Header", () => ({ Header: () => <div>Header</div> }));
 vi.mock("./components/ServiceList", () => ({
-  ServiceList: ({
-    onSelectService,
-  }: {
-    onSelectService: (s: string) => void;
-  }) => (
+  ServiceList: ({ onSelectService }: { onSelectService: (s: string) => void }) => (
     <div>
       <div>ServiceList</div>
-      <button onClick={() => onSelectService("execution-service")}>
-        Select Service
-      </button>
+      <button onClick={() => onSelectService("execution-service")}>Select Service</button>
     </div>
   ),
 }));
@@ -50,8 +44,8 @@ vi.mock("./components/ServicesOverviewTab", () => ({
 vi.mock("./components/CloudBuildsTab", () => ({
   CloudBuildsTab: () => <div>CloudBuildsTab</div>,
 }));
-vi.mock("./components/EpicReadinessView", () => ({
-  EpicReadinessView: () => <div>EpicReadinessView</div>,
+vi.mock("./pages/EpicsPlans", () => ({
+  EpicsPlansContent: () => <div>EpicsPlansContent</div>,
 }));
 vi.mock("./components/MonitorTab", () => ({
   MonitorTab: () => <div>MonitorTab</div>,
@@ -95,10 +89,7 @@ describe("App", () => {
     // Monitor tab should now be active (aria-selected)
     await waitFor(() => {
       const monitorTab = screen.getByRole("tab", { name: /monitor/i });
-      expect(
-        monitorTab.getAttribute("aria-selected") ??
-          monitorTab.getAttribute("data-state"),
-      ).toBeTruthy();
+      expect(monitorTab.getAttribute("aria-selected") ?? monitorTab.getAttribute("data-state")).toBeTruthy();
     });
   });
 

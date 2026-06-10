@@ -16,7 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { BellRing, GitBranch, LayoutGrid, Server, Trophy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ServicesOverviewTab } from "./ServicesOverviewTab";
-import { EpicReadinessView } from "./EpicReadinessView";
+import { EpicsPlansContent } from "../pages/EpicsPlans";
 import { RepoCiContent } from "../pages/RepoCi";
 import { AlertsContent } from "../pages/Alerts";
 import { FleetGitContent } from "../pages/FleetGit";
@@ -84,7 +84,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
         <ServicesOverviewTab onSelectService={onSelectService} />
       </TabsContent>
       <TabsContent value="epics">
-        <EpicReadinessView />
+        <EpicsPlansContent />
       </TabsContent>
       <TabsContent value="repos" data-testid="landing-repos-ci-tab">
         <RepoCiContent />

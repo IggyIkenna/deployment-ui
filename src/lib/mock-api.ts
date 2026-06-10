@@ -1801,6 +1801,59 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Epics
+  // Epics tab v2 — live PM epics + plan drilldown (mirrors deployment-api epics.py
+  // _mock_epics_plans). MUST precede /api/epics and /api/epics/{id} below.
+  if (path === "/api/epics/plans") {
+    const plan = (slug: string, parent: string, done: number, open: number, p01: number) => ({
+      slug,
+      parent_epic: parent,
+      status: "active",
+      estimate_class: "brand-new",
+      done,
+      open,
+      open_p0p1: p01,
+      pct: done + open > 0 ? Math.round((1000 * done) / (done + open)) / 10 : 0,
+      github_url: `https://github.com/IggyIkenna/unified-trading-pm/blob/main/plans/active/${slug}.md`,
+    });
+    return json({
+      generated_at: new Date().toISOString(),
+      source: "mock",
+      epics: [
+        {
+          name: "observability_master",
+          title: "Observability Master",
+          tier: "L4",
+          priority: "P0",
+          assigned_vm: "vm-cross-cutting",
+          status: "active",
+          github_url: "https://github.com/IggyIkenna/unified-trading-pm/blob/main/plans/epics/observability_master.md",
+          plans: [
+            plan("monitoring_control_plane_master_2026_06_10", "observability_master", 18, 5, 2),
+            plan("ci_dashboard_deployment_ui_2026_06_10", "observability_master", 30, 6, 1),
+          ],
+          plan_count: 2,
+          done_total: 48,
+          open_total: 11,
+        },
+        {
+          name: "orchestrator_master",
+          title: "Orchestrator Master",
+          tier: "L4",
+          priority: "P1",
+          assigned_vm: "vm-orchestrator",
+          status: "active",
+          github_url: "https://github.com/IggyIkenna/unified-trading-pm/blob/main/plans/epics/orchestrator_master.md",
+          plans: [],
+          plan_count: 0,
+          done_total: 0,
+          open_total: 0,
+        },
+      ],
+      orphans: [plan("some_orphan_plan_2026_06_10", "", 2, 4, 1)],
+      orphan_count: 1,
+    });
+  }
+
   if (path === "/api/epics") {
     return json([
       {
