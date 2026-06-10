@@ -455,12 +455,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
  * Numbers are loosely representative of the live manifest (~16 k rows).
  */
 function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
-  const mkCqgEntry = (
-    found: number,
-    expected: number,
-    source: string,
-    clusters: Record<string, number>,
-  ) => ({
+  const mkCqgEntry = (found: number, expected: number, source: string, clusters: Record<string, number>) => ({
     ..._mkVenue(expected, found, 0, 0),
     source,
     observed_clusters: clusters,
@@ -470,44 +465,24 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
   });
 
   const dataTypesDict = {
-    "crypto-price-prediction": mkCqgEntry(
-      280,
-      300,
-      "polymarket_clob",
-      {
-        "0xabc123def456abc123def456abc123def456abc1": 14200,
-        "0xbcd234efa567bcd234efa567bcd234efa567bcd2": 9800,
-        "0xcde345f0b678cde345f0b678cde345f0b678cde3": 6100,
-      },
-    ),
-    "election-outcome": mkCqgEntry(
-      95,
-      120,
-      "polymarket_clob",
-      {
-        "0xdef456012789def456012789def456012789def4": 5500,
-        "0xef0567123890ef0567123890ef0567123890ef05": 4300,
-      },
-    ),
-    "sports-result": mkCqgEntry(
-      410,
-      450,
-      "polymarket_gamma_api",
-      {
-        "0xf06678234901f06678234901f06678234901f066": 22000,
-        "0x017789345012017789345012017789345012017f": 18500,
-        "0x12889a456123128899a4561231288994561231289": 11200,
-      },
-    ),
-    "kalshi-economic-event": mkCqgEntry(
-      60,
-      80,
-      "kalshi_rest_api",
-      {
-        KXINFL_24JAN: 3200,
-        KXGDP_24Q1: 2800,
-      },
-    ),
+    "crypto-price-prediction": mkCqgEntry(280, 300, "polymarket_clob", {
+      "0xabc123def456abc123def456abc123def456abc1": 14200,
+      "0xbcd234efa567bcd234efa567bcd234efa567bcd2": 9800,
+      "0xcde345f0b678cde345f0b678cde345f0b678cde3": 6100,
+    }),
+    "election-outcome": mkCqgEntry(95, 120, "polymarket_clob", {
+      "0xdef456012789def456012789def456012789def4": 5500,
+      "0xef0567123890ef0567123890ef0567123890ef05": 4300,
+    }),
+    "sports-result": mkCqgEntry(410, 450, "polymarket_gamma_api", {
+      "0xf06678234901f06678234901f06678234901f066": 22000,
+      "0x017789345012017789345012017789345012017f": 18500,
+      "0x12889a456123128899a4561231288994561231289": 11200,
+    }),
+    "kalshi-economic-event": mkCqgEntry(60, 80, "kalshi_rest_api", {
+      KXINFL_24JAN: 3200,
+      KXGDP_24Q1: 2800,
+    }),
   };
 
   const totalFound = Object.values(dataTypesDict).reduce((s, v) => s + v.dates_found, 0);
@@ -1023,6 +998,175 @@ function json<T>(data: T, status = 200): Response {
   });
 }
 
+// ---- Repo-CI dashboard mock data (keep in lockstep with deployment-api repo_ci.py) ----
+
+interface MockRepoCiPr {
+  repo: string;
+  number: number;
+  title: string;
+  base: string;
+  head: string;
+  url: string;
+  age_min: number;
+  auto_merge: boolean;
+  merge_state: string;
+  failed_check: boolean;
+  v2_present: boolean;
+  stuck_class: string | null;
+}
+
+function mockRepoCiPr(
+  repo: string,
+  number: number,
+  base: string,
+  stuckClass: string | null,
+  state: string,
+): MockRepoCiPr {
+  return {
+    repo,
+    number,
+    title: `promote live-defi-rollout -> ${base}`,
+    base,
+    head: "live-defi-rollout",
+    url: `https://github.com/IggyIkenna/${repo}/pull/${number}`,
+    age_min: 95,
+    auto_merge: true,
+    merge_state: state,
+    failed_check: stuckClass === "failing_check",
+    v2_present: stuckClass === null || stuckClass === "failing_check" || stuckClass === "automerge_stuck",
+    stuck_class: stuckClass,
+  };
+}
+
+function mockRepoCiRow(
+  repo: string,
+  repoType: string,
+  ciStatus: string,
+  prs: MockRepoCiPr[],
+  sitPending: boolean,
+  sitStuck: boolean,
+) {
+  return {
+    repo,
+    repo_type: repoType,
+    ci_status: ciStatus,
+    branches: [
+      { branch: "live-defi-rollout", sha: "abc1234567", committed_at: "2026-06-10T08:00:00Z" },
+      { branch: "staging", sha: "abc1200567", committed_at: "2026-06-10T07:30:00Z" },
+      { branch: "main", sha: "abc1100567", committed_at: "2026-06-10T06:00:00Z" },
+    ],
+    deltas: [
+      { base: "staging", head: "live-defi-rollout", ahead_by: 2, behind_by: 0, files_changed: 3 },
+      { base: "main", head: "staging", ahead_by: 1, behind_by: 0, files_changed: 1 },
+      { base: "main", head: "live-defi-rollout", ahead_by: 3, behind_by: 0, files_changed: 4 },
+    ],
+    open_prs: prs,
+    sit: {
+      in_breaking_pending: sitPending,
+      staging_locked: sitPending,
+      staging_locked_reason: sitPending ? "breaking cascade in flight" : null,
+      last_sit_run_status: sitStuck ? "failure" : "success",
+      last_sit_run_age_min: sitStuck ? 240 : 12,
+      stuck_in_sit: sitStuck,
+    },
+    image: {
+      last_build_status: "SUCCESS",
+      last_build_sha: "aaa1111",
+      deployed_version: "1.2.0",
+      image_stale: ciStatus === "FAILING",
+    },
+  };
+}
+
+function mockRepoCiOverview() {
+  const rows = [
+    mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false),
+    mockRepoCiRow(
+      "market-tick-data-service",
+      "service",
+      "STAGING_GREEN",
+      [mockRepoCiPr("market-tick-data-service", 41, "main", "conflicting", "dirty")],
+      false,
+      false,
+    ),
+    mockRepoCiRow(
+      "instruments-service",
+      "service",
+      "STAGING_PENDING",
+      [mockRepoCiPr("instruments-service", 17, "staging", "v2_never_reported", "blocked")],
+      false,
+      false,
+    ),
+    mockRepoCiRow(
+      "execution-service",
+      "service",
+      "FAILING",
+      [
+        mockRepoCiPr("execution-service", 88, "main", "skip_ci_jammed", "blocked"),
+        mockRepoCiPr("execution-service", 89, "staging", "failing_check", "blocked"),
+      ],
+      false,
+      false,
+    ),
+    mockRepoCiRow(
+      "strategy-service",
+      "service",
+      "STAGING_GREEN",
+      [mockRepoCiPr("strategy-service", 52, "main", "automerge_stuck", "blocked")],
+      false,
+      false,
+    ),
+    mockRepoCiRow("greeks-service", "service", "STAGING_GREEN", [], true, true),
+  ];
+  const stuckPrs = rows.flatMap((row) => row.open_prs.filter((pr) => pr.stuck_class));
+  const stuckInSit = rows.filter((row) => row.sit.stuck_in_sit).map((row) => row.repo);
+  return {
+    generated_at: new Date().toISOString(),
+    source: "mock",
+    repos: rows,
+    stuck_prs: stuckPrs,
+    stuck_in_sit: stuckInSit,
+    sit_last_run: {
+      url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/12345",
+      status: "in_progress",
+      conclusion: null,
+      age_min: 18,
+      jobs: [
+        { name: "sit / unified-trading-library", status: "completed", conclusion: "success" },
+        { name: "sit / greeks-service", status: "completed", conclusion: "failure" },
+        { name: "sit / execution-service", status: "in_progress", conclusion: null },
+      ],
+    },
+  };
+}
+
+function mockRepoCiDetail(repo: string) {
+  const overview = mockRepoCiOverview();
+  const row = overview.repos.find((r) => r.repo === repo) ?? overview.repos[0];
+  return {
+    repo: row.repo,
+    repo_type: row.repo_type,
+    ci_status: row.ci_status,
+    generated_at: new Date().toISOString(),
+    source: "mock",
+    branches: row.branches,
+    deltas: row.deltas,
+    history: row.branches.map((branch) => ({
+      branch: branch.branch,
+      commits: Array.from({ length: 5 }, (_, i) => ({
+        sha: `${branch.sha ?? "abc0000"}${i}`,
+        message: `feat: change ${i} on ${branch.branch}`,
+        author: "ikennaigboaka [slot-3·laptop]",
+        committed_at: "2026-06-10T07:00:00Z",
+        v2_conclusion: i % 3 ? "success" : "failure",
+      })),
+    })),
+    open_prs: row.open_prs,
+    sit: row.sit,
+    image: row.image,
+  };
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -1040,6 +1184,19 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       if (path.startsWith(entry.pattern) || path === entry.pattern) {
         return json({ error: "Mock forced error", path }, entry.status);
       }
+    }
+  }
+
+  // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
+  // every stuck class + stuck-in-SIT + the live SIT-run panel, pinned by the
+  // playwright regression spec tests/e2e/repos-stuck-panel.spec.ts)
+  if (path === "/api/repo-ci/overview") {
+    return json(mockRepoCiOverview());
+  }
+  {
+    const detailMatch = path.match(/^\/api\/repo-ci\/([^/]+)\/detail$/);
+    if (detailMatch) {
+      return json(mockRepoCiDetail(detailMatch[1]));
     }
   }
 

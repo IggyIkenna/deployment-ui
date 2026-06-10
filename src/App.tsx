@@ -48,6 +48,7 @@ import { Chaos } from "./pages/Chaos";
 import { ClientSubscriptions } from "./pages/ClientSubscriptions";
 import { DailyCosts } from "./pages/DailyCosts";
 import { Dart } from "./pages/Dart";
+import { RepoCi } from "./pages/RepoCi";
 import { VmDetail } from "./pages/VmDetail";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
@@ -130,6 +131,7 @@ function App() {
                   <Route path="/ops/costs" element={<DailyCosts />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   <Route path="/dart" element={<Dart />} />
+                  <Route path="/repos" element={<RepoCi />} />
                   <Route path="/safety-ops" element={<SafetyOps />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
