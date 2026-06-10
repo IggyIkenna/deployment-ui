@@ -1366,6 +1366,20 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/repo-ci/fleet-git-health") {
     return json(mockFleetGitHealth());
   }
+  // GitHub rate-budget tracker — the whole fleet shares ONE PAT (5000/hr REST).
+  // Mock seeds a healthy REST pool + a low GraphQL pool so the tracker's
+  // green/amber/red toning is visible (mirrors deployment-api gh-rate-limit).
+  if (path === "/api/repos/gh-rate-limit") {
+    const reset = Math.floor(Date.now() / 1000) + 1800;
+    return json({
+      fetched_at: new Date().toISOString().slice(0, 16) + "Z",
+      resources: {
+        core: { limit: 5000, remaining: 4200, used: 800, reset },
+        graphql: { limit: 5000, remaining: 600, used: 4400, reset },
+        search: { limit: 30, remaining: 30, used: 0, reset },
+      },
+    });
+  }
   {
     const detailMatch = path.match(/^\/api\/repo-ci\/([^/]+)\/detail$/);
     if (detailMatch) {

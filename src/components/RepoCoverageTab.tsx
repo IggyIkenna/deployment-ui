@@ -10,24 +10,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRepoCoverage } from "../api/repoCoverage";
 import type { RepoCoverage } from "../api/repoCoverage";
+import { GhRateBudget } from "./GhRateBudget";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
 function CoverageBadge({ aboveTarget }: { aboveTarget: boolean }) {
-  return (
-    <Badge variant={aboveTarget ? "success" : "error"}>
-      {aboveTarget ? "All green" : "Below target"}
-    </Badge>
-  );
+  return <Badge variant={aboveTarget ? "success" : "error"}>{aboveTarget ? "All green" : "Below target"}</Badge>;
 }
 
 function fmtSnapshotAge(snapshotAt: string | null): string {
@@ -98,15 +89,15 @@ export function RepoCoverageTab() {
         <div>
           <CardTitle className="text-base">Repo Test Coverage</CardTitle>
           <CardDescription>
-            Per-repo coverage status from latest snapshot. Green = all surfaces
-            above target; red = worst surface details shown.
+            Per-repo coverage status from latest snapshot. Green = all surfaces above target; red = worst surface
+            details shown.
           </CardDescription>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <GhRateBudget />
           {rows !== null && (
             <span className="text-sm text-[var(--color-text-secondary)]">
-              {greenCount}/{totalCount} green · last{" "}
-              {fmtLastRefreshed(lastRefreshed)}
+              {greenCount}/{totalCount} green · last {fmtLastRefreshed(lastRefreshed)}
             </span>
           )}
           <Button
@@ -124,16 +115,11 @@ export function RepoCoverageTab() {
       </CardHeader>
       <CardContent>
         {error && (
-          <p
-            className="text-sm text-[var(--color-accent-red)] mb-4"
-            data-testid="coverage-error"
-          >
+          <p className="text-sm text-[var(--color-accent-red)] mb-4" data-testid="coverage-error">
             {error}
           </p>
         )}
-        {!error && rows === null && loading && (
-          <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>
-        )}
+        {!error && rows === null && loading && <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>}
         {rows !== null && rows.length === 0 && (
           <p className="text-sm text-[var(--color-text-secondary)]">
             No data — coverage snapshot cron not yet running.
@@ -160,10 +146,7 @@ export function RepoCoverageTab() {
                   <td className="py-2 pr-6">
                     <CoverageBadge aboveTarget={row.all_above_target} />
                   </td>
-                  <td
-                    className="py-2 pr-6"
-                    data-testid={`coverage-snapshot-age-${row.repo}`}
-                  >
+                  <td className="py-2 pr-6" data-testid={`coverage-snapshot-age-${row.repo}`}>
                     <SnapshotAgeBadge snapshotAt={row.snapshot_at} />
                   </td>
                   <td className="py-2 text-[var(--color-text-secondary)] text-xs">
