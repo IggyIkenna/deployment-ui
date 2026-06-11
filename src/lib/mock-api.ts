@@ -1079,10 +1079,15 @@ function mockRepoCiRow(
       stuck_in_sit: sitStuck,
     },
     image: {
-      last_build_status: "SUCCESS",
-      last_build_sha: "aaa1111",
-      last_build_time: "2026-06-11T07:30:00Z",
-      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-build-id",
+      // A FAILING repo's latest build is red, but a prior SUCCESS is still surfaced
+      // (last_success_*) so the UI's "last good image" path is exercised.
+      last_build_status: ciStatus === "FAILING" ? "FAILURE" : "SUCCESS",
+      last_build_sha: ciStatus === "FAILING" ? "fae1ed0" : "aaa1111",
+      last_build_time: ciStatus === "FAILING" ? "2026-06-11T09:15:00Z" : "2026-06-11T07:30:00Z",
+      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-latest",
+      last_success_sha: "aaa1111",
+      last_success_time: "2026-06-11T07:30:00Z",
+      last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
