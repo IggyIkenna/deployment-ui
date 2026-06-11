@@ -32,3 +32,17 @@ test.describe("Repos CI — B3 commit count in LDR→main delta", () => {
     await expect(row).toContainText("4 files ahead · 3 commits");
   });
 });
+
+test.describe("Repos CI — B1 Image column build visibility", () => {
+  test("Image cell shows build time + a click-through to the build log", async ({ page }) => {
+    await page.goto("/repos");
+    const row = page.getByTestId("repo-row-unified-trading-library");
+    const cell = row.getByTestId("image-cell");
+    await expect(cell).toBeVisible();
+    // Build time rendered (B1 — when it last built), deterministic MM-DD HH:MM.
+    await expect(cell.getByTestId("image-build-time")).toHaveText("06-11 07:30");
+    // Log click-through to the GCP Cloud Build / AWS CodeBuild console.
+    const link = cell.getByTestId("image-log-link");
+    await expect(link).toHaveAttribute("href", /cloud-build|codebuild/);
+  });
+});

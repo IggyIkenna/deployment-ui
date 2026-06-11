@@ -93,11 +93,22 @@ async function mockAllApis(page: Page) {
   );
   await page.route("**/api/services/*/checklist", (route) =>
     route.fulfill({
+      // Must match the real ChecklistResponse contract (src/types ChecklistResponse) that
+      // ReadinessTab consumes — the prior `{overallScore, isBlocked, categories}` shape was
+      // stale and omitted `blocking_items`/`readiness_percent`/counts, so ReadinessTab's
+      // `checklist.blocking_items.length` read undefined and crashed the whole app (error
+      // boundary), making the Status tab unreachable in this flow.
       json: {
         service: "instruments-service",
-        overallScore: 87,
-        isBlocked: false,
+        last_updated: "2026-03-15T10:00:00Z",
+        readiness_percent: 87,
+        total_items: 10,
+        completed_items: 8,
+        partial_items: 1,
+        pending_items: 1,
+        not_applicable_items: 0,
         categories: [],
+        blocking_items: [],
       },
     }),
   );
@@ -122,7 +133,20 @@ async function mockAllApis(page: Page) {
     }),
   );
   await page.route("**/api/services/*/dependencies", (route) =>
-    route.fulfill({ json: { upstream: [], downstream: [], dependents: [] } }),
+    // Must match the real DependenciesResponse contract (src/types) that DependenciesPanel
+    // consumes — the prior `{upstream, downstream, dependents}` shape omitted
+    // `downstream_dependents` + `outputs`, so the panel's `.length` reads on those crashed the
+    // whole app (error boundary), intermittently making the Status tab unreachable in this flow.
+    route.fulfill({
+      json: {
+        service: "instruments-service",
+        description: "",
+        upstream: [],
+        outputs: [],
+        external_dependencies: [],
+        downstream_dependents: [],
+      },
+    }),
   );
   await page.route("**/service-status/*/status", (route) =>
     route.fulfill({

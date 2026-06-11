@@ -16,12 +16,14 @@ import {
   getRepoCiOverview,
   type RepoCiDetail,
   type RepoCiOverview,
+  type RepoCiImageSignal,
   type RepoCiOverviewRow,
   type RepoCiPr,
   type RepoCiPromotionBlocked,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
+  buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
   deltaLabel,
@@ -170,6 +172,52 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
   );
 }
 
+/** Image-column deploy signal (B1 — operator add 2026-06-11): status chip + build TIME +
+ * a click-through to the GCP Cloud Build / AWS CodeBuild console log (answers "why is the
+ * image this colour / when did it last build / where's the log"), not a bare status word.
+ * Honest-unknown stays "unknown" (no fabricated time/link). */
+function ImageCell({ image }: { image: RepoCiImageSignal }) {
+  const chip =
+    image.image_stale === true ? (
+      <Chip tone="yellow">stale</Chip>
+    ) : image.last_build_status ? (
+      <Chip tone={image.last_build_status === "SUCCESS" ? "green" : "red"}>{image.last_build_status}</Chip>
+    ) : (
+      <Chip tone="gray">{image.deployed_version ?? "unknown"}</Chip>
+    );
+  const title =
+    [
+      image.last_build_sha ? `sha ${image.last_build_sha}` : "",
+      image.last_build_time ? `built ${image.last_build_time}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
+  return (
+    <div className="flex items-center gap-1.5" data-testid="image-cell" title={title}>
+      {image.last_build_log_url ? (
+        <a
+          href={image.last_build_log_url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 hover:underline"
+          data-testid="image-log-link"
+        >
+          {chip}
+          <ExternalLink className="h-3 w-3 text-[var(--color-text-muted)]" />
+        </a>
+      ) : (
+        chip
+      )}
+      {image.last_build_time && (
+        <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="image-build-time">
+          {buildTimeLabel(image.last_build_time)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
   const empty = blocked.length === 0;
   return (
@@ -284,15 +332,7 @@ function OverviewTable({
                 )}
               </td>
               <td className="py-1.5">
-                {row.image.image_stale === true ? (
-                  <Chip tone="yellow">stale</Chip>
-                ) : row.image.last_build_status ? (
-                  <Chip tone={row.image.last_build_status === "SUCCESS" ? "green" : "red"}>
-                    {row.image.last_build_status}
-                  </Chip>
-                ) : (
-                  <Chip tone="gray">{row.image.deployed_version ?? "unknown"}</Chip>
-                )}
+                <ImageCell image={row.image} />
               </td>
             </tr>
           );

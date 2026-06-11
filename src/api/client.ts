@@ -3342,6 +3342,10 @@ export interface RepoCiSitLastRun {
 export interface RepoCiImageSignal {
   last_build_status: string | null;
   last_build_sha: string | null;
+  /** ISO-8601 of the last build's finish_time (B1 — when the image last built). */
+  last_build_time?: string | null;
+  /** GCP Cloud Build / AWS CodeBuild console URL for the last build (B1 — click-through). */
+  last_build_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
 }

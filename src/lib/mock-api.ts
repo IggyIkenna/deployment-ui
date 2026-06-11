@@ -1081,6 +1081,8 @@ function mockRepoCiRow(
     image: {
       last_build_status: "SUCCESS",
       last_build_sha: "aaa1111",
+      last_build_time: "2026-06-11T07:30:00Z",
+      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-build-id",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
@@ -1480,7 +1482,17 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/api\/services\/(.+)\/dependencies$/)) {
-    return json({ upstream: [], downstream: [], dependents: [] });
+    // Must match the real DependenciesResponse contract (src/types) — the prior
+    // {upstream, downstream, dependents} omitted downstream_dependents + outputs, so
+    // DependenciesPanel's `.length` reads on those crashed the app (error boundary).
+    return json({
+      service: "",
+      description: "",
+      upstream: [],
+      outputs: [],
+      external_dependencies: [],
+      downstream_dependents: [],
+    });
   }
   if (path.match(/^\/api\/services\/(.+)\/checklist\/validate$/)) {
     return json({

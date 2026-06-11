@@ -112,6 +112,13 @@ export function promotionBlockedLabel(entry: RepoCiPromotionBlocked): string {
   return entry.quarantined ? `${fails} · quarantined` : fails;
 }
 
+/** Short build-time label "MM-DD HH:MM" from an ISO timestamp (B1 — when the image last
+ * built). Deterministic (no wall-clock) so it's test-stable; em-dash when absent. */
+export function buildTimeLabel(iso: string | null | undefined): string {
+  if (!iso || iso.length < 16) return "—";
+  return `${iso.slice(5, 10)} ${iso.slice(11, 16)}`;
+}
+
 /** Minutes -> "18m" / "3h 20m" / "2d 4h". */
 export function formatAge(ageMin: number | null | undefined): string {
   if (ageMin == null) return "—";

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow } from "../api/client";
 import {
+  buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
   deltaLabel,
@@ -78,6 +79,15 @@ describe("promotionBlockedTone / promotionBlockedLabel (G1)", () => {
     expect(promotionBlockedTone(warn)).toBe("yellow");
     expect(promotionBlockedLabel(quar)).toBe("3 fails · quarantined");
     expect(promotionBlockedLabel(warn)).toBe("1 fail");
+  });
+});
+
+describe("buildTimeLabel (B1)", () => {
+  it("renders MM-DD HH:MM from an ISO timestamp, em-dash when absent", () => {
+    expect(buildTimeLabel("2026-06-11T07:30:00Z")).toBe("06-11 07:30");
+    expect(buildTimeLabel(null)).toBe("—");
+    expect(buildTimeLabel(undefined)).toBe("—");
+    expect(buildTimeLabel("bad")).toBe("—");
   });
 });
 
