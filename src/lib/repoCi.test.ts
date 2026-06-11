@@ -15,6 +15,7 @@ import {
   githubCommitUrl,
   promotionBlockedLabel,
   promotionBlockedTone,
+  isDrainingClass,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -192,6 +193,33 @@ describe("rowSeverity", () => {
       ),
     ).toBe(1);
     expect(rowSeverity(row({}))).toBe(0);
+  });
+
+  it("a DRAINING-only stuck PR is in-progress (1), NOT counted as stuck (2) — operator 2026-06-11", () => {
+    // auto-merge-armed / v2-re-fire drains self-heal in-band → pending, not parked.
+    expect(rowSeverity(row({ open_prs: [{ repo: "r", number: 1, stuck_class: "automerge_stuck" }] }))).toBe(1);
+    expect(rowSeverity(row({ open_prs: [{ repo: "r", number: 2, stuck_class: "v2_never_reported" }] }))).toBe(1);
+    // a genuine conflict wall on the same row still escalates to stuck (2).
+    expect(
+      rowSeverity(
+        row({
+          open_prs: [
+            { repo: "r", number: 1, stuck_class: "automerge_stuck" },
+            { repo: "r", number: 3, stuck_class: "conflicting" },
+          ],
+        }),
+      ),
+    ).toBe(2);
+  });
+});
+
+describe("isDrainingClass", () => {
+  it("auto-recovering classes are draining (pending); intervention classes are not", () => {
+    expect(isDrainingClass("automerge_stuck")).toBe(true);
+    expect(isDrainingClass("v2_never_reported")).toBe(true);
+    expect(isDrainingClass("conflicting")).toBe(false);
+    expect(isDrainingClass("failing_check")).toBe(false);
+    expect(isDrainingClass("skip_ci_jammed")).toBe(false);
   });
 });
 
