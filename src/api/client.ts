@@ -568,6 +568,8 @@ export interface EpicPlanRow {
 
 export interface EpicCard {
   name: string;
+  /** Filename slug (e.g. mtds_mdps_master) — the canonical match key vs plan.parent_epic. */
+  slug: string;
   title: string;
   tier: string;
   priority: string;
@@ -583,6 +585,8 @@ export interface EpicCard {
 export interface EpicsPlansResponse {
   generated_at: string;
   source: string;
+  /** True = GitHub unreachable/rate-limited; payload is the API's last cached snapshot. */
+  stale?: boolean;
   epics: EpicCard[];
   orphans: EpicPlanRow[];
   orphan_count: number;

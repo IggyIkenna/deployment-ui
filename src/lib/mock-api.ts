@@ -1879,9 +1879,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     return json({
       generated_at: new Date().toISOString(),
       source: "mock",
+      stale: false,
       epics: [
         {
           name: "observability_master",
+          slug: "observability_master",
           title: "Observability Master",
           tier: "L4",
           priority: "P0",
@@ -1898,6 +1900,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         },
         {
           name: "orchestrator_master",
+          slug: "orchestrator_master",
           title: "Orchestrator Master",
           tier: "L4",
           priority: "P1",
