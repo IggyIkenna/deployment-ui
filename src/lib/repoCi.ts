@@ -3,7 +3,7 @@
  * Plan: ci_dashboard_deployment_ui_2026_06_10.md Phase 2 — unit-tested chip/label logic.
  */
 
-import type { RepoCiOverviewRow, RepoCiSitJob, StuckClass } from "../api/client";
+import type { RepoCiOverviewRow, RepoCiPromotionBlocked, RepoCiSitJob, StuckClass } from "../api/client";
 
 export type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
 
@@ -61,10 +61,13 @@ export function shortSha(sha: string | null): string {
   return sha ? sha.slice(0, 7) : "—";
 }
 
-/** Human delta label: "+3 files" content-aware, "in sync" when no content delta. */
+/** Human delta label: content-aware files-ahead (the honest signal) + commit count (B3 —
+ * operator add 2026-06-11). `files_changed` stays the truth; `ahead_by` is shown alongside so
+ * the squash-skew case ("0 files but N commits ahead") is legible rather than a bare "in sync". */
 export function deltaLabel(filesChanged: number, aheadBy: number): string {
-  if (filesChanged === 0) return aheadBy > 0 ? "in sync (squash skew)" : "in sync";
-  return `${filesChanged} file${filesChanged === 1 ? "" : "s"} ahead`;
+  const commits = aheadBy > 0 ? ` · ${aheadBy} commit${aheadBy === 1 ? "" : "s"}` : "";
+  if (filesChanged === 0) return aheadBy > 0 ? `in sync${commits} (squash skew)` : "in sync";
+  return `${filesChanged} file${filesChanged === 1 ? "" : "s"} ahead${commits}`;
 }
 
 /** Short branch label for the CI chip annotation: live-defi-rollout → LDR, else the branch name. */
@@ -95,6 +98,34 @@ export function rowSeverity(row: RepoCiOverviewRow): number {
   if (row.open_prs.some((pr) => pr.stuck_class) || row.sit.stuck_in_sit) return 2;
   if (row.deltas.some((d) => d.files_changed > 0)) return 1;
   return 0;
+}
+
+/** Tone for a promotion-blocked entry — a quarantined repo is parked out of staging→main
+ * (CRITICAL page) → red; failing-but-not-yet-quarantined is a WARNING → yellow. */
+export function promotionBlockedTone(entry: RepoCiPromotionBlocked): ChipTone {
+  return entry.quarantined ? "red" : "yellow";
+}
+
+/** Compact "2 fails · quarantined" / "1 fail" label for a promotion-blocked entry. */
+export function promotionBlockedLabel(entry: RepoCiPromotionBlocked): string {
+  const fails = `${entry.failures} fail${entry.failures === 1 ? "" : "s"}`;
+  return entry.quarantined ? `${fails} · quarantined` : fails;
+}
+
+/** Short build-time label "MM-DD HH:MM" from an ISO timestamp (B1 — when the image last
+ * built). Deterministic (no wall-clock) so it's test-stable; em-dash when absent. */
+export function buildTimeLabel(iso: string | null | undefined): string {
+  if (!iso || iso.length < 16) return "—";
+  return `${iso.slice(5, 10)} ${iso.slice(11, 16)}`;
+}
+
+/** Which build system produced a build, inferred from its console log URL host (B2 — the
+ * drill-down build header shows the source). Cloud Build / CodeBuild, or null when unknown. */
+export function buildSourceLabel(logUrl: string | null | undefined): string | null {
+  if (!logUrl) return null;
+  if (logUrl.includes("cloud.google.com") || logUrl.includes("cloud-build")) return "Cloud Build";
+  if (logUrl.includes("aws.amazon.com") || logUrl.includes("codebuild")) return "CodeBuild";
+  return null;
 }
 
 /** Minutes -> "18m" / "3h 20m" / "2d 4h". */

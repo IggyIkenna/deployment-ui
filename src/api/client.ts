@@ -568,6 +568,8 @@ export interface EpicPlanRow {
 
 export interface EpicCard {
   name: string;
+  /** Filename slug (e.g. mtds_mdps_master) — the canonical match key vs plan.parent_epic. */
+  slug: string;
   title: string;
   tier: string;
   priority: string;
@@ -583,6 +585,8 @@ export interface EpicCard {
 export interface EpicsPlansResponse {
   generated_at: string;
   source: string;
+  /** True = GitHub unreachable/rate-limited; payload is the API's last cached snapshot. */
+  stale?: boolean;
   epics: EpicCard[];
   orphans: EpicPlanRow[];
   orphan_count: number;
@@ -3342,6 +3346,15 @@ export interface RepoCiSitLastRun {
 export interface RepoCiImageSignal {
   last_build_status: string | null;
   last_build_sha: string | null;
+  /** ISO-8601 of the last build's finish_time (B1 — when the image last built). */
+  last_build_time?: string | null;
+  /** GCP Cloud Build / AWS CodeBuild console URL for the last build (B1 — click-through). */
+  last_build_log_url?: string | null;
+  /** Last SUCCESSFUL build — so a red latest build doesn't hide the last good image
+   * ("current build failed, what's the last sha that succeeded?"). Null = no success in window. */
+  last_success_sha?: string | null;
+  last_success_time?: string | null;
+  last_success_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
 }
@@ -3366,6 +3379,17 @@ export interface RepoCiError {
   error: string;
 }
 
+export interface RepoCiPromotionBlocked {
+  repo: string;
+  /** consecutive staging→main promotion failures (manifest promotion_failures[repo]). */
+  failures: number;
+  /** true when the repo is parked in promotion_quarantine (vs. failing-but-not-yet-quarantined). */
+  quarantined: boolean;
+  since?: string;
+  attempts?: number;
+  escalated?: boolean;
+}
+
 export interface RepoCiOverview {
   generated_at: string;
   source: string;
@@ -3374,6 +3398,9 @@ export interface RepoCiOverview {
   stuck_in_sit: string[];
   sit_last_run: RepoCiSitLastRun | null;
   errors?: RepoCiError[];
+  /** Repos parked out of the staging→main promotion (G1 — alert-parity for the
+   * staging-to-main genuine-failure CRITICAL page + newly-quarantined WARNING). */
+  promotion_blocked?: RepoCiPromotionBlocked[];
 }
 
 export interface RepoCiBranchCommits {

@@ -130,6 +130,15 @@ export function EpicsPlansContent() {
               {data.source}
             </span>
           )}
+          {data?.stale && (
+            <span
+              className="text-[10px] font-mono rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-400"
+              data-testid="epics-stale-badge"
+              title="GitHub rate-limited/unreachable — showing the last cached snapshot"
+            >
+              STALE
+            </span>
+          )}
         </div>
         <Button variant="ghost" size="sm" onClick={() => void load()} disabled={loading} data-testid="epics-refresh">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />

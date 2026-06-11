@@ -10,23 +10,29 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ExternalLink, GitBranch, RefreshCw } from "lucide-react";
+import { AlertCircle, ExternalLink, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   getRepoCiDetail,
   getRepoCiOverview,
   type RepoCiDetail,
   type RepoCiOverview,
+  type RepoCiImageSignal,
   type RepoCiOverviewRow,
   type RepoCiPr,
+  type RepoCiPromotionBlocked,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
+  buildSourceLabel,
+  buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
   deltaLabel,
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  promotionBlockedLabel,
+  promotionBlockedTone,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -167,6 +173,126 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
   );
 }
 
+/** Image-column deploy signal (B1 — operator add 2026-06-11): status chip (→ build log) +
+ * the built COMMIT SHA (→ that commit on GitHub, "where this build came from") + build TIME.
+ * Answers "why is the image this colour / what code built it / when / where's the log" — not a
+ * bare status word. Honest-unknown stays "unknown" (no fabricated sha/time/link). */
+function ImageCell({ image, repo }: { image: RepoCiImageSignal; repo: string }) {
+  const chip =
+    image.image_stale === true ? (
+      <Chip tone="yellow">stale</Chip>
+    ) : image.last_build_status ? (
+      <Chip tone={image.last_build_status === "SUCCESS" ? "green" : "red"}>{image.last_build_status}</Chip>
+    ) : (
+      <Chip tone="gray">{image.deployed_version ?? "unknown"}</Chip>
+    );
+  const commitUrl = githubCommitUrl(repo, image.last_build_sha ?? null);
+  const title =
+    [
+      image.last_build_sha ? `built from ${image.last_build_sha}` : "",
+      image.last_build_time ? `at ${image.last_build_time}` : "",
+      image.deployed_version ? `deployed ${image.deployed_version}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
+  return (
+    <div className="flex items-center gap-1.5" data-testid="image-cell" title={title}>
+      {image.last_build_log_url ? (
+        <a
+          href={image.last_build_log_url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 hover:underline"
+          data-testid="image-log-link"
+        >
+          {chip}
+          <ExternalLink className="h-3 w-3 text-[var(--color-text-muted)]" />
+        </a>
+      ) : (
+        chip
+      )}
+      {image.last_build_sha &&
+        (commitUrl ? (
+          <a
+            href={commitUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-[var(--color-text-secondary)] hover:underline"
+            data-testid="image-build-sha"
+            title="built commit → GitHub"
+          >
+            {shortSha(image.last_build_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-[var(--color-text-secondary)]" data-testid="image-build-sha">
+            {shortSha(image.last_build_sha)}
+          </span>
+        ))}
+      {image.last_build_time && (
+        <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="image-build-time">
+          {buildTimeLabel(image.last_build_time)}
+        </span>
+      )}
+      {/* When the latest build is RED, surface the last GREEN sha so the column doesn't hide
+          the last good image. Linked to that commit on GitHub. */}
+      {image.last_build_status &&
+        image.last_build_status !== "SUCCESS" &&
+        image.last_success_sha &&
+        (githubCommitUrl(repo, image.last_success_sha) ? (
+          <a
+            href={githubCommitUrl(repo, image.last_success_sha) ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-emerald-400 hover:underline"
+            data-testid="image-last-success"
+            title={`last successful build: ${image.last_success_sha}${image.last_success_time ? ` (${image.last_success_time})` : ""}`}
+          >
+            ✓ {shortSha(image.last_success_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-emerald-400" data-testid="image-last-success">
+            ✓ {shortSha(image.last_success_sha)}
+          </span>
+        ))}
+    </div>
+  );
+}
+
+function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
+  const empty = blocked.length === 0;
+  return (
+    <Card data-testid="promotion-blocked-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-400" />
+          Promotion blocked — staging→main
+          <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {empty && (
+          <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-blocked-empty">
+            Nothing parked — staging→main draining cleanly.
+          </p>
+        )}
+        {blocked.map((b) => (
+          <div key={b.repo} className="flex items-center gap-2 text-sm" data-testid={`promotion-blocked-${b.repo}`}>
+            <Chip tone={promotionBlockedTone(b)}>{promotionBlockedLabel(b)}</Chip>
+            <span className="font-mono text-[var(--color-text-primary)]">{b.repo}</span>
+            {b.escalated && <span className="text-[var(--color-text-muted)] text-xs">escalated</span>}
+            {b.since != null && (
+              <span className="text-[var(--color-text-muted)] text-xs">since {b.since.slice(0, 10)}</span>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OverviewTable({
   rows,
   selected,
@@ -249,15 +375,7 @@ function OverviewTable({
                 )}
               </td>
               <td className="py-1.5">
-                {row.image.image_stale === true ? (
-                  <Chip tone="yellow">stale</Chip>
-                ) : row.image.last_build_status ? (
-                  <Chip tone={row.image.last_build_status === "SUCCESS" ? "green" : "red"}>
-                    {row.image.last_build_status}
-                  </Chip>
-                ) : (
-                  <Chip tone="gray">{row.image.deployed_version ?? "unknown"}</Chip>
-                )}
+                <ImageCell image={row.image} repo={row.repo} />
               </td>
             </tr>
           );
@@ -304,7 +422,6 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
         <span className="font-mono text-sm text-[var(--color-text-primary)]">{detail.repo}</span>
         <Chip tone={ciStatusTone(detail.ci_status)}>{detail.ci_status}</Chip>
         {detail.sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
-        {detail.image.deployed_version && <Chip tone="gray">deployed {detail.image.deployed_version}</Chip>}
       </div>
       {/* Cross-links to the EXISTING surfaces for this repo — don't redo those tabs
           (operator add 2026-06-10: repo drill-down deep-links data-status / monitor /
@@ -329,6 +446,107 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           Fleet Git
         </Link>
       </div>
+      {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
+          + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
+          when the repo has no Cloud Build / CodeBuild. */}
+      <div
+        className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+        data-testid="repo-detail-build-header"
+      >
+        <span className="text-[var(--color-text-muted)]">Last image build:</span>
+        {detail.image.last_build_status ? (
+          <>
+            <Chip
+              tone={
+                detail.image.image_stale === true
+                  ? "yellow"
+                  : detail.image.last_build_status === "SUCCESS"
+                    ? "green"
+                    : "red"
+              }
+            >
+              {detail.image.image_stale === true ? "stale" : detail.image.last_build_status}
+            </Chip>
+            {buildSourceLabel(detail.image.last_build_log_url) && (
+              <span className="text-[var(--color-text-secondary)]" data-testid="build-header-source">
+                {buildSourceLabel(detail.image.last_build_log_url)}
+              </span>
+            )}
+            {detail.image.last_build_time && (
+              <span className="text-[var(--color-text-muted)]" data-testid="build-header-time">
+                {buildTimeLabel(detail.image.last_build_time)}
+              </span>
+            )}
+            {detail.image.last_build_sha && (
+              <a
+                href={githubCommitUrl(detail.repo, detail.image.last_build_sha) ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[var(--color-text-secondary)] hover:underline"
+                data-testid="build-header-sha"
+                title="built commit → GitHub"
+              >
+                {shortSha(detail.image.last_build_sha)}
+              </a>
+            )}
+            {detail.image.last_build_log_url && (
+              <a
+                href={detail.image.last_build_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="build-header-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {detail.image.deployed_version && (
+              <span className="text-[var(--color-text-muted)]">deployed {detail.image.deployed_version}</span>
+            )}
+          </>
+        ) : (
+          <span className="text-[var(--color-text-muted)]" data-testid="build-header-none">
+            no Cloud Build / CodeBuild for this repo
+          </span>
+        )}
+      </div>
+      {/* When the latest build is RED, show the LAST SUCCESSFUL build separately — the last good
+          image's sha/time/log, so a failed latest doesn't hide where the running image came from. */}
+      {detail.image.last_build_status &&
+        detail.image.last_build_status !== "SUCCESS" &&
+        detail.image.last_success_sha && (
+          <div
+            className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
+            data-testid="repo-detail-last-success"
+          >
+            <span className="text-[var(--color-text-muted)]">Last successful build:</span>
+            <Chip tone="green">SUCCESS</Chip>
+            {detail.image.last_success_time && (
+              <span className="text-[var(--color-text-muted)]">{buildTimeLabel(detail.image.last_success_time)}</span>
+            )}
+            <a
+              href={githubCommitUrl(detail.repo, detail.image.last_success_sha) ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-emerald-400 hover:underline"
+              data-testid="last-success-sha"
+              title="last good commit → GitHub"
+            >
+              {shortSha(detail.image.last_success_sha)}
+            </a>
+            {detail.image.last_success_log_url && (
+              <a
+                href={detail.image.last_success_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="last-success-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
       {detail.open_prs.length > 0 && (
         <div className="space-y-1" data-testid="repo-detail-prs">
           {detail.open_prs.map((pr) => (
@@ -475,9 +693,10 @@ export function RepoCiContent() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
+            <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
           </div>
           {selectedRepo ? (
             <Card>

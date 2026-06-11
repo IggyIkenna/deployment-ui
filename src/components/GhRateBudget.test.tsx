@@ -24,8 +24,8 @@ const RED = "var(--color-accent-red)";
 const AMBER = "var(--color-accent-amber)";
 const GREEN = "var(--color-accent-green)";
 
-function makeData(coreRemaining: number, coreLimit = 5000): GhRateLimit {
-  return {
+function makeData(coreRemaining: number, coreLimit = 5000, withApp = false): GhRateLimit {
+  const data: GhRateLimit = {
     fetched_at: "2026-06-11T12:00:00Z",
     resources: {
       core: { limit: coreLimit, remaining: coreRemaining, used: coreLimit - coreRemaining, reset: 1_780_000_000 },
@@ -33,6 +33,15 @@ function makeData(coreRemaining: number, coreLimit = 5000): GhRateLimit {
       search: { limit: 30, remaining: 30, used: 0, reset: 1_780_000_000 },
     },
   };
+  if (withApp) {
+    data.app = {
+      resources: {
+        core: { limit: 5000, remaining: 4950, used: 50, reset: 1_780_000_000 },
+        graphql: { limit: 5000, remaining: 5000, used: 0, reset: 1_780_000_000 },
+      },
+    };
+  }
+  return data;
 }
 
 describe("rateBudgetTone", () => {
@@ -88,6 +97,30 @@ describe("GhRateBudget", () => {
     });
     const remaining = screen.getByTestId("gh-rate-budget-pool-core").querySelector(".font-mono") as HTMLElement;
     expect(remaining.style.color).toBe(RED);
+  });
+
+  it("renders both the PAT and App rows when the app pool is present", async () => {
+    mockFetch.mockResolvedValue(makeData(4200, 5000, true));
+    render(<GhRateBudget />);
+    await waitFor(() => {
+      expect(screen.getByTestId("gh-rate-budget-pat")).toBeDefined();
+    });
+    // PAT row keeps the original pool testids.
+    expect(screen.getByTestId("gh-rate-budget-pool-core").textContent).toContain("4200/5000");
+    // App row carries the separate pool under its own prefix.
+    expect(screen.getByTestId("gh-rate-budget-app")).toBeDefined();
+    expect(screen.getByTestId("gh-rate-budget-app-pool-core").textContent).toContain("4950/5000");
+    expect(screen.getByTestId("gh-rate-budget-app-pool-graphql").textContent).toContain("5000/5000");
+  });
+
+  it("renders only the PAT row when the app pool is absent (no crash)", async () => {
+    mockFetch.mockResolvedValue(makeData(4200)); // no app block
+    render(<GhRateBudget />);
+    await waitFor(() => {
+      expect(screen.getByTestId("gh-rate-budget-pat")).toBeDefined();
+    });
+    expect(screen.queryByTestId("gh-rate-budget-app")).toBeNull();
+    expect(screen.getByTestId("gh-rate-budget-pool-core").textContent).toContain("4200/5000");
   });
 
   it("shows n/a when the fetch fails", async () => {

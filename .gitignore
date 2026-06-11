@@ -3,6 +3,9 @@
 # Playwright generates this report dir on every test run — never commit it
 # (matches unified-trading-system-ui). orchestrator_autonomy_residual_findings_2026_06_02 FM3.
 playwright-report/
+# src/data/ holds static JSON bundled by Vite (capability-manifest.json etc.)
+# The global `data/` pattern would exclude these; unignore explicitly.
+!src/data/
 
 # =============================================================================
 # Central .gitignore — workspace SSOT (Python + React/TS + security)
@@ -134,3 +137,9 @@ scripts/.orphan-audit-report.json
 # Quality-gate local caches (regenerated each run — never commit; SSOT: CLAUDE.md + cicd_contract_hardening item H)
 .qg_last_passed_sha
 .qg_content_sentinel
+
+# Re-include src/data/ — static JSON bundled by Vite (capability-manifest.json).
+# The global `data/` pattern above would exclude these; this exception must appear
+# AFTER that pattern for gitignore precedence rules to apply correctly.
+!src/data/
+!src/data/**

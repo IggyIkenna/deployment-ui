@@ -2,6 +2,7 @@ import {
   Activity,
   AlertCircle,
   BarChart2,
+  BookOpen,
   Database,
   GitBranch,
   Hammer,
@@ -30,6 +31,7 @@ import { MonitorTab } from "./components/MonitorTab";
 import { ReadinessTab } from "./components/ReadinessTab";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
+import { CapabilityTab } from "./components/CapabilityTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { RepoCoverageTab } from "./components/RepoCoverageTab";
@@ -237,6 +239,7 @@ function App() {
                                             "readiness",
                                             "deploy-readiness",
                                             "data-status",
+                                            "capability",
                                             "monitor",
                                             "history",
                                             "builds",
@@ -248,7 +251,7 @@ function App() {
                                     >
                                       <TabsList
                                         variant="pill"
-                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-10" : selectedService === "deployment-api" ? "grid-cols-11" : selectedService === "market-tick-data-service" ? "grid-cols-10" : "grid-cols-9"} mb-6`}
+                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-11" : selectedService === "deployment-api" ? "grid-cols-12" : selectedService === "market-tick-data-service" ? "grid-cols-11" : "grid-cols-10"} mb-6`}
                                       >
                                         {!isInfra && (
                                           <TabsTrigger value="deploy" className="gap-2">
@@ -276,6 +279,16 @@ function App() {
                                           <TabsTrigger value="data-status" className="gap-2">
                                             <Database className="h-4 w-4" />
                                             Data Status
+                                          </TabsTrigger>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsTrigger
+                                            value="capability"
+                                            className="gap-2"
+                                            data-testid="capability-tab-trigger"
+                                          >
+                                            <BookOpen className="h-4 w-4" />
+                                            Capability
                                           </TabsTrigger>
                                         )}
                                         {!isInfra && (
@@ -339,146 +352,166 @@ function App() {
                                           </TabsTrigger>
                                         )}
                                       </TabsList>
-                                      {!isInfra && (
-                                        <TabsContent value="deploy">
-                                          {/* b3: fresh deployments only — re-deploys live in Monitor */}
-                                          <div className="mb-3 flex items-center gap-2 rounded-md border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-                                            <Info className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-blue)]" />
-                                            <span>
-                                              Fresh deployments only. To re-run a job with the same parameters, use{" "}
-                                              <strong>Monitor → Backfill / Experiments / Live / Scheduled</strong>.
-                                            </span>
-                                          </div>
-                                          <DeployForm
-                                            serviceName={selectedService}
-                                            selectedOperation={selectedOperation}
-                                            onDeploy={handleDeploy}
-                                            isDeploying={isDeploying}
-                                          />
-                                        </TabsContent>
-                                      )}
-                                      {!isInfra && (
-                                        <TabsContent value="monitor">
-                                          <MonitorTab />
-                                        </TabsContent>
-                                      )}
-                                      {!isInfra && (
-                                        <TabsContent value="history">
-                                          <DeploymentHistory
-                                            serviceName={selectedService}
-                                            onViewDetails={(id) => {
-                                              setSelectedDeploymentId(id);
-                                              setActiveTab("monitor");
-                                            }}
-                                          />
-                                        </TabsContent>
-                                      )}
-                                      <TabsContent value="builds">
-                                        <CloudBuildsTab serviceName={selectedService} />
-                                      </TabsContent>
-                                      {!isInfra && (
-                                        <TabsContent value="data-status">
-                                          {selectedService === "market-data-processing-service" && (
-                                            <div
-                                              data-testid="mdps-consolidation-banner"
-                                              className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-4 py-3 text-sm text-[var(--color-text-primary)]"
-                                            >
-                                              <Info className="h-5 w-5 shrink-0 text-[var(--color-accent-blue)] mt-0.5" />
-                                              <div className="flex-1 space-y-1">
-                                                <p className="font-medium">
-                                                  MDPS processed candles live alongside raw ticks under
-                                                  market-tick-data-service&apos;s bucket.
-                                                </p>
-                                                <p className="text-xs text-[var(--color-text-secondary)]">
-                                                  Showing processed-* data types only (prefix{" "}
-                                                  <code className="font-mono px-1 rounded bg-[var(--color-bg-tertiary)]">
-                                                    processed_candles/
-                                                  </code>
-                                                  ). Raw ticks are visible under the full{" "}
-                                                  <button
-                                                    onClick={() => setSelectedService("market-tick-data-service")}
-                                                    className="underline text-[var(--color-accent-blue)] hover:opacity-80"
-                                                  >
-                                                    market-tick-data-service Data Status
-                                                  </button>{" "}
-                                                  tab.
-                                                </p>
-                                              </div>
+                                      {/* Per-tab error boundary (keyed on activeTab so a switch
+                                          remounts + recovers): a render crash in ONE tab's content
+                                          (e.g. a partial/raced API payload) is contained here
+                                          instead of white-screening the whole app via the root
+                                          boundary + making sibling tabs unreachable. Plan item 203. */}
+                                      <ErrorBoundary
+                                        key={activeTab}
+                                        fallbackTitle="This tab hit an error — switch tabs or retry"
+                                      >
+                                        {!isInfra && (
+                                          <TabsContent value="deploy">
+                                            {/* b3: fresh deployments only — re-deploys live in Monitor */}
+                                            <div className="mb-3 flex items-center gap-2 rounded-md border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                                              <Info className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-blue)]" />
+                                              <span>
+                                                Fresh deployments only. To re-run a job with the same parameters, use{" "}
+                                                <strong>Monitor → Backfill / Experiments / Live / Scheduled</strong>.
+                                              </span>
                                             </div>
-                                          )}
-                                          <DataStatusTab
-                                            serviceName={selectedService}
-                                            deploymentResult={deploymentResult}
-                                            isDeploying={isDeploying}
-                                            onDeployMissing={(params) => {
-                                              if (!params.previewRefreshOnly) setActiveTab("deploy");
-                                              handleDeploy({
-                                                service: params.service,
-                                                compute: "vm",
-                                                region: params.region,
-                                                start_date: params.start_date,
-                                                end_date: params.end_date,
-                                                asset_group: params.asset_groups,
-                                                venue: params.venues,
-                                                folder: params.folders,
-                                                data_type: params.data_types,
-                                                force: params.force ?? false,
-                                                dry_run: params.dry_run ?? true,
-                                                skip_existing: params.skip_existing ?? true,
-                                                deploy_missing_only: params.deploy_missing_only ?? true,
-                                                date_granularity: params.date_granularity,
-                                                first_day_of_month_only: params.first_day_of_month_only ?? false,
-                                              });
-                                            }}
-                                          />
+                                            <DeployForm
+                                              serviceName={selectedService}
+                                              selectedOperation={selectedOperation}
+                                              onDeploy={handleDeploy}
+                                              isDeploying={isDeploying}
+                                            />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="monitor">
+                                            <MonitorTab />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="history">
+                                            <DeploymentHistory
+                                              serviceName={selectedService}
+                                              onViewDetails={(id) => {
+                                                setSelectedDeploymentId(id);
+                                                setActiveTab("monitor");
+                                              }}
+                                            />
+                                          </TabsContent>
+                                        )}
+                                        <TabsContent value="builds">
+                                          <CloudBuildsTab serviceName={selectedService} />
                                         </TabsContent>
-                                      )}
-                                      {!isInfra && (
-                                        <TabsContent value="readiness">
-                                          <ReadinessTab serviceName={selectedService} />
+                                        {!isInfra && (
+                                          <TabsContent value="data-status">
+                                            {selectedService === "market-data-processing-service" && (
+                                              <div
+                                                data-testid="mdps-consolidation-banner"
+                                                className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-4 py-3 text-sm text-[var(--color-text-primary)]"
+                                              >
+                                                <Info className="h-5 w-5 shrink-0 text-[var(--color-accent-blue)] mt-0.5" />
+                                                <div className="flex-1 space-y-1">
+                                                  <p className="font-medium">
+                                                    MDPS processed candles live alongside raw ticks under
+                                                    market-tick-data-service&apos;s bucket.
+                                                  </p>
+                                                  <p className="text-xs text-[var(--color-text-secondary)]">
+                                                    Showing processed-* data types only (prefix{" "}
+                                                    <code className="font-mono px-1 rounded bg-[var(--color-bg-tertiary)]">
+                                                      processed_candles/
+                                                    </code>
+                                                    ). Raw ticks are visible under the full{" "}
+                                                    <button
+                                                      onClick={() => setSelectedService("market-tick-data-service")}
+                                                      className="underline text-[var(--color-accent-blue)] hover:opacity-80"
+                                                    >
+                                                      market-tick-data-service Data Status
+                                                    </button>{" "}
+                                                    tab.
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            )}
+                                            <DataStatusTab
+                                              serviceName={selectedService}
+                                              deploymentResult={deploymentResult}
+                                              isDeploying={isDeploying}
+                                              onDeployMissing={(params) => {
+                                                if (!params.previewRefreshOnly) setActiveTab("deploy");
+                                                handleDeploy({
+                                                  service: params.service,
+                                                  compute: "vm",
+                                                  region: params.region,
+                                                  start_date: params.start_date,
+                                                  end_date: params.end_date,
+                                                  asset_group: params.asset_groups,
+                                                  venue: params.venues,
+                                                  folder: params.folders,
+                                                  data_type: params.data_types,
+                                                  force: params.force ?? false,
+                                                  dry_run: params.dry_run ?? true,
+                                                  skip_existing: params.skip_existing ?? true,
+                                                  deploy_missing_only: params.deploy_missing_only ?? true,
+                                                  date_granularity: params.date_granularity,
+                                                  first_day_of_month_only: params.first_day_of_month_only ?? false,
+                                                });
+                                              }}
+                                            />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="capability">
+                                            <CapabilityTab
+                                              onSelectDataStatus={(svc) => {
+                                                setSelectedService(svc);
+                                                setActiveTab("data-status");
+                                              }}
+                                            />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="readiness">
+                                            <ReadinessTab serviceName={selectedService} />
+                                          </TabsContent>
+                                        )}
+                                        <TabsContent value="config">
+                                          <ServiceDetails serviceName={selectedService} />
                                         </TabsContent>
-                                      )}
-                                      <TabsContent value="config">
-                                        <ServiceDetails serviceName={selectedService} />
-                                      </TabsContent>
-                                      {!isInfra && (
-                                        <TabsContent value="status">
-                                          <ServiceStatusTab serviceName={selectedService ?? ""} />
-                                        </TabsContent>
-                                      )}
-                                      {!isInfra && (
-                                        <TabsContent value="ci" data-testid="service-ci-tab">
-                                          {/* Same drill-down component as /repos — single-service context.
+                                        {!isInfra && (
+                                          <TabsContent value="status">
+                                            <ServiceStatusTab serviceName={selectedService ?? ""} />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="ci" data-testid="service-ci-tab">
+                                            {/* Same drill-down component as /repos — single-service context.
                                               Service names that aren't repo names degrade honestly via the
                                               panel's own error state (mapping todo tracked in the CI plan). */}
-                                          <RepoDetailPanel repo={selectedService ?? ""} />
-                                        </TabsContent>
-                                      )}
-                                      {selectedService === "client-reporting-api" && (
-                                        <TabsContent value="client-reporting">
-                                          <ClientReportingTab />
-                                        </TabsContent>
-                                      )}
-                                      {selectedService === "deployment-api" && (
-                                        <TabsContent value="treasury">
-                                          <TreasuryTab />
-                                        </TabsContent>
-                                      )}
-                                      {selectedService === "deployment-api" && (
-                                        <TabsContent value="deploy-readiness">
-                                          <DeploymentReadinessTab />
-                                        </TabsContent>
-                                      )}
-                                      {selectedService === "deployment-api" && (
-                                        <TabsContent value="repo-coverage">
-                                          <RepoCoverageTab />
-                                        </TabsContent>
-                                      )}
-                                      {selectedService === "market-tick-data-service" && (
-                                        <TabsContent value="venue-coverage">
-                                          <VenueCoverageTable />
-                                        </TabsContent>
-                                      )}
+                                            <RepoDetailPanel repo={selectedService ?? ""} />
+                                          </TabsContent>
+                                        )}
+                                        {selectedService === "client-reporting-api" && (
+                                          <TabsContent value="client-reporting">
+                                            <ClientReportingTab />
+                                          </TabsContent>
+                                        )}
+                                        {selectedService === "deployment-api" && (
+                                          <TabsContent value="treasury">
+                                            <TreasuryTab />
+                                          </TabsContent>
+                                        )}
+                                        {selectedService === "deployment-api" && (
+                                          <TabsContent value="deploy-readiness">
+                                            <DeploymentReadinessTab />
+                                          </TabsContent>
+                                        )}
+                                        {selectedService === "deployment-api" && (
+                                          <TabsContent value="repo-coverage">
+                                            <RepoCoverageTab />
+                                          </TabsContent>
+                                        )}
+                                        {selectedService === "market-tick-data-service" && (
+                                          <TabsContent value="venue-coverage">
+                                            <VenueCoverageTable />
+                                          </TabsContent>
+                                        )}
+                                      </ErrorBoundary>
                                     </Tabs>
                                   </>
                                 );

@@ -10,6 +10,12 @@
  * shows a loading state before first load, "n/a" on error. Renders REST (core) +
  * GraphQL budget bars with remaining/limit, tone-coloured by % remaining.
  *
+ * Two pools are surfaced when present: the shared user **PAT** (the fleet-wide
+ * 403 source) and the GitHub **App** ("uts-ci-poller") installation-token pool —
+ * a SEPARATE 5000/hr budget the fleet's CI pollers now draw from. The App row is
+ * rendered only when the API returns the `app` block (best-effort there); when
+ * absent only the PAT row shows (no crash).
+ *
  * Mirrors agent-orchestrator/dashboard/src/FleetGit.tsx `GhRateLimit` +
  * `rateBudgetTone`, ported to deployment-ui's design system (CSS vars / Tailwind).
  *
@@ -19,7 +25,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchGhRateLimit } from "../api/ghRateLimit";
-import type { GhRateLimit } from "../api/ghRateLimit";
+import type { GhRatePool, GhRateLimit } from "../api/ghRateLimit";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -39,6 +45,32 @@ const POOLS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "core", label: "REST" },
   { key: "graphql", label: "GraphQL" },
 ];
+
+/** Render the REST + GraphQL bars for one budget pool (PAT or App). `prefix`
+ * namespaces the testids so the two rows are independently assertable. */
+function PoolBars({ resources, prefix }: { resources: Record<string, GhRatePool>; prefix: string }) {
+  return (
+    <>
+      {POOLS.map(({ key, label }) => {
+        const pool = resources[key];
+        if (!pool) return null;
+        const pct = pool.limit > 0 ? Math.floor((pool.remaining * 100) / pool.limit) : 0;
+        const tone = rateBudgetTone(pct);
+        return (
+          <span key={key} className="inline-flex items-center gap-1.5" data-testid={`${prefix}-pool-${key}`}>
+            <span className="text-[var(--color-text-secondary)]">{label}</span>
+            <span className="inline-block h-1.5 w-12 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+              <span className="block h-full" style={{ width: `${pct}%`, background: tone }} />
+            </span>
+            <span className="font-mono" style={{ color: tone }}>
+              {pool.remaining}/{pool.limit}
+            </span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 export function GhRateBudget() {
   const [data, setData] = useState<GhRateLimit | null>(null);
@@ -85,30 +117,25 @@ export function GhRateBudget() {
     );
   }
 
+  const appResources = data.app?.resources;
+
   return (
     <div
       className="flex items-center gap-3 text-xs"
       data-testid="gh-rate-budget"
-      title="GitHub API budget (shared fleet PAT) · resets hourly"
+      title="GitHub API budget · PAT = shared fleet user token · App = uts-ci-poller (separate pool) · resets hourly"
     >
       <span className="text-[var(--color-text-secondary)]">GH budget:</span>
-      {POOLS.map(({ key, label }) => {
-        const pool = data.resources[key];
-        if (!pool) return null;
-        const pct = pool.limit > 0 ? Math.floor((pool.remaining * 100) / pool.limit) : 0;
-        const tone = rateBudgetTone(pct);
-        return (
-          <span key={key} className="inline-flex items-center gap-1.5" data-testid={`gh-rate-budget-pool-${key}`}>
-            <span className="text-[var(--color-text-secondary)]">{label}</span>
-            <span className="inline-block h-1.5 w-12 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
-              <span className="block h-full" style={{ width: `${pct}%`, background: tone }} />
-            </span>
-            <span className="font-mono" style={{ color: tone }}>
-              {pool.remaining}/{pool.limit}
-            </span>
-          </span>
-        );
-      })}
+      <span className="inline-flex items-center gap-2" data-testid="gh-rate-budget-pat">
+        <span className="font-medium text-[var(--color-text-secondary)]">PAT</span>
+        <PoolBars resources={data.resources} prefix="gh-rate-budget" />
+      </span>
+      {appResources ? (
+        <span className="inline-flex items-center gap-2" data-testid="gh-rate-budget-app">
+          <span className="font-medium text-[var(--color-text-secondary)]">App</span>
+          <PoolBars resources={appResources} prefix="gh-rate-budget-app" />
+        </span>
+      ) : null}
     </div>
   );
 }

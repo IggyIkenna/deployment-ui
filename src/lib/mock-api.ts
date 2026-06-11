@@ -1079,8 +1079,15 @@ function mockRepoCiRow(
       stuck_in_sit: sitStuck,
     },
     image: {
-      last_build_status: "SUCCESS",
-      last_build_sha: "aaa1111",
+      // A FAILING repo's latest build is red, but a prior SUCCESS is still surfaced
+      // (last_success_*) so the UI's "last good image" path is exercised.
+      last_build_status: ciStatus === "FAILING" ? "FAILURE" : "SUCCESS",
+      last_build_sha: ciStatus === "FAILING" ? "fae1ed0" : "aaa1111",
+      last_build_time: ciStatus === "FAILING" ? "2026-06-11T09:15:00Z" : "2026-06-11T07:30:00Z",
+      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-latest",
+      last_success_sha: "aaa1111",
+      last_success_time: "2026-06-11T07:30:00Z",
+      last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
@@ -1149,6 +1156,19 @@ function mockRepoCiOverview() {
     // Degraded-repo errors[] — a per-repo GitHub-5xx degradation is VISIBLE, not
     // silently dropped (mirrors deployment-api _mock_overview seeding one error).
     errors: [{ repo: "ml-service", error: "GitHub HTTP 502 on compare (degraded; row dropped)" }],
+    // Promotion-blocked[] — repos parked out of staging→main (G1). greeks-service is
+    // quarantined (CRITICAL); execution-service is failing-but-not-yet-quarantined (WARNING).
+    promotion_blocked: [
+      {
+        repo: "greeks-service",
+        failures: 3,
+        quarantined: true,
+        since: "2026-06-11T08:00:00Z",
+        attempts: 3,
+        escalated: true,
+      },
+      { repo: "execution-service", failures: 1, quarantined: false },
+    ],
   };
 }
 
@@ -1387,6 +1407,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         graphql: { limit: 5000, remaining: 600, used: 4400, reset },
         search: { limit: 30, remaining: 30, used: 0, reset },
       },
+      // The GitHub App ("uts-ci-poller") pool — a SEPARATE 5000/hr budget the
+      // fleet's CI pollers draw from. Seeded healthy so both rows render.
+      app: {
+        resources: {
+          core: { limit: 5000, remaining: 4950, used: 50, reset },
+          graphql: { limit: 5000, remaining: 5000, used: 0, reset },
+        },
+      },
     });
   }
   {
@@ -1467,7 +1495,17 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/api\/services\/(.+)\/dependencies$/)) {
-    return json({ upstream: [], downstream: [], dependents: [] });
+    // Must match the real DependenciesResponse contract (src/types) — the prior
+    // {upstream, downstream, dependents} omitted downstream_dependents + outputs, so
+    // DependenciesPanel's `.length` reads on those crashed the app (error boundary).
+    return json({
+      service: "",
+      description: "",
+      upstream: [],
+      outputs: [],
+      external_dependencies: [],
+      downstream_dependents: [],
+    });
   }
   if (path.match(/^\/api\/services\/(.+)\/checklist\/validate$/)) {
     return json({
@@ -1841,9 +1879,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     return json({
       generated_at: new Date().toISOString(),
       source: "mock",
+      stale: false,
       epics: [
         {
           name: "observability_master",
+          slug: "observability_master",
           title: "Observability Master",
           tier: "L4",
           priority: "P0",
@@ -1860,6 +1900,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         },
         {
           name: "orchestrator_master",
+          slug: "orchestrator_master",
           title: "Orchestrator Master",
           tier: "L4",
           priority: "P1",

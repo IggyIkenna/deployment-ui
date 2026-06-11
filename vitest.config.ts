@@ -11,6 +11,15 @@ export default defineConfig({
       "react-dom": path.resolve("node_modules/react-dom"),
     },
   },
+  // @exodus/bytes v1.15+ is ESM-only but html-encoding-sniffer (via jsdom) uses
+  // CJS require().  Force vitest to inline-transform the package so the forks
+  // pool can load it without the ERR_REQUIRE_ESM startup crash.
+  // Tracked as a jsdom / html-encoding-sniffer upstream issue.
+  server: {
+    deps: {
+      inline: ["@exodus/bytes"],
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,
