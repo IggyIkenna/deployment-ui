@@ -119,6 +119,15 @@ export function buildTimeLabel(iso: string | null | undefined): string {
   return `${iso.slice(5, 10)} ${iso.slice(11, 16)}`;
 }
 
+/** Which build system produced a build, inferred from its console log URL host (B2 — the
+ * drill-down build header shows the source). Cloud Build / CodeBuild, or null when unknown. */
+export function buildSourceLabel(logUrl: string | null | undefined): string | null {
+  if (!logUrl) return null;
+  if (logUrl.includes("cloud.google.com") || logUrl.includes("cloud-build")) return "Cloud Build";
+  if (logUrl.includes("aws.amazon.com") || logUrl.includes("codebuild")) return "CodeBuild";
+  return null;
+}
+
 /** Minutes -> "18m" / "3h 20m" / "2d 4h". */
 export function formatAge(ageMin: number | null | undefined): string {
   if (ageMin == null) return "—";

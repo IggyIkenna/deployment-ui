@@ -3346,6 +3346,11 @@ export interface RepoCiImageSignal {
   last_build_time?: string | null;
   /** GCP Cloud Build / AWS CodeBuild console URL for the last build (B1 — click-through). */
   last_build_log_url?: string | null;
+  /** Last SUCCESSFUL build — so a red latest build doesn't hide the last good image
+   * ("current build failed, what's the last sha that succeeded?"). Null = no success in window. */
+  last_success_sha?: string | null;
+  last_success_time?: string | null;
+  last_success_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
 }

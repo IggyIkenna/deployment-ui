@@ -23,6 +23,7 @@ import {
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
+  buildSourceLabel,
   buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
@@ -172,11 +173,11 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
   );
 }
 
-/** Image-column deploy signal (B1 — operator add 2026-06-11): status chip + build TIME +
- * a click-through to the GCP Cloud Build / AWS CodeBuild console log (answers "why is the
- * image this colour / when did it last build / where's the log"), not a bare status word.
- * Honest-unknown stays "unknown" (no fabricated time/link). */
-function ImageCell({ image }: { image: RepoCiImageSignal }) {
+/** Image-column deploy signal (B1 — operator add 2026-06-11): status chip (→ build log) +
+ * the built COMMIT SHA (→ that commit on GitHub, "where this build came from") + build TIME.
+ * Answers "why is the image this colour / what code built it / when / where's the log" — not a
+ * bare status word. Honest-unknown stays "unknown" (no fabricated sha/time/link). */
+function ImageCell({ image, repo }: { image: RepoCiImageSignal; repo: string }) {
   const chip =
     image.image_stale === true ? (
       <Chip tone="yellow">stale</Chip>
@@ -185,10 +186,12 @@ function ImageCell({ image }: { image: RepoCiImageSignal }) {
     ) : (
       <Chip tone="gray">{image.deployed_version ?? "unknown"}</Chip>
     );
+  const commitUrl = githubCommitUrl(repo, image.last_build_sha ?? null);
   const title =
     [
-      image.last_build_sha ? `sha ${image.last_build_sha}` : "",
-      image.last_build_time ? `built ${image.last_build_time}` : "",
+      image.last_build_sha ? `built from ${image.last_build_sha}` : "",
+      image.last_build_time ? `at ${image.last_build_time}` : "",
+      image.deployed_version ? `deployed ${image.deployed_version}` : "",
     ]
       .filter(Boolean)
       .join(" · ") || undefined;
@@ -209,11 +212,51 @@ function ImageCell({ image }: { image: RepoCiImageSignal }) {
       ) : (
         chip
       )}
+      {image.last_build_sha &&
+        (commitUrl ? (
+          <a
+            href={commitUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-[var(--color-text-secondary)] hover:underline"
+            data-testid="image-build-sha"
+            title="built commit → GitHub"
+          >
+            {shortSha(image.last_build_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-[var(--color-text-secondary)]" data-testid="image-build-sha">
+            {shortSha(image.last_build_sha)}
+          </span>
+        ))}
       {image.last_build_time && (
         <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="image-build-time">
           {buildTimeLabel(image.last_build_time)}
         </span>
       )}
+      {/* When the latest build is RED, surface the last GREEN sha so the column doesn't hide
+          the last good image. Linked to that commit on GitHub. */}
+      {image.last_build_status &&
+        image.last_build_status !== "SUCCESS" &&
+        image.last_success_sha &&
+        (githubCommitUrl(repo, image.last_success_sha) ? (
+          <a
+            href={githubCommitUrl(repo, image.last_success_sha) ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-emerald-400 hover:underline"
+            data-testid="image-last-success"
+            title={`last successful build: ${image.last_success_sha}${image.last_success_time ? ` (${image.last_success_time})` : ""}`}
+          >
+            ✓ {shortSha(image.last_success_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-emerald-400" data-testid="image-last-success">
+            ✓ {shortSha(image.last_success_sha)}
+          </span>
+        ))}
     </div>
   );
 }
@@ -332,7 +375,7 @@ function OverviewTable({
                 )}
               </td>
               <td className="py-1.5">
-                <ImageCell image={row.image} />
+                <ImageCell image={row.image} repo={row.repo} />
               </td>
             </tr>
           );
@@ -379,7 +422,6 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
         <span className="font-mono text-sm text-[var(--color-text-primary)]">{detail.repo}</span>
         <Chip tone={ciStatusTone(detail.ci_status)}>{detail.ci_status}</Chip>
         {detail.sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
-        {detail.image.deployed_version && <Chip tone="gray">deployed {detail.image.deployed_version}</Chip>}
       </div>
       {/* Cross-links to the EXISTING surfaces for this repo — don't redo those tabs
           (operator add 2026-06-10: repo drill-down deep-links data-status / monitor /
@@ -404,6 +446,107 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           Fleet Git
         </Link>
       </div>
+      {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
+          + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
+          when the repo has no Cloud Build / CodeBuild. */}
+      <div
+        className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+        data-testid="repo-detail-build-header"
+      >
+        <span className="text-[var(--color-text-muted)]">Last image build:</span>
+        {detail.image.last_build_status ? (
+          <>
+            <Chip
+              tone={
+                detail.image.image_stale === true
+                  ? "yellow"
+                  : detail.image.last_build_status === "SUCCESS"
+                    ? "green"
+                    : "red"
+              }
+            >
+              {detail.image.image_stale === true ? "stale" : detail.image.last_build_status}
+            </Chip>
+            {buildSourceLabel(detail.image.last_build_log_url) && (
+              <span className="text-[var(--color-text-secondary)]" data-testid="build-header-source">
+                {buildSourceLabel(detail.image.last_build_log_url)}
+              </span>
+            )}
+            {detail.image.last_build_time && (
+              <span className="text-[var(--color-text-muted)]" data-testid="build-header-time">
+                {buildTimeLabel(detail.image.last_build_time)}
+              </span>
+            )}
+            {detail.image.last_build_sha && (
+              <a
+                href={githubCommitUrl(detail.repo, detail.image.last_build_sha) ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[var(--color-text-secondary)] hover:underline"
+                data-testid="build-header-sha"
+                title="built commit → GitHub"
+              >
+                {shortSha(detail.image.last_build_sha)}
+              </a>
+            )}
+            {detail.image.last_build_log_url && (
+              <a
+                href={detail.image.last_build_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="build-header-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {detail.image.deployed_version && (
+              <span className="text-[var(--color-text-muted)]">deployed {detail.image.deployed_version}</span>
+            )}
+          </>
+        ) : (
+          <span className="text-[var(--color-text-muted)]" data-testid="build-header-none">
+            no Cloud Build / CodeBuild for this repo
+          </span>
+        )}
+      </div>
+      {/* When the latest build is RED, show the LAST SUCCESSFUL build separately — the last good
+          image's sha/time/log, so a failed latest doesn't hide where the running image came from. */}
+      {detail.image.last_build_status &&
+        detail.image.last_build_status !== "SUCCESS" &&
+        detail.image.last_success_sha && (
+          <div
+            className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
+            data-testid="repo-detail-last-success"
+          >
+            <span className="text-[var(--color-text-muted)]">Last successful build:</span>
+            <Chip tone="green">SUCCESS</Chip>
+            {detail.image.last_success_time && (
+              <span className="text-[var(--color-text-muted)]">{buildTimeLabel(detail.image.last_success_time)}</span>
+            )}
+            <a
+              href={githubCommitUrl(detail.repo, detail.image.last_success_sha) ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-emerald-400 hover:underline"
+              data-testid="last-success-sha"
+              title="last good commit → GitHub"
+            >
+              {shortSha(detail.image.last_success_sha)}
+            </a>
+            {detail.image.last_success_log_url && (
+              <a
+                href={detail.image.last_success_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="last-success-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
       {detail.open_prs.length > 0 && (
         <div className="space-y-1" data-testid="repo-detail-prs">
           {detail.open_prs.map((pr) => (

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow } from "../api/client";
 import {
+  buildSourceLabel,
   buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
@@ -88,6 +89,16 @@ describe("buildTimeLabel (B1)", () => {
     expect(buildTimeLabel(null)).toBe("—");
     expect(buildTimeLabel(undefined)).toBe("—");
     expect(buildTimeLabel("bad")).toBe("—");
+  });
+});
+
+describe("buildSourceLabel (B2)", () => {
+  it("infers the build system from the console log URL host", () => {
+    expect(buildSourceLabel("https://console.cloud.google.com/cloud-build/builds/x")).toBe("Cloud Build");
+    expect(buildSourceLabel("https://console.aws.amazon.com/codesuite/codebuild/builds/y")).toBe("CodeBuild");
+    expect(buildSourceLabel(null)).toBeNull();
+    expect(buildSourceLabel(undefined)).toBeNull();
+    expect(buildSourceLabel("https://example.com/unknown")).toBeNull();
   });
 });
 
