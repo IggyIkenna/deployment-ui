@@ -35,6 +35,7 @@ import {
 } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { GhRateBudget } from "../components/GhRateBudget";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
   green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
@@ -429,7 +430,8 @@ export function RepoCiContent() {
             </span>
           )}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <GhRateBudget />
           <select
             data-testid="repo-dropdown"
             className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-sm text-[var(--color-text-primary)]"

@@ -1,12 +1,13 @@
 /**
- * Smoke: GitHub rate-budget tracker on the repos surface (RepoCoverageTab header).
+ * Smoke: GitHub rate-budget tracker on the Repos-CI page (/repos, RepoCiContent header).
  *
  * The whole fleet shares ONE GitHub PAT (5000/hr REST budget); when low, every
- * GitHub caller 403s. This guard asserts the tracker renders on the repos/coverage
- * tab and reflects a healthy (green REST) vs low (amber/red GraphQL) budget from
- * GET /api/repos/gh-rate-limit (mock seeds core=4200/5000, graphql=600/5000).
+ * GitHub caller 403s. This guard asserts the tracker renders on the Repos-CI page
+ * (the dedicated repos+CI dashboard) and reflects a healthy (green REST) vs low
+ * (amber GraphQL) budget from GET /api/repos/gh-rate-limit (core=4200/5000,
+ * graphql=600/5000).
  *
- * Plan: gh_rate_budget_tracker_deployment_ui_2026_06_11.md (pw:L2 gate).
+ * Plan: gh_rate_budget_reduction_2026_06_10.md (pw:L2 gate).
  */
 
 import { expect, Page, test } from "@playwright/test";
@@ -46,20 +47,20 @@ async function mockRepoRoutes(page: Page) {
   await page.route("**/api/services", async (route) => {
     await route.fulfill({ json: MOCK_SERVICES });
   });
-  await page.route("**/api/repos/coverage", async (route) => {
-    await route.fulfill({ json: [] });
-  });
+  // The dev server runs VITE_MOCK_API=true, so mock-api.ts supplies a complete
+  // repo-ci overview — don't shadow it. GhRateBudget does a RAW fetch, so we
+  // intercept just the rate-limit endpoint to pin the asserted budget values.
   await page.route("**/api/repos/gh-rate-limit", async (route) => {
     await route.fulfill({ json: MOCK_GH_RATE });
   });
 }
 
-async function navigateToRepoCoverageTab(page: Page) {
+async function navigateToReposCi(page: Page) {
+  // The Repos-CI page is the "Repos CI" LandingTabs tab (URL-synced to /repos).
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  await page.getByText("deployment api").first().click();
-  await page.getByRole("tab", { name: "Coverage", exact: true }).click();
-  await page.waitForLoadState("networkidle");
+  await page.getByTestId("landing-repos-ci-tab-trigger").click();
+  await expect(page.getByTestId("repo-ci-page")).toBeVisible();
 }
 
 test.describe("GitHub rate-budget tracker smoke", () => {
@@ -67,8 +68,8 @@ test.describe("GitHub rate-budget tracker smoke", () => {
     await mockRepoRoutes(page);
   });
 
-  test("tracker renders on the repos/coverage tab with REST + GraphQL pools", async ({ page }) => {
-    await navigateToRepoCoverageTab(page);
+  test("tracker renders on the Repos-CI page with REST + GraphQL pools", async ({ page }) => {
+    await navigateToReposCi(page);
     const budget = page.getByTestId("gh-rate-budget");
     await expect(budget).toBeVisible();
     await expect(page.getByTestId("gh-rate-budget-pool-core")).toContainText("4200/5000");
@@ -76,7 +77,7 @@ test.describe("GitHub rate-budget tracker smoke", () => {
   });
 
   test("a low budget pool reflects a non-green tone (operator can SEE it is low)", async ({ page }) => {
-    await navigateToRepoCoverageTab(page);
+    await navigateToReposCi(page);
     // GraphQL is at 12% -> amber; REST is at 84% -> green. Assert the remaining/limit
     // atoms carry distinct inline colours (the tone mapper is exercised end-to-end).
     const restColor = await page

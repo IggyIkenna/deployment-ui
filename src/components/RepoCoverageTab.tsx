@@ -10,7 +10,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRepoCoverage } from "../api/repoCoverage";
 import type { RepoCoverage } from "../api/repoCoverage";
-import { GhRateBudget } from "./GhRateBudget";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -94,7 +93,6 @@ export function RepoCoverageTab() {
           </CardDescription>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <GhRateBudget />
           {rows !== null && (
             <span className="text-sm text-[var(--color-text-secondary)]">
               {greenCount}/{totalCount} green · last {fmtLastRefreshed(lastRefreshed)}
