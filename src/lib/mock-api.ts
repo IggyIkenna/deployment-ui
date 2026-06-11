@@ -1402,6 +1402,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         graphql: { limit: 5000, remaining: 600, used: 4400, reset },
         search: { limit: 30, remaining: 30, used: 0, reset },
       },
+      // The GitHub App ("uts-ci-poller") pool — a SEPARATE 5000/hr budget the
+      // fleet's CI pollers draw from. Seeded healthy so both rows render.
+      app: {
+        resources: {
+          core: { limit: 5000, remaining: 4950, used: 50, reset },
+          graphql: { limit: 5000, remaining: 5000, used: 0, reset },
+        },
+      },
     });
   }
   {

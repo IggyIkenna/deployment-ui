@@ -30,13 +30,21 @@ const MOCK_SERVICES = [
 ];
 
 // Healthy REST pool (84% -> green) + low GraphQL pool (12% -> amber) so the
-// tracker's tone mapping is observable in the smoke run.
+// tracker's tone mapping is observable in the smoke run. The `app` block is the
+// GitHub App ("uts-ci-poller") pool — a SEPARATE 5000/hr budget — so the smoke
+// run asserts BOTH the PAT and App rows render side by side.
 const MOCK_GH_RATE = {
   fetched_at: "2026-06-11T12:00Z",
   resources: {
     core: { limit: 5000, remaining: 4200, used: 800, reset: 1_780_000_000 },
     graphql: { limit: 5000, remaining: 600, used: 4400, reset: 1_780_000_000 },
     search: { limit: 30, remaining: 30, used: 0, reset: 1_780_000_000 },
+  },
+  app: {
+    resources: {
+      core: { limit: 5000, remaining: 4950, used: 50, reset: 1_780_000_000 },
+      graphql: { limit: 5000, remaining: 5000, used: 0, reset: 1_780_000_000 },
+    },
   },
 };
 
@@ -74,6 +82,17 @@ test.describe("GitHub rate-budget tracker smoke", () => {
     await expect(budget).toBeVisible();
     await expect(page.getByTestId("gh-rate-budget-pool-core")).toContainText("4200/5000");
     await expect(page.getByTestId("gh-rate-budget-pool-graphql")).toContainText("600/5000");
+  });
+
+  test("renders BOTH the PAT and the App pool (separate budget) side by side", async ({ page }) => {
+    await navigateToReposCi(page);
+    // PAT row (the shared user token, fleet-wide 403 source).
+    await expect(page.getByTestId("gh-rate-budget-pat")).toBeVisible();
+    await expect(page.getByTestId("gh-rate-budget-pool-core")).toContainText("4200/5000");
+    // App row (uts-ci-poller installation-token pool — separate 5000/hr budget).
+    await expect(page.getByTestId("gh-rate-budget-app")).toBeVisible();
+    await expect(page.getByTestId("gh-rate-budget-app-pool-core")).toContainText("4950/5000");
+    await expect(page.getByTestId("gh-rate-budget-app-pool-graphql")).toContainText("5000/5000");
   });
 
   test("a low budget pool reflects a non-green tone (operator can SEE it is low)", async ({ page }) => {
