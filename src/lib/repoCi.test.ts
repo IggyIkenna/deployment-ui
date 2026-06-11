@@ -11,6 +11,8 @@ import {
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  promotionBlockedLabel,
+  promotionBlockedTone,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -59,11 +61,23 @@ describe("shortSha", () => {
 });
 
 describe("deltaLabel", () => {
-  it("reports content deltas, calls out squash skew, never lies on commit count", () => {
+  it("reports content deltas + commit count (B3), calls out squash skew, never lies", () => {
     expect(deltaLabel(0, 0)).toBe("in sync");
-    expect(deltaLabel(0, 5)).toBe("in sync (squash skew)");
-    expect(deltaLabel(1, 1)).toBe("1 file ahead");
-    expect(deltaLabel(4, 3)).toBe("4 files ahead");
+    expect(deltaLabel(0, 5)).toBe("in sync · 5 commits (squash skew)");
+    expect(deltaLabel(0, 1)).toBe("in sync · 1 commit (squash skew)");
+    expect(deltaLabel(1, 1)).toBe("1 file ahead · 1 commit");
+    expect(deltaLabel(4, 3)).toBe("4 files ahead · 3 commits");
+  });
+});
+
+describe("promotionBlockedTone / promotionBlockedLabel (G1)", () => {
+  it("quarantined is red/CRITICAL; failing-not-quarantined is yellow/WARNING", () => {
+    const quar = { repo: "greeks-service", failures: 3, quarantined: true, escalated: true };
+    const warn = { repo: "execution-service", failures: 1, quarantined: false };
+    expect(promotionBlockedTone(quar)).toBe("red");
+    expect(promotionBlockedTone(warn)).toBe("yellow");
+    expect(promotionBlockedLabel(quar)).toBe("3 fails · quarantined");
+    expect(promotionBlockedLabel(warn)).toBe("1 fail");
   });
 });
 

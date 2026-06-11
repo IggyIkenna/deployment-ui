@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ExternalLink, GitBranch, RefreshCw } from "lucide-react";
+import { AlertCircle, ExternalLink, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   getRepoCiDetail,
   getRepoCiOverview,
@@ -18,6 +18,7 @@ import {
   type RepoCiOverview,
   type RepoCiOverviewRow,
   type RepoCiPr,
+  type RepoCiPromotionBlocked,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
@@ -27,6 +28,8 @@ import {
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  promotionBlockedLabel,
+  promotionBlockedTone,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -160,6 +163,38 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
               Stuck in SIT
             </Chip>
             <span className="font-mono text-[var(--color-text-primary)]">{repo}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
+  const empty = blocked.length === 0;
+  return (
+    <Card data-testid="promotion-blocked-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-400" />
+          Promotion blocked — staging→main
+          <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {empty && (
+          <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-blocked-empty">
+            Nothing parked — staging→main draining cleanly.
+          </p>
+        )}
+        {blocked.map((b) => (
+          <div key={b.repo} className="flex items-center gap-2 text-sm" data-testid={`promotion-blocked-${b.repo}`}>
+            <Chip tone={promotionBlockedTone(b)}>{promotionBlockedLabel(b)}</Chip>
+            <span className="font-mono text-[var(--color-text-primary)]">{b.repo}</span>
+            {b.escalated && <span className="text-[var(--color-text-muted)] text-xs">escalated</span>}
+            {b.since != null && (
+              <span className="text-[var(--color-text-muted)] text-xs">since {b.since.slice(0, 10)}</span>
+            )}
           </div>
         ))}
       </CardContent>
@@ -475,9 +510,10 @@ export function RepoCiContent() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
+            <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
           </div>
           {selectedRepo ? (
             <Card>

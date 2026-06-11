@@ -1149,6 +1149,19 @@ function mockRepoCiOverview() {
     // Degraded-repo errors[] — a per-repo GitHub-5xx degradation is VISIBLE, not
     // silently dropped (mirrors deployment-api _mock_overview seeding one error).
     errors: [{ repo: "ml-service", error: "GitHub HTTP 502 on compare (degraded; row dropped)" }],
+    // Promotion-blocked[] — repos parked out of staging→main (G1). greeks-service is
+    // quarantined (CRITICAL); execution-service is failing-but-not-yet-quarantined (WARNING).
+    promotion_blocked: [
+      {
+        repo: "greeks-service",
+        failures: 3,
+        quarantined: true,
+        since: "2026-06-11T08:00:00Z",
+        attempts: 3,
+        escalated: true,
+      },
+      { repo: "execution-service", failures: 1, quarantined: false },
+    ],
   };
 }
 

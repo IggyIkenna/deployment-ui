@@ -3366,6 +3366,17 @@ export interface RepoCiError {
   error: string;
 }
 
+export interface RepoCiPromotionBlocked {
+  repo: string;
+  /** consecutive staging→main promotion failures (manifest promotion_failures[repo]). */
+  failures: number;
+  /** true when the repo is parked in promotion_quarantine (vs. failing-but-not-yet-quarantined). */
+  quarantined: boolean;
+  since?: string;
+  attempts?: number;
+  escalated?: boolean;
+}
+
 export interface RepoCiOverview {
   generated_at: string;
   source: string;
@@ -3374,6 +3385,9 @@ export interface RepoCiOverview {
   stuck_in_sit: string[];
   sit_last_run: RepoCiSitLastRun | null;
   errors?: RepoCiError[];
+  /** Repos parked out of the staging→main promotion (G1 — alert-parity for the
+   * staging-to-main genuine-failure CRITICAL page + newly-quarantined WARNING). */
+  promotion_blocked?: RepoCiPromotionBlocked[];
 }
 
 export interface RepoCiBranchCommits {
