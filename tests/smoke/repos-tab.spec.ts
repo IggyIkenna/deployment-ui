@@ -26,6 +26,17 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("MAIN_GREEN");
   });
 
+  test("CI status chip annotates WHICH branch is failing (branch_ci)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // execution-service is FAILING with main red → chip reads "FAILING (main)" (recovering shape).
+    await expect(page.getByTestId("repo-row-execution-service")).toContainText("FAILING (main)");
+    // strategy-service is STAGING_GREEN with LDR red → chip reads "STAGING_GREEN (LDR)" (actively broken).
+    await expect(page.getByTestId("repo-row-strategy-service")).toContainText("STAGING_GREEN (LDR)");
+    // a clean repo shows the bare status, no branch suffix.
+    await expect(page.getByTestId("repo-row-unified-trading-library")).not.toContainText("(");
+  });
+
   test("repo dropdown drill-down renders SHA history and PR cards", async ({ page }) => {
     await page.goto("/repos");
     await page.getByTestId("repo-dropdown").selectOption("execution-service");

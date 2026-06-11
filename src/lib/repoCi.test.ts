@@ -3,8 +3,10 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow } from "../api/client";
 import {
+  ciStatusLabel,
   ciStatusTone,
   deltaLabel,
+  failingBranches,
   formatAge,
   githubBranchUrl,
   githubChecksUrl,
@@ -94,6 +96,42 @@ function row(overrides: Partial<RepoCiOverviewRow>): RepoCiOverviewRow {
     ...overrides,
   };
 }
+
+describe("failingBranches / ciStatusLabel (branch-aware CI chip)", () => {
+  it("pins the red branch from branch_ci, in promotion order", () => {
+    const mainRed = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "success", staging: "success", main: "failure" },
+    });
+    expect(failingBranches(mainRed)).toEqual(["main"]);
+    expect(ciStatusLabel(mainRed)).toBe("FAILING (main)");
+
+    const ldrRed = row({
+      ci_status: "STAGING_GREEN",
+      branch_ci: { "live-defi-rollout": "failure", staging: "success", main: "success" },
+    });
+    expect(failingBranches(ldrRed)).toEqual(["LDR"]);
+    expect(ciStatusLabel(ldrRed)).toBe("STAGING_GREEN (LDR)");
+  });
+
+  it("lists multiple red branches LDR→staging→main and treats timed_out/cancelled as red", () => {
+    const twoRed = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "timed_out", staging: "success", main: "cancelled" },
+    });
+    expect(failingBranches(twoRed)).toEqual(["LDR", "main"]);
+    expect(ciStatusLabel(twoRed)).toBe("FAILING (LDR, main)");
+  });
+
+  it("falls back to bare ci_status when branch_ci is absent or all green", () => {
+    expect(ciStatusLabel(row({ ci_status: "MAIN_GREEN" }))).toBe("MAIN_GREEN");
+    expect(
+      ciStatusLabel(
+        row({ ci_status: "MAIN_GREEN", branch_ci: { "live-defi-rollout": "success", staging: null, main: "success" } }),
+      ),
+    ).toBe("MAIN_GREEN");
+  });
+});
 
 describe("rowSeverity", () => {
   it("FAILING > stuck > content delta > clean", () => {

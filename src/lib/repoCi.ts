@@ -67,6 +67,28 @@ export function deltaLabel(filesChanged: number, aheadBy: number): string {
   return `${filesChanged} file${filesChanged === 1 ? "" : "s"} ahead`;
 }
 
+/** Short branch label for the CI chip annotation: live-defi-rollout → LDR, else the branch name. */
+function shortBranch(branch: string): string {
+  return branch === "live-defi-rollout" ? "LDR" : branch;
+}
+
+/** Which branches' quality-gates-v2 is currently red (`failure`/`timed_out`/`cancelled`/`startup_failure`),
+ * in promotion order LDR → staging → main. Lets the chip show WHICH branch is failing rather than a bare
+ * "FAILING" — distinguishes "main red, LDR recovered (draining)" from "LDR actively broken". */
+export function failingBranches(row: RepoCiOverviewRow): string[] {
+  const order = ["live-defi-rollout", "staging", "main"];
+  const bad = new Set(["failure", "timed_out", "cancelled", "startup_failure", "action_required"]);
+  if (!row.branch_ci) return [];
+  return order.filter((b) => bad.has((row.branch_ci?.[b] ?? "").toLowerCase())).map(shortBranch);
+}
+
+/** "FAILING (main)" / "FAILING (LDR, staging)" when branch_ci pins the red branch(es); else bare ci_status. */
+export function ciStatusLabel(row: RepoCiOverviewRow): string {
+  const failing = failingBranches(row);
+  if (failing.length === 0) return row.ci_status;
+  return `${row.ci_status} (${failing.join(", ")})`;
+}
+
 /** Worst problem on a repo row — drives the row-level attention badge + sorting. */
 export function rowSeverity(row: RepoCiOverviewRow): number {
   if (row.ci_status === "FAILING") return 3;
