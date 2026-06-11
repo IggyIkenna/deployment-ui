@@ -2,6 +2,7 @@ import {
   Activity,
   AlertCircle,
   BarChart2,
+  BookOpen,
   Database,
   GitBranch,
   Hammer,
@@ -30,6 +31,7 @@ import { MonitorTab } from "./components/MonitorTab";
 import { ReadinessTab } from "./components/ReadinessTab";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { ServiceList } from "./components/ServiceList";
+import { CapabilityTab } from "./components/CapabilityTab";
 import { ClientReportingTab } from "./components/ClientReportingTab";
 import { DeploymentReadinessTab } from "./components/DeploymentReadinessTab";
 import { RepoCoverageTab } from "./components/RepoCoverageTab";
@@ -237,6 +239,7 @@ function App() {
                                             "readiness",
                                             "deploy-readiness",
                                             "data-status",
+                                            "capability",
                                             "monitor",
                                             "history",
                                             "builds",
@@ -248,7 +251,7 @@ function App() {
                                     >
                                       <TabsList
                                         variant="pill"
-                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-10" : selectedService === "deployment-api" ? "grid-cols-11" : selectedService === "market-tick-data-service" ? "grid-cols-10" : "grid-cols-9"} mb-6`}
+                                        className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-11" : selectedService === "deployment-api" ? "grid-cols-12" : selectedService === "market-tick-data-service" ? "grid-cols-11" : "grid-cols-10"} mb-6`}
                                       >
                                         {!isInfra && (
                                           <TabsTrigger value="deploy" className="gap-2">
@@ -276,6 +279,16 @@ function App() {
                                           <TabsTrigger value="data-status" className="gap-2">
                                             <Database className="h-4 w-4" />
                                             Data Status
+                                          </TabsTrigger>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsTrigger
+                                            value="capability"
+                                            className="gap-2"
+                                            data-testid="capability-tab-trigger"
+                                          >
+                                            <BookOpen className="h-4 w-4" />
+                                            Capability
                                           </TabsTrigger>
                                         )}
                                         {!isInfra && (
@@ -438,6 +451,16 @@ function App() {
                                                   date_granularity: params.date_granularity,
                                                   first_day_of_month_only: params.first_day_of_month_only ?? false,
                                                 });
+                                              }}
+                                            />
+                                          </TabsContent>
+                                        )}
+                                        {!isInfra && (
+                                          <TabsContent value="capability">
+                                            <CapabilityTab
+                                              onSelectDataStatus={(svc) => {
+                                                setSelectedService(svc);
+                                                setActiveTab("data-status");
                                               }}
                                             />
                                           </TabsContent>
