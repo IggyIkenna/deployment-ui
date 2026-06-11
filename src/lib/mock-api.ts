@@ -1046,10 +1046,19 @@ function mockRepoCiRow(
   sitPending: boolean,
   sitStuck: boolean,
 ) {
+  // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
+  // STAGING_GREEN → LDR red (actively-broken shape); else all green. Mirrors the deployment-api mock.
+  const branchCi: Record<string, string | null> =
+    ciStatus === "FAILING"
+      ? { "live-defi-rollout": "success", staging: "success", main: "failure" }
+      : ciStatus === "STAGING_GREEN"
+        ? { "live-defi-rollout": "failure", staging: "success", main: "success" }
+        : { "live-defi-rollout": "success", staging: "success", main: "success" };
   return {
     repo,
     repo_type: repoType,
     ci_status: ciStatus,
+    branch_ci: branchCi,
     branches: [
       { branch: "live-defi-rollout", sha: "abc1234567", committed_at: "2026-06-10T08:00:00Z" },
       { branch: "staging", sha: "abc1200567", committed_at: "2026-06-10T07:30:00Z" },

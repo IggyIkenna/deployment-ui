@@ -3350,6 +3350,10 @@ export interface RepoCiOverviewRow {
   repo: string;
   repo_type: string;
   ci_status: string;
+  /** Per-branch quality-gates-v2 conclusion (keyed by branch name; value success/failure/in_progress/… or null
+   * when v2 never ran). Lets the UI annotate WHICH branch is red — ci_status alone can't distinguish
+   * "main red, LDR recovered" from "LDR actively broken". */
+  branch_ci?: Record<string, string | null>;
   branches: RepoCiBranchHead[];
   deltas: RepoCiBranchDelta[];
   open_prs: RepoCiPr[];

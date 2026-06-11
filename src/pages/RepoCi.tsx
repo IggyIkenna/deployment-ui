@@ -21,6 +21,7 @@ import {
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
+  ciStatusLabel,
   ciStatusTone,
   deltaLabel,
   formatAge,
@@ -214,7 +215,7 @@ function OverviewTable({
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Chip tone={ciStatusTone(row.ci_status)}>{row.ci_status}</Chip>
+                  <Chip tone={ciStatusTone(row.ci_status)}>{ciStatusLabel(row)}</Chip>
                 </a>
               </td>
               <td className="py-1.5 font-mono">
