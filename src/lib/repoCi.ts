@@ -29,13 +29,24 @@ export function ciStatusTone(ciStatus: string): ChipTone {
 export const STUCK_CLASS_LABELS: Record<StuckClass, string> = {
   conflicting: "Conflict wall",
   skip_ci_jammed: "[skip ci] jam",
-  v2_never_reported: "v2 never reported",
+  v2_never_reported: "Draining (re-firing v2)",
   failing_check: "Failing check",
-  automerge_stuck: "Auto-merge stuck",
+  automerge_stuck: "Draining (auto-merge armed)",
 };
 
-/** Tone for a stuck-PR badge — conflict/failing are red (need a human/worker);
- * v2-never-reported is yellow (auto-recovers in-band). */
+/** A "draining" stuck-class is one that recovers WITHOUT a human/worker — the promote bot's
+ * stale-check force-dispatches v2 / re-arms auto-merge in-band, so it is PENDING (being handled),
+ * not parked. Kept distinct from the genuinely-stuck classes (conflict / failing / [skip ci] jam)
+ * that need an agent to intervene. Operator ask 2026-06-11: a self-healing drain must read as
+ * "draining/pending", not inflate the "Stuck" attention count. (The full agent-attributed
+ * "a worker is on this" signal needs the orchestrator's active-worker assignment — Gap 4 in
+ * ci_pipeline_self_healing_gaps_2026_06_11.md.) */
+export function isDrainingClass(stuckClass: StuckClass): boolean {
+  return stuckClass === "automerge_stuck" || stuckClass === "v2_never_reported";
+}
+
+/** Tone for a stuck-PR badge — conflict/failing/[skip ci] jam are red (need a human/worker);
+ * the draining classes (auto-merge armed / v2 re-fire) are yellow (auto-recover in-band). */
 export function stuckClassTone(stuckClass: StuckClass): ChipTone {
   switch (stuckClass) {
     case "conflicting":
@@ -95,8 +106,12 @@ export function ciStatusLabel(row: RepoCiOverviewRow): string {
 /** Worst problem on a repo row — drives the row-level attention badge + sorting. */
 export function rowSeverity(row: RepoCiOverviewRow): number {
   if (row.ci_status === "FAILING") return 3;
-  if (row.open_prs.some((pr) => pr.stuck_class) || row.sit.stuck_in_sit) return 2;
-  if (row.deltas.some((d) => d.files_changed > 0)) return 1;
+  // Genuinely-stuck (needs a human/worker) = a non-draining stuck_class, or SIT-stuck → attention (2).
+  // A draining-only PR (auto-merge armed / v2 re-fire, self-healing) is in-progress (1), NOT counted
+  // as "stuck" — so a self-healing drain does not inflate the operator's attention queue (2026-06-11).
+  const hasGenuineStuck = row.open_prs.some((pr) => pr.stuck_class && !isDrainingClass(pr.stuck_class));
+  if (hasGenuineStuck || row.sit.stuck_in_sit) return 2;
+  if (row.open_prs.some((pr) => pr.stuck_class) || row.deltas.some((d) => d.files_changed > 0)) return 1;
   return 0;
 }
 
