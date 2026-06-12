@@ -11,6 +11,12 @@ import type {
   CapabilityNode,
   EdgeStatus,
 } from "../data/capability-manifest-loader";
+import type {
+  BlockedAlgo,
+  CapabilityVerdictMatrix,
+  VerdictArchetype,
+  VerdictMatrixSummary,
+} from "../data/capability-verdict-matrix-loader";
 
 // ---------------------------------------------------------------------------
 // Node index helpers
@@ -301,4 +307,81 @@ export function buildDeadEndList(manifest: CapabilityManifest): DeadEndRow[] {
 
   rows.sort((a, b) => a.archetypeLabel.localeCompare(b.archetypeLabel));
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Verdict matrix aggregation
+// ---------------------------------------------------------------------------
+
+/** Re-export for convenience in the view layer. */
+export type { VerdictArchetype, VerdictMatrixSummary, BlockedAlgo };
+
+export interface VerdictBlockedCell {
+  venue: string;
+  instrument_type: string;
+  instruction_action: string;
+  leg_id?: string;
+  blocked_algos: BlockedAlgo[];
+}
+
+export interface VerdictArchetypeSummary {
+  archetype: string;
+  available_count: number;
+  blocked_count: number;
+  cell_count: number;
+  not_registered: boolean;
+  not_registered_reason?: string;
+  /** Cells that have at least one blocked algo — populated only for registered archetypes. */
+  blocked_cells: VerdictBlockedCell[];
+}
+
+/**
+ * Extract the top-level summary from a lazy-loaded verdict matrix.
+ * Pure — can be unit-tested in isolation.
+ */
+export function buildVerdictSummary(matrix: CapabilityVerdictMatrix): VerdictMatrixSummary {
+  return matrix.summary;
+}
+
+/**
+ * Build a per-archetype summary list from the verdict matrix, including
+ * blocked cell details for drill-down display.
+ *
+ * Registered archetypes (not_registered=false) include blocked_cells with
+ * reason strings.  Not-registered archetypes include only metadata.
+ */
+export function buildVerdictArchetypeList(matrix: CapabilityVerdictMatrix): VerdictArchetypeSummary[] {
+  return matrix.archetypes.map((entry): VerdictArchetypeSummary => {
+    if (entry.not_registered) {
+      return {
+        archetype: entry.archetype,
+        available_count: 0,
+        blocked_count: 0,
+        cell_count: 0,
+        not_registered: true,
+        not_registered_reason: entry.reason,
+        blocked_cells: [],
+      };
+    }
+
+    // Registered archetype — collect cells with blocked algos
+    const blocked_cells: VerdictBlockedCell[] = entry.cells
+      .filter((cell) => cell.blocked_algos.length > 0)
+      .map((cell) => ({
+        venue: cell.venue,
+        instrument_type: cell.instrument_type,
+        instruction_action: cell.instruction_action,
+        leg_id: cell.leg_id,
+        blocked_algos: cell.blocked_algos,
+      }));
+
+    return {
+      archetype: entry.archetype,
+      available_count: entry.available_count,
+      blocked_count: entry.blocked_count,
+      cell_count: entry.cell_count,
+      not_registered: false,
+      blocked_cells,
+    };
+  });
 }

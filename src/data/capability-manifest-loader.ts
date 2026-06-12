@@ -19,6 +19,7 @@ export type NodeKind =
   | "family"
   | "feature_group"
   | "instrument_type"
+  | "leg"
   | "ml_model"
   | "venue"
   | "wallet";
@@ -42,6 +43,9 @@ export type EdgeRelation =
   | "registry_gap"
   | "wallet_split_policy"
   | "min_data_to_run"
+  | "has_leg"
+  | "uses_algo"
+  | "accepts_collateral"
   | (string & Record<never, never>); // allow future relations without breaking
 
 export interface CapabilityNode {
@@ -63,6 +67,7 @@ export interface CapabilityEdge {
 }
 
 export interface CapabilityGaps {
+  annotation_orphans?: number;
   logical_dead_end: number;
   logical_dead_ends: number;
   missing_extraction: number;
