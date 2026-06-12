@@ -383,9 +383,14 @@ test.describe("Flow 2: Tab navigation sequence", () => {
       timeout: 10000,
     });
 
-    // Readiness tab
+    // Readiness tab — must render checklist CONTENT, not the per-tab ErrorBoundary
+    // fallback. "Blocking Issues" only renders when `checklist.blocking_items` is
+    // present; the stale /checklist mock omitted it → `.length` of undefined crashed
+    // the tab. Regression guard for the mock-contract + ReadinessTab `?? []` fix.
     await page.getByRole("tab", { name: /Readiness/i }).click();
     await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Blocking Issues/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/This tab hit an error/i)).toHaveCount(0);
 
     // Status tab
     await page.getByRole("tab", { name: "Status", exact: true }).click();
