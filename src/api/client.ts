@@ -3417,6 +3417,22 @@ export interface RepoCiOverview {
   /** Routine LDR→staging / LDR→main promote drain (PM-central, every 15 min) — distinct from the
    * breaking cascade/SIT (sit_last_run). Null when the drain runs can't be fetched. */
   promotion_drain?: RepoCiPromotionDrain | null;
+  /** Semver-agent standing health (G2) — last bump run + pending-bump count + breaker-armed flag.
+   * Null when the semver-agent run can't be fetched. */
+  semver_health?: RepoCiSemverHealth | null;
+}
+
+export interface RepoCiSemverHealth {
+  last_run_status: string;
+  last_run_conclusion: string | null;
+  last_run_age_min: number | null;
+  last_run_url: string;
+  /** Repos whose staging version is ahead of main (pending promotion) — the breaker counts these. */
+  pending_bump_count: number;
+  pending_bump_repos: string[];
+  /** True when pending_bump_count >= breaker_threshold (the semver-agent circuit-breaker condition). */
+  breaker_armed: boolean;
+  breaker_threshold: number;
 }
 
 export interface RepoCiPromoteRun {
@@ -3448,6 +3464,9 @@ export interface RepoCiDetail {
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** N2-followup: per-branch last-green (keyed by branch name) — the most-recent SHA on each of
+   * LDR / staging / main whose quality-gates-v2 concluded success, or null when none. */
+  last_green?: Record<string, RepoCiLastGreen | null>;
 }
 
 export async function getRepoCiOverview(): Promise<RepoCiOverview> {

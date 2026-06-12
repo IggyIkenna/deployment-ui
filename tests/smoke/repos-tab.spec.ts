@@ -30,6 +30,20 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("sit-run-panel")).toContainText("Breaking cascade / SIT");
   });
 
+  test("Semver-agent health panel renders last bump + breaker-armed state (G2)", async ({ page }) => {
+    await page.goto("/repos");
+    const panel = page.getByTestId("semver-health-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Semver-agent health");
+    // Mock seeds a successful last bump run.
+    await expect(page.getByTestId("semver-last-run")).toContainText("success");
+    // Mock seeds 3 pending bumps == threshold → breaker reads ARMED.
+    await expect(page.getByTestId("semver-breaker")).toContainText("ARMED");
+    await expect(page.getByTestId("semver-breaker")).toContainText("3/3");
+    // The pending repos are listed so the operator sees WHICH repos are stacked.
+    await expect(page.getByTestId("semver-pending-repos")).toContainText("execution-service");
+  });
+
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");
@@ -98,6 +112,18 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("pipeline-stage-image")).toBeVisible();
     await expect(pipeline).toContainText("LDR");
     await expect(pipeline).toContainText("image");
+  });
+
+  test("repo drill-down renders per-branch last-green (LDR / staging / main) — N2-followup", async ({ page }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("execution-service");
+    const strip = page.getByTestId("repo-detail-last-green");
+    await expect(strip).toBeVisible();
+    await expect(strip).toContainText("Last green (v2)");
+    // All three promotion branches surface their own last-green axis.
+    await expect(page.getByTestId("last-green-branch-live-defi-rollout")).toBeVisible();
+    await expect(page.getByTestId("last-green-branch-staging")).toContainText("ab09111");
+    await expect(page.getByTestId("last-green-branch-main")).toBeVisible();
   });
 
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {
