@@ -1495,6 +1495,8 @@ export interface CoverageSummaryResponse {
     instrument_rows: number;
     dates_across_asset_groups: number;
     latest_day_instruments: number;
+    /** Catalogue-deduplicated identity count (sum across AGs); null pre-rollout. */
+    unique_instruments?: number | null;
   };
   totals_source?: "rollup" | "manifest";
   served_from?: string;
