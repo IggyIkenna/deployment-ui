@@ -19,7 +19,9 @@ import {
   type RepoCiImageSignal,
   type RepoCiOverviewRow,
   type RepoCiPr,
+  type RepoCiPromoteRun,
   type RepoCiPromotionBlocked,
+  type RepoCiPromotionDrain,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
@@ -86,7 +88,7 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
     <Card data-testid="sit-run-panel">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          Last SIT / cascade run
+          Breaking cascade / SIT
           {run && (
             <Chip tone={run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue"}>
               {run.conclusion ?? run.status}
@@ -114,6 +116,49 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
             ))}
             {run.jobs.length === 0 && <p className="text-sm text-[var(--color-text-muted)]">No jobs reported.</p>}
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** One leg of the routine promotion drain (LDR→staging or LDR→main). */
+function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPromoteRun | null; testId?: string }) {
+  const tone: ChipTone = !run ? "gray" : run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue";
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId}>
+      <span className="text-[var(--color-text-secondary)]">{label}</span>
+      <div className="flex items-center gap-2">
+        <Chip tone={tone}>{run ? (run.conclusion ?? run.status) : "—"}</Chip>
+        {run && <span className="text-[var(--color-text-muted)]">{formatAge(run.age_min)} ago</span>}
+        {run?.url && (
+          <a href={run.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Routine LDR→staging / LDR→main auto-merge drain (PM-central, every 15 min) — DISTINCT from the
+ * Breaking cascade/SIT panel (which only fires on a breaking change). Answers the operator gap
+ * "when did we last promote LDR→staging via auto-merge + QG, and did it pass". */
+function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | undefined }) {
+  return (
+    <Card data-testid="promotion-drain-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Promotion drain</CardTitle>
+        <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {drain ? (
+          <>
+            <PromoteDrainRow label="LDR → staging" run={drain.ldr_to_staging} testId="drain-ldr-to-staging" />
+            <PromoteDrainRow label="LDR → main" run={drain.ldr_to_main} testId="drain-ldr-to-main" />
+          </>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">No promote-drain data.</p>
         )}
       </CardContent>
     </Card>
@@ -312,6 +357,7 @@ function OverviewTable({
           <th className="text-left py-1.5 font-medium">LDR</th>
           <th className="text-left py-1.5 font-medium">staging</th>
           <th className="text-left py-1.5 font-medium">main</th>
+          <th className="text-left py-1.5 font-medium">last green (main)</th>
           <th className="text-left py-1.5 font-medium">LDR→main delta</th>
           <th className="text-left py-1.5 font-medium">SIT</th>
           <th className="text-left py-1.5 font-medium">PRs</th>
@@ -353,8 +399,28 @@ function OverviewTable({
               <td className="py-1.5 font-mono">
                 <ShaLink repo={row.repo} sha={bySha.get("main") ?? null} />
               </td>
+              {/* N2: the last GREEN main sha + age ("green as of <sha> · <age>") — distinct from the
+                  main head above, which may be red/pending. */}
+              <td className="py-1.5 font-mono text-xs" data-testid={`last-green-${row.repo}`}>
+                {row.last_green_main ? (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ShaLink repo={row.repo} sha={row.last_green_main.sha} />
+                    <span className="text-[var(--color-text-muted)]">· {buildTimeLabel(row.last_green_main.at)}</span>
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
               <td className="py-1.5 text-[var(--color-text-secondary)]">
-                {ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
+                  {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
+                  {typeof row.main_lag_age_min === "number" && (
+                    <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
+                      {formatAge(row.main_lag_age_min)} lag
+                    </Chip>
+                  )}
+                </span>
               </td>
               <td className="py-1.5">
                 {row.sit.stuck_in_sit ? (
@@ -802,7 +868,8 @@ export function RepoCiContent() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <PromotionDrainPanel drain={overview.promotion_drain} />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />

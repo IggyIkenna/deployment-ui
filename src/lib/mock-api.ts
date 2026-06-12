@@ -1136,6 +1136,15 @@ function mockRepoCiRow(
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
+    // N2: last-green main — when main is red (FAILING) the last green ≠ head (an earlier green
+    // sha); else the head IS green so last-green = the main head.
+    last_green_main:
+      ciStatus === "FAILING"
+        ? { sha: "ab09999000", at: "2026-06-09T20:00:00Z" }
+        : { sha: "abc1100567", at: "2026-06-10T06:00:00Z" },
+    // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
+    // sit longer (drain stuck). >60min so the lag-chip renders red.
+    main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
   };
 }
 
@@ -1214,6 +1223,22 @@ function mockRepoCiOverview() {
       },
       { repo: "execution-service", failures: 1, quarantined: false },
     ],
+    // Routine promote drain (PM-central, every 15 min) — both legs green + recent (healthy case),
+    // distinct from the Breaking cascade/SIT panel above.
+    promotion_drain: {
+      ldr_to_staging: {
+        status: "completed",
+        conclusion: "success",
+        age_min: 8,
+        url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55501",
+      },
+      ldr_to_main: {
+        status: "completed",
+        conclusion: "success",
+        age_min: 5,
+        url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55502",
+      },
+    },
   };
 }
 

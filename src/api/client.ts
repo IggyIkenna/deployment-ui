@@ -3372,6 +3372,17 @@ export interface RepoCiOverviewRow {
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** N2: most-recent GREEN main sha + time ("green as of <sha> · <age>"), distinct from the head
+   * (which may be red/pending). Null when no successful v2 run is known for the repo's main. */
+  last_green_main?: RepoCiLastGreen | null;
+  /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
+   * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
+  main_lag_age_min?: number | null;
+}
+
+export interface RepoCiLastGreen {
+  sha: string;
+  at: string;
 }
 
 export interface RepoCiError {
@@ -3401,6 +3412,21 @@ export interface RepoCiOverview {
   /** Repos parked out of the staging→main promotion (G1 — alert-parity for the
    * staging-to-main genuine-failure CRITICAL page + newly-quarantined WARNING). */
   promotion_blocked?: RepoCiPromotionBlocked[];
+  /** Routine LDR→staging / LDR→main promote drain (PM-central, every 15 min) — distinct from the
+   * breaking cascade/SIT (sit_last_run). Null when the drain runs can't be fetched. */
+  promotion_drain?: RepoCiPromotionDrain | null;
+}
+
+export interface RepoCiPromoteRun {
+  status: string;
+  conclusion: string | null;
+  age_min: number | null;
+  url: string;
+}
+
+export interface RepoCiPromotionDrain {
+  ldr_to_staging: RepoCiPromoteRun | null;
+  ldr_to_main: RepoCiPromoteRun | null;
 }
 
 export interface RepoCiBranchCommits {
