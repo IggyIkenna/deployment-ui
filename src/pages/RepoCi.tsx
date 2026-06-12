@@ -387,6 +387,113 @@ function OverviewTable({
 
 /** Exported for the per-service "CI" tab on the home view (operator add 2026-06-10) —
  * one drill-down component serves both the fleet page and the single-service context. */
+/** SIT-stage tone — defensive against unknown last_sit_run_status strings. */
+function sitStageTone(sit: RepoCiDetail["sit"]): ChipTone {
+  if (sit.stuck_in_sit) return "red";
+  const s = (sit.last_sit_run_status ?? "").toLowerCase();
+  if (!s) return "gray";
+  if (s.includes("success") || s.includes("complete")) return "green";
+  if (s.includes("fail") || s.includes("cancel") || s.includes("timed")) return "red";
+  if (s.includes("progress") || s.includes("queue") || s.includes("pending") || s.includes("running")) return "blue";
+  return "gray";
+}
+
+/** One labelled node in the promotion pipeline strip. */
+function PipelineStage({
+  label,
+  tone,
+  testId,
+  children,
+}: {
+  label: string;
+  tone: ChipTone;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[76px] shrink-0" data-testid={testId}>
+      <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</span>
+      <Chip tone={tone}>{children}</Chip>
+    </div>
+  );
+}
+
+function PipelineArrow() {
+  return <span className="text-[var(--color-text-muted)] px-0.5 shrink-0">→</span>;
+}
+
+/**
+ * Promotion pipeline strip — the repo's position in the LDR → staging PR → SIT →
+ * main → image cycle, rendered from the detail payload (branches/deltas/open_prs/
+ * sit/image). The v2-never-reported deadlock + [skip ci] jam classes surface as
+ * explicit badges so a stuck promotion is visible at a glance rather than buried in
+ * the PR list. Plan: monitoring master — promotion-pipeline-visualization.
+ */
+function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
+  const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
+  const ldr = branchHead("live-defi-rollout");
+  const main = branchHead("main");
+  const stagingPr = detail.open_prs.find((pr) => pr.base === "staging") ?? null;
+  const mainPr = detail.open_prs.find((pr) => pr.base === "main") ?? null;
+  const mainDelta = detail.deltas.find((d) => d.base === "main") ?? null;
+  const sit = detail.sit;
+  const img = detail.image;
+
+  const stagingTone: ChipTone = stagingPr?.stuck_class
+    ? stuckClassTone(stagingPr.stuck_class)
+    : stagingPr
+      ? "blue"
+      : sit.staging_locked
+        ? "yellow"
+        : "gray";
+  const mainTone: ChipTone = mainPr?.stuck_class ? stuckClassTone(mainPr.stuck_class) : ciStatusTone(detail.ci_status);
+  const imageTone: ChipTone = img.last_build_status === "SUCCESS" ? "green" : img.last_build_status ? "red" : "gray";
+
+  // Explicit badges for the deadlock/jam classes the cycle most often hides.
+  const jammed = detail.open_prs.flatMap((pr) =>
+    pr.stuck_class === "v2_never_reported" || pr.stuck_class === "skip_ci_jammed"
+      ? [{ number: pr.number, stuckClass: pr.stuck_class }]
+      : [],
+  );
+
+  return (
+    <div
+      className="flex items-center gap-1 overflow-x-auto rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+      data-testid="promotion-pipeline"
+    >
+      <PipelineStage label="LDR" tone="blue" testId="pipeline-stage-ldr">
+        {ldr?.sha ? <ShaLink repo={detail.repo} sha={ldr.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="staging PR" tone={stagingTone} testId="pipeline-stage-staging">
+        {stagingPr ? `#${stagingPr.number}` : sit.staging_locked ? "locked" : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="SIT" tone={sitStageTone(sit)} testId="pipeline-stage-sit">
+        {sit.stuck_in_sit ? "stuck" : (sit.last_sit_run_status ?? "—")}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="main" tone={mainTone} testId="pipeline-stage-main">
+        {main?.sha ? <ShaLink repo={detail.repo} sha={main.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="image" tone={imageTone} testId="pipeline-stage-image">
+        {img.last_build_status ?? "—"}
+      </PipelineStage>
+      {mainDelta && (mainDelta.files_changed > 0 || mainDelta.ahead_by > 0) && (
+        <span className="ml-2 text-[10px] text-[var(--color-text-muted)] shrink-0" data-testid="pipeline-main-delta">
+          {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+        </span>
+      )}
+      {jammed.map((j) => (
+        <Chip key={j.number} tone={stuckClassTone(j.stuckClass)} testId="pipeline-jam-badge">
+          #{j.number} {STUCK_CLASS_LABELS[j.stuckClass]}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function RepoDetailPanel({ repo }: { repo: string }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -446,6 +553,8 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           Fleet Git
         </Link>
       </div>
+      {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
+      <PromotionPipeline detail={detail} />
       {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
           + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
           when the repo has no Cloud Build / CodeBuild. */}
@@ -566,7 +675,7 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="repo-detail-history">
         {detail.history.map((branchHistory) => (
           <Card key={branchHistory.branch}>
             <CardHeader className="pb-2">

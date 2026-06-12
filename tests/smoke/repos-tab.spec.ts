@@ -42,12 +42,31 @@ test.describe("Repos CI page", () => {
     await page.getByTestId("repo-dropdown").selectOption("execution-service");
     const detail = page.getByTestId("repo-detail");
     await expect(detail).toBeVisible();
-    // Three promotion branches of SHA history.
-    await expect(detail.getByText("live-defi-rollout", { exact: true })).toBeVisible();
-    await expect(detail.getByText("staging", { exact: true })).toBeVisible();
-    await expect(detail.getByText("main", { exact: true })).toBeVisible();
+    // Three promotion branches of SHA history — scoped to the history section so the
+    // promotion-pipeline strip's "main" stage label doesn't create an ambiguous match.
+    const history = page.getByTestId("repo-detail-history");
+    await expect(history.getByText("live-defi-rollout", { exact: true })).toBeVisible();
+    await expect(history.getByText("staging", { exact: true })).toBeVisible();
+    await expect(history.getByText("main", { exact: true })).toBeVisible();
     // PR cards with stuck classification render.
     await expect(page.getByTestId("repo-detail-prs")).toBeVisible();
+  });
+
+  test("repo drill-down renders the promotion pipeline strip (LDR → staging → SIT → main → image)", async ({
+    page,
+  }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("execution-service");
+    const pipeline = page.getByTestId("promotion-pipeline");
+    await expect(pipeline).toBeVisible();
+    // All five promotion stages render in order.
+    await expect(page.getByTestId("pipeline-stage-ldr")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-staging")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-sit")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-main")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-image")).toBeVisible();
+    await expect(pipeline).toContainText("LDR");
+    await expect(pipeline).toContainText("image");
   });
 
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {
