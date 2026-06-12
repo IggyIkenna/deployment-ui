@@ -1145,6 +1145,9 @@ function mockRepoCiRow(
     // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
     // sit longer (drain stuck). >60min so the lag-chip renders red.
     main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
+    // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
+    // stale/failing drain leg); healthy repos are draining so not stalled.
+    drain_stalled: ciStatus === "FAILING",
   };
 }
 
@@ -2616,30 +2619,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  // ─── Client subscriptions (Phase 4b — SLA / isolation) ───
-  if (path === "/subscriptions/" || path === "/subscriptions") {
-    if (method === "POST") {
-      const sub = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
-      return json(_mockClientSubscription(String(sub.client_id ?? "client-new")), 201);
-    }
-    return json([
-      _mockClientSubscription("acme-trading", "premium"),
-      _mockClientSubscription("research-fund-a", "standard"),
-      _mockClientSubscription("smoke-test-client", "basic"),
-    ]);
-  }
-  const subMatch = path.match(/^\/subscriptions\/([^/]+)$/);
-  if (subMatch) {
-    const clientId = decodeURIComponent(subMatch[1]);
-    if (method === "PUT") {
-      const patch = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
-      return json({
-        ..._mockClientSubscription(clientId),
-        ...patch,
-      });
-    }
-    return json(_mockClientSubscription(clientId));
-  }
+  // Client subscriptions (SLA tier / isolation) moved to unified-trading-system-ui
+  // (`services/manage/subscriptions`) per the dual-cut cleanup 2026-06-12 — its mock
+  // lives there now. The deployment-api `/subscriptions` backend is unchanged.
 
   // ─── Chaos injections (Phase 4b — controlled fault injection) ───
   if (path.startsWith("/chaos/injections")) {
@@ -2695,26 +2677,6 @@ function _mockVmDeployment(deploymentId: string, status: string) {
     rows_error: status === "failed" ? 7 : 0,
     events_emitted: 412,
     log_uri: `gs://deployment-scripts-central-element-323112/vm-logs/${deploymentId}/run.log`,
-  };
-}
-
-function _mockClientSubscription(clientId: string, tier: string = "standard") {
-  return {
-    client_id: clientId,
-    sla_tier: tier,
-    service_overrides: [
-      {
-        service_name: "execution-service",
-        isolation: tier === "premium" ? "isolated" : "shared",
-      },
-      {
-        service_name: "strategy-service",
-        isolation: tier === "premium" ? "isolated" : "shared",
-      },
-    ],
-    active_from: "2026-01-01T00:00:00Z",
-    active_until: null,
-    note: `Mock subscription for ${clientId}`,
   };
 }
 

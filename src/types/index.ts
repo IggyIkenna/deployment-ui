@@ -9,12 +9,7 @@ export interface Service {
 
 export interface ServiceDimension {
   name: string;
-  type:
-    | "fixed"
-    | "hierarchical"
-    | "date_range"
-    | "gcs_dynamic"
-    | "monthly_rolling";
+  type: "fixed" | "hierarchical" | "date_range" | "gcs_dynamic" | "monthly_rolling";
   description: string;
   values?: string[];
   values_by_parent?: Record<string, string[]>;
@@ -279,14 +274,10 @@ export interface DeploymentRequest {
 // v7 — Client isolation + SLA tiers + chaos injections (paired with
 // unified-api-contracts/internal/domain/deployment_service/isolation.py).
 
-export type IsolationPolicy = "shared" | "isolated";
-export type SLATier = "basic" | "standard" | "premium";
-export type RuntimeProfile =
-  | "backtest"
-  | "paper"
-  | "mock-live"
-  | "staging"
-  | "prod";
+// Client subscriptions (SLA tier / isolation) + their types moved to
+// unified-trading-system-ui (`services/manage/subscriptions`) per the dual-cut
+// cleanup 2026-06-12. The deployment-api `/subscriptions` backend is unchanged.
+export type RuntimeProfile = "backtest" | "paper" | "mock-live" | "staging" | "prod";
 export type ChaosInjectionPoint =
   | "venue_latency"
   | "rpc_timeout"
@@ -296,27 +287,6 @@ export type ChaosInjectionPoint =
   | "config_flip"
   | "kill_switch_fire"
   | "component_failure";
-
-export interface ServiceIsolationSpec {
-  service: string;
-  default: IsolationPolicy;
-  allowed: IsolationPolicy[];
-  reason: string;
-}
-
-export interface ClientServiceOverride {
-  service_name: string;
-  isolation: IsolationPolicy;
-}
-
-export interface ClientSubscription {
-  client_id: string;
-  sla_tier: SLATier;
-  service_overrides: ClientServiceOverride[];
-  active_from: string; // ISO 8601
-  active_until?: string | null;
-  note?: string;
-}
 
 export interface ChaosInjectionSpec {
   injection_id: string;
@@ -650,12 +620,7 @@ export interface LiveDeploymentRequest {
   dry_run?: boolean;
 }
 
-export type LiveDeploymentStatus =
-  | "dry_run"
-  | "started"
-  | "healthy"
-  | "failed"
-  | "rolled_back";
+export type LiveDeploymentStatus = "dry_run" | "started" | "healthy" | "failed" | "rolled_back";
 
 export interface RollbackRequest {
   service: string;

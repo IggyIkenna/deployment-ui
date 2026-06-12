@@ -3128,35 +3128,13 @@ export async function getLiveDeploymentHealth(
 }
 
 // ---------------------------------------------------------------------------
-// v7 — Client subscriptions + chaos injections (Phase 4b)
+// v7 — Chaos injections (Phase 4b)
 // ---------------------------------------------------------------------------
+// NOTE: client subscriptions (SLA tier / isolation) moved to unified-trading-system-ui
+// (`services/manage/subscriptions`) per the dual-cut cleanup 2026-06-12. The
+// deployment-api `/subscriptions` backend is unchanged.
 
-import type { ChaosInjectionSpec, ClientSubscription, RuntimeProfile } from "../types";
-
-export async function listClientSubscriptions(): Promise<ClientSubscription[]> {
-  return fetchJson<ClientSubscription[]>("/subscriptions/");
-}
-
-export async function getClientSubscription(clientId: string): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`);
-}
-
-export async function createClientSubscription(sub: ClientSubscription): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>("/subscriptions/", {
-    method: "POST",
-    body: JSON.stringify(sub),
-  });
-}
-
-export async function updateClientSubscription(
-  clientId: string,
-  patch: Partial<ClientSubscription>,
-): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
-  });
-}
+import type { ChaosInjectionSpec, RuntimeProfile } from "../types";
 
 export async function listActiveChaosInjections(runtimeProfile?: RuntimeProfile): Promise<ChaosInjectionSpec[]> {
   const qs = runtimeProfile ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}` : "";
@@ -3380,6 +3358,10 @@ export interface RepoCiOverviewRow {
   /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
    * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
   main_lag_age_min?: number | null;
+  /** promotion-drain follow-up: true when this repo has real file-content ahead of staging/main
+   * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
+   * on LDR with a dead drain). */
+  drain_stalled?: boolean;
 }
 
 export interface RepoCiLastGreen {

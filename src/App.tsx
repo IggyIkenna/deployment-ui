@@ -45,9 +45,7 @@ import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
-import { ClientSubscriptions } from "./pages/ClientSubscriptions";
 import { DailyCosts } from "./pages/DailyCosts";
-import { Dart } from "./pages/Dart";
 import { RepoDetailPanel } from "./pages/RepoCi";
 import { LandingTabs } from "./components/LandingTabs";
 import { VmDetail } from "./pages/VmDetail";
@@ -141,12 +139,10 @@ function App() {
                 <Routes>
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
-                  <Route path="/client-subscriptions" element={<ClientSubscriptions />} />
                   <Route path="/chaos" element={<Chaos />} />
                   <Route path="/ops/live-deployments" element={<LiveDeployments />} />
                   <Route path="/ops/costs" element={<DailyCosts />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
-                  <Route path="/dart" element={<Dart />} />
                   {/* /repos falls through to the home shell (`*`) so Repos CI renders as a
                       first-class LandingTabs tab, not a separate full-page app. */}
                   <Route path="/safety-ops" element={<SafetyOps />} />

@@ -23,7 +23,9 @@ const MOCK_HEALTH = {
 async function mockBase(page: Page) {
   await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
   await page.route("**/api/services", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/monitor/**", (route) => route.fulfill({ json: { jobs: [], total: 0, queried_at: new Date().toISOString(), cloud: "gcp", env: "dev" } }));
+  await page.route("**/api/monitor/**", (route) =>
+    route.fulfill({ json: { jobs: [], total: 0, queried_at: new Date().toISOString(), cloud: "gcp", env: "dev" } }),
+  );
   await page.route("**/api/dart/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/ml/**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/strategy/**", (route) => route.fulfill({ json: [] }));
@@ -162,16 +164,6 @@ test.describe("Header — mobile hamburger menu", () => {
 // ── Nav link routing ────────────────────────────────────────────────────
 
 test.describe("Header — nav link routing", () => {
-  test("DART link navigates to /dart", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.getByRole("link", { name: /^DART$/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/\/dart/);
-  });
-
   test("ML link navigates to /research/ml-experiments", async ({ page }) => {
     await mockBase(page);
     await page.goto("/");
@@ -216,14 +208,6 @@ test.describe("Header — nav link routing", () => {
 // ── Per-page no-crash smoke ───────────────────────────────────────────────
 
 test.describe("Page renders — no crash smoke", () => {
-  test("DART page renders without JS error", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/dart");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
-  });
-
   test("ML experiments page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/research/ml-experiments");
@@ -251,7 +235,10 @@ test.describe("Page renders — no crash smoke", () => {
   test("Live deployments page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/ops/live-deployments");
-    await page.waitForLoadState("networkidle");
+    // This page streams (event/log feeds) so `networkidle` never settles — wait on the
+    // page heading as the deterministic render signal instead (a crash → error boundary,
+    // no heading).
+    await expect(page.getByRole("heading", { name: "Live Deployments" })).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
@@ -259,7 +246,9 @@ test.describe("Page renders — no crash smoke", () => {
   test("VM Deployments page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    // This page polls the deployment registry so `networkidle` never settles — wait on the
+    // page heading as the deterministic render signal instead.
+    await expect(page.getByRole("heading", { name: "VM Deployments" })).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });

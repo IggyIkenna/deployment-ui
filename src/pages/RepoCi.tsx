@@ -25,6 +25,7 @@ import {
   type RepoCiPromotionDrain,
   type RepoCiSemverHealth,
   type RepoCiSitLastRun,
+  type RepoCiSitState,
 } from "../api/client";
 import {
   buildSourceLabel,
@@ -213,7 +214,13 @@ function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | und
 /** Routine LDR→staging / LDR→main auto-merge drain (PM-central, every 15 min) — DISTINCT from the
  * Breaking cascade/SIT panel (which only fires on a breaking change). Answers the operator gap
  * "when did we last promote LDR→staging via auto-merge + QG, and did it pass". */
-function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | undefined }) {
+function PromotionDrainPanel({
+  drain,
+  stalledRepos,
+}: {
+  drain: RepoCiPromotionDrain | null | undefined;
+  stalledRepos: string[];
+}) {
   return (
     <Card data-testid="promotion-drain-panel">
       <CardHeader className="pb-2">
@@ -228,6 +235,17 @@ function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | u
           </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">No promote-drain data.</p>
+        )}
+        {/* promotion-drain follow-up: repos with content ahead + a stale/failing drain (bug-#11). */}
+        {stalledRepos.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1" data-testid="drain-stalled-summary">
+            <Chip tone="red">{stalledRepos.length} drain-stalled</Chip>
+            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{stalledRepos.join(", ")}</span>
+          </div>
+        ) : (
+          <p className="pt-1 text-[10px] text-[var(--color-text-muted)]" data-testid="drain-stalled-summary">
+            No drain-stalled repos.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -489,6 +507,12 @@ function OverviewTable({
                       {formatAge(row.main_lag_age_min)} lag
                     </Chip>
                   )}
+                  {/* promotion-drain follow-up: content ahead + a stale/failing drain leg (bug-#11). */}
+                  {row.drain_stalled && (
+                    <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
+                      drain stalled
+                    </Chip>
+                  )}
                 </span>
               </td>
               <td className="py-1.5">
@@ -597,6 +621,33 @@ function BranchLastGreenStrip({ lastGreen }: { lastGreen?: Record<string, RepoCi
           </span>
         );
       })}
+    </div>
+  );
+}
+
+/** SIT / staging-lock detail line. The pipeline strip above shows the lock/stuck STATE; this
+ * surfaces the WHY + age the operator needs to act: staging_locked_reason (e.g. "breaking cascade
+ * in flight") and last_sit_run_age_min — both already on the payload but unsurfaced until now.
+ * Renders nothing for a clean repo (no lock, no breaking-pending, no SIT run) to avoid clutter. */
+function SitLockDetail({ sit }: { sit: RepoCiSitState }) {
+  const hasLockReason = sit.staging_locked && sit.staging_locked_reason;
+  const hasSitAge = sit.last_sit_run_age_min !== null && sit.last_sit_run_age_min !== undefined;
+  if (!hasLockReason && !hasSitAge && !sit.in_breaking_pending && !sit.stuck_in_sit) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="repo-detail-sit-lock">
+      {sit.staging_locked && (
+        <Chip tone="yellow">
+          {sit.staging_locked_reason ? `staging locked: ${sit.staging_locked_reason}` : "staging locked"}
+        </Chip>
+      )}
+      {sit.in_breaking_pending && <Chip tone="yellow">breaking-pending</Chip>}
+      {sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
+      {hasSitAge && (
+        <span className="text-[var(--color-text-muted)]" data-testid="sit-run-age">
+          last SIT run {sit.last_sit_run_status ? `(${sit.last_sit_run_status}) ` : ""}
+          {formatAge(sit.last_sit_run_age_min)} ago
+        </span>
+      )}
     </div>
   );
 }
@@ -727,6 +778,10 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
       </div>
       {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
       <PromotionPipeline detail={detail} />
+      {/* SIT / staging-lock detail — the pipeline strip shows "locked"/"stuck"; this line surfaces
+          WHY (staging_locked_reason) + how old the last SIT run is (last_sit_run_age_min), both
+          already on the payload but previously unsurfaced. */}
+      <SitLockDetail sit={detail.sit} />
       {/* N2-followup: per-branch last-green (LDR / staging / main) — the most-recent green v2 sha
           per branch, distinct from each branch HEAD which may be red/pending. */}
       <BranchLastGreenStrip lastGreen={detail.last_green} />
@@ -978,7 +1033,10 @@ export function RepoCiContent() {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <PromotionDrainPanel drain={overview.promotion_drain} />
+            <PromotionDrainPanel
+              drain={overview.promotion_drain}
+              stalledRepos={overview.repos.filter((r) => r.drain_stalled).map((r) => r.repo)}
+            />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
