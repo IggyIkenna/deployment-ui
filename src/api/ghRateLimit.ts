@@ -9,11 +9,21 @@ export interface GhRatePool {
   reset: number;
 }
 
+/** The GitHub App ("uts-ci-poller") installation-token budget — a SEPARATE
+ * 5000/hr REST + 5000-pt/hr GraphQL pool the fleet's CI pollers now draw from.
+ * Best-effort on the API side: absent when App creds are not configured. */
+export interface GhAppRateLimit {
+  resources: Record<string, GhRatePool>;
+}
+
 /** Response from `GET /api/repos/gh-rate-limit`. The whole fleet shares ONE PAT
- * (5000/hr REST budget), so a low `core` pool is the fleet-wide 403 source. */
+ * (5000/hr REST budget), so a low `core` pool is the fleet-wide 403 source. The
+ * optional `app` block is the GitHub App pool (separate budget) — present only
+ * when deployment-api can mint an App installation token. */
 export interface GhRateLimit {
   fetched_at: string;
   resources: Record<string, GhRatePool>;
+  app?: GhAppRateLimit;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {

@@ -14,13 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { useServiceChecklist } from "../hooks/useServices";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
@@ -31,11 +25,8 @@ interface ReadinessTabProps {
 }
 
 export function ReadinessTab({ serviceName }: ReadinessTabProps) {
-  const { checklist, loading, error, refetch } =
-    useServiceChecklist(serviceName);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(),
-  );
+  const { checklist, loading, error, refetch } = useServiceChecklist(serviceName);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategories((prev) => {
@@ -81,14 +72,19 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
           <div className="text-center text-[var(--color-text-muted)]">
             <ShieldAlert className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">No Checklist Available</p>
-            <p className="text-sm mt-2">
-              No production readiness checklist found for {serviceName}.
-            </p>
+            <p className="text-sm mt-2">No production readiness checklist found for {serviceName}.</p>
           </div>
         </CardContent>
       </Card>
     );
   }
+
+  // Defensive: a partial/raced /checklist payload (or a stale mock) can arrive
+  // as a non-null object missing its array fields; guard so the tab renders
+  // gracefully instead of crashing into the per-tab ErrorBoundary (same class as
+  // the DependenciesPanel fix, item 203).
+  const blockingItems = checklist.blocking_items ?? [];
+  const categories = checklist.categories ?? [];
 
   const getReadinessColor = (percent: number) => {
     if (percent >= 90) return "var(--color-accent-green)";
@@ -106,13 +102,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
             <div>
               <CardTitle className="text-xl font-mono flex items-center gap-2">
                 Production Readiness
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => refetch()}
-                  className="p-1 h-7 w-7"
-                  title="Refresh"
-                >
+                <Button variant="ghost" size="icon" onClick={() => refetch()} className="p-1 h-7 w-7" title="Refresh">
                   <RefreshCw className="h-4 w-4 text-[var(--color-text-muted)]" />
                 </Button>
               </CardTitle>
@@ -133,14 +123,12 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
               <div className="text-xs text-[var(--color-text-muted)] mt-1">
                 {checklist.not_applicable_items > 0 ? (
                   <>
-                    {checklist.completed_items} of{" "}
-                    {checklist.total_items - checklist.not_applicable_items}{" "}
-                    applicable items
+                    {checklist.completed_items} of {checklist.total_items - checklist.not_applicable_items} applicable
+                    items
                   </>
                 ) : (
                   <>
-                    {checklist.completed_items}/{checklist.total_items} items
-                    complete
+                    {checklist.completed_items}/{checklist.total_items} items complete
                   </>
                 )}
               </div>
@@ -155,9 +143,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${checklist.readiness_percent}%`,
-                  backgroundColor: getReadinessColor(
-                    checklist.readiness_percent,
-                  ),
+                  backgroundColor: getReadinessColor(checklist.readiness_percent),
                 }}
               />
             </div>
@@ -188,36 +174,30 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
       </Card>
 
       {/* Blocking Items */}
-      {checklist.blocking_items.length > 0 && (
+      {blockingItems.length > 0 && (
         <Card className="status-error">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-[var(--color-accent-red)]" />
               <CardTitle className="text-sm text-[var(--color-accent-red)]">
-                Blocking Issues ({checklist.blocking_items.length})
+                Blocking Issues ({blockingItems.length})
               </CardTitle>
             </div>
-            <CardDescription>
-              These items must be resolved before deployment
-            </CardDescription>
+            <CardDescription>These items must be resolved before deployment</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {checklist.blocking_items.map((item) => (
+              {blockingItems.map((item) => (
                 <div key={item.id} className="p-3 rounded-lg status-error">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
                     <div>
-                      <div className="font-medium text-sm text-[var(--color-text-primary)]">
-                        {item.description}
-                      </div>
+                      <div className="font-medium text-sm text-[var(--color-text-primary)]">{item.description}</div>
                       <div className="text-xs text-[var(--color-text-muted)] mt-1">
                         {item.category} • {item.id}
                       </div>
                       {item.notes && (
-                        <div className="text-xs text-[var(--color-text-secondary)] mt-2">
-                          {item.notes}
-                        </div>
+                        <div className="text-xs text-[var(--color-text-secondary)] mt-2">{item.notes}</div>
                       )}
                     </div>
                   </div>
@@ -230,7 +210,7 @@ export function ReadinessTab({ serviceName }: ReadinessTabProps) {
 
       {/* Categories */}
       <div className="space-y-2">
-        {checklist.categories.map((category) => (
+        {categories.map((category) => (
           <CategoryCard
             key={category.name}
             category={category}
@@ -274,9 +254,7 @@ function CategoryCard({ category, expanded, onToggle }: CategoryCardProps) {
               <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
             )}
             <div>
-              <CardTitle className="text-sm font-medium">
-                {category.display_name}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{category.display_name}</CardTitle>
               <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 {category.completed_items}/{category.total_items} items
               </div>
@@ -325,23 +303,15 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
   const getStatusIcon = () => {
     switch (item.status) {
       case "done":
-        return (
-          <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-        );
+        return <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />;
       case "partial":
         return <Clock className="h-4 w-4 text-[var(--color-accent-amber)]" />;
       case "pending":
-        return (
-          <AlertCircle className="h-4 w-4 text-[var(--color-text-muted)]" />
-        );
+        return <AlertCircle className="h-4 w-4 text-[var(--color-text-muted)]" />;
       case "n/a":
-        return (
-          <MinusCircle className="h-4 w-4 text-[var(--color-text-muted)]" />
-        );
+        return <MinusCircle className="h-4 w-4 text-[var(--color-text-muted)]" />;
       default:
-        return (
-          <AlertCircle className="h-4 w-4 text-[var(--color-text-muted)]" />
-        );
+        return <AlertCircle className="h-4 w-4 text-[var(--color-text-muted)]" />;
     }
   };
 
@@ -366,8 +336,7 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
     <div
       className={cn(
         "rounded-lg border border-transparent transition-colors",
-        hasDetails &&
-          "cursor-pointer hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-tertiary)]",
+        hasDetails && "cursor-pointer hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-tertiary)]",
         item.blocking && item.status !== "done" && "status-error",
       )}
       onClick={() => hasDetails && setExpanded(!expanded)}
@@ -379,23 +348,17 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
             <span
               className={cn(
                 "text-sm",
-                item.status === "done"
-                  ? "text-[var(--color-text-secondary)]"
-                  : "text-[var(--color-text-primary)]",
+                item.status === "done" ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]",
               )}
             >
               {item.description}
             </span>
             <div className="flex items-center gap-2 shrink-0">
-              {item.blocking && item.status !== "done" && (
-                <Badge variant="error">Blocking</Badge>
-              )}
+              {item.blocking && item.status !== "done" && <Badge variant="error">Blocking</Badge>}
               {getStatusBadge()}
             </div>
           </div>
-          <div className="text-xs text-[var(--color-text-muted)] mt-0.5 font-mono">
-            {item.id}
-          </div>
+          <div className="text-xs text-[var(--color-text-muted)] mt-0.5 font-mono">{item.id}</div>
         </div>
       </div>
 
@@ -408,11 +371,7 @@ function ChecklistItemRow({ item }: ChecklistItemRowProps) {
                 {item.notes}
               </div>
             )}
-            {item.verified_date && (
-              <div className="text-[var(--color-text-muted)]">
-                Verified: {item.verified_date}
-              </div>
-            )}
+            {item.verified_date && <div className="text-[var(--color-text-muted)]">Verified: {item.verified_date}</div>}
           </div>
         </div>
       )}
@@ -444,37 +403,28 @@ function VenueCoverageCard() {
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Search className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-          <CardTitle className="text-sm text-[var(--color-accent-cyan)]">
-            Venue Coverage Validation
-          </CardTitle>
+          <CardTitle className="text-sm text-[var(--color-accent-cyan)]">Venue Coverage Validation</CardTitle>
           <Badge variant="outline" className="text-xs">
             CLI Only
           </Badge>
         </div>
-        <CardDescription>
-          Verify each parquet file contains data for all expected venues
-        </CardDescription>
+        <CardDescription>Verify each parquet file contains data for all expected venues</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Why CLI only explanation */}
         <div className="flex items-start gap-2 p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
           <Info className="h-4 w-4 text-[var(--color-text-muted)] shrink-0 mt-0.5" />
           <div className="text-xs text-[var(--color-text-secondary)]">
-            <p className="font-medium text-[var(--color-text-primary)] mb-1">
-              Why is this CLI-only?
-            </p>
+            <p className="font-medium text-[var(--color-text-primary)] mb-1">Why is this CLI-only?</p>
             <p>
-              While deployments now shard by{" "}
-              <span className="font-mono">category × venue × date</span> (one
-              shard per venue+date), venue coverage validation reads the{" "}
-              <span className="font-mono">venue</span> column from parquet files
-              to verify all expected venues are present within each file. This
-              validates file <em>content</em>, not just file existence.
+              While deployments now shard by <span className="font-mono">category × venue × date</span> (one shard per
+              venue+date), venue coverage validation reads the <span className="font-mono">venue</span> column from
+              parquet files to verify all expected venues are present within each file. This validates file{" "}
+              <em>content</em>, not just file existence.
             </p>
             <p className="mt-2">
-              This catches API adapter failures (rate limits, auth errors, empty
-              responses) where a venue's API returned no data—issues that file
-              existence checks would miss.
+              This catches API adapter failures (rate limits, auth errors, empty responses) where a venue's API returned
+              no data—issues that file existence checks would miss.
             </p>
           </div>
         </div>
@@ -491,13 +441,9 @@ function VenueCoverageCard() {
             className="p-3 rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] font-mono text-xs cursor-pointer hover:border-[var(--color-accent-cyan)] transition-colors relative group"
             onClick={copyCommand}
           >
-            <code className="text-[var(--color-text-secondary)] break-all">
-              {cliCommand}
-            </code>
+            <code className="text-[var(--color-text-secondary)] break-all">{cliCommand}</code>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-xs text-[var(--color-accent-cyan)]">
-                {copied ? "Copied!" : "Click to copy"}
-              </span>
+              <span className="text-xs text-[var(--color-accent-cyan)]">{copied ? "Copied!" : "Click to copy"}</span>
             </div>
           </div>
         </div>
@@ -507,17 +453,13 @@ function VenueCoverageCard() {
           <span className="font-medium">What it checks:</span>
           <ul className="mt-1 space-y-1 ml-4 list-disc">
             <li>
-              For each date, reads only the{" "}
-              <code className="font-mono">venue</code> column (efficient)
+              For each date, reads only the <code className="font-mono">venue</code> column (efficient)
             </li>
             <li>
               Compares found venues against expected venues from{" "}
               <code className="font-mono">expected_start_dates.yaml</code>
             </li>
-            <li>
-              Only expects venues that should exist on that date (respects venue
-              launch dates)
-            </li>
+            <li>Only expects venues that should exist on that date (respects venue launch dates)</li>
             <li>Parallel checking with 16 threads for fast scanning</li>
           </ul>
         </div>

@@ -3,12 +3,19 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow } from "../api/client";
 import {
+  buildSourceLabel,
+  buildTimeLabel,
+  ciStatusLabel,
   ciStatusTone,
   deltaLabel,
+  failingBranches,
   formatAge,
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  promotionBlockedLabel,
+  promotionBlockedTone,
+  isDrainingClass,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -57,11 +64,42 @@ describe("shortSha", () => {
 });
 
 describe("deltaLabel", () => {
-  it("reports content deltas, calls out squash skew, never lies on commit count", () => {
+  it("reports content deltas + commit count (B3), calls out squash skew, never lies", () => {
     expect(deltaLabel(0, 0)).toBe("in sync");
-    expect(deltaLabel(0, 5)).toBe("in sync (squash skew)");
-    expect(deltaLabel(1, 1)).toBe("1 file ahead");
-    expect(deltaLabel(4, 3)).toBe("4 files ahead");
+    expect(deltaLabel(0, 5)).toBe("in sync · 5 commits (squash skew)");
+    expect(deltaLabel(0, 1)).toBe("in sync · 1 commit (squash skew)");
+    expect(deltaLabel(1, 1)).toBe("1 file ahead · 1 commit");
+    expect(deltaLabel(4, 3)).toBe("4 files ahead · 3 commits");
+  });
+});
+
+describe("promotionBlockedTone / promotionBlockedLabel (G1)", () => {
+  it("quarantined is red/CRITICAL; failing-not-quarantined is yellow/WARNING", () => {
+    const quar = { repo: "greeks-service", failures: 3, quarantined: true, escalated: true };
+    const warn = { repo: "execution-service", failures: 1, quarantined: false };
+    expect(promotionBlockedTone(quar)).toBe("red");
+    expect(promotionBlockedTone(warn)).toBe("yellow");
+    expect(promotionBlockedLabel(quar)).toBe("3 fails · quarantined");
+    expect(promotionBlockedLabel(warn)).toBe("1 fail");
+  });
+});
+
+describe("buildTimeLabel (B1)", () => {
+  it("renders MM-DD HH:MM from an ISO timestamp, em-dash when absent", () => {
+    expect(buildTimeLabel("2026-06-11T07:30:00Z")).toBe("06-11 07:30");
+    expect(buildTimeLabel(null)).toBe("—");
+    expect(buildTimeLabel(undefined)).toBe("—");
+    expect(buildTimeLabel("bad")).toBe("—");
+  });
+});
+
+describe("buildSourceLabel (B2)", () => {
+  it("infers the build system from the console log URL host", () => {
+    expect(buildSourceLabel("https://console.cloud.google.com/cloud-build/builds/x")).toBe("Cloud Build");
+    expect(buildSourceLabel("https://console.aws.amazon.com/codesuite/codebuild/builds/y")).toBe("CodeBuild");
+    expect(buildSourceLabel(null)).toBeNull();
+    expect(buildSourceLabel(undefined)).toBeNull();
+    expect(buildSourceLabel("https://example.com/unknown")).toBeNull();
   });
 });
 
@@ -95,6 +133,42 @@ function row(overrides: Partial<RepoCiOverviewRow>): RepoCiOverviewRow {
   };
 }
 
+describe("failingBranches / ciStatusLabel (branch-aware CI chip)", () => {
+  it("pins the red branch from branch_ci, in promotion order", () => {
+    const mainRed = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "success", staging: "success", main: "failure" },
+    });
+    expect(failingBranches(mainRed)).toEqual(["main"]);
+    expect(ciStatusLabel(mainRed)).toBe("FAILING (main)");
+
+    const ldrRed = row({
+      ci_status: "STAGING_GREEN",
+      branch_ci: { "live-defi-rollout": "failure", staging: "success", main: "success" },
+    });
+    expect(failingBranches(ldrRed)).toEqual(["LDR"]);
+    expect(ciStatusLabel(ldrRed)).toBe("STAGING_GREEN (LDR)");
+  });
+
+  it("lists multiple red branches LDR→staging→main and treats timed_out/cancelled as red", () => {
+    const twoRed = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "timed_out", staging: "success", main: "cancelled" },
+    });
+    expect(failingBranches(twoRed)).toEqual(["LDR", "main"]);
+    expect(ciStatusLabel(twoRed)).toBe("FAILING (LDR, main)");
+  });
+
+  it("falls back to bare ci_status when branch_ci is absent or all green", () => {
+    expect(ciStatusLabel(row({ ci_status: "MAIN_GREEN" }))).toBe("MAIN_GREEN");
+    expect(
+      ciStatusLabel(
+        row({ ci_status: "MAIN_GREEN", branch_ci: { "live-defi-rollout": "success", staging: null, main: "success" } }),
+      ),
+    ).toBe("MAIN_GREEN");
+  });
+});
+
 describe("rowSeverity", () => {
   it("FAILING > stuck > content delta > clean", () => {
     expect(rowSeverity(row({ ci_status: "FAILING" }))).toBe(3);
@@ -119,6 +193,33 @@ describe("rowSeverity", () => {
       ),
     ).toBe(1);
     expect(rowSeverity(row({}))).toBe(0);
+  });
+
+  it("a DRAINING-only stuck PR is in-progress (1), NOT counted as stuck (2) — operator 2026-06-11", () => {
+    // auto-merge-armed / v2-re-fire drains self-heal in-band → pending, not parked.
+    expect(rowSeverity(row({ open_prs: [{ repo: "r", number: 1, stuck_class: "automerge_stuck" }] }))).toBe(1);
+    expect(rowSeverity(row({ open_prs: [{ repo: "r", number: 2, stuck_class: "v2_never_reported" }] }))).toBe(1);
+    // a genuine conflict wall on the same row still escalates to stuck (2).
+    expect(
+      rowSeverity(
+        row({
+          open_prs: [
+            { repo: "r", number: 1, stuck_class: "automerge_stuck" },
+            { repo: "r", number: 3, stuck_class: "conflicting" },
+          ],
+        }),
+      ),
+    ).toBe(2);
+  });
+});
+
+describe("isDrainingClass", () => {
+  it("auto-recovering classes are draining (pending); intervention classes are not", () => {
+    expect(isDrainingClass("automerge_stuck")).toBe(true);
+    expect(isDrainingClass("v2_never_reported")).toBe(true);
+    expect(isDrainingClass("conflicting")).toBe(false);
+    expect(isDrainingClass("failing_check")).toBe(false);
+    expect(isDrainingClass("skip_ci_jammed")).toBe(false);
   });
 });
 

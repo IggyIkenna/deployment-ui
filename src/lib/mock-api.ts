@@ -869,76 +869,121 @@ const MOCK_DATA_STATUS = {
   mock: true,
 };
 
+// Conforms to the ChecklistResponse contract (src/types/index.ts): readiness_percent
+// + the four count fields + per-category {display_name, percent, total/completed} +
+// blocking_items[]. The prior {overallScore, isBlocked, score, label, detail} shape was
+// stale and omitted blocking_items/readiness_percent, so ReadinessTab's
+// `checklist.blocking_items.length` read undefined and the tab crashed into the
+// per-tab ErrorBoundary in mock mode (the page.route fix in stateful-flows.spec.ts is
+// dead under VITE_MOCK_API — the in-app mock wins).
 const MOCK_CHECKLIST = {
   service: "instruments-service",
-  overallScore: 87,
-  isBlocked: false,
+  last_updated: "2026-03-10T08:00:00Z",
+  readiness_percent: 75,
+  total_items: 8,
+  completed_items: 5,
+  partial_items: 2,
+  pending_items: 1,
+  not_applicable_items: 0,
   categories: [
     {
-      name: "Data Coverage",
-      score: 95,
+      name: "data_coverage",
+      display_name: "Data Coverage",
+      percent: 83,
+      total_items: 3,
+      completed_items: 2,
       items: [
         {
           id: "c1",
-          label: "Equity coverage ≥ 95%",
-          status: "pass",
-          detail: "98.2% complete",
+          description: "Equity coverage ≥ 95%",
+          status: "done",
+          notes: "98.2% complete",
+          verified_date: "2026-03-10",
+          blocking: false,
         },
         {
           id: "c2",
-          label: "Crypto coverage ≥ 90%",
-          status: "pass",
-          detail: "94.1% complete",
+          description: "Crypto coverage ≥ 90%",
+          status: "done",
+          notes: "94.1% complete",
+          verified_date: "2026-03-10",
+          blocking: false,
         },
         {
           id: "c3",
-          label: "FX coverage ≥ 90%",
-          status: "warn",
-          detail: "88.5% complete (below 90% threshold)",
+          description: "FX coverage ≥ 90%",
+          status: "partial",
+          notes: "88.5% complete (below 90% threshold)",
+          verified_date: null,
+          blocking: false,
         },
       ],
     },
     {
-      name: "Build Health",
-      score: 100,
+      name: "build_health",
+      display_name: "Build Health",
+      percent: 100,
+      total_items: 2,
+      completed_items: 2,
       items: [
         {
           id: "b1",
-          label: "Latest build passing",
-          status: "pass",
-          detail: "Build #1847 — 2026-03-10T08:00Z",
+          description: "Latest build passing",
+          status: "done",
+          notes: "Build #1847 — 2026-03-10T08:00Z",
+          verified_date: "2026-03-10",
+          blocking: false,
         },
         {
           id: "b2",
-          label: "No critical CVEs",
-          status: "pass",
-          detail: "0 critical, 2 low severity",
+          description: "No critical CVEs",
+          status: "done",
+          notes: "0 critical, 2 low severity",
+          verified_date: "2026-03-10",
+          blocking: false,
         },
       ],
     },
     {
-      name: "Deployment Readiness",
-      score: 67,
+      name: "deployment_readiness",
+      display_name: "Deployment Readiness",
+      percent: 50,
+      total_items: 3,
+      completed_items: 1,
       items: [
         {
           id: "d1",
-          label: "Canary deployment validated",
-          status: "fail",
-          detail: "No canary run in last 7 days",
+          description: "Canary deployment validated",
+          status: "pending",
+          notes: "No canary run in last 7 days",
+          verified_date: null,
+          blocking: true,
         },
         {
           id: "d2",
-          label: "Rollback tested",
-          status: "pass",
-          detail: "Rollback tested 2026-03-08",
+          description: "Rollback tested",
+          status: "done",
+          notes: "Rollback tested 2026-03-08",
+          verified_date: "2026-03-08",
+          blocking: false,
         },
         {
           id: "d3",
-          label: "Alert thresholds configured",
-          status: "warn",
-          detail: "P99 latency alert missing",
+          description: "Alert thresholds configured",
+          status: "partial",
+          notes: "P99 latency alert missing",
+          verified_date: null,
+          blocking: false,
         },
       ],
+    },
+  ],
+  blocking_items: [
+    {
+      id: "d1",
+      description: "Canary deployment validated",
+      category: "Deployment Readiness",
+      notes: "No canary run in last 7 days",
     },
   ],
 };
@@ -1046,10 +1091,19 @@ function mockRepoCiRow(
   sitPending: boolean,
   sitStuck: boolean,
 ) {
+  // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
+  // STAGING_GREEN → LDR red (actively-broken shape); else all green. Mirrors the deployment-api mock.
+  const branchCi: Record<string, string | null> =
+    ciStatus === "FAILING"
+      ? { "live-defi-rollout": "success", staging: "success", main: "failure" }
+      : ciStatus === "STAGING_GREEN"
+        ? { "live-defi-rollout": "failure", staging: "success", main: "success" }
+        : { "live-defi-rollout": "success", staging: "success", main: "success" };
   return {
     repo,
     repo_type: repoType,
     ci_status: ciStatus,
+    branch_ci: branchCi,
     branches: [
       { branch: "live-defi-rollout", sha: "abc1234567", committed_at: "2026-06-10T08:00:00Z" },
       { branch: "staging", sha: "abc1200567", committed_at: "2026-06-10T07:30:00Z" },
@@ -1070,11 +1124,27 @@ function mockRepoCiRow(
       stuck_in_sit: sitStuck,
     },
     image: {
-      last_build_status: "SUCCESS",
-      last_build_sha: "aaa1111",
+      // A FAILING repo's latest build is red, but a prior SUCCESS is still surfaced
+      // (last_success_*) so the UI's "last good image" path is exercised.
+      last_build_status: ciStatus === "FAILING" ? "FAILURE" : "SUCCESS",
+      last_build_sha: ciStatus === "FAILING" ? "fae1ed0" : "aaa1111",
+      last_build_time: ciStatus === "FAILING" ? "2026-06-11T09:15:00Z" : "2026-06-11T07:30:00Z",
+      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-latest",
+      last_success_sha: "aaa1111",
+      last_success_time: "2026-06-11T07:30:00Z",
+      last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
+    // N2: last-green main — when main is red (FAILING) the last green ≠ head (an earlier green
+    // sha); else the head IS green so last-green = the main head.
+    last_green_main:
+      ciStatus === "FAILING"
+        ? { sha: "ab09999000", at: "2026-06-09T20:00:00Z" }
+        : { sha: "abc1100567", at: "2026-06-10T06:00:00Z" },
+    // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
+    // sit longer (drain stuck). >60min so the lag-chip renders red.
+    main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
   };
 }
 
@@ -1140,6 +1210,35 @@ function mockRepoCiOverview() {
     // Degraded-repo errors[] — a per-repo GitHub-5xx degradation is VISIBLE, not
     // silently dropped (mirrors deployment-api _mock_overview seeding one error).
     errors: [{ repo: "ml-service", error: "GitHub HTTP 502 on compare (degraded; row dropped)" }],
+    // Promotion-blocked[] — repos parked out of staging→main (G1). greeks-service is
+    // quarantined (CRITICAL); execution-service is failing-but-not-yet-quarantined (WARNING).
+    promotion_blocked: [
+      {
+        repo: "greeks-service",
+        failures: 3,
+        quarantined: true,
+        since: "2026-06-11T08:00:00Z",
+        attempts: 3,
+        escalated: true,
+      },
+      { repo: "execution-service", failures: 1, quarantined: false },
+    ],
+    // Routine promote drain (PM-central, every 15 min) — both legs green + recent (healthy case),
+    // distinct from the Breaking cascade/SIT panel above.
+    promotion_drain: {
+      ldr_to_staging: {
+        status: "completed",
+        conclusion: "success",
+        age_min: 8,
+        url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55501",
+      },
+      ldr_to_main: {
+        status: "completed",
+        conclusion: "success",
+        age_min: 5,
+        url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55502",
+      },
+    },
   };
 }
 
@@ -1378,6 +1477,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         graphql: { limit: 5000, remaining: 600, used: 4400, reset },
         search: { limit: 30, remaining: 30, used: 0, reset },
       },
+      // The GitHub App ("uts-ci-poller") pool — a SEPARATE 5000/hr budget the
+      // fleet's CI pollers draw from. Seeded healthy so both rows render.
+      app: {
+        resources: {
+          core: { limit: 5000, remaining: 4950, used: 50, reset },
+          graphql: { limit: 5000, remaining: 5000, used: 0, reset },
+        },
+      },
     });
   }
   {
@@ -1458,7 +1565,17 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.match(/^\/api\/services\/(.+)\/dependencies$/)) {
-    return json({ upstream: [], downstream: [], dependents: [] });
+    // Must match the real DependenciesResponse contract (src/types) — the prior
+    // {upstream, downstream, dependents} omitted downstream_dependents + outputs, so
+    // DependenciesPanel's `.length` reads on those crashed the app (error boundary).
+    return json({
+      service: "",
+      description: "",
+      upstream: [],
+      outputs: [],
+      external_dependencies: [],
+      downstream_dependents: [],
+    });
   }
   if (path.match(/^\/api\/services\/(.+)\/checklist\/validate$/)) {
     return json({
@@ -1832,9 +1949,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     return json({
       generated_at: new Date().toISOString(),
       source: "mock",
+      stale: false,
       epics: [
         {
           name: "observability_master",
+          slug: "observability_master",
           title: "Observability Master",
           tier: "L4",
           priority: "P0",
@@ -1851,6 +1970,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         },
         {
           name: "orchestrator_master",
+          slug: "orchestrator_master",
           title: "Orchestrator Master",
           tier: "L4",
           priority: "P1",

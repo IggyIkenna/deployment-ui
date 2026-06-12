@@ -32,3 +32,30 @@ test.describe("Epics tab v2", () => {
     await expect(orphans).toContainText("no `parent_epic`");
   });
 });
+
+test.describe("Epics stale-cache degradation (quota fix 2026-06-11)", () => {
+  test("stale=true payload shows the STALE badge; fresh payload does not", async ({ page }) => {
+    // Fresh (mock fixture stale:false): no badge.
+    await page.goto("/epics");
+    await expect(page.getByTestId("epics-plans-page")).toBeVisible();
+    await expect(page.getByTestId("epics-stale-badge")).toHaveCount(0);
+    // Degraded: wrap window.fetch ON TOP of the in-page mock interceptor (mock mode
+    // patches fetch in-page, so page.route never sees /api/* — re-patch instead) and
+    // mark the payload stale — the badge must surface (degraded ≠ blank).
+    await page.evaluate(() => {
+      const orig = window.fetch.bind(window);
+      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const res = await orig(input, init);
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (!url.includes("/api/epics/plans")) return res;
+        const body = (await res.json()) as Record<string, unknown>;
+        return new Response(JSON.stringify({ ...body, stale: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      };
+    });
+    await page.getByTestId("epics-refresh").click();
+    await expect(page.getByTestId("epics-stale-badge")).toBeVisible();
+  });
+});

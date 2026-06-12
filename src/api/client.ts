@@ -568,6 +568,8 @@ export interface EpicPlanRow {
 
 export interface EpicCard {
   name: string;
+  /** Filename slug (e.g. mtds_mdps_master) — the canonical match key vs plan.parent_epic. */
+  slug: string;
   title: string;
   tier: string;
   priority: string;
@@ -583,6 +585,8 @@ export interface EpicCard {
 export interface EpicsPlansResponse {
   generated_at: string;
   source: string;
+  /** True = GitHub unreachable/rate-limited; payload is the API's last cached snapshot. */
+  stale?: boolean;
   epics: EpicCard[];
   orphans: EpicPlanRow[];
   orphan_count: number;
@@ -1491,6 +1495,8 @@ export interface CoverageSummaryResponse {
     instrument_rows: number;
     dates_across_asset_groups: number;
     latest_day_instruments: number;
+    /** Catalogue-deduplicated identity count (sum across AGs); null pre-rollout. */
+    unique_instruments?: number | null;
   };
   totals_source?: "rollup" | "manifest";
   served_from?: string;
@@ -3342,6 +3348,15 @@ export interface RepoCiSitLastRun {
 export interface RepoCiImageSignal {
   last_build_status: string | null;
   last_build_sha: string | null;
+  /** ISO-8601 of the last build's finish_time (B1 — when the image last built). */
+  last_build_time?: string | null;
+  /** GCP Cloud Build / AWS CodeBuild console URL for the last build (B1 — click-through). */
+  last_build_log_url?: string | null;
+  /** Last SUCCESSFUL build — so a red latest build doesn't hide the last good image
+   * ("current build failed, what's the last sha that succeeded?"). Null = no success in window. */
+  last_success_sha?: string | null;
+  last_success_time?: string | null;
+  last_success_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
 }
@@ -3350,16 +3365,42 @@ export interface RepoCiOverviewRow {
   repo: string;
   repo_type: string;
   ci_status: string;
+  /** Per-branch quality-gates-v2 conclusion (keyed by branch name; value success/failure/in_progress/… or null
+   * when v2 never ran). Lets the UI annotate WHICH branch is red — ci_status alone can't distinguish
+   * "main red, LDR recovered" from "LDR actively broken". */
+  branch_ci?: Record<string, string | null>;
   branches: RepoCiBranchHead[];
   deltas: RepoCiBranchDelta[];
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** N2: most-recent GREEN main sha + time ("green as of <sha> · <age>"), distinct from the head
+   * (which may be red/pending). Null when no successful v2 run is known for the repo's main. */
+  last_green_main?: RepoCiLastGreen | null;
+  /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
+   * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
+  main_lag_age_min?: number | null;
+}
+
+export interface RepoCiLastGreen {
+  sha: string;
+  at: string;
 }
 
 export interface RepoCiError {
   repo: string;
   error: string;
+}
+
+export interface RepoCiPromotionBlocked {
+  repo: string;
+  /** consecutive staging→main promotion failures (manifest promotion_failures[repo]). */
+  failures: number;
+  /** true when the repo is parked in promotion_quarantine (vs. failing-but-not-yet-quarantined). */
+  quarantined: boolean;
+  since?: string;
+  attempts?: number;
+  escalated?: boolean;
 }
 
 export interface RepoCiOverview {
@@ -3370,6 +3411,24 @@ export interface RepoCiOverview {
   stuck_in_sit: string[];
   sit_last_run: RepoCiSitLastRun | null;
   errors?: RepoCiError[];
+  /** Repos parked out of the staging→main promotion (G1 — alert-parity for the
+   * staging-to-main genuine-failure CRITICAL page + newly-quarantined WARNING). */
+  promotion_blocked?: RepoCiPromotionBlocked[];
+  /** Routine LDR→staging / LDR→main promote drain (PM-central, every 15 min) — distinct from the
+   * breaking cascade/SIT (sit_last_run). Null when the drain runs can't be fetched. */
+  promotion_drain?: RepoCiPromotionDrain | null;
+}
+
+export interface RepoCiPromoteRun {
+  status: string;
+  conclusion: string | null;
+  age_min: number | null;
+  url: string;
+}
+
+export interface RepoCiPromotionDrain {
+  ldr_to_staging: RepoCiPromoteRun | null;
+  ldr_to_main: RepoCiPromoteRun | null;
 }
 
 export interface RepoCiBranchCommits {

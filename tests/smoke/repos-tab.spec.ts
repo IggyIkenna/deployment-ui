@@ -11,9 +11,23 @@ test.describe("Repos CI page", () => {
     await page.getByTestId("nav-repos-ci").click();
     await expect(page).toHaveURL(/\/repos$/);
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    await expect(page.getByTestId("promotion-drain-panel")).toBeVisible();
     await expect(page.getByTestId("sit-run-panel")).toBeVisible();
     await expect(page.getByTestId("stuck-panel")).toBeVisible();
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+  });
+
+  test("Promotion-drain panel renders the routine drain + the cascade panel is relabelled", async ({ page }) => {
+    await page.goto("/repos");
+    const drain = page.getByTestId("promotion-drain-panel");
+    await expect(drain).toBeVisible();
+    await expect(drain).toContainText("Promotion drain");
+    // Both legs render their last-run result (mock seeds both green).
+    await expect(page.getByTestId("drain-ldr-to-staging")).toContainText("success");
+    await expect(page.getByTestId("drain-ldr-to-main")).toBeVisible();
+    // The cascade/SIT panel is relabelled so the routine drain is never conflated with the
+    // breaking-change cascade.
+    await expect(page.getByTestId("sit-run-panel")).toContainText("Breaking cascade / SIT");
   });
 
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
@@ -26,17 +40,64 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("MAIN_GREEN");
   });
 
+  test("overview shows the last-green-main column (green as of <sha>), distinct from a red head", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "last green (main)" })).toBeVisible();
+    // A green repo's last-green = its main head (abc1100). A FAILING repo's last-green is an
+    // EARLIER green sha (ab09999) — the whole point of N2: it differs from the red main head.
+    await expect(page.getByTestId("last-green-unified-trading-library")).toContainText("abc1100");
+    await expect(page.getByTestId("last-green-execution-service")).toContainText("ab09999");
+  });
+
+  test("overview shows the promotion-lag age chip (G6) on a behind-main repo", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // execution-service is LDR-ahead-of-main with a 185-min lag → a red "lag" chip renders.
+    await expect(page.getByTestId("lag-execution-service")).toContainText("lag");
+  });
+
+  test("CI status chip annotates WHICH branch is failing (branch_ci)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // execution-service is FAILING with main red → chip reads "FAILING (main)" (recovering shape).
+    await expect(page.getByTestId("repo-row-execution-service")).toContainText("FAILING (main)");
+    // strategy-service is STAGING_GREEN with LDR red → chip reads "STAGING_GREEN (LDR)" (actively broken).
+    await expect(page.getByTestId("repo-row-strategy-service")).toContainText("STAGING_GREEN (LDR)");
+    // a clean repo shows the bare status, no branch suffix.
+    await expect(page.getByTestId("repo-row-unified-trading-library")).not.toContainText("(");
+  });
+
   test("repo dropdown drill-down renders SHA history and PR cards", async ({ page }) => {
     await page.goto("/repos");
     await page.getByTestId("repo-dropdown").selectOption("execution-service");
     const detail = page.getByTestId("repo-detail");
     await expect(detail).toBeVisible();
-    // Three promotion branches of SHA history.
-    await expect(detail.getByText("live-defi-rollout", { exact: true })).toBeVisible();
-    await expect(detail.getByText("staging", { exact: true })).toBeVisible();
-    await expect(detail.getByText("main", { exact: true })).toBeVisible();
+    // Three promotion branches of SHA history — scoped to the history section so the
+    // promotion-pipeline strip's "main" stage label doesn't create an ambiguous match.
+    const history = page.getByTestId("repo-detail-history");
+    await expect(history.getByText("live-defi-rollout", { exact: true })).toBeVisible();
+    await expect(history.getByText("staging", { exact: true })).toBeVisible();
+    await expect(history.getByText("main", { exact: true })).toBeVisible();
     // PR cards with stuck classification render.
     await expect(page.getByTestId("repo-detail-prs")).toBeVisible();
+  });
+
+  test("repo drill-down renders the promotion pipeline strip (LDR → staging → SIT → main → image)", async ({
+    page,
+  }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("execution-service");
+    const pipeline = page.getByTestId("promotion-pipeline");
+    await expect(pipeline).toBeVisible();
+    // All five promotion stages render in order.
+    await expect(page.getByTestId("pipeline-stage-ldr")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-staging")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-sit")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-main")).toBeVisible();
+    await expect(page.getByTestId("pipeline-stage-image")).toBeVisible();
+    await expect(pipeline).toContainText("LDR");
+    await expect(pipeline).toContainText("image");
   });
 
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {

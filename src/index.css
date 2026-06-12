@@ -84,6 +84,16 @@ body {
   color-scheme: dark;
 }
 
+/* Reserve the vertical scrollbar gutter on the scroll root so the centered
+ * max-width layout never reflows horizontally when content height crosses the
+ * viewport threshold. Without this, the 6px space-taking `::-webkit-scrollbar`
+ * appears/disappears on every background poll (health 30s, repo-CI/alerts 60s,
+ * rate-budget, …), shifting the full-width Header + the 12-col grid sideways
+ * each tick — the "horizontal + vertical nav flickers in and out" symptom. */
+html {
+  scrollbar-gutter: stable;
+}
+
 #root {
   height: 100%;
 }
@@ -869,178 +879,42 @@ input[type="week"]::-webkit-calendar-picker-indicator:hover {
 
 /* Semantic status colors with alpha (for borders/bg in components) */
 :root {
-  --color-status-error-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-red) 5%,
-    transparent
-  );
-  --color-status-warning-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-amber) 5%,
-    transparent
-  );
-  --color-status-error-bg: color-mix(
-    in srgb,
-    var(--color-accent-red) 10%,
-    transparent
-  );
-  --color-status-error-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-red) 15%,
-    transparent
-  );
-  --color-status-error-border: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-status-error-border-strong: color-mix(
-    in srgb,
-    var(--color-accent-red) 30%,
-    transparent
-  );
-  --color-status-success-bg-subtle: color-mix(
-    in srgb,
-    var(--color-accent-green) 5%,
-    transparent
-  );
-  --color-status-success-bg: color-mix(
-    in srgb,
-    var(--color-accent-green) 10%,
-    transparent
-  );
-  --color-status-success-border: color-mix(
-    in srgb,
-    var(--color-accent-green) 20%,
-    transparent
-  );
-  --color-status-success-border-strong: color-mix(
-    in srgb,
-    var(--color-accent-green) 30%,
-    transparent
-  );
-  --color-status-running-bg: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 10%,
-    transparent
-  );
-  --color-status-running-border: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 30%,
-    transparent
-  );
-  --color-status-warning-bg: color-mix(
-    in srgb,
-    var(--color-accent-amber) 10%,
-    transparent
-  );
-  --color-status-warning-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-amber) 15%,
-    transparent
-  );
-  --color-status-warning-border: color-mix(
-    in srgb,
-    var(--color-accent-amber) 30%,
-    transparent
-  );
-  --color-status-warning-border-alt: color-mix(
-    in srgb,
-    var(--color-accent-amber) 40%,
-    transparent
-  );
-  --color-status-success-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-green) 15%,
-    transparent
-  );
-  --color-status-success-border-alt: color-mix(
-    in srgb,
-    var(--color-accent-green) 40%,
-    transparent
-  );
-  --color-status-pending-bg: color-mix(
-    in srgb,
-    var(--color-text-secondary) 10%,
-    transparent
-  );
-  --color-status-pending-border: color-mix(
-    in srgb,
-    var(--color-text-secondary) 30%,
-    transparent
-  );
-  --color-status-info-bg: color-mix(
-    in srgb,
-    var(--color-accent-blue) 10%,
-    transparent
-  );
-  --color-status-info-border: color-mix(
-    in srgb,
-    var(--color-accent-blue) 30%,
-    transparent
-  );
-  --color-status-tradfi-bg: color-mix(
-    in srgb,
-    var(--color-accent-purple) 10%,
-    transparent
-  );
-  --color-status-tradfi-border: color-mix(
-    in srgb,
-    var(--color-accent-purple) 30%,
-    transparent
-  );
+  --color-status-error-bg-subtle: color-mix(in srgb, var(--color-accent-red) 5%, transparent);
+  --color-status-warning-bg-subtle: color-mix(in srgb, var(--color-accent-amber) 5%, transparent);
+  --color-status-error-bg: color-mix(in srgb, var(--color-accent-red) 10%, transparent);
+  --color-status-error-bg-alt: color-mix(in srgb, var(--color-accent-red) 15%, transparent);
+  --color-status-error-border: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+  --color-status-error-border-strong: color-mix(in srgb, var(--color-accent-red) 30%, transparent);
+  --color-status-success-bg-subtle: color-mix(in srgb, var(--color-accent-green) 5%, transparent);
+  --color-status-success-bg: color-mix(in srgb, var(--color-accent-green) 10%, transparent);
+  --color-status-success-border: color-mix(in srgb, var(--color-accent-green) 20%, transparent);
+  --color-status-success-border-strong: color-mix(in srgb, var(--color-accent-green) 30%, transparent);
+  --color-status-running-bg: color-mix(in srgb, var(--color-accent-cyan) 10%, transparent);
+  --color-status-running-border: color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
+  --color-status-warning-bg: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
+  --color-status-warning-bg-alt: color-mix(in srgb, var(--color-accent-amber) 15%, transparent);
+  --color-status-warning-border: color-mix(in srgb, var(--color-accent-amber) 30%, transparent);
+  --color-status-warning-border-alt: color-mix(in srgb, var(--color-accent-amber) 40%, transparent);
+  --color-status-success-bg-alt: color-mix(in srgb, var(--color-accent-green) 15%, transparent);
+  --color-status-success-border-alt: color-mix(in srgb, var(--color-accent-green) 40%, transparent);
+  --color-status-pending-bg: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
+  --color-status-pending-border: color-mix(in srgb, var(--color-text-secondary) 30%, transparent);
+  --color-status-info-bg: color-mix(in srgb, var(--color-accent-blue) 10%, transparent);
+  --color-status-info-border: color-mix(in srgb, var(--color-accent-blue) 30%, transparent);
+  --color-status-tradfi-bg: color-mix(in srgb, var(--color-accent-purple) 10%, transparent);
+  --color-status-tradfi-border: color-mix(in srgb, var(--color-accent-purple) 30%, transparent);
   /* Tag/chip backgrounds (20% opacity) */
-  --color-status-success-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-green) 20%,
-    transparent
-  );
-  --color-status-error-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-status-warning-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-amber) 20%,
-    transparent
-  );
-  --color-status-running-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 20%,
-    transparent
-  );
-  --color-status-muted-bg-tag: color-mix(
-    in srgb,
-    var(--color-text-muted) 20%,
-    transparent
-  );
-  --color-status-purple-bg-tag: color-mix(
-    in srgb,
-    var(--color-accent-purple) 20%,
-    transparent
-  );
-  --color-status-running-bg-alt: color-mix(
-    in srgb,
-    var(--color-accent-cyan) 15%,
-    transparent
-  );
+  --color-status-success-bg-tag: color-mix(in srgb, var(--color-accent-green) 20%, transparent);
+  --color-status-error-bg-tag: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+  --color-status-warning-bg-tag: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+  --color-status-running-bg-tag: color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
+  --color-status-muted-bg-tag: color-mix(in srgb, var(--color-text-muted) 20%, transparent);
+  --color-status-purple-bg-tag: color-mix(in srgb, var(--color-accent-purple) 20%, transparent);
+  --color-status-running-bg-alt: color-mix(in srgb, var(--color-accent-cyan) 15%, transparent);
   /* VM event badge (orange/amber/red/gray) */
-  --color-event-amber-bg: color-mix(
-    in srgb,
-    var(--color-accent-amber) 20%,
-    transparent
-  );
-  --color-event-red-bg: color-mix(
-    in srgb,
-    var(--color-accent-red) 20%,
-    transparent
-  );
-  --color-event-gray-bg: color-mix(
-    in srgb,
-    var(--color-text-muted) 20%,
-    transparent
-  );
+  --color-event-amber-bg: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+  --color-event-red-bg: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+  --color-event-gray-bg: color-mix(in srgb, var(--color-text-muted) 20%, transparent);
   /* Classification badge colors */
   --color-class-verified: var(--color-accent-green);
   --color-class-verified-bg: var(--color-status-success-bg-tag);

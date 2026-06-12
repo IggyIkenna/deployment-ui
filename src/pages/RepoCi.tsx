@@ -10,22 +10,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ExternalLink, GitBranch, RefreshCw } from "lucide-react";
+import { AlertCircle, ExternalLink, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   getRepoCiDetail,
   getRepoCiOverview,
   type RepoCiDetail,
   type RepoCiOverview,
+  type RepoCiImageSignal,
   type RepoCiOverviewRow,
   type RepoCiPr,
+  type RepoCiPromoteRun,
+  type RepoCiPromotionBlocked,
+  type RepoCiPromotionDrain,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
+  buildSourceLabel,
+  buildTimeLabel,
+  ciStatusLabel,
   ciStatusTone,
   deltaLabel,
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  promotionBlockedLabel,
+  promotionBlockedTone,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -79,7 +88,7 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
     <Card data-testid="sit-run-panel">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          Last SIT / cascade run
+          Breaking cascade / SIT
           {run && (
             <Chip tone={run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue"}>
               {run.conclusion ?? run.status}
@@ -107,6 +116,49 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
             ))}
             {run.jobs.length === 0 && <p className="text-sm text-[var(--color-text-muted)]">No jobs reported.</p>}
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** One leg of the routine promotion drain (LDR→staging or LDR→main). */
+function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPromoteRun | null; testId?: string }) {
+  const tone: ChipTone = !run ? "gray" : run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue";
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId}>
+      <span className="text-[var(--color-text-secondary)]">{label}</span>
+      <div className="flex items-center gap-2">
+        <Chip tone={tone}>{run ? (run.conclusion ?? run.status) : "—"}</Chip>
+        {run && <span className="text-[var(--color-text-muted)]">{formatAge(run.age_min)} ago</span>}
+        {run?.url && (
+          <a href={run.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Routine LDR→staging / LDR→main auto-merge drain (PM-central, every 15 min) — DISTINCT from the
+ * Breaking cascade/SIT panel (which only fires on a breaking change). Answers the operator gap
+ * "when did we last promote LDR→staging via auto-merge + QG, and did it pass". */
+function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | undefined }) {
+  return (
+    <Card data-testid="promotion-drain-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Promotion drain</CardTitle>
+        <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {drain ? (
+          <>
+            <PromoteDrainRow label="LDR → staging" run={drain.ldr_to_staging} testId="drain-ldr-to-staging" />
+            <PromoteDrainRow label="LDR → main" run={drain.ldr_to_main} testId="drain-ldr-to-main" />
+          </>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">No promote-drain data.</p>
         )}
       </CardContent>
     </Card>
@@ -166,6 +218,126 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
   );
 }
 
+/** Image-column deploy signal (B1 — operator add 2026-06-11): status chip (→ build log) +
+ * the built COMMIT SHA (→ that commit on GitHub, "where this build came from") + build TIME.
+ * Answers "why is the image this colour / what code built it / when / where's the log" — not a
+ * bare status word. Honest-unknown stays "unknown" (no fabricated sha/time/link). */
+function ImageCell({ image, repo }: { image: RepoCiImageSignal; repo: string }) {
+  const chip =
+    image.image_stale === true ? (
+      <Chip tone="yellow">stale</Chip>
+    ) : image.last_build_status ? (
+      <Chip tone={image.last_build_status === "SUCCESS" ? "green" : "red"}>{image.last_build_status}</Chip>
+    ) : (
+      <Chip tone="gray">{image.deployed_version ?? "unknown"}</Chip>
+    );
+  const commitUrl = githubCommitUrl(repo, image.last_build_sha ?? null);
+  const title =
+    [
+      image.last_build_sha ? `built from ${image.last_build_sha}` : "",
+      image.last_build_time ? `at ${image.last_build_time}` : "",
+      image.deployed_version ? `deployed ${image.deployed_version}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
+  return (
+    <div className="flex items-center gap-1.5" data-testid="image-cell" title={title}>
+      {image.last_build_log_url ? (
+        <a
+          href={image.last_build_log_url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 hover:underline"
+          data-testid="image-log-link"
+        >
+          {chip}
+          <ExternalLink className="h-3 w-3 text-[var(--color-text-muted)]" />
+        </a>
+      ) : (
+        chip
+      )}
+      {image.last_build_sha &&
+        (commitUrl ? (
+          <a
+            href={commitUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-[var(--color-text-secondary)] hover:underline"
+            data-testid="image-build-sha"
+            title="built commit → GitHub"
+          >
+            {shortSha(image.last_build_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-[var(--color-text-secondary)]" data-testid="image-build-sha">
+            {shortSha(image.last_build_sha)}
+          </span>
+        ))}
+      {image.last_build_time && (
+        <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="image-build-time">
+          {buildTimeLabel(image.last_build_time)}
+        </span>
+      )}
+      {/* When the latest build is RED, surface the last GREEN sha so the column doesn't hide
+          the last good image. Linked to that commit on GitHub. */}
+      {image.last_build_status &&
+        image.last_build_status !== "SUCCESS" &&
+        image.last_success_sha &&
+        (githubCommitUrl(repo, image.last_success_sha) ? (
+          <a
+            href={githubCommitUrl(repo, image.last_success_sha) ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-[11px] text-emerald-400 hover:underline"
+            data-testid="image-last-success"
+            title={`last successful build: ${image.last_success_sha}${image.last_success_time ? ` (${image.last_success_time})` : ""}`}
+          >
+            ✓ {shortSha(image.last_success_sha)}
+          </a>
+        ) : (
+          <span className="font-mono text-[11px] text-emerald-400" data-testid="image-last-success">
+            ✓ {shortSha(image.last_success_sha)}
+          </span>
+        ))}
+    </div>
+  );
+}
+
+function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
+  const empty = blocked.length === 0;
+  return (
+    <Card data-testid="promotion-blocked-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-400" />
+          Promotion blocked — staging→main
+          <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {empty && (
+          <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-blocked-empty">
+            Nothing parked — staging→main draining cleanly.
+          </p>
+        )}
+        {blocked.map((b) => (
+          <div key={b.repo} className="flex items-center gap-2 text-sm" data-testid={`promotion-blocked-${b.repo}`}>
+            <Chip tone={promotionBlockedTone(b)}>{promotionBlockedLabel(b)}</Chip>
+            <span className="font-mono text-[var(--color-text-primary)]">{b.repo}</span>
+            {b.escalated && <span className="text-[var(--color-text-muted)] text-xs">escalated</span>}
+            {b.since != null && (
+              <span className="text-[var(--color-text-muted)] text-xs">since {b.since.slice(0, 10)}</span>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OverviewTable({
   rows,
   selected,
@@ -185,6 +357,7 @@ function OverviewTable({
           <th className="text-left py-1.5 font-medium">LDR</th>
           <th className="text-left py-1.5 font-medium">staging</th>
           <th className="text-left py-1.5 font-medium">main</th>
+          <th className="text-left py-1.5 font-medium">last green (main)</th>
           <th className="text-left py-1.5 font-medium">LDR→main delta</th>
           <th className="text-left py-1.5 font-medium">SIT</th>
           <th className="text-left py-1.5 font-medium">PRs</th>
@@ -214,7 +387,7 @@ function OverviewTable({
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Chip tone={ciStatusTone(row.ci_status)}>{row.ci_status}</Chip>
+                  <Chip tone={ciStatusTone(row.ci_status)}>{ciStatusLabel(row)}</Chip>
                 </a>
               </td>
               <td className="py-1.5 font-mono">
@@ -226,8 +399,28 @@ function OverviewTable({
               <td className="py-1.5 font-mono">
                 <ShaLink repo={row.repo} sha={bySha.get("main") ?? null} />
               </td>
+              {/* N2: the last GREEN main sha + age ("green as of <sha> · <age>") — distinct from the
+                  main head above, which may be red/pending. */}
+              <td className="py-1.5 font-mono text-xs" data-testid={`last-green-${row.repo}`}>
+                {row.last_green_main ? (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ShaLink repo={row.repo} sha={row.last_green_main.sha} />
+                    <span className="text-[var(--color-text-muted)]">· {buildTimeLabel(row.last_green_main.at)}</span>
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
               <td className="py-1.5 text-[var(--color-text-secondary)]">
-                {ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
+                  {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
+                  {typeof row.main_lag_age_min === "number" && (
+                    <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
+                      {formatAge(row.main_lag_age_min)} lag
+                    </Chip>
+                  )}
+                </span>
               </td>
               <td className="py-1.5">
                 {row.sit.stuck_in_sit ? (
@@ -248,15 +441,7 @@ function OverviewTable({
                 )}
               </td>
               <td className="py-1.5">
-                {row.image.image_stale === true ? (
-                  <Chip tone="yellow">stale</Chip>
-                ) : row.image.last_build_status ? (
-                  <Chip tone={row.image.last_build_status === "SUCCESS" ? "green" : "red"}>
-                    {row.image.last_build_status}
-                  </Chip>
-                ) : (
-                  <Chip tone="gray">{row.image.deployed_version ?? "unknown"}</Chip>
-                )}
+                <ImageCell image={row.image} repo={row.repo} />
               </td>
             </tr>
           );
@@ -268,6 +453,113 @@ function OverviewTable({
 
 /** Exported for the per-service "CI" tab on the home view (operator add 2026-06-10) —
  * one drill-down component serves both the fleet page and the single-service context. */
+/** SIT-stage tone — defensive against unknown last_sit_run_status strings. */
+function sitStageTone(sit: RepoCiDetail["sit"]): ChipTone {
+  if (sit.stuck_in_sit) return "red";
+  const s = (sit.last_sit_run_status ?? "").toLowerCase();
+  if (!s) return "gray";
+  if (s.includes("success") || s.includes("complete")) return "green";
+  if (s.includes("fail") || s.includes("cancel") || s.includes("timed")) return "red";
+  if (s.includes("progress") || s.includes("queue") || s.includes("pending") || s.includes("running")) return "blue";
+  return "gray";
+}
+
+/** One labelled node in the promotion pipeline strip. */
+function PipelineStage({
+  label,
+  tone,
+  testId,
+  children,
+}: {
+  label: string;
+  tone: ChipTone;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[76px] shrink-0" data-testid={testId}>
+      <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</span>
+      <Chip tone={tone}>{children}</Chip>
+    </div>
+  );
+}
+
+function PipelineArrow() {
+  return <span className="text-[var(--color-text-muted)] px-0.5 shrink-0">→</span>;
+}
+
+/**
+ * Promotion pipeline strip — the repo's position in the LDR → staging PR → SIT →
+ * main → image cycle, rendered from the detail payload (branches/deltas/open_prs/
+ * sit/image). The v2-never-reported deadlock + [skip ci] jam classes surface as
+ * explicit badges so a stuck promotion is visible at a glance rather than buried in
+ * the PR list. Plan: monitoring master — promotion-pipeline-visualization.
+ */
+function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
+  const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
+  const ldr = branchHead("live-defi-rollout");
+  const main = branchHead("main");
+  const stagingPr = detail.open_prs.find((pr) => pr.base === "staging") ?? null;
+  const mainPr = detail.open_prs.find((pr) => pr.base === "main") ?? null;
+  const mainDelta = detail.deltas.find((d) => d.base === "main") ?? null;
+  const sit = detail.sit;
+  const img = detail.image;
+
+  const stagingTone: ChipTone = stagingPr?.stuck_class
+    ? stuckClassTone(stagingPr.stuck_class)
+    : stagingPr
+      ? "blue"
+      : sit.staging_locked
+        ? "yellow"
+        : "gray";
+  const mainTone: ChipTone = mainPr?.stuck_class ? stuckClassTone(mainPr.stuck_class) : ciStatusTone(detail.ci_status);
+  const imageTone: ChipTone = img.last_build_status === "SUCCESS" ? "green" : img.last_build_status ? "red" : "gray";
+
+  // Explicit badges for the deadlock/jam classes the cycle most often hides.
+  const jammed = detail.open_prs.flatMap((pr) =>
+    pr.stuck_class === "v2_never_reported" || pr.stuck_class === "skip_ci_jammed"
+      ? [{ number: pr.number, stuckClass: pr.stuck_class }]
+      : [],
+  );
+
+  return (
+    <div
+      className="flex items-center gap-1 overflow-x-auto rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+      data-testid="promotion-pipeline"
+    >
+      <PipelineStage label="LDR" tone="blue" testId="pipeline-stage-ldr">
+        {ldr?.sha ? <ShaLink repo={detail.repo} sha={ldr.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="staging PR" tone={stagingTone} testId="pipeline-stage-staging">
+        {stagingPr ? `#${stagingPr.number}` : sit.staging_locked ? "locked" : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="SIT" tone={sitStageTone(sit)} testId="pipeline-stage-sit">
+        {sit.stuck_in_sit ? "stuck" : (sit.last_sit_run_status ?? "—")}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="main" tone={mainTone} testId="pipeline-stage-main">
+        {main?.sha ? <ShaLink repo={detail.repo} sha={main.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="image" tone={imageTone} testId="pipeline-stage-image">
+        {img.last_build_status ?? "—"}
+      </PipelineStage>
+      {mainDelta && (mainDelta.files_changed > 0 || mainDelta.ahead_by > 0) && (
+        <span className="ml-2 text-[10px] text-[var(--color-text-muted)] shrink-0" data-testid="pipeline-main-delta">
+          {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+        </span>
+      )}
+      {jammed.map((j) => (
+        <Chip key={j.number} tone={stuckClassTone(j.stuckClass)} testId="pipeline-jam-badge">
+          #{j.number} {STUCK_CLASS_LABELS[j.stuckClass]}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function RepoDetailPanel({ repo }: { repo: string }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -303,7 +595,6 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
         <span className="font-mono text-sm text-[var(--color-text-primary)]">{detail.repo}</span>
         <Chip tone={ciStatusTone(detail.ci_status)}>{detail.ci_status}</Chip>
         {detail.sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
-        {detail.image.deployed_version && <Chip tone="gray">deployed {detail.image.deployed_version}</Chip>}
       </div>
       {/* Cross-links to the EXISTING surfaces for this repo — don't redo those tabs
           (operator add 2026-06-10: repo drill-down deep-links data-status / monitor /
@@ -328,6 +619,109 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           Fleet Git
         </Link>
       </div>
+      {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
+      <PromotionPipeline detail={detail} />
+      {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
+          + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
+          when the repo has no Cloud Build / CodeBuild. */}
+      <div
+        className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+        data-testid="repo-detail-build-header"
+      >
+        <span className="text-[var(--color-text-muted)]">Last image build:</span>
+        {detail.image.last_build_status ? (
+          <>
+            <Chip
+              tone={
+                detail.image.image_stale === true
+                  ? "yellow"
+                  : detail.image.last_build_status === "SUCCESS"
+                    ? "green"
+                    : "red"
+              }
+            >
+              {detail.image.image_stale === true ? "stale" : detail.image.last_build_status}
+            </Chip>
+            {buildSourceLabel(detail.image.last_build_log_url) && (
+              <span className="text-[var(--color-text-secondary)]" data-testid="build-header-source">
+                {buildSourceLabel(detail.image.last_build_log_url)}
+              </span>
+            )}
+            {detail.image.last_build_time && (
+              <span className="text-[var(--color-text-muted)]" data-testid="build-header-time">
+                {buildTimeLabel(detail.image.last_build_time)}
+              </span>
+            )}
+            {detail.image.last_build_sha && (
+              <a
+                href={githubCommitUrl(detail.repo, detail.image.last_build_sha) ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[var(--color-text-secondary)] hover:underline"
+                data-testid="build-header-sha"
+                title="built commit → GitHub"
+              >
+                {shortSha(detail.image.last_build_sha)}
+              </a>
+            )}
+            {detail.image.last_build_log_url && (
+              <a
+                href={detail.image.last_build_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="build-header-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {detail.image.deployed_version && (
+              <span className="text-[var(--color-text-muted)]">deployed {detail.image.deployed_version}</span>
+            )}
+          </>
+        ) : (
+          <span className="text-[var(--color-text-muted)]" data-testid="build-header-none">
+            no Cloud Build / CodeBuild for this repo
+          </span>
+        )}
+      </div>
+      {/* When the latest build is RED, show the LAST SUCCESSFUL build separately — the last good
+          image's sha/time/log, so a failed latest doesn't hide where the running image came from. */}
+      {detail.image.last_build_status &&
+        detail.image.last_build_status !== "SUCCESS" &&
+        detail.image.last_success_sha && (
+          <div
+            className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
+            data-testid="repo-detail-last-success"
+          >
+            <span className="text-[var(--color-text-muted)]">Last successful build:</span>
+            <Chip tone="green">SUCCESS</Chip>
+            {detail.image.last_success_time && (
+              <span className="text-[var(--color-text-muted)]">{buildTimeLabel(detail.image.last_success_time)}</span>
+            )}
+            <a
+              href={githubCommitUrl(detail.repo, detail.image.last_success_sha) ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-emerald-400 hover:underline"
+              data-testid="last-success-sha"
+              title="last good commit → GitHub"
+            >
+              {shortSha(detail.image.last_success_sha)}
+            </a>
+            {detail.image.last_success_log_url && (
+              <a
+                href={detail.image.last_success_log_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+                data-testid="last-success-log"
+              >
+                log <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
       {detail.open_prs.length > 0 && (
         <div className="space-y-1" data-testid="repo-detail-prs">
           {detail.open_prs.map((pr) => (
@@ -347,7 +741,7 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="repo-detail-history">
         {detail.history.map((branchHistory) => (
           <Card key={branchHistory.branch}>
             <CardHeader className="pb-2">
@@ -474,9 +868,11 @@ export function RepoCiContent() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <PromotionDrainPanel drain={overview.promotion_drain} />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
+            <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
           </div>
           {selectedRepo ? (
             <Card>
