@@ -227,7 +227,7 @@ test.describe("CapabilityTab", () => {
     await expect(page.getByTestId("gap-row-missing_extraction")).toBeVisible();
     await expect(page.getByTestId("gap-row-logical_dead_end")).toBeVisible();
 
-    // Verify the manifest counts (regression: static values from manifest @UAC 253effa)
+    // Verify the manifest counts (regression: static values from manifest @UAC 238e58f)
     await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("161");
     await expect(page.getByTestId("gap-count-needs_code_scan")).toHaveText("3");
     await expect(page.getByTestId("gap-count-missing_extraction")).toHaveText("1");
@@ -266,8 +266,8 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 558 nodes / 2287 edges (@UAC 253effa)
-    await expect(page.getByText(/558 nodes \/ 2287 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 563 nodes / 2325 edges (@UAC 238e58f)
+    await expect(page.getByText(/563 nodes \/ 2325 edges/)).toBeVisible({ timeout: 10000 });
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
@@ -285,10 +285,10 @@ test.describe("CapabilityTab", () => {
     // Wait for the verdicts view (lazy-loaded)
     await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
 
-    // Summary counts match the bundled matrix (total=22448, available=15093, blocked=7259, not_registered=96)
-    await expect(page.getByTestId("verdict-summary-total")).toContainText("22,448");
-    await expect(page.getByTestId("verdict-summary-available")).toContainText("15,093");
-    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,259");
+    // Summary counts match the bundled matrix (total=24752, available=16913, blocked=7743, not_registered=96)
+    await expect(page.getByTestId("verdict-summary-total")).toContainText("24,752");
+    await expect(page.getByTestId("verdict-summary-available")).toContainText("16,913");
+    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,743");
     await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("96");
   });
 

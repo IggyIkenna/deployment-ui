@@ -12,6 +12,7 @@ import rawManifest from "./capability-manifest.json";
 
 export type NodeKind =
   | "archetype"
+  | "broker"
   | "chain"
   | "custody_provider"
   | "data_source"
@@ -41,6 +42,7 @@ export type EdgeRelation =
   | "over_transport:websocket"
   | "on_chain"
   | "registry_gap"
+  | "routed_via"
   | "wallet_split_policy"
   | "min_data_to_run"
   | "has_leg"
@@ -68,6 +70,7 @@ export interface CapabilityEdge {
 
 export interface CapabilityGaps {
   annotation_orphans?: number;
+  broker_classed_venues?: number;
   logical_dead_end: number;
   logical_dead_ends: number;
   missing_extraction: number;

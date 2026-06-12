@@ -16078,7 +16078,27 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:buy",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:buy",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:coinbase"
     },
     {
       "agent_annotation": null,
@@ -16129,6 +16149,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:buy",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -16258,7 +16288,27 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:sell",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:sell",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:coinbase"
     },
     {
       "agent_annotation": null,
@@ -16309,6 +16359,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:sell",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -16438,6 +16498,26 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:bybit"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:coinbase"
     },
     {
@@ -16459,6 +16539,26 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:okx"
     },
     {
       "agent_annotation": null,
@@ -16538,6 +16638,26 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:bybit"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:coinbase"
     },
     {
@@ -16559,6 +16679,26 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_DATED_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:okx"
     },
     {
       "agent_annotation": null,
@@ -16589,6 +16729,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:binance"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP:perp",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:bitget"
     },
     {
       "agent_annotation": null,
@@ -16648,6 +16798,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:kraken"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP:perp",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:okx"
     },
     {
@@ -16678,6 +16838,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -16688,7 +16858,27 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:coinbase"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -16748,6 +16938,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP_INV:perp",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -16798,6 +16998,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:kraken"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP_INV:perp",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:okx"
     },
     {
@@ -16828,6 +17038,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -16838,7 +17058,27 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:coinbase"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:CARRY_BASIS_PERP_INV:spot",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -18338,6 +18578,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_INVENTORY_SKEW:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -18359,6 +18609,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_INVENTORY_SKEW:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -18408,6 +18668,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_ML_LEAN:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -18429,6 +18699,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_ML_LEAN:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -18478,6 +18758,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_PASSIVE_SPREAD:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -18499,6 +18789,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_PASSIVE_SPREAD:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -18578,6 +18878,16 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
+      "to_node_id": "venue:bitget"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_QUEUE_MICROSTRUCTURE:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
       "to_node_id": "venue:bybit"
     },
     {
@@ -18599,6 +18909,16 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "leg:MARKET_MAKING_QUEUE_MICROSTRUCTURE:quote",
+      "gap_type": null,
+      "readiness": null,
+      "reason": null,
+      "relation": "supports",
+      "status": "available",
+      "to_node_id": "venue:kraken"
     },
     {
       "agent_annotation": null,
@@ -22852,6 +23172,66 @@
     },
     {
       "agent_annotation": null,
+      "from_node_id": "venue:cboe",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "venue:cme",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "venue:fx",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "venue:ice",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "venue:nasdaq",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "venue:nyse",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "Interactive Brokers (order_router) routes orders to this venue.",
+      "relation": "routed_via",
+      "status": "available",
+      "to_node_id": "broker:ibkr"
+    },
+    {
+      "agent_annotation": null,
       "from_node_id": "wallet:cefi:treasury",
       "gap_type": null,
       "readiness": null,
@@ -22883,6 +23263,7 @@
   ],
   "gaps": {
     "annotation_orphans": 0,
+    "broker_classed_venues": 0,
     "logical_dead_end": 446,
     "logical_dead_ends": 16,
     "missing_extraction": 1,
@@ -22892,7 +23273,7 @@
     "orphan_nodes": 87,
     "unbuilt_dead_ends": 159
   },
-  "generated_from_commit": "180fb56c3cc5397b36113e146dde3c81ab3f3e66",
+  "generated_from_commit": "def855c23947d2692c58f1edd11562baaa2d7642",
   "manifest_version": "1.0.0",
   "nodes": [
     {
@@ -23236,6 +23617,17 @@
       "label": "Yield Staking Simple",
       "metadata": {},
       "node_id": "YIELD_STAKING_SIMPLE"
+    },
+    {
+      "kind": "broker",
+      "label": "Interactive Brokers",
+      "metadata": {
+        "broker_kind": "order_router",
+        "routed_venue_ids": "cboe,cme,fx,ice,nasdaq,nyse",
+        "source_of_truth": "execution_service/trade_execution/adapters/ibkr_tradfi.py:38-46 (IbkrTradFiAdapter.VENUE_TO_EXCHANGE: CME->GLOBEX, CBOE->CBOE, NASDAQ->NASDAQ, NYSE->NYSE, ICE->ICE, FX->IDEALPRO) + the CMEAdapter/ICEAdapter/CBOEAdapter/NASDAQAdapter/NYSEAdapter/FXAdapter subclasses (each extends IbkrTradFiAdapter)",
+        "venue_categories": "TRADFI"
+      },
+      "node_id": "broker:ibkr"
     },
     {
       "kind": "chain",
@@ -27078,6 +27470,12 @@
     },
     {
       "kind": "venue",
+      "label": "Bitget",
+      "metadata": {},
+      "node_id": "venue:bitget"
+    },
+    {
+      "kind": "venue",
       "label": "Bybit",
       "metadata": {
         "asset_group": "CEFI"
@@ -27088,7 +27486,9 @@
       "kind": "venue",
       "label": "Cboe",
       "metadata": {
-        "asset_group": "TRADFI"
+        "asset_group": "TRADFI",
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
       },
       "node_id": "venue:cboe"
     },
@@ -27096,7 +27496,9 @@
       "kind": "venue",
       "label": "Cme",
       "metadata": {
-        "asset_group": "TRADFI"
+        "asset_group": "TRADFI",
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
       },
       "node_id": "venue:cme"
     },
@@ -27164,6 +27566,15 @@
     },
     {
       "kind": "venue",
+      "label": "Fx",
+      "metadata": {
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
+      },
+      "node_id": "venue:fx"
+    },
+    {
+      "kind": "venue",
       "label": "Gmx V2",
       "metadata": {
         "asset_group": "DEFI"
@@ -27180,17 +27591,11 @@
     },
     {
       "kind": "venue",
-      "label": "Ibkr",
-      "metadata": {
-        "asset_group": "TRADFI"
-      },
-      "node_id": "venue:ibkr"
-    },
-    {
-      "kind": "venue",
       "label": "Ice",
       "metadata": {
-        "asset_group": "TRADFI"
+        "asset_group": "TRADFI",
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
       },
       "node_id": "venue:ice"
     },
@@ -27226,6 +27631,12 @@
     },
     {
       "kind": "venue",
+      "label": "Kraken",
+      "metadata": {},
+      "node_id": "venue:kraken"
+    },
+    {
+      "kind": "venue",
       "label": "Lido",
       "metadata": {
         "asset_group": "DEFI"
@@ -27255,6 +27666,24 @@
         "asset_group": "DEFI"
       },
       "node_id": "venue:morpho"
+    },
+    {
+      "kind": "venue",
+      "label": "Nasdaq",
+      "metadata": {
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
+      },
+      "node_id": "venue:nasdaq"
+    },
+    {
+      "kind": "venue",
+      "label": "Nyse",
+      "metadata": {
+        "broker_routed": "true",
+        "venue_category": "TRADFI"
+      },
+      "node_id": "venue:nyse"
     },
     {
       "kind": "venue",
