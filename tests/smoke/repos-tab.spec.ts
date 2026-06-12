@@ -44,6 +44,18 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("semver-pending-repos")).toContainText("execution-service");
   });
 
+  test("drain-stalled repo is flagged on the row + counted in the promotion-drain panel", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // execution-service (FAILING fixture) seeds the drain-stalled case: content ahead + stale drain.
+    await expect(page.getByTestId("drain-stalled-execution-service")).toContainText("drain stalled");
+    // A healthy repo carries no stalled chip.
+    await expect(page.getByTestId("drain-stalled-unified-trading-library")).toHaveCount(0);
+    // The promotion-drain panel summarises the count + names the stalled repos.
+    await expect(page.getByTestId("drain-stalled-summary")).toContainText("drain-stalled");
+    await expect(page.getByTestId("drain-stalled-summary")).toContainText("execution-service");
+  });
+
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");

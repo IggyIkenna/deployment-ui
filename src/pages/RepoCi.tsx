@@ -214,7 +214,13 @@ function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | und
 /** Routine LDR→staging / LDR→main auto-merge drain (PM-central, every 15 min) — DISTINCT from the
  * Breaking cascade/SIT panel (which only fires on a breaking change). Answers the operator gap
  * "when did we last promote LDR→staging via auto-merge + QG, and did it pass". */
-function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | undefined }) {
+function PromotionDrainPanel({
+  drain,
+  stalledRepos,
+}: {
+  drain: RepoCiPromotionDrain | null | undefined;
+  stalledRepos: string[];
+}) {
   return (
     <Card data-testid="promotion-drain-panel">
       <CardHeader className="pb-2">
@@ -229,6 +235,17 @@ function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | u
           </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">No promote-drain data.</p>
+        )}
+        {/* promotion-drain follow-up: repos with content ahead + a stale/failing drain (bug-#11). */}
+        {stalledRepos.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1" data-testid="drain-stalled-summary">
+            <Chip tone="red">{stalledRepos.length} drain-stalled</Chip>
+            <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{stalledRepos.join(", ")}</span>
+          </div>
+        ) : (
+          <p className="pt-1 text-[10px] text-[var(--color-text-muted)]" data-testid="drain-stalled-summary">
+            No drain-stalled repos.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -488,6 +505,12 @@ function OverviewTable({
                   {typeof row.main_lag_age_min === "number" && (
                     <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
                       {formatAge(row.main_lag_age_min)} lag
+                    </Chip>
+                  )}
+                  {/* promotion-drain follow-up: content ahead + a stale/failing drain leg (bug-#11). */}
+                  {row.drain_stalled && (
+                    <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
+                      drain stalled
                     </Chip>
                   )}
                 </span>
@@ -1010,7 +1033,10 @@ export function RepoCiContent() {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <PromotionDrainPanel drain={overview.promotion_drain} />
+            <PromotionDrainPanel
+              drain={overview.promotion_drain}
+              stalledRepos={overview.repos.filter((r) => r.drain_stalled).map((r) => r.repo)}
+            />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />

@@ -3358,6 +3358,10 @@ export interface RepoCiOverviewRow {
   /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
    * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
   main_lag_age_min?: number | null;
+  /** promotion-drain follow-up: true when this repo has real file-content ahead of staging/main
+   * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
+   * on LDR with a dead drain). */
+  drain_stalled?: boolean;
 }
 
 export interface RepoCiLastGreen {

@@ -1145,6 +1145,9 @@ function mockRepoCiRow(
     // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
     // sit longer (drain stuck). >60min so the lag-chip renders red.
     main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
+    // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
+    // stale/failing drain leg); healthy repos are draining so not stalled.
+    drain_stalled: ciStatus === "FAILING",
   };
 }
 
