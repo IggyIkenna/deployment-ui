@@ -126,6 +126,18 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("last-green-branch-main")).toBeVisible();
   });
 
+  test("repo drill-down surfaces the staging-lock REASON + last-SIT-run age (SitLockDetail)", async ({ page }) => {
+    await page.goto("/repos");
+    // greeks-service is the stuck/breaking-pending fixture: staging locked + a SIT run age.
+    await page.getByTestId("repo-dropdown").selectOption("greeks-service");
+    const detail = page.getByTestId("repo-detail-sit-lock");
+    await expect(detail).toBeVisible();
+    // The WHY (not just "locked") — the reason the pipeline strip can't show.
+    await expect(detail).toContainText("breaking cascade in flight");
+    // The per-repo last-SIT-run age (distinct from the global SIT-run panel).
+    await expect(page.getByTestId("sit-run-age")).toContainText("last SIT run");
+  });
+
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {
     await page.goto("/repos");
     // Click the repo-NAME cell (not a SHA/CI link — those deep-link to GitHub and

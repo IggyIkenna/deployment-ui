@@ -25,6 +25,7 @@ import {
   type RepoCiPromotionDrain,
   type RepoCiSemverHealth,
   type RepoCiSitLastRun,
+  type RepoCiSitState,
 } from "../api/client";
 import {
   buildSourceLabel,
@@ -601,6 +602,33 @@ function BranchLastGreenStrip({ lastGreen }: { lastGreen?: Record<string, RepoCi
   );
 }
 
+/** SIT / staging-lock detail line. The pipeline strip above shows the lock/stuck STATE; this
+ * surfaces the WHY + age the operator needs to act: staging_locked_reason (e.g. "breaking cascade
+ * in flight") and last_sit_run_age_min — both already on the payload but unsurfaced until now.
+ * Renders nothing for a clean repo (no lock, no breaking-pending, no SIT run) to avoid clutter. */
+function SitLockDetail({ sit }: { sit: RepoCiSitState }) {
+  const hasLockReason = sit.staging_locked && sit.staging_locked_reason;
+  const hasSitAge = sit.last_sit_run_age_min !== null && sit.last_sit_run_age_min !== undefined;
+  if (!hasLockReason && !hasSitAge && !sit.in_breaking_pending && !sit.stuck_in_sit) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="repo-detail-sit-lock">
+      {sit.staging_locked && (
+        <Chip tone="yellow">
+          {sit.staging_locked_reason ? `staging locked: ${sit.staging_locked_reason}` : "staging locked"}
+        </Chip>
+      )}
+      {sit.in_breaking_pending && <Chip tone="yellow">breaking-pending</Chip>}
+      {sit.stuck_in_sit && <Chip tone="red">stuck in SIT</Chip>}
+      {hasSitAge && (
+        <span className="text-[var(--color-text-muted)]" data-testid="sit-run-age">
+          last SIT run {sit.last_sit_run_status ? `(${sit.last_sit_run_status}) ` : ""}
+          {formatAge(sit.last_sit_run_age_min)} ago
+        </span>
+      )}
+    </div>
+  );
+}
+
 function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
   const ldr = branchHead("live-defi-rollout");
@@ -727,6 +755,10 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
       </div>
       {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
       <PromotionPipeline detail={detail} />
+      {/* SIT / staging-lock detail — the pipeline strip shows "locked"/"stuck"; this line surfaces
+          WHY (staging_locked_reason) + how old the last SIT run is (last_sit_run_age_min), both
+          already on the payload but previously unsurfaced. */}
+      <SitLockDetail sit={detail.sit} />
       {/* N2-followup: per-branch last-green (LDR / staging / main) — the most-recent green v2 sha
           per branch, distinct from each branch HEAD which may be red/pending. */}
       <BranchLastGreenStrip lastGreen={detail.last_green} />
