@@ -17,11 +17,13 @@ import {
   type RepoCiDetail,
   type RepoCiOverview,
   type RepoCiImageSignal,
+  type RepoCiLastGreen,
   type RepoCiOverviewRow,
   type RepoCiPr,
   type RepoCiPromoteRun,
   type RepoCiPromotionBlocked,
   type RepoCiPromotionDrain,
+  type RepoCiSemverHealth,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
@@ -138,6 +140,73 @@ function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPro
         )}
       </div>
     </div>
+  );
+}
+
+/** Semver-agent standing health (G2) — the bump-rate circuit-breaker + dispatch-failure are
+ * CRITICAL pages with no UI element today. Shows the last bump run + pending-bump count +
+ * breaker-armed state so the operator sees the breaker BEFORE it pages. */
+function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | undefined }) {
+  const lastTone: ChipTone = !health
+    ? "gray"
+    : health.last_run_conclusion === "success"
+      ? "green"
+      : health.last_run_conclusion
+        ? "red"
+        : health.last_run_status
+          ? "blue"
+          : "gray";
+  return (
+    <Card data-testid="semver-health-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Semver-agent health</CardTitle>
+        <p className="text-xs text-[var(--color-text-muted)]">Last bump · pending bumps · circuit-breaker</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {health ? (
+          <>
+            <div className="flex items-center justify-between gap-2 text-xs" data-testid="semver-last-run">
+              <span className="text-[var(--color-text-secondary)]">Last bump run</span>
+              <div className="flex items-center gap-2">
+                <Chip tone={lastTone}>{health.last_run_conclusion ?? health.last_run_status ?? "—"}</Chip>
+                {health.last_run_age_min !== null && (
+                  <span className="text-[var(--color-text-muted)]">{formatAge(health.last_run_age_min)} ago</span>
+                )}
+                {health.last_run_url && (
+                  <a
+                    href={health.last_run_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--color-text-muted)]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-xs" data-testid="semver-breaker">
+              <span className="text-[var(--color-text-secondary)]">
+                Pending bumps ({health.pending_bump_count}/{health.breaker_threshold})
+              </span>
+              <Chip tone={health.breaker_armed ? "red" : "green"}>
+                {health.breaker_armed ? "breaker ARMED" : "breaker clear"}
+              </Chip>
+            </div>
+            {health.pending_bump_repos.length > 0 && (
+              <div className="flex flex-wrap gap-1" data-testid="semver-pending-repos">
+                {health.pending_bump_repos.map((r) => (
+                  <span key={r} className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">No semver-agent data.</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -495,6 +564,43 @@ function PipelineArrow() {
  * explicit badges so a stuck promotion is visible at a glance rather than buried in
  * the PR list. Plan: monitoring master — promotion-pipeline-visualization.
  */
+/** N2-followup: per-branch last-green strip (LDR / staging / main). Each chip is the most-recent
+ * SHA on that branch whose quality-gates-v2 concluded success — distinct from the branch HEAD,
+ * which the pipeline strip above shows (and which may be red/pending). */
+function BranchLastGreenStrip({ lastGreen }: { lastGreen?: Record<string, RepoCiLastGreen | null> }) {
+  if (!lastGreen) return null;
+  const branches = ["live-defi-rollout", "staging", "main"] as const;
+  const label: Record<string, string> = {
+    "live-defi-rollout": "LDR",
+    staging: "staging",
+    main: "main",
+  };
+  return (
+    <div
+      className="flex flex-wrap items-center gap-3 text-xs rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+      data-testid="repo-detail-last-green"
+    >
+      <span className="text-[var(--color-text-muted)]">Last green (v2):</span>
+      {branches.map((b) => {
+        const lg = lastGreen[b] ?? null;
+        return (
+          <span key={b} className="inline-flex items-center gap-1.5" data-testid={`last-green-branch-${b}`}>
+            <span className="text-[var(--color-text-secondary)]">{label[b]}</span>
+            {lg ? (
+              <>
+                <Chip tone="green">{shortSha(lg.sha)}</Chip>
+                <span className="text-[var(--color-text-muted)]">· {buildTimeLabel(lg.at)}</span>
+              </>
+            ) : (
+              <Chip tone="gray">none</Chip>
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
   const ldr = branchHead("live-defi-rollout");
@@ -621,6 +727,9 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
       </div>
       {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
       <PromotionPipeline detail={detail} />
+      {/* N2-followup: per-branch last-green (LDR / staging / main) — the most-recent green v2 sha
+          per branch, distinct from each branch HEAD which may be red/pending. */}
+      <BranchLastGreenStrip lastGreen={detail.last_green} />
       {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
           + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
           when the repo has no Cloud Build / CodeBuild. */}
@@ -873,6 +982,7 @@ export function RepoCiContent() {
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
+            <SemverHealthPanel health={overview.semver_health} />
           </div>
           {selectedRepo ? (
             <Card>

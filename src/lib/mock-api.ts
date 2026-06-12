@@ -1239,6 +1239,18 @@ function mockRepoCiOverview() {
         url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55502",
       },
     },
+    // Semver-agent health (G2) — breaker ARMED (3 pending bumps ≥ threshold) so the panel
+    // renders the alert state.
+    semver_health: {
+      last_run_status: "completed",
+      last_run_conclusion: "success",
+      last_run_age_min: 12,
+      last_run_url: "https://github.com/IggyIkenna/unified-trading-pm/actions/runs/55503",
+      pending_bump_count: 3,
+      pending_bump_repos: ["execution-service", "mtds", "alerting-service"],
+      breaker_armed: true,
+      breaker_threshold: 3,
+    },
   };
 }
 
@@ -1361,6 +1373,13 @@ function mockRepoCiDetail(repo: string) {
     open_prs: row.open_prs,
     sit: row.sit,
     image: row.image,
+    // N2-followup: per-branch last-green. LDR + main green at their heads; staging's last green
+    // is an EARLIER sha (its head is red/pending) so the drilldown shows the three axes can differ.
+    last_green: {
+      "live-defi-rollout": { sha: row.branches[0]?.sha ?? "abc1234", at: "2026-06-10T07:00:00Z" },
+      staging: { sha: "ab09111", at: "2026-06-09T22:00:00Z" },
+      main: row.last_green_main ?? null,
+    },
   };
 }
 
