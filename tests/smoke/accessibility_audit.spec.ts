@@ -32,18 +32,14 @@ async function mockBase(page: Page) {
   await page.route("**/api/strategy/**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/research/**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/ops/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/deployments**", (route) =>
-    route.fulfill({ json: { deployments: [] } }),
-  );
+  await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
   await page.route("**/api/costs/**", (route) =>
     route.fulfill({
       json: { date: "2026-05-18", total_usd: 0, by_asset_group: [], by_archetype: [], by_vm: [] },
     }),
   );
   await page.route("**/api/vm/**", (route) => route.fulfill({ json: { vms: [] } }));
-  await page.route("**/api/data-status/**", (route) =>
-    route.fulfill({ json: { items: [], total: 0 } }),
-  );
+  await page.route("**/api/data-status/**", (route) => route.fulfill({ json: { items: [], total: 0 } }));
   await page.route("**/api/risk/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/treasury/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/clients/**", (route) => route.fulfill({ json: {} }));
@@ -51,7 +47,6 @@ async function mockBase(page: Page) {
 
 const PAGES: Array<{ name: string; path: string }> = [
   { name: "Home / Deployments", path: "/" },
-  { name: "DART", path: "/dart" },
   { name: "ML Experiments", path: "/research/ml-experiments" },
   { name: "Strategy Backtests", path: "/research/strategy-backtests" },
   { name: "Execution Backtests", path: "/research/execution-backtests" },
@@ -77,15 +72,13 @@ for (const { name, path } of PAGES) {
       .analyze();
 
     // Filter to critical and serious violations only (best-effort for MVP).
-    const criticalOrSerious = results.violations.filter((v) =>
-      ["critical", "serious"].includes(v.impact ?? ""),
-    );
+    const criticalOrSerious = results.violations.filter((v) => ["critical", "serious"].includes(v.impact ?? ""));
 
     if (criticalOrSerious.length > 0) {
       const summary = criticalOrSerious
         .map((v) => `  [${v.impact}] ${v.id}: ${v.description} (${v.nodes.length} node(s))`)
         .join("\n");
-      // eslint-disable-next-line no-console
+       
       console.log(`\nAccessibility violations on ${name}:\n${summary}`);
     }
 

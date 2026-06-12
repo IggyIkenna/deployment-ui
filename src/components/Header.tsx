@@ -58,11 +58,9 @@ export function Header() {
 
   const NAV_LINKS = [
     { to: "/vm-deployments", label: "VM Deployments" },
-    { to: "/client-subscriptions", label: "Subscriptions" },
     { to: "/chaos", label: "Chaos" },
     { to: "/ops/live-deployments", label: "Live Ops" },
     { to: "/ops/costs", label: "Costs" },
-    { to: "/dart", label: "DART" },
     { to: "/safety-ops", label: "Safety Ops" },
     { to: "/research/ml-experiments", label: "ML" },
     { to: "/research/strategy-backtests", label: "Strategy" },
@@ -149,12 +147,6 @@ export function Header() {
             VM Deployments
           </Link>
           <Link
-            to="/client-subscriptions"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Subscriptions
-          </Link>
-          <Link
             to="/chaos"
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
@@ -179,12 +171,6 @@ export function Header() {
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
           >
             Alerts
-          </Link>
-          <Link
-            to="/dart"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-orange)]"
-          >
-            DART
           </Link>
           <Link
             to="/safety-ops"

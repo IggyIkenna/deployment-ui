@@ -13,7 +13,7 @@
  * the "URL says /repos but the screen shows a service view" desync.
  *
  * Renders nothing; must live inside the Router. Non-home routes (e.g.
- * /vm-deployments, /dart) are ignored entirely.
+ * /vm-deployments, /chaos) are ignored entirely.
  */
 
 import { useEffect, useRef } from "react";
