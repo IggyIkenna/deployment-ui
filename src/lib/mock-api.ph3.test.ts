@@ -173,42 +173,55 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
     expect(data.estimatedCost.total).toBe(50 * 0.18);
   });
 
-  it("returns readiness checklist with pass/fail/warn items", async () => {
+  it("returns a readiness checklist conforming to the ChecklistResponse contract", async () => {
+    // Regression: the mock MUST match the ChecklistResponse shape ReadinessTab
+    // consumes (readiness_percent + count fields + blocking_items[] + per-category
+    // display_name/percent). The prior {overallScore, isBlocked, score, label,
+    // detail} shape omitted blocking_items → `checklist.blocking_items.length`
+    // crashed the tab into the per-tab ErrorBoundary in mock mode.
     const { installDeploymentMockHandlers } = await import("./mock-api");
     installDeploymentMockHandlers(true);
 
-    const response = await window.fetch(
-      "/api/services/instruments-service/checklist",
-    );
+    const response = await window.fetch("/api/services/instruments-service/checklist");
     const data = (await (response as Response).json()) as {
       service: string;
-      overallScore: number;
+      readiness_percent: number;
+      total_items: number;
+      completed_items: number;
+      blocking_items: Array<{ id: string; description: string; category: string }>;
       categories: Array<{
         name: string;
-        score: number;
+        display_name: string;
+        percent: number;
         items: Array<{ status: string }>;
       }>;
     };
 
-    expect(data.overallScore).toBeGreaterThan(0);
-    expect(data.categories).toBeDefined();
-    expect(data.categories.length).toBeGreaterThanOrEqual(2);
+    expect(data.readiness_percent).toBeGreaterThan(0);
+    expect(data.total_items).toBeGreaterThan(0);
+    // blocking_items MUST exist (the field whose absence crashed ReadinessTab).
+    expect(Array.isArray(data.blocking_items)).toBe(true);
+    expect(data.blocking_items.length).toBeGreaterThanOrEqual(1);
 
-    // Verify different item statuses
-    const allStatuses = new Set(
-      data.categories.flatMap((c) => c.items.map((i) => i.status)),
-    );
-    expect(allStatuses.has("pass")).toBe(true);
-    expect(allStatuses.has("fail") || allStatuses.has("warn")).toBe(true);
+    expect(data.categories.length).toBeGreaterThanOrEqual(2);
+    // Categories carry the display fields ReadinessTab's CategoryCard reads.
+    for (const c of data.categories) {
+      expect(c.display_name).toBeTruthy();
+      expect(typeof c.percent).toBe("number");
+    }
+
+    // Item statuses use the ChecklistItem enum (done | partial | pending | n/a),
+    // not the legacy pass/warn/fail.
+    const allStatuses = new Set(data.categories.flatMap((c) => c.items.map((i) => i.status)));
+    expect(allStatuses.has("done")).toBe(true);
+    expect(allStatuses.has("partial") || allStatuses.has("pending")).toBe(true);
   });
 
   it("returns data status with v5 honest-coverage shape", async () => {
     const { installDeploymentMockHandlers } = await import("./mock-api");
     installDeploymentMockHandlers(true);
 
-    const response = await window.fetch(
-      "/api/services/instruments-service/data-status",
-    );
+    const response = await window.fetch("/api/services/instruments-service/data-status");
     const data = (await (response as Response).json()) as {
       service: string;
       mode: "turbo";
@@ -254,17 +267,14 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
     const { installDeploymentMockHandlers } = await import("./mock-api");
     installDeploymentMockHandlers(true);
 
-    const response = await window.fetch(
-      "/api/deployments/instruments-service/deploy",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image_tag: "v0.3.1-abc1234",
-          environment: "staging",
-        }),
-      },
-    );
+    const response = await window.fetch("/api/deployments/instruments-service/deploy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_tag: "v0.3.1-abc1234",
+        environment: "staging",
+      }),
+    });
     const data = (await (response as Response).json()) as {
       status: string;
       service: string;

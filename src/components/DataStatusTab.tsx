@@ -38,16 +38,8 @@ import {
   buildShardDownloadUrl,
   searchInstruments,
 } from "../api/client";
-import {
-  getAssetGroupBreakdown,
-  isPredictionCqgAxis,
-} from "../lib/data-status-helpers";
-import {
-  cn,
-  formatEventDrivenCoverageLabel,
-  formatRatePerDay,
-  isRateMetricRow,
-} from "../lib/utils";
+import { getAssetGroupBreakdown, isPredictionCqgAxis } from "../lib/data-status-helpers";
+import { cn, formatEventDrivenCoverageLabel, formatRatePerDay, isRateMetricRow } from "../lib/utils";
 import type {
   AssetGroupVenuesResponse,
   AssetGroupStatus as CategoryStatus,
@@ -55,27 +47,16 @@ import type {
   DataStatusResponse,
 } from "../types";
 import { BreakdownsAccordion } from "./BreakdownsAccordion";
-import {
-  BucketCountsBadge,
-  InstrumentsModal,
-  SchemaModal,
-  type ShardCoordinate,
-} from "./DataStatusDrilldown";
+import { BucketCountsBadge, InstrumentsModal, SchemaModal, type ShardCoordinate } from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
-import {
-  FeatureFamilyBreakdown,
-  groupFeatureGroupsByFamily,
-} from "./FeatureFamilyBreakdown";
+import { FeatureFamilyBreakdown, groupFeatureGroupsByFamily } from "./FeatureFamilyBreakdown";
 import { FixtureBreakdown } from "./FixtureBreakdown";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
 import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
-import {
-  ShardDetailModal,
-  type ShardDetailCoordInput,
-} from "./ShardDetailModal";
+import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
@@ -83,24 +64,12 @@ import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface DataStatusTabProps {
@@ -180,10 +149,7 @@ function getSubDimensionData(catData: TurboAssetGroupStatus): {
   // (drilldown also lives under `data_types`, keyed by cqg group name).
   // Consumers MUST branch on this when the drilldown lives under either key
   // — both are present on the response, but only one is populated.
-  if (
-    catData.breakdown_axis === "data_type" ||
-    catData.breakdown_axis === "canonical_question_group"
-  ) {
+  if (catData.breakdown_axis === "data_type" || catData.breakdown_axis === "canonical_question_group") {
     const dt = catData.data_types;
     if (dt && typeof dt === "object") {
       const label =
@@ -233,9 +199,7 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(venues);
-  const filtered = search
-    ? entries.filter(([v]) => v.toLowerCase().includes(search.toLowerCase()))
-    : entries;
+  const filtered = search ? entries.filter(([v]) => v.toLowerCase().includes(search.toLowerCase())) : entries;
   const MAX_VISIBLE = 8;
   const visible = expanded ? filtered : filtered.slice(0, MAX_VISIBLE);
   const hiddenCount = filtered.length - visible.length;
@@ -313,9 +277,7 @@ function DateList({
             <a
               href={downloadUrl(date)}
               className="inline-flex items-center justify-center px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] focus:outline-none"
-              title={
-                downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`
-              }
+              title={downloadTitle ? downloadTitle(date) : `Download CSV for ${date}`}
               download
               onClick={(e) => e.stopPropagation()}
               data-testid={`${testIdPrefix}-${date}-download`}
@@ -339,12 +301,7 @@ function DateList({
 }
 
 // Internal component for non-execution-services
-function DataStatusTabInternal({
-  serviceName,
-  deploymentResult,
-  isDeploying,
-  onDeployMissing,
-}: DataStatusTabProps) {
+function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
   // Default startDate = workspace-wide rollup origin (2018-01-01) so the
   // initial Asset-group-breakdown card shows the full historical coverage
   // (instruments-service goes back to 2019-03; MTDS to 2018+; all
@@ -363,14 +320,10 @@ function DataStatusTabInternal({
     d.setDate(d.getDate() - 1);
     return d.toISOString().split("T")[0];
   });
-  const [dataStatusMode, setDataStatusMode] = useState<"batch" | "live">(
-    "batch",
-  );
+  const [dataStatusMode, setDataStatusMode] = useState<"batch" | "live">("batch");
 
   // Data status view mode toggle (batch/scheduled-today/live) - separate from table/calendar display mode
-  const [dataStatusViewMode, setDataStatusViewMode] = useState<
-    "batch" | "scheduled-today" | "live"
-  >("batch");
+  const [dataStatusViewMode, setDataStatusViewMode] = useState<"batch" | "scheduled-today" | "live">("batch");
 
   // NOTE: Removed debounced dates - no longer auto-fetching on date change
   // Users must click "Check Status" button to fetch data
@@ -391,17 +344,12 @@ function DataStatusTabInternal({
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   // Venue-specific available filters (from venue_data_types.yaml)
-  const [venueAvailableFolders, setVenueAvailableFolders] = useState<string[]>(
-    [],
-  );
-  const [venueAvailableDataTypes, setVenueAvailableDataTypes] = useState<
-    string[]
-  >([]);
+  const [venueAvailableFolders, setVenueAvailableFolders] = useState<string[]>([]);
+  const [venueAvailableDataTypes, setVenueAvailableDataTypes] = useState<string[]>([]);
   const [venueFiltersLoading, setVenueFiltersLoading] = useState(false);
 
   // File listing state
-  const [fileListingData, setFileListingData] =
-    useState<api.ListFilesResponse | null>(null);
+  const [fileListingData, setFileListingData] = useState<api.ListFilesResponse | null>(null);
   const [fileListingLoading, setFileListingLoading] = useState(false);
   const [fileListingError, setFileListingError] = useState<string | null>(null);
   const [showFileListing, setShowFileListing] = useState(false);
@@ -410,13 +358,9 @@ function DataStatusTabInternal({
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>("1m");
   const availableTimeframes = ["15s", "1m", "5m", "15m", "1h", "4h", "24h"];
   const [data, setData] = useState<DataStatusResponse | null>(null);
-  const [turboData, setTurboData] = useState<TurboDataStatusResponse | null>(
-    null,
-  );
-  const [venueCheckData, setVenueCheckData] =
-    useState<VenueCheckResponse | null>(null);
-  const [dataTypeCheckData, setDataTypeCheckData] =
-    useState<DataTypeCheckResponse | null>(null);
+  const [turboData, setTurboData] = useState<TurboDataStatusResponse | null>(null);
+  const [venueCheckData, setVenueCheckData] = useState<VenueCheckResponse | null>(null);
+  const [dataTypeCheckData, setDataTypeCheckData] = useState<DataTypeCheckResponse | null>(null);
 
   // Venue detail drill-down state.
   //
@@ -427,18 +371,14 @@ function DataStatusTabInternal({
   //   shape (``VenueDetailResult``) or the v2 shape (``VenueDetailV2Response``)
   //   returned by the DeFi-aware ``/api/data-status/venue-detail`` endpoint.
   const [venueDetailKey, setVenueDetailKey] = useState<string | null>(null);
-  const [venueDetailData, setVenueDetailData] = useState<
-    api.VenueDetailResult | api.VenueDetailV2Response | null
-  >(null);
+  const [venueDetailData, setVenueDetailData] = useState<api.VenueDetailResult | api.VenueDetailV2Response | null>(
+    null,
+  );
   const [venueDetailLoading, setVenueDetailLoading] = useState(false);
 
   // Schema / per-day instrument drill-down modals
-  const [instrumentsModal, setInstrumentsModal] =
-    useState<ShardCoordinate | null>(null);
-  const [schemaModal, setSchemaModal] = useState<Omit<
-    ShardCoordinate,
-    "day"
-  > | null>(null);
+  const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
+  const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
   // DEFI per-pool drill-down modal — backed by /api/data-status/pools/breakdown.
   const [poolBreakdownModal, setPoolBreakdownModal] = useState<{
     venue: string;
@@ -446,8 +386,7 @@ function DataStatusTabInternal({
     day: string;
   } | null>(null);
   // Unified shard-detail modal (4 tabs: schema / sample / payload / download)
-  const [shardDetailCoord, setShardDetailCoord] =
-    useState<ShardDetailCoordInput | null>(null);
+  const [shardDetailCoord, setShardDetailCoord] = useState<ShardDetailCoordInput | null>(null);
   const openShardDetail = useCallback((c: ShardDetailCoordInput) => {
     setShardDetailCoord(c);
   }, []);
@@ -457,8 +396,7 @@ function DataStatusTabInternal({
   // representative leaf coord (venue + most-recent captured day + first
   // data_type + AUTO instrument_type — the deployment-api leaf-stats route
   // resolves the leaf parquet via _gcs_path_for_shard).
-  const [leafSchemaCoord, setLeafSchemaCoord] =
-    useState<LeafSchemaModalCoord | null>(null);
+  const [leafSchemaCoord, setLeafSchemaCoord] = useState<LeafSchemaModalCoord | null>(null);
 
   // SPORTS fixture-level breakdown — toggled per (league, day, readOnly) key.
   // readOnly flag disables per-fixture download buttons for red (missing) dates.
@@ -467,16 +405,9 @@ function DataStatusTabInternal({
     league_id: string;
     readOnly: boolean;
   } | null>(null);
-  const toggleFixtureBreakdown = (
-    day: string,
-    league_id: string,
-    readOnly: boolean,
-  ) => {
+  const toggleFixtureBreakdown = (day: string, league_id: string, readOnly: boolean) => {
     setFixtureBreakdownKey((prev) =>
-      prev &&
-      prev.day === day &&
-      prev.league_id === league_id &&
-      prev.readOnly === readOnly
+      prev && prev.day === day && prev.league_id === league_id && prev.readOnly === readOnly
         ? null
         : { day, league_id, readOnly },
     );
@@ -517,50 +448,38 @@ function DataStatusTabInternal({
   const checkDataTypes = false;
 
   // Use manifest mode (fastest — reads parquet index) for services with ManifestWriter
-  const useManifestMode =
-    api.MANIFEST_MODE_SERVICES.includes(serviceName) &&
-    !checkVenues &&
-    !checkDataTypes;
+  const useManifestMode = api.MANIFEST_MODE_SERVICES.includes(serviceName) && !checkVenues && !checkDataTypes;
   // Fallback to turbo mode (blob listing) for services without manifests
   const useTurboMode =
-    !useManifestMode &&
-    api.TURBO_MODE_SERVICES.includes(serviceName) &&
-    !checkVenues &&
-    !checkDataTypes;
+    !useManifestMode && api.TURBO_MODE_SERVICES.includes(serviceName) && !checkVenues && !checkDataTypes;
   const turboSubDimension = api.TURBO_SUB_DIMENSION_SERVICES[serviceName];
   const [loading, setLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [expandedVenues, setExpandedVenues] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<
-    string | null
-  >(null);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   // Deploy Missing modal state
   const [deployMissingModalOpen, setDeployMissingModalOpen] = useState(false);
   const [deployMissingForce, setDeployMissingForce] = useState(true);
   const [deployMissingDryRun, setDeployMissingDryRun] = useState(true); // Default to preview mode
-  const [deployMissingDateGranularity, setDeployMissingDateGranularity] =
-    useState<"daily" | "weekly" | "monthly" | "none">("daily");
-  const [deployMissingRegion, setDeployMissingRegion] =
-    useState<string>("asia-northeast1");
+  const [deployMissingDateGranularity, setDeployMissingDateGranularity] = useState<
+    "daily" | "weekly" | "monthly" | "none"
+  >("daily");
+  const [deployMissingRegion, setDeployMissingRegion] = useState<string>("asia-northeast1");
 
   // Region validation (backend GCS_REGION for cross-region egress warning)
   const [backendRegion, setBackendRegion] = useState<string>("asia-northeast1");
-  const [showDeployMissingRegionWarning, setShowDeployMissingRegionWarning] =
-    useState<boolean>(false);
+  const [showDeployMissingRegionWarning, setShowDeployMissingRegionWarning] = useState<boolean>(false);
 
   useEffect(() => {
     fetch("/api/config/region")
       .then((r) => r.json())
       .then((data) => {
-        const region =
-          data.storage_region ?? data.gcs_region ?? "asia-northeast1";
+        const region = data.storage_region ?? data.gcs_region ?? "asia-northeast1";
         setBackendRegion(region);
         setDeployMissingRegion(region);
       })
@@ -608,9 +527,7 @@ function DataStatusTabInternal({
   const [showOnlyFailures, setShowOnlyFailures] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
-      return (
-        window.localStorage.getItem("deployment-ui/show-only-failures") === "1"
-      );
+      return window.localStorage.getItem("deployment-ui/show-only-failures") === "1";
     } catch {
       return false;
     }
@@ -618,10 +535,7 @@ function DataStatusTabInternal({
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(
-        "deployment-ui/show-only-failures",
-        showOnlyFailures ? "1" : "0",
-      );
+      window.localStorage.setItem("deployment-ui/show-only-failures", showOnlyFailures ? "1" : "0");
     } catch {
       /* storage unavailable — non-fatal */
     }
@@ -634,18 +548,12 @@ function DataStatusTabInternal({
   // Instrument search state
   const [instrumentSearchMode, setInstrumentSearchMode] = useState(false);
   const [instrumentSearchQuery, setInstrumentSearchQuery] = useState("");
-  const [instrumentSearchResults, setInstrumentSearchResults] = useState<
-    api.InstrumentSearchResult[]
-  >([]);
+  const [instrumentSearchResults, setInstrumentSearchResults] = useState<api.InstrumentSearchResult[]>([]);
   const [instrumentSearchLoading, setInstrumentSearchLoading] = useState(false);
-  const [selectedInstrument, setSelectedInstrument] =
-    useState<api.InstrumentSearchResult | null>(null);
-  const [instrumentAvailability, setInstrumentAvailability] =
-    useState<api.InstrumentAvailabilityResponse | null>(null);
-  const [instrumentAvailabilityLoading, setInstrumentAvailabilityLoading] =
-    useState(false);
-  const [instrumentAvailabilityError, setInstrumentAvailabilityError] =
-    useState<string | null>(null);
+  const [selectedInstrument, setSelectedInstrument] = useState<api.InstrumentSearchResult | null>(null);
+  const [instrumentAvailability, setInstrumentAvailability] = useState<api.InstrumentAvailabilityResponse | null>(null);
+  const [instrumentAvailabilityLoading, setInstrumentAvailabilityLoading] = useState(false);
+  const [instrumentAvailabilityError, setInstrumentAvailabilityError] = useState<string | null>(null);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
 
   // Cross-category canonical-symbol search (Gap 3 of cross-category audit).
@@ -653,18 +561,13 @@ function DataStatusTabInternal({
   // ``/api/data-status/instruments/search`` directly and returns canonical
   // IDs across all 5 categories (cefi/tradfi/defi/sports/prediction).
   const [symbolSearchQuery, setSymbolSearchQuery] = useState("");
-  const [symbolSearchResults, setSymbolSearchResults] = useState<
-    InstrumentSearchMatch[]
-  >([]);
+  const [symbolSearchResults, setSymbolSearchResults] = useState<InstrumentSearchMatch[]>([]);
   const [symbolSearchLoading, setSymbolSearchLoading] = useState(false);
   const [symbolSearchTruncated, setSymbolSearchTruncated] = useState(false);
-  const symbolSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const symbolSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Coverage summary state — auto-fetched on mount for instruments-service
-  const [coverageSummary, setCoverageSummary] =
-    useState<api.CoverageSummaryResponse | null>(null);
+  const [coverageSummary, setCoverageSummary] = useState<api.CoverageSummaryResponse | null>(null);
   const [coverageSummaryLoading, setCoverageSummaryLoading] = useState(false);
 
   // Per-(service, asset_group) shard / display / primary axis SSOT — Phase 3
@@ -675,8 +578,7 @@ function DataStatusTabInternal({
   // venue-pill list above stays intact, so a Phase 0/2 deploy lag
   // (deployment-api older image, axis-matrix endpoint missing) doesn't
   // break the existing UI surface.
-  const [shardAxisMatrix, setShardAxisMatrix] =
-    useState<api.ShardAxisMatrixResponse | null>(null);
+  const [shardAxisMatrix, setShardAxisMatrix] = useState<api.ShardAxisMatrixResponse | null>(null);
 
   // Manifest secondary-axis filter — set when the operator clicks a value
   // in the per-asset-group BreakdownsAccordion (DEFI chain, sports league,
@@ -739,8 +641,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            asset_group:
-              selectedCategories.length > 0 ? selectedCategories : undefined,
+            asset_group: selectedCategories.length > 0 ? selectedCategories : undefined,
             check_venues: true,
             force_refresh: false, // Use cache for speed
           })) as VenueCheckResponse;
@@ -749,10 +650,7 @@ function DataStatusTabInternal({
           if (thisRequestId !== requestIdRef.current) return;
 
           // CRITICAL: Validate response matches request
-          if (
-            result.start_date !== fetchStart ||
-            result.end_date !== fetchEnd
-          ) {
+          if (result.start_date !== fetchStart || result.end_date !== fetchEnd) {
             setError(
               `Backend returned wrong dates! Requested ${fetchStart}-${fetchEnd}, got ${result.start_date}-${result.end_date}`,
             );
@@ -766,8 +664,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            asset_group:
-              selectedCategories.length > 0 ? selectedCategories : ["TRADFI"], // Default to TRADFI for data type check
+            asset_group: selectedCategories.length > 0 ? selectedCategories : ["TRADFI"], // Default to TRADFI for data type check
             check_data_types: true,
             force_refresh: false, // Use cache for speed
           })) as DataTypeCheckResponse;
@@ -792,16 +689,12 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            asset_group:
-              selectedCategories.length > 0 ? selectedCategories : undefined,
+            asset_group: selectedCategories.length > 0 ? selectedCategories : undefined,
             secondary_axis: filterAxis,
             chain: filterAxis === "chain" ? filterValue : undefined,
             league_id: filterAxis === "league_id" ? filterValue : undefined,
             fixture_id: filterAxis === "fixture_id" ? filterValue : undefined,
-            canonical_question_group:
-              filterAxis === "canonical_question_group"
-                ? filterValue
-                : undefined,
+            canonical_question_group: filterAxis === "canonical_question_group" ? filterValue : undefined,
             job_id: filterAxis === "job_id" ? filterValue : undefined,
             signal: abortController.signal,
           });
@@ -815,19 +708,15 @@ function DataStatusTabInternal({
           // Enable upstream availability check for dependent services
           // This ensures "missing" only counts dates where upstream data exists
           const checkUpstream = UPSTREAM_CHECK_SERVICES.includes(serviceName);
-          const venueFilter =
-            selectedVenues.length > 0 ? selectedVenues : undefined;
-          const folderFilter =
-            selectedFolders.length > 0 ? selectedFolders : undefined;
-          const dataTypeFilter =
-            selectedDataTypes.length > 0 ? selectedDataTypes : undefined;
+          const venueFilter = selectedVenues.length > 0 ? selectedVenues : undefined;
+          const folderFilter = selectedFolders.length > 0 ? selectedFolders : undefined;
+          const dataTypeFilter = selectedDataTypes.length > 0 ? selectedDataTypes : undefined;
           const result = await api.getDataStatusTurbo({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
             mode: dataStatusMode,
-            asset_group:
-              selectedCategories.length > 0 ? selectedCategories : undefined,
+            asset_group: selectedCategories.length > 0 ? selectedCategories : undefined,
             venue: venueFilter, // Filter by venue to reduce GCS scan scope
             folder: folderFilter, // Filter by folder/instrument type
             data_type: dataTypeFilter, // Filter by data type
@@ -847,10 +736,7 @@ function DataStatusTabInternal({
           if (thisRequestId !== requestIdRef.current) return;
 
           // Validate response matches requested dates (detect stale data/bugs)
-          if (
-            result.date_range.start !== fetchStart ||
-            result.date_range.end !== fetchEnd
-          ) {
+          if (result.date_range.start !== fetchStart || result.date_range.end !== fetchEnd) {
             setError(
               `Date mismatch: requested ${fetchStart} to ${fetchEnd}, but received ${result.date_range.start} to ${result.date_range.end}. This may indicate a bug - please report this.`,
             );
@@ -864,8 +750,7 @@ function DataStatusTabInternal({
             service: serviceName,
             start_date: fetchStart,
             end_date: fetchEnd,
-            asset_group:
-              selectedCategories.length > 0 ? selectedCategories : undefined,
+            asset_group: selectedCategories.length > 0 ? selectedCategories : undefined,
             force_refresh: false, // Use cache (5-min TTL) for speed
           })) as DataStatusResponse;
 
@@ -873,10 +758,7 @@ function DataStatusTabInternal({
           if (thisRequestId !== requestIdRef.current) return;
 
           // Validate response matches requested dates (detect cache issues)
-          if (
-            result.start_date !== fetchStart ||
-            result.end_date !== fetchEnd
-          ) {
+          if (result.start_date !== fetchStart || result.end_date !== fetchEnd) {
             // Date mismatch - use data anyway but could indicate cache issues
           }
 
@@ -886,16 +768,10 @@ function DataStatusTabInternal({
         // Only set error if this is still the latest request
         if (thisRequestId === requestIdRef.current) {
           // Don't show error for cancelled requests
-          if (
-            err instanceof Error &&
-            (err.name === "AbortError" ||
-              err.message === "Request was cancelled")
-          ) {
+          if (err instanceof Error && (err.name === "AbortError" || err.message === "Request was cancelled")) {
             return;
           }
-          setError(
-            err instanceof Error ? err.message : "Failed to fetch data status",
-          );
+          setError(err instanceof Error ? err.message : "Failed to fetch data status");
         }
       } finally {
         // Only clear loading if this is still the latest request
@@ -964,9 +840,7 @@ function DataStatusTabInternal({
       selectedFolders.length !== 1 ||
       selectedDataTypes.length !== 1
     ) {
-      setFileListingError(
-        "Please select exactly one category, venue, folder, and data type",
-      );
+      setFileListingError("Please select exactly one category, venue, folder, and data type");
       return;
     }
 
@@ -984,10 +858,7 @@ function DataStatusTabInternal({
         start_date: startDate,
         end_date: endDate,
         // Include timeframe for market-data-processing-service
-        timeframe:
-          serviceName === "market-data-processing-service"
-            ? selectedTimeframe
-            : undefined,
+        timeframe: serviceName === "market-data-processing-service" ? selectedTimeframe : undefined,
       });
 
       if (result.error) {
@@ -997,9 +868,7 @@ function DataStatusTabInternal({
         setFileListingData(result);
       }
     } catch (err) {
-      setFileListingError(
-        err instanceof Error ? err.message : "Failed to fetch file listing",
-      );
+      setFileListingError(err instanceof Error ? err.message : "Failed to fetch file listing");
       setFileListingData(null);
     } finally {
       setFileListingLoading(false);
@@ -1016,9 +885,7 @@ function DataStatusTabInternal({
   ]);
 
   // Instrument search - debounced search as user types
-  const searchInstrumentsDebounceRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  const searchInstrumentsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchInstruments = useCallback(
     async (searchQuery: string) => {
       if (selectedCategories.length !== 1) {
@@ -1101,14 +968,10 @@ function DataStatusTabInternal({
         instrument_key: selectedInstrument.instrument_key,
         start_date: startDate,
         end_date: endDate,
-        data_type:
-          selectedDataTypes.length === 1 ? selectedDataTypes[0] : undefined,
+        data_type: selectedDataTypes.length === 1 ? selectedDataTypes[0] : undefined,
         first_day_of_month_only: firstDayOfMonthOnly,
         service: serviceName,
-        timeframe:
-          serviceName === "market-data-processing-service"
-            ? selectedTimeframe
-            : undefined,
+        timeframe: serviceName === "market-data-processing-service" ? selectedTimeframe : undefined,
         // Pass instrument availability window from definition
         available_from: selectedInstrument.available_from_datetime || undefined,
         available_to: selectedInstrument.available_to_datetime || undefined,
@@ -1121,22 +984,12 @@ function DataStatusTabInternal({
         setInstrumentAvailability(result);
       }
     } catch (err) {
-      setInstrumentAvailabilityError(
-        err instanceof Error ? err.message : "Failed to check availability",
-      );
+      setInstrumentAvailabilityError(err instanceof Error ? err.message : "Failed to check availability");
       setInstrumentAvailability(null);
     } finally {
       setInstrumentAvailabilityLoading(false);
     }
-  }, [
-    selectedInstrument,
-    startDate,
-    endDate,
-    selectedDataTypes,
-    firstDayOfMonthOnly,
-    serviceName,
-    selectedTimeframe,
-  ]);
+  }, [selectedInstrument, startDate, endDate, selectedDataTypes, firstDayOfMonthOnly, serviceName, selectedTimeframe]);
 
   // Clear instrument search state when mode changes or category changes
   useEffect(() => {
@@ -1163,30 +1016,16 @@ function DataStatusTabInternal({
         if (response.asset_groups && response.asset_groups.length > 0) {
           setAvailableCategories(response.asset_groups);
           // Clear selected categories that are no longer available
-          setSelectedCategories((prev) =>
-            prev.filter((cat) => response.asset_groups.includes(cat)),
-          );
+          setSelectedCategories((prev) => prev.filter((cat) => response.asset_groups.includes(cat)));
         } else {
           // Service has no category dimension (e.g., features-calendar-service)
           // Default to all categories for backward compatibility
-          setAvailableCategories([
-            "CEFI",
-            "DEFI",
-            "TRADFI",
-            "SPORTS",
-            "PREDICTION",
-          ]);
+          setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
         }
       })
       .catch(() => {
         // On error, default to all categories
-        setAvailableCategories([
-          "CEFI",
-          "DEFI",
-          "TRADFI",
-          "SPORTS",
-          "PREDICTION",
-        ]);
+        setAvailableCategories(["CEFI", "DEFI", "TRADFI", "SPORTS", "PREDICTION"]);
       })
       .finally(() => {
         setCategoriesLoading(false);
@@ -1392,19 +1231,12 @@ function DataStatusTabInternal({
       }
       // Fallback: if overall_completion_pct < 100, there IS missing data
       if ((turboData.overall_completion_pct ?? 0) < 99.99) {
-        return Math.max(
-          1,
-          (turboData.overall_dates_expected ?? 0) -
-            (turboData.overall_dates_found ?? 0),
-        );
+        return Math.max(1, (turboData.overall_dates_expected ?? 0) - (turboData.overall_dates_found ?? 0));
       }
       return 0;
     }
     if (data) {
-      return Object.values(data.asset_groups).reduce(
-        (sum, cat) => sum + getMissingCount(cat),
-        0,
-      );
+      return Object.values(data.asset_groups).reduce((sum, cat) => sum + getMissingCount(cat), 0);
     }
     return 0;
   }, [data, turboData]);
@@ -1420,8 +1252,7 @@ function DataStatusTabInternal({
 
           // Check if there are entirely missing venues (expected but no data at all)
           // These are in venue_summary.expected_but_missing, NOT in catData.venues
-          const expectedButMissing =
-            catData.venue_summary?.expected_but_missing || [];
+          const expectedButMissing = catData.venue_summary?.expected_but_missing || [];
           if (expectedButMissing.length > 0) return true;
 
           // Also check if any sub-dimension rows within this category have
@@ -1432,12 +1263,8 @@ function DataStatusTabInternal({
           if (breakdown) {
             for (const [_, subData] of Object.entries(breakdown)) {
               const subExpected =
-                subData._dim_weighted_expected ??
-                subData.dates_expected_venue ??
-                subData.dates_expected ??
-                0;
-              const subFound =
-                subData._dim_weighted_found ?? subData.dates_found ?? 0;
+                subData._dim_weighted_expected ?? subData.dates_expected_venue ?? subData.dates_expected ?? 0;
+              const subFound = subData._dim_weighted_found ?? subData.dates_found ?? 0;
               if (subFound < subExpected) return true;
             }
           }
@@ -1469,9 +1296,7 @@ function DataStatusTabInternal({
   const effectiveDeployCategories = useMemo(() => {
     // If user selected specific categories, use those (intersected with categories that have missing data)
     if (selectedCategories.length > 0) {
-      return selectedCategories.filter((cat) =>
-        categoriesWithMissing.includes(cat),
-      );
+      return selectedCategories.filter((cat) => categoriesWithMissing.includes(cat));
     }
     // Otherwise use all categories with missing data
     return categoriesWithMissing;
@@ -1502,8 +1327,7 @@ function DataStatusTabInternal({
         asset_groups: effectiveDeployCategories, // ALWAYS pass explicit asset groups, never undefined
         venues: selectedVenues.length > 0 ? selectedVenues : undefined, // Pass venue filter if selected
         folders: selectedFolders.length > 0 ? selectedFolders : undefined, // Pass folder/instrument type filter
-        data_types:
-          selectedDataTypes.length > 0 ? selectedDataTypes : undefined, // Pass data type filter
+        data_types: selectedDataTypes.length > 0 ? selectedDataTypes : undefined, // Pass data type filter
         force: deployMissingForce,
         dry_run: deployMissingDryRun,
         skip_existing: true, // Always skip existing for deploy missing
@@ -1541,11 +1365,7 @@ function DataStatusTabInternal({
     // 1. Modal is open (user is viewing the deploy missing dialog)
     // 2. In preview mode (dry run = true)
     // 3. Has categories to deploy (prevent empty deploys)
-    if (
-      deployMissingModalOpen &&
-      deployMissingDryRun &&
-      effectiveDeployCategories.length > 0
-    ) {
+    if (deployMissingModalOpen && deployMissingDryRun && effectiveDeployCategories.length > 0) {
       const timeoutId = setTimeout(() => {
         handleConfirmDeployMissing(true); // previewRefreshOnly: stay in modal, don't switch tabs
       }, 300);
@@ -1561,13 +1381,10 @@ function DataStatusTabInternal({
 
   // Handle instrument-level deploy missing
   const handleInstrumentDeployMissing = useCallback(() => {
-    if (!onDeployMissing || !selectedInstrument || !instrumentAvailability)
-      return;
+    if (!onDeployMissing || !selectedInstrument || !instrumentAvailability) return;
 
     // Get data types that have missing data
-    const dataTypesWithMissing = Object.entries(
-      instrumentAvailability.by_data_type,
-    )
+    const dataTypesWithMissing = Object.entries(instrumentAvailability.by_data_type)
       .filter(([, stats]) => stats.dates_missing > 0)
       .map(([dataType]) => dataType);
 
@@ -1578,10 +1395,8 @@ function DataStatusTabInternal({
     const folder = selectedInstrument.instrument_type;
 
     // Use the effective date range from availability window if available
-    const effectiveStart =
-      instrumentAvailability.availability_window?.effective_start || startDate;
-    const effectiveEnd =
-      instrumentAvailability.availability_window?.effective_end || endDate;
+    const effectiveStart = instrumentAvailability.availability_window?.effective_start || startDate;
+    const effectiveEnd = instrumentAvailability.availability_window?.effective_end || endDate;
 
     // Deploy with instrument-specific filters
     onDeployMissing({
@@ -1639,21 +1454,17 @@ function DataStatusTabInternal({
         const datesWithIssues = new Set<string>();
         const dateDetails = new Map<string, string[]>(); // date -> [category: X venues missing]
 
-        Object.entries(venueCheckData.asset_groups).forEach(
-          ([catName, catData]) => {
-            if (!catData.dates_with_missing_venues) return;
+        Object.entries(venueCheckData.asset_groups).forEach(([catName, catData]) => {
+          if (!catData.dates_with_missing_venues) return;
 
-            catData.dates_with_missing_venues.forEach((dateInfo) => {
-              datesWithIssues.add(dateInfo.date);
-              if (!dateDetails.has(dateInfo.date)) {
-                dateDetails.set(dateInfo.date, []);
-              }
-              dateDetails
-                .get(dateInfo.date)!
-                .push(`${catName}: ${dateInfo.missing.length} venues`);
-            });
-          },
-        );
+          catData.dates_with_missing_venues.forEach((dateInfo) => {
+            datesWithIssues.add(dateInfo.date);
+            if (!dateDetails.has(dateInfo.date)) {
+              dateDetails.set(dateInfo.date, []);
+            }
+            dateDetails.get(dateInfo.date)!.push(`${catName}: ${dateInfo.missing.length} venues`);
+          });
+        });
 
         // Generate day entries
         const currentDate = new Date(start);
@@ -1721,10 +1532,7 @@ function DataStatusTabInternal({
             });
           });
 
-          const coverage =
-            totalVenues > 0
-              ? Math.round((venuesWithData / totalVenues) * 100)
-              : 0;
+          const coverage = totalVenues > 0 ? Math.round((venuesWithData / totalVenues) * 100) : 0;
 
           if (coverage === 100) {
             result.push({
@@ -1766,11 +1574,9 @@ function DataStatusTabInternal({
         <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span>
-            <strong>{serviceName}</strong> is a runtime service — its health is
-            tracked in <strong>Monitor → Live</strong> or{" "}
-            <strong>Monitor → Experiments</strong>. Data Status shows
-            manifest-driven coverage for data-pipeline services only
-            (instruments, MTDS, MDPS, features-*).
+            <strong>{serviceName}</strong> is a runtime service — its health is tracked in{" "}
+            <strong>Monitor → Live</strong> or <strong>Monitor → Experiments</strong>. Data Status shows manifest-driven
+            coverage for data-pipeline services only (instruments, MTDS, MDPS, features-*).
           </span>
         </div>
       )}
@@ -1809,165 +1615,141 @@ function DataStatusTabInternal({
 
       {/* b6: Live mode shows freshness panel; Batch/Scheduled show manifest coverage below */}
       {dataStatusViewMode === "live" && <LiveFreshnessPanel />}
-      {dataStatusViewMode !== "live" && (<>
+      {dataStatusViewMode !== "live" && (
+        <>
+          {serviceName === "instruments-service" && <UpcomingFixtures />}
 
-      {serviceName === "instruments-service" && <UpcomingFixtures />}
+          {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
+          <HonestCoverageCard />
 
-      {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
-      <HonestCoverageCard />
-
-      {/* Coverage Summary Card — auto-loaded from manifest */}
-      {(coverageSummary || coverageSummaryLoading) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                <CardTitle className="text-base">
-                  Instrument Coverage Summary
-                </CardTitle>
-                <Badge
-                  variant="outline"
-                  className="text-[10px]"
-                  title={
-                    coverageSummary?.totals_source === "rollup"
-                      ? "Served from pre-computed rollup (≤30 min stale). Numbers may differ from live manifest until writegate Phase 3.D.4 lands."
-                      : "Served from live manifest scan."
-                  }
-                >
-                  {coverageSummary?.totals_source === "rollup"
-                    ? "ROLLUP"
-                    : "MANIFEST"}
-                </Badge>
-              </div>
-              {coverageSummary?.totals && (
-                <div className="text-right">
-                  <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
-                    {coverageSummary.totals.latest_day_instruments.toLocaleString()}
+          {/* Coverage Summary Card — auto-loaded from manifest */}
+          {(coverageSummary || coverageSummaryLoading) && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                    <CardTitle className="text-base">Instrument Coverage Summary</CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px]"
+                      title={
+                        coverageSummary?.totals_source === "rollup"
+                          ? "Served from pre-computed rollup (≤30 min stale). Numbers may differ from live manifest until writegate Phase 3.D.4 lands."
+                          : "Served from live manifest scan."
+                      }
+                    >
+                      {coverageSummary?.totals_source === "rollup" ? "ROLLUP" : "MANIFEST"}
+                    </Badge>
                   </div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">
-                    instruments (latest day, sum across asset groups)
-                  </div>
+                  {coverageSummary?.totals && (
+                    <div className="text-right">
+                      <div className="text-2xl font-mono font-bold text-[var(--color-accent-cyan)]">
+                        {(
+                          coverageSummary.totals.unique_instruments ?? coverageSummary.totals.latest_day_instruments
+                        ).toLocaleString()}
+                      </div>
+                      <div className="text-[10px] text-[var(--color-text-muted)]">
+                        {coverageSummary.totals.unique_instruments != null
+                          ? "unique instruments (catalogue-deduplicated, all asset groups)"
+                          : "instruments (latest day, sum across asset groups)"}
+                      </div>
+                      {coverageSummary.totals.unique_instruments != null && (
+                        <div className="text-[10px] text-[var(--color-text-muted)]">
+                          {coverageSummary.totals.latest_day_instruments.toLocaleString()} rows on latest day
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {coverageSummaryLoading ? (
-              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading coverage summary...
-              </div>
-            ) : coverageSummary?.totals ? (
-              <div className="space-y-3">
-                {/* Grand totals row */}
-                <div className="grid grid-cols-4 gap-3 text-center">
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">
-                      {(coverageSummary.totals.shards ?? 0).toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Total Shards
-                    </div>
+              </CardHeader>
+              <CardContent>
+                {coverageSummaryLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading coverage summary...
                   </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">
-                      {(
-                        (coverageSummary.totals.instrument_rows ?? 0) /
-                        1_000_000
-                      ).toFixed(1)}
-                      M
+                ) : coverageSummary?.totals ? (
+                  <div className="space-y-3">
+                    {/* Grand totals row */}
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                        <div className="text-lg font-mono font-bold">
+                          {(coverageSummary.totals.shards ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Total Shards</div>
+                      </div>
+                      <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                        <div className="text-lg font-mono font-bold">
+                          {((coverageSummary.totals.instrument_rows ?? 0) / 1_000_000).toFixed(1)}M
+                        </div>
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Instrument Rows</div>
+                      </div>
+                      <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                        <div className="text-lg font-mono font-bold">
+                          {(coverageSummary.totals.dates_across_asset_groups ?? 0).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Dates (all asset groups)</div>
+                      </div>
+                      <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
+                        <div className="text-lg font-mono font-bold">
+                          {Object.keys(coverageSummary.asset_groups ?? {}).length}
+                        </div>
+                        <div className="text-[10px] text-[var(--color-text-muted)]">Asset Groups</div>
+                      </div>
                     </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Instrument Rows
-                    </div>
-                  </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">
-                      {(
-                        coverageSummary.totals.dates_across_asset_groups ?? 0
-                      ).toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Dates (all asset groups)
-                    </div>
-                  </div>
-                  <div className="p-2 rounded bg-[var(--color-bg-tertiary)]">
-                    <div className="text-lg font-mono font-bold">
-                      {Object.keys(coverageSummary.asset_groups ?? {}).length}
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      Asset Groups
-                    </div>
-                  </div>
-                </div>
 
-                {/* Per asset group breakdown (CeFi / DeFi / TradFi / …) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {Object.entries(coverageSummary.asset_groups ?? {}).map(
-                    ([cat, catData]) => {
-                      // Phase 3 (data_status_multi_axis_shard_propagation): pull
-                      // per-(service, asset_group) breakdown axes from UAC SSOT
-                      // via deployment-api /api/config/shard-axis-matrix. Empty
-                      // axes (writer hasn't populated the column yet) still
-                      // render with a "no data yet" placeholder by design — UI
-                      // shape leads, writers follow.
-                      const axisKey = cat.toLowerCase();
-                      const breakdownAxes =
-                        shardAxisMatrix?.breakdown_axes?.[serviceName]?.[
-                          axisKey
-                        ] ?? [];
-                      const breakdowns = catData.breakdowns ?? {};
-                      return (
-                        <div
-                          key={cat}
-                          className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] font-mono"
-                            >
-                              {cat}
-                            </Badge>
-                            <span className="text-xs text-[var(--color-text-muted)]">
-                              {catData.unique_venues}{" "}
-                              {catData.sub_dimension_label ?? "venues"}
-                            </span>
-                          </div>
-                          <div className="text-sm font-mono font-bold">
-                            {catData.latest_day_total.toLocaleString()}{" "}
-                            instruments (latest day)
-                          </div>
-                          <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
-                            {catData.unique_dates.toLocaleString()} dates
-                            &middot; {catData.total_shards.toLocaleString()}{" "}
-                            shards
-                            {catData.date_range && (
-                              <>
-                                {" "}
-                                &middot; {catData.date_range.start} to{" "}
-                                {catData.date_range.end}
-                              </>
-                            )}
-                          </div>
-                          {/* Instrument type pills — show first 8 with expandable overflow */}
-                          <VenuePillList
-                            venues={catData.latest_day_instruments}
-                          />
-                          {breakdownAxes.length > 0 ? (
-                            <div className="mt-3">
-                              <BreakdownsAccordion
-                                axes={breakdownAxes}
-                                breakdowns={breakdowns}
-                                title="Breakdowns"
-                                onSelectValue={(axis, value) =>
-                                  setManifestFilter({ axis, value })
-                                }
-                              />
+                    {/* Per asset group breakdown (CeFi / DeFi / TradFi / …) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {Object.entries(coverageSummary.asset_groups ?? {}).map(([cat, catData]) => {
+                        // Phase 3 (data_status_multi_axis_shard_propagation): pull
+                        // per-(service, asset_group) breakdown axes from UAC SSOT
+                        // via deployment-api /api/config/shard-axis-matrix. Empty
+                        // axes (writer hasn't populated the column yet) still
+                        // render with a "no data yet" placeholder by design — UI
+                        // shape leads, writers follow.
+                        const axisKey = cat.toLowerCase();
+                        const breakdownAxes = shardAxisMatrix?.breakdown_axes?.[serviceName]?.[axisKey] ?? [];
+                        const breakdowns = catData.breakdowns ?? {};
+                        return (
+                          <div
+                            key={cat}
+                            className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <Badge variant="outline" className="text-[10px] font-mono">
+                                {cat}
+                              </Badge>
+                              <span className="text-xs text-[var(--color-text-muted)]">
+                                {catData.unique_venues} {catData.sub_dimension_label ?? "venues"}
+                              </span>
                             </div>
-                          ) : null}
-                          {/* Drilldown plan Phase 2: hierarchical shard-atom
+                            <div className="text-sm font-mono font-bold">
+                              {catData.latest_day_total.toLocaleString()} instruments (latest day)
+                            </div>
+                            <div className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                              {catData.unique_dates.toLocaleString()} dates &middot;{" "}
+                              {catData.total_shards.toLocaleString()} shards
+                              {catData.date_range && (
+                                <>
+                                  {" "}
+                                  &middot; {catData.date_range.start} to {catData.date_range.end}
+                                </>
+                              )}
+                            </div>
+                            {/* Instrument type pills — show first 8 with expandable overflow */}
+                            <VenuePillList venues={catData.latest_day_instruments} />
+                            {breakdownAxes.length > 0 ? (
+                              <div className="mt-3">
+                                <BreakdownsAccordion
+                                  axes={breakdownAxes}
+                                  breakdowns={breakdowns}
+                                  title="Breakdowns"
+                                  onSelectValue={(axis, value) => setManifestFilter({ axis, value })}
+                                />
+                              </div>
+                            ) : null}
+                            {/* Drilldown plan Phase 2: hierarchical shard-atom
                           drill-down. Tree shape comes from the codex
                           per-(service, asset_group) shard-axis matrix
                           (UAC SSOT). Each leaf row exposes a per-shard
@@ -1976,1222 +1758,1049 @@ function DataStatusTabInternal({
                           for missing shards. Default-collapsed inside
                           a <details> so the page doesn't fan out
                           5000 instruments by default. */}
-                          <details className="mt-3">
-                            <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
-                              Hierarchical drill-down (shard atom)
-                            </summary>
-                            <div className="mt-2">
-                              <HierarchicalShardDrilldown
-                                service={serviceName}
-                                assetGroup={axisKey}
-                                startDate={startDate}
-                                endDate={endDate}
-                                initialDepth={1}
-                              />
-                            </div>
-                          </details>
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      )}
+                            <details className="mt-3">
+                              <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
+                                Hierarchical drill-down (shard atom)
+                              </summary>
+                              <div className="mt-2">
+                                <HierarchicalShardDrilldown
+                                  service={serviceName}
+                                  assetGroup={axisKey}
+                                  startDate={startDate}
+                                  endDate={endDate}
+                                  initialDepth={1}
+                                />
+                              </div>
+                            </details>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Cross-category canonical-symbol search (Gap 3 of cross-category audit).
+          {/* Cross-category canonical-symbol search (Gap 3 of cross-category audit).
           Hits /api/data-status/instruments/search; matches against
           ``instrument_key`` (CeFi/TradFi/DeFi/Prediction) or ``league_id``
           (Sports). Whitespace tokenises into AND-matched substrings. */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
-            <CardTitle className="text-base">Symbol search</CardTitle>
-            <span className="text-[10px] text-[var(--color-text-muted)] ml-2">
-              cross-category &middot; canonical IDs &middot; whitespace =
-              AND-match
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Input
-              type="text"
-              value={symbolSearchQuery}
-              onChange={(e) => {
-                setSymbolSearchQuery(e.target.value);
-                runSymbolSearch(e.target.value);
-              }}
-              placeholder="e.g. BTC-USDT, EPL, USDC WETH 500, 0x5fe3..."
-              className="text-sm font-mono"
-              data-testid="symbol-search-input"
-            />
-            {symbolSearchLoading && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
-            )}
-          </div>
-          {symbolSearchQuery.trim().length >= 2 && (
-            <div className="mt-2 max-h-72 overflow-y-auto rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
-              {symbolSearchResults.length === 0 && !symbolSearchLoading && (
-                <div className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
-                  No matches. Try a partial substring (e.g. ``btc``,
-                  ``eigenlayer``, ``epl``) or two-token AND-match (``usdc
-                  weth``).
-                </div>
-              )}
-              {symbolSearchResults.map((m) => (
-                <div
-                  key={`${m.canonical_id}__${m.asset_group}__${m.venue}__${m.instrument_type}`}
-                  className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--color-border-subtle)] last:border-b-0 hover:bg-[var(--color-bg-hover)] text-xs"
-                  data-testid="symbol-search-result"
-                >
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] font-mono shrink-0 w-20 justify-center"
-                  >
-                    {m.asset_group}
-                  </Badge>
-                  <span
-                    className="font-mono truncate flex-1 text-[var(--color-text)]"
-                    title={m.canonical_id}
-                  >
-                    {m.canonical_id}
-                  </span>
-                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono shrink-0">
-                    {m.venue}
-                  </span>
-                  {m.instrument_type && (
-                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
-                      {m.instrument_type}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {symbolSearchTruncated && (
-                <div className="px-3 py-1.5 text-[10px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
-                  Showing first 50 matches — refine your query for narrower
-                  results.
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Filters Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-              <CardTitle className="text-base">Filters</CardTitle>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearDataStatusCache}
-                disabled={loading || clearingCache}
-                title="Clear data status cache and re-fetch (does not affect deployment state)"
-              >
-                {clearingCache ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-2" />
-                )}
-                Clear Cache
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchData(startDate, endDate)}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                Check Status
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {(useManifestMode || useTurboMode) && (
-            <div className="mb-4">
-              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Mode{useManifestMode ? " (Manifest — fastest)" : " (Turbo)"}
-              </Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={dataStatusMode === "batch" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDataStatusMode("batch")}
-                >
-                  Batch
-                </Button>
-                <Button
-                  type="button"
-                  variant={dataStatusMode === "live" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDataStatusMode("live")}
-                >
-                  Live
-                </Button>
-              </div>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Batch: historical GCS paths. Live: real-time GCS paths.
-              </p>
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Start Date
-              </Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                }}
-                className="h-9"
-              />
-              <div className="flex gap-1 mt-1">
-                {[
-                  { label: "30d", days: 30 },
-                  { label: "90d", days: 90 },
-                  { label: "1y", days: 365 },
-                  { label: "All", days: null },
-                ].map((p) => (
-                  <Button
-                    key={p.label}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-[10px]"
-                    onClick={() => {
-                      if (p.days === null) {
-                        // Full history — API-Football fixtures go back to 2018-01-01.
-                        setStartDate("2018-01-01");
-                      } else {
-                        const d = new Date();
-                        d.setDate(d.getDate() - p.days);
-                        setStartDate(d.toISOString().split("T")[0]);
-                      }
-                    }}
-                  >
-                    {p.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                End Date
-              </Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                }}
-                className="h-9"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Require Freshness
-              </Label>
+          <Card>
+            <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant={requireFreshness ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    const turningOn = !requireFreshness;
-                    setRequireFreshness(turningOn);
-                    if (turningOn) setFreshnessDate(getTodayAt8am());
+                <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
+                <CardTitle className="text-base">Symbol search</CardTitle>
+                <span className="text-[10px] text-[var(--color-text-muted)] ml-2">
+                  cross-category &middot; canonical IDs &middot; whitespace = AND-match
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={symbolSearchQuery}
+                  onChange={(e) => {
+                    setSymbolSearchQuery(e.target.value);
+                    runSymbolSearch(e.target.value);
                   }}
-                >
-                  {requireFreshness ? "On" : "Off"}
-                </Button>
-                {requireFreshness && (
-                  <>
-                    <Input
-                      type="datetime-local"
-                      step="1"
-                      value={freshnessDate}
-                      onChange={(e) => setFreshnessDate(e.target.value)}
-                      className="h-9 flex-1"
-                      placeholder="Updated since..."
-                      title="Enter your local time — it will be converted to UTC for comparison against GCS blob timestamps"
-                    />
-                    {freshnessDate && (
-                      <span
-                        className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap"
-                        title="GCS blob timestamps are always UTC regardless of bucket region"
-                      >
-                        ={" "}
-                        {new Date(freshnessDate)
-                          .toISOString()
-                          .replace("T", " ")
-                          .slice(0, 19)}{" "}
-                        UTC
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div>
-              <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                Asset Groups
-              </Label>
-              <div className="flex gap-2 flex-wrap">
-                {categoriesLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading asset groups...
-                  </div>
-                ) : (
-                  availableCategories.map((cat) => (
-                    <Button
-                      key={cat}
-                      type="button"
-                      variant={
-                        selectedCategories.includes(cat) ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => {
-                        setSelectedCategories((prev) =>
-                          prev.includes(cat)
-                            ? prev.filter((c) => c !== cat)
-                            : [...prev, cat],
-                        );
-                      }}
-                    >
-                      {cat}
-                    </Button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Venue Filter - appears when exactly one category is selected */}
-          {selectedCategories.length === 1 && (
-            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="h-4 w-4 text-[var(--color-text-muted)]" />
-                <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                  Filter by Venue
-                  {selectedVenues.length > 0 && (
-                    <span className="ml-2 text-[var(--color-accent-cyan)]">
-                      ({selectedVenues.length} selected)
-                    </span>
-                  )}
-                </Label>
-                {selectedVenues.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedVenues([])}
-                    className="ml-auto"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              {venuesLoading ? (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading venues...
-                </div>
-              ) : availableVenues.length > 0 ? (
-                <div className="flex gap-2 flex-wrap">
-                  {availableVenues.map((venue) => (
-                    <Button
-                      key={venue}
-                      type="button"
-                      variant={
-                        selectedVenues.includes(venue) ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => {
-                        setSelectedVenues((prev) =>
-                          prev.includes(venue)
-                            ? prev.filter((v) => v !== venue)
-                            : [...prev, venue],
-                        );
-                      }}
-                    >
-                      {venue}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  No venues available for {selectedCategories[0]}
-                </p>
-              )}
-              <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                Filtering by venue reduces GCS scan scope for faster results
-              </p>
-            </div>
-          )}
-
-          {/* Venue-specific Filters - appear when exactly one venue is selected */}
-          {selectedVenues.length === 1 && selectedCategories.length === 1 && (
-            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-              {venueFiltersLoading ? (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading filters for {selectedVenues[0]}...
-                </div>
-              ) : (
-                <>
-                  {/* Instrument Type (Folder) Filter */}
-                  {venueAvailableFolders.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-                        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                          Filter by Instrument Type
-                          {selectedFolders.length > 0 && (
-                            <span className="ml-2 text-[var(--color-accent-green)]">
-                              ({selectedFolders.length} selected)
-                            </span>
-                          )}
-                        </Label>
-                        {selectedFolders.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedFolders([])}
-                            className="ml-auto"
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {venueAvailableFolders.map((f) => (
-                          <Button
-                            key={f}
-                            type="button"
-                            variant={
-                              selectedFolders.includes(f)
-                                ? "default"
-                                : "outline"
-                            }
-                            size="sm"
-                            onClick={() => {
-                              setSelectedFolders((prev) =>
-                                prev.includes(f)
-                                  ? prev.filter((x) => x !== f)
-                                  : [...prev, f],
-                              );
-                            }}
-                          >
-                            {f}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Data Type Filter */}
-                  {venueAvailableDataTypes.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-                        <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                          Filter by Data Type
-                          {selectedDataTypes.length > 0 && (
-                            <span className="ml-2 text-[var(--color-accent-orange)]">
-                              ({selectedDataTypes.length} selected)
-                            </span>
-                          )}
-                        </Label>
-                        {selectedDataTypes.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedDataTypes([])}
-                            className="ml-auto"
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {venueAvailableDataTypes.map((dt) => (
-                          <Button
-                            key={dt}
-                            type="button"
-                            variant={
-                              selectedDataTypes.includes(dt)
-                                ? "default"
-                                : "outline"
-                            }
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDataTypes((prev) =>
-                                prev.includes(dt)
-                                  ? prev.filter((x) => x !== dt)
-                                  : [...prev, dt],
-                              );
-                            }}
-                          >
-                            {dt}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-[var(--color-text-muted)] mt-3">
-                    Filters for {selectedVenues[0]} ({selectedCategories[0]})
-                  </p>
-
-                  {/* List Files Button - appears when all filters are specified */}
-                  {selectedFolders.length === 1 &&
-                    selectedDataTypes.length === 1 && (
-                      <div className="mt-4 pt-3 border-t border-[var(--color-border-default)]">
-                        {/* Timeframe selector for market-data-processing-service */}
-                        {serviceName === "market-data-processing-service" && (
-                          <div className="mb-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                                Select Timeframe
-                              </Label>
-                            </div>
-                            <div className="flex gap-1.5 flex-wrap">
-                              {availableTimeframes.map((tf) => (
-                                <Button
-                                  key={tf}
-                                  type="button"
-                                  variant={
-                                    selectedTimeframe === tf
-                                      ? "default"
-                                      : "outline"
-                                  }
-                                  size="sm"
-                                  onClick={() => setSelectedTimeframe(tf)}
-                                >
-                                  {tf}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <Button
-                          variant="default"
-                          onClick={fetchFileListing}
-                          disabled={fileListingLoading}
-                          className="w-full justify-center"
-                        >
-                          {fileListingLoading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Listing files...
-                            </>
-                          ) : (
-                            <>
-                              <FileText className="h-4 w-4" />
-                              List Files in GCS
-                            </>
-                          )}
-                        </Button>
-                        <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
-                          Query GCS to see actual parquet files for this path
-                        </p>
-                      </div>
-                    )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* First Day of Month Filter - for TARDIS free tier (no API key needed) */}
-          {serviceName === "market-tick-data-handler" && (
-            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="first-day-of-month"
-                  checked={firstDayOfMonthOnly}
-                  onCheckedChange={(checked) =>
-                    setFirstDayOfMonthOnly(checked === true)
-                  }
+                  placeholder="e.g. BTC-USDT, EPL, USDC WETH 500, 0x5fe3..."
+                  className="text-sm font-mono"
+                  data-testid="symbol-search-input"
                 />
-                <Label
-                  htmlFor="first-day-of-month"
-                  className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
-                >
-                  <Calendar className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                  First day of each month only
-                </Label>
+                {symbolSearchLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
+                )}
               </div>
-              <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-7">
-                TARDIS free tier: no API key required for first-day-of-month
-                data. Check and deploy only 1st of each month dates.
-              </p>
-            </div>
-          )}
-
-          {/* Instrument-Level Search - check availability for specific instruments */}
-          {selectedCategories.length === 1 &&
-            [
-              "market-tick-data-handler",
-              "market-data-processing-service",
-            ].includes(serviceName) && (
-              <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-                <div className="flex items-center gap-3 mb-3">
-                  <Checkbox
-                    id="instrument-search-mode"
-                    checked={instrumentSearchMode}
-                    onCheckedChange={(checked) =>
-                      setInstrumentSearchMode(checked === true)
-                    }
-                  />
-                  <Label
-                    htmlFor="instrument-search-mode"
-                    className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
-                  >
-                    <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
-                    Instrument-Level Search
-                  </Label>
-                </div>
-
-                {instrumentSearchMode && (
-                  <div className="ml-7 space-y-3">
-                    {/* Instrument Search Input */}
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="Search instrument by ID (e.g., BTC-USDT, AAPL)"
-                        value={instrumentSearchQuery}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          setInstrumentSearchQuery(newValue);
-                          // Clear selection if user is typing (searching for new instrument)
-                          if (
-                            selectedInstrument &&
-                            newValue !== selectedInstrument.instrument_key
-                          ) {
-                            setSelectedInstrument(null);
-                            setInstrumentAvailability(null);
-                            setInstrumentSearchResults([]);
-                            fetchInstruments(newValue);
-                          } else if (!selectedInstrument) {
-                            // Only fetch if no instrument is selected
-                            fetchInstruments(newValue);
-                          }
-                        }}
-                        onFocus={() => {
-                          // Only show dropdown if no instrument selected and we have results
-                          if (
-                            !selectedInstrument &&
-                            instrumentSearchResults.length > 0
-                          ) {
-                            setShowInstrumentDropdown(true);
-                          }
-                        }}
-                        className="w-full"
-                      />
-                      {instrumentSearchLoading && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
+              {symbolSearchQuery.trim().length >= 2 && (
+                <div className="mt-2 max-h-72 overflow-y-auto rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
+                  {symbolSearchResults.length === 0 && !symbolSearchLoading && (
+                    <div className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
+                      No matches. Try a partial substring (e.g. ``btc``, ``eigenlayer``, ``epl``) or two-token AND-match
+                      (``usdc weth``).
+                    </div>
+                  )}
+                  {symbolSearchResults.map((m) => (
+                    <div
+                      key={`${m.canonical_id}__${m.asset_group}__${m.venue}__${m.instrument_type}`}
+                      className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--color-border-subtle)] last:border-b-0 hover:bg-[var(--color-bg-hover)] text-xs"
+                      data-testid="symbol-search-result"
+                    >
+                      <Badge variant="outline" className="text-[9px] font-mono shrink-0 w-20 justify-center">
+                        {m.asset_group}
+                      </Badge>
+                      <span className="font-mono truncate flex-1 text-[var(--color-text)]" title={m.canonical_id}>
+                        {m.canonical_id}
+                      </span>
+                      <span className="text-[10px] text-[var(--color-text-muted)] font-mono shrink-0">{m.venue}</span>
+                      {m.instrument_type && (
+                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
+                          {m.instrument_type}
+                        </span>
                       )}
+                    </div>
+                  ))}
+                  {symbolSearchTruncated && (
+                    <div className="px-3 py-1.5 text-[10px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
+                      Showing first 50 matches — refine your query for narrower results.
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                      {/* Dropdown Results */}
-                      {showInstrumentDropdown &&
-                        instrumentSearchResults.length > 0 &&
-                        !selectedInstrument && (
-                          <div className="absolute z-50 w-full mt-1 max-h-64 overflow-auto bg-[var(--color-bg-primary)] border border-[var(--color-border-default)] rounded-lg shadow-lg">
-                            {instrumentSearchResults.map((instrument) => (
+          {/* Filters Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
+                  <CardTitle className="text-base">Filters</CardTitle>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearDataStatusCache}
+                    disabled={loading || clearingCache}
+                    title="Clear data status cache and re-fetch (does not affect deployment state)"
+                  >
+                    {clearingCache ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Clear Cache
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => fetchData(startDate, endDate)} disabled={loading}>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Check Status
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {(useManifestMode || useTurboMode) && (
+                <div className="mb-4">
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+                    Mode{useManifestMode ? " (Manifest — fastest)" : " (Turbo)"}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={dataStatusMode === "batch" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDataStatusMode("batch")}
+                    >
+                      Batch
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={dataStatusMode === "live" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDataStatusMode("live")}
+                    >
+                      Live
+                    </Button>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    Batch: historical GCS paths. Live: real-time GCS paths.
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                    }}
+                    className="h-9"
+                  />
+                  <div className="flex gap-1 mt-1">
+                    {[
+                      { label: "30d", days: 30 },
+                      { label: "90d", days: 90 },
+                      { label: "1y", days: 365 },
+                      { label: "All", days: null },
+                    ].map((p) => (
+                      <Button
+                        key={p.label}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => {
+                          if (p.days === null) {
+                            // Full history — API-Football fixtures go back to 2018-01-01.
+                            setStartDate("2018-01-01");
+                          } else {
+                            const d = new Date();
+                            d.setDate(d.getDate() - p.days);
+                            setStartDate(d.toISOString().split("T")[0]);
+                          }
+                        }}
+                      >
+                        {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">End Date</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                    }}
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+                    Require Freshness
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={requireFreshness ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const turningOn = !requireFreshness;
+                        setRequireFreshness(turningOn);
+                        if (turningOn) setFreshnessDate(getTodayAt8am());
+                      }}
+                    >
+                      {requireFreshness ? "On" : "Off"}
+                    </Button>
+                    {requireFreshness && (
+                      <>
+                        <Input
+                          type="datetime-local"
+                          step="1"
+                          value={freshnessDate}
+                          onChange={(e) => setFreshnessDate(e.target.value)}
+                          className="h-9 flex-1"
+                          placeholder="Updated since..."
+                          title="Enter your local time — it will be converted to UTC for comparison against GCS blob timestamps"
+                        />
+                        {freshnessDate && (
+                          <span
+                            className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap"
+                            title="GCS blob timestamps are always UTC regardless of bucket region"
+                          >
+                            = {new Date(freshnessDate).toISOString().replace("T", " ").slice(0, 19)} UTC
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">Asset Groups</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {categoriesLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading asset groups...
+                      </div>
+                    ) : (
+                      availableCategories.map((cat) => (
+                        <Button
+                          key={cat}
+                          type="button"
+                          variant={selectedCategories.includes(cat) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedCategories((prev) =>
+                              prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+                            );
+                          }}
+                        >
+                          {cat}
+                        </Button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Venue Filter - appears when exactly one category is selected */}
+              {selectedCategories.length === 1 && (
+                <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="h-4 w-4 text-[var(--color-text-muted)]" />
+                    <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                      Filter by Venue
+                      {selectedVenues.length > 0 && (
+                        <span className="ml-2 text-[var(--color-accent-cyan)]">({selectedVenues.length} selected)</span>
+                      )}
+                    </Label>
+                    {selectedVenues.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedVenues([])} className="ml-auto">
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  {venuesLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading venues...
+                    </div>
+                  ) : availableVenues.length > 0 ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {availableVenues.map((venue) => (
+                        <Button
+                          key={venue}
+                          type="button"
+                          variant={selectedVenues.includes(venue) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedVenues((prev) =>
+                              prev.includes(venue) ? prev.filter((v) => v !== venue) : [...prev, venue],
+                            );
+                          }}
+                        >
+                          {venue}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      No venues available for {selectedCategories[0]}
+                    </p>
+                  )}
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                    Filtering by venue reduces GCS scan scope for faster results
+                  </p>
+                </div>
+              )}
+
+              {/* Venue-specific Filters - appear when exactly one venue is selected */}
+              {selectedVenues.length === 1 && selectedCategories.length === 1 && (
+                <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
+                  {venueFiltersLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading filters for {selectedVenues[0]}...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Instrument Type (Folder) Filter */}
+                      {venueAvailableFolders.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
+                            <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                              Filter by Instrument Type
+                              {selectedFolders.length > 0 && (
+                                <span className="ml-2 text-[var(--color-accent-green)]">
+                                  ({selectedFolders.length} selected)
+                                </span>
+                              )}
+                            </Label>
+                            {selectedFolders.length > 0 && (
                               <Button
-                                key={instrument.instrument_key}
                                 variant="ghost"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // Cancel any pending searches
-                                  if (searchInstrumentsDebounceRef.current) {
-                                    clearTimeout(
-                                      searchInstrumentsDebounceRef.current,
-                                    );
-                                    searchInstrumentsDebounceRef.current = null;
-                                  }
-                                  setSelectedInstrument(instrument);
-                                  setInstrumentSearchQuery(
-                                    instrument.instrument_key,
-                                  );
-                                  setShowInstrumentDropdown(false);
-                                  setInstrumentSearchResults([]); // Clear results to prevent dropdown flash
-                                }}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                                size="sm"
+                                onClick={() => setSelectedFolders([])}
+                                className="ml-auto"
                               >
-                                <div className="font-medium">
-                                  {instrument.instrument_key}
-                                </div>
-                                <div className="text-xs text-[var(--color-text-muted)]">
-                                  {instrument.venue} •{" "}
-                                  {instrument.instrument_type}
-                                  {instrument.symbol &&
-                                    ` • ${instrument.symbol}`}
-                                </div>
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            {venueAvailableFolders.map((f) => (
+                              <Button
+                                key={f}
+                                type="button"
+                                variant={selectedFolders.includes(f) ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFolders((prev) =>
+                                    prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f],
+                                  );
+                                }}
+                              >
+                                {f}
                               </Button>
                             ))}
                           </div>
-                        )}
-                    </div>
-
-                    {/* Selected Instrument Info */}
-                    {selectedInstrument && (
-                      <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-sm">
-                              {selectedInstrument.instrument_key}
-                            </div>
-                            <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                              <span className="text-[var(--color-accent-purple)]">
-                                {selectedInstrument.venue}
-                              </span>
-                              {" • "}
-                              <span className="text-[var(--color-accent-cyan)]">
-                                {selectedInstrument.instrument_type}
-                              </span>
-                              {selectedInstrument.data_types && (
-                                <>
-                                  {" • "}
-                                  <span>
-                                    {Array.isArray(
-                                      selectedInstrument.data_types,
-                                    )
-                                      ? selectedInstrument.data_types.join(", ")
-                                      : String(selectedInstrument.data_types)}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            {/* Instrument Availability Window */}
-                            {(selectedInstrument.available_from_datetime ||
-                              selectedInstrument.available_to_datetime) && (
-                              <div className="text-xs text-[var(--color-text-muted)] mt-1">
-                                <span className="text-[var(--color-accent-amber)]">
-                                  Available:{" "}
-                                </span>
-                                {selectedInstrument.available_from_datetime
-                                  ? selectedInstrument.available_from_datetime.split(
-                                      "T",
-                                    )[0]
-                                  : "..."}
-                                {" → "}
-                                {selectedInstrument.available_to_datetime
-                                  ? selectedInstrument.available_to_datetime.split(
-                                      "T",
-                                    )[0]
-                                  : "ongoing"}
-                              </div>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={fetchInstrumentAvailability}
-                            disabled={instrumentAvailabilityLoading}
-                            className="bg-[var(--color-accent-purple)] hover:bg-[var(--color-accent-purple)]/80"
-                          >
-                            {instrumentAvailabilityLoading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Checking...
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Check Availability
-                              </>
-                            )}
-                          </Button>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Availability Results */}
-                    {instrumentAvailabilityError && (
-                      <div className="flex items-center gap-2 text-sm text-[var(--color-accent-red)]">
-                        <AlertCircle className="h-4 w-4" />
-                        {instrumentAvailabilityError}
-                      </div>
-                    )}
-
-                    {instrumentAvailability && (
-                      <div className="space-y-3">
-                        {/* Overall Summary */}
-                        <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-default)]">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">
-                              Overall Availability
-                            </span>
-                            <Badge
-                              className={getCompletionBadgeClass(
-                                instrumentAvailability.overall.completion_pct,
-                              )}
-                            >
-                              {instrumentAvailability.overall.completion_pct.toFixed(
-                                1,
-                              )}
-                              %
-                            </Badge>
-                          </div>
-                          <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-2 mb-2">
-                            <div
-                              className="h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${Math.min(instrumentAvailability.overall.completion_pct, 100)}%`,
-                                backgroundColor: getCompletionColor(
-                                  instrumentAvailability.overall.completion_pct,
-                                ),
-                              }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-                            <span>
-                              Found:{" "}
-                              <span className="text-[var(--color-accent-green)]">
-                                {instrumentAvailability.overall.found}
-                              </span>
-                            </span>
-                            <span>
-                              Missing:{" "}
-                              <span className="text-[var(--color-accent-red)]">
-                                {instrumentAvailability.overall.missing}
-                              </span>
-                            </span>
-                            <span>
-                              Expected:{" "}
-                              {instrumentAvailability.overall.expected}
-                            </span>
-                          </div>
-                          <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                            {/* Show effective date range (intersection of user range and instrument availability) */}
-                            {instrumentAvailability.availability_window ? (
-                              <>
-                                <span className="text-[var(--color-accent-amber)]">
-                                  Effective:{" "}
+                      {/* Data Type Filter */}
+                      {venueAvailableDataTypes.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
+                            <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                              Filter by Data Type
+                              {selectedDataTypes.length > 0 && (
+                                <span className="ml-2 text-[var(--color-accent-orange)]">
+                                  ({selectedDataTypes.length} selected)
                                 </span>
-                                {
-                                  instrumentAvailability.availability_window
-                                    .effective_start
-                                }{" "}
-                                to{" "}
-                                {
-                                  instrumentAvailability.availability_window
-                                    .effective_end
-                                }
-                                {" • "}
-                                {
-                                  instrumentAvailability.availability_window
-                                    .dates_in_window
-                                }{" "}
-                                dates
-                                {instrumentAvailability.availability_window
-                                  .instrument_from && (
-                                  <span className="block mt-1">
-                                    <span className="text-[var(--color-text-muted)]">
-                                      Instrument available:{" "}
-                                    </span>
-                                    {
-                                      instrumentAvailability.availability_window.instrument_from.split(
-                                        "T",
-                                      )[0]
-                                    }
-                                    {" → "}
-                                    {instrumentAvailability.availability_window
-                                      .instrument_to
-                                      ? instrumentAvailability.availability_window.instrument_to.split(
-                                          "T",
-                                        )[0]
-                                      : "ongoing"}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {instrumentAvailability.date_range.start} to{" "}
-                                {instrumentAvailability.date_range.end}
-                                {" • "}
-                                {
-                                  instrumentAvailability.date_range.total_dates
-                                }{" "}
-                                dates
-                              </>
-                            )}
-                            {instrumentAvailability.date_range
-                              .first_day_of_month_only && (
-                              <span className="text-[var(--color-accent-cyan)]">
-                                {" "}
-                                (first day of month only)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Deploy Missing for Instrument */}
-                        {instrumentAvailability.overall.missing > 0 &&
-                          onDeployMissing && (
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                <span className="text-sm">
-                                  {instrumentAvailability.overall.missing}{" "}
-                                  missing across{" "}
-                                  {
-                                    Object.entries(
-                                      instrumentAvailability.by_data_type,
-                                    ).filter(([, s]) => s.dates_missing > 0)
-                                      .length
-                                  }{" "}
-                                  data type(s)
-                                </span>
-                              </div>
+                              )}
+                            </Label>
+                            {selectedDataTypes.length > 0 && (
                               <Button
+                                variant="ghost"
                                 size="sm"
-                                onClick={handleInstrumentDeployMissing}
-                                className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                                onClick={() => setSelectedDataTypes([])}
+                                className="ml-auto"
                               >
-                                <Rocket className="h-4 w-4 mr-2" />
-                                Deploy Missing
+                                Clear
                               </Button>
+                            )}
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            {venueAvailableDataTypes.map((dt) => (
+                              <Button
+                                key={dt}
+                                type="button"
+                                variant={selectedDataTypes.includes(dt) ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedDataTypes((prev) =>
+                                    prev.includes(dt) ? prev.filter((x) => x !== dt) : [...prev, dt],
+                                  );
+                                }}
+                              >
+                                {dt}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-[var(--color-text-muted)] mt-3">
+                        Filters for {selectedVenues[0]} ({selectedCategories[0]})
+                      </p>
+
+                      {/* List Files Button - appears when all filters are specified */}
+                      {selectedFolders.length === 1 && selectedDataTypes.length === 1 && (
+                        <div className="mt-4 pt-3 border-t border-[var(--color-border-default)]">
+                          {/* Timeframe selector for market-data-processing-service */}
+                          {serviceName === "market-data-processing-service" && (
+                            <div className="mb-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                                  Select Timeframe
+                                </Label>
+                              </div>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {availableTimeframes.map((tf) => (
+                                  <Button
+                                    key={tf}
+                                    type="button"
+                                    variant={selectedTimeframe === tf ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setSelectedTimeframe(tf)}
+                                  >
+                                    {tf}
+                                  </Button>
+                                ))}
+                              </div>
                             </div>
                           )}
 
-                        {/* Per Data Type Breakdown */}
-                        <div className="space-y-2">
-                          <div className="text-xs font-medium text-[var(--color-text-muted)]">
-                            By Data Type
-                          </div>
-                          {Object.entries(
-                            instrumentAvailability.by_data_type,
-                          ).map(([dataType, stats]) => (
-                            <div
-                              key={dataType}
-                              className="p-2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm">{dataType}</span>
-                                <span
-                                  className={cn(
-                                    "text-xs font-medium",
-                                    stats.completion_pct >= 100
-                                      ? "text-[var(--color-accent-green)]"
-                                      : stats.completion_pct >= 50
-                                        ? "text-[var(--color-accent-amber)]"
-                                        : "text-[var(--color-accent-red)]",
-                                  )}
+                          <Button
+                            variant="default"
+                            onClick={fetchFileListing}
+                            disabled={fileListingLoading}
+                            className="w-full justify-center"
+                          >
+                            {fileListingLoading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Listing files...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-4 w-4" />
+                                List Files in GCS
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
+                            Query GCS to see actual parquet files for this path
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* First Day of Month Filter - for TARDIS free tier (no API key needed) */}
+              {serviceName === "market-tick-data-handler" && (
+                <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="first-day-of-month"
+                      checked={firstDayOfMonthOnly}
+                      onCheckedChange={(checked) => setFirstDayOfMonthOnly(checked === true)}
+                    />
+                    <Label
+                      htmlFor="first-day-of-month"
+                      className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
+                    >
+                      <Calendar className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                      First day of each month only
+                    </Label>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2 ml-7">
+                    TARDIS free tier: no API key required for first-day-of-month data. Check and deploy only 1st of each
+                    month dates.
+                  </p>
+                </div>
+              )}
+
+              {/* Instrument-Level Search - check availability for specific instruments */}
+              {selectedCategories.length === 1 &&
+                ["market-tick-data-handler", "market-data-processing-service"].includes(serviceName) && (
+                  <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Checkbox
+                        id="instrument-search-mode"
+                        checked={instrumentSearchMode}
+                        onCheckedChange={(checked) => setInstrumentSearchMode(checked === true)}
+                      />
+                      <Label
+                        htmlFor="instrument-search-mode"
+                        className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
+                      >
+                        <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
+                        Instrument-Level Search
+                      </Label>
+                    </div>
+
+                    {instrumentSearchMode && (
+                      <div className="ml-7 space-y-3">
+                        {/* Instrument Search Input */}
+                        <div className="relative">
+                          <Input
+                            type="text"
+                            placeholder="Search instrument by ID (e.g., BTC-USDT, AAPL)"
+                            value={instrumentSearchQuery}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              setInstrumentSearchQuery(newValue);
+                              // Clear selection if user is typing (searching for new instrument)
+                              if (selectedInstrument && newValue !== selectedInstrument.instrument_key) {
+                                setSelectedInstrument(null);
+                                setInstrumentAvailability(null);
+                                setInstrumentSearchResults([]);
+                                fetchInstruments(newValue);
+                              } else if (!selectedInstrument) {
+                                // Only fetch if no instrument is selected
+                                fetchInstruments(newValue);
+                              }
+                            }}
+                            onFocus={() => {
+                              // Only show dropdown if no instrument selected and we have results
+                              if (!selectedInstrument && instrumentSearchResults.length > 0) {
+                                setShowInstrumentDropdown(true);
+                              }
+                            }}
+                            className="w-full"
+                          />
+                          {instrumentSearchLoading && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
+                          )}
+
+                          {/* Dropdown Results */}
+                          {showInstrumentDropdown && instrumentSearchResults.length > 0 && !selectedInstrument && (
+                            <div className="absolute z-50 w-full mt-1 max-h-64 overflow-auto bg-[var(--color-bg-primary)] border border-[var(--color-border-default)] rounded-lg shadow-lg">
+                              {instrumentSearchResults.map((instrument) => (
+                                <Button
+                                  key={instrument.instrument_key}
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    // Cancel any pending searches
+                                    if (searchInstrumentsDebounceRef.current) {
+                                      clearTimeout(searchInstrumentsDebounceRef.current);
+                                      searchInstrumentsDebounceRef.current = null;
+                                    }
+                                    setSelectedInstrument(instrument);
+                                    setInstrumentSearchQuery(instrument.instrument_key);
+                                    setShowInstrumentDropdown(false);
+                                    setInstrumentSearchResults([]); // Clear results to prevent dropdown flash
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
                                 >
-                                  {stats.completion_pct.toFixed(1)}% (
-                                  {stats.dates_found}/
-                                  {stats.dates_found + stats.dates_missing})
-                                </span>
+                                  <div className="font-medium">{instrument.instrument_key}</div>
+                                  <div className="text-xs text-[var(--color-text-muted)]">
+                                    {instrument.venue} • {instrument.instrument_type}
+                                    {instrument.symbol && ` • ${instrument.symbol}`}
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Selected Instrument Info */}
+                        {selectedInstrument && (
+                          <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-sm">{selectedInstrument.instrument_key}</div>
+                                <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                  <span className="text-[var(--color-accent-purple)]">{selectedInstrument.venue}</span>
+                                  {" • "}
+                                  <span className="text-[var(--color-accent-cyan)]">
+                                    {selectedInstrument.instrument_type}
+                                  </span>
+                                  {selectedInstrument.data_types && (
+                                    <>
+                                      {" • "}
+                                      <span>
+                                        {Array.isArray(selectedInstrument.data_types)
+                                          ? selectedInstrument.data_types.join(", ")
+                                          : String(selectedInstrument.data_types)}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Instrument Availability Window */}
+                                {(selectedInstrument.available_from_datetime ||
+                                  selectedInstrument.available_to_datetime) && (
+                                  <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                    <span className="text-[var(--color-accent-amber)]">Available: </span>
+                                    {selectedInstrument.available_from_datetime
+                                      ? selectedInstrument.available_from_datetime.split("T")[0]
+                                      : "..."}
+                                    {" → "}
+                                    {selectedInstrument.available_to_datetime
+                                      ? selectedInstrument.available_to_datetime.split("T")[0]
+                                      : "ongoing"}
+                                  </div>
+                                )}
                               </div>
-                              <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-1.5">
+                              <Button
+                                size="sm"
+                                onClick={fetchInstrumentAvailability}
+                                disabled={instrumentAvailabilityLoading}
+                                className="bg-[var(--color-accent-purple)] hover:bg-[var(--color-accent-purple)]/80"
+                              >
+                                {instrumentAvailabilityLoading ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Checking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Check Availability
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Availability Results */}
+                        {instrumentAvailabilityError && (
+                          <div className="flex items-center gap-2 text-sm text-[var(--color-accent-red)]">
+                            <AlertCircle className="h-4 w-4" />
+                            {instrumentAvailabilityError}
+                          </div>
+                        )}
+
+                        {instrumentAvailability && (
+                          <div className="space-y-3">
+                            {/* Overall Summary */}
+                            <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-default)]">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">Overall Availability</span>
+                                <Badge
+                                  className={getCompletionBadgeClass(instrumentAvailability.overall.completion_pct)}
+                                >
+                                  {instrumentAvailability.overall.completion_pct.toFixed(1)}%
+                                </Badge>
+                              </div>
+                              <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-2 mb-2">
                                 <div
-                                  className="h-1.5 rounded-full transition-all"
+                                  className="h-2 rounded-full transition-all duration-300"
                                   style={{
-                                    width: `${Math.min(stats.completion_pct, 100)}%`,
-                                    backgroundColor: getCompletionColor(
-                                      stats.completion_pct,
-                                    ),
+                                    width: `${Math.min(instrumentAvailability.overall.completion_pct, 100)}%`,
+                                    backgroundColor: getCompletionColor(instrumentAvailability.overall.completion_pct),
                                   }}
                                 />
                               </div>
-                              {/* Expandable date lists */}
-                              <div className="mt-2 space-y-2">
-                                {/* Found dates dropdown (green) */}
-                                {stats.dates_found > 0 &&
-                                  stats.dates_found_list &&
-                                  stats.dates_found_list.length > 0 && (
-                                    <details className="w-full">
-                                      <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
-                                        ▸ {stats.dates_found} available shards
-                                        (click to expand)
-                                      </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
-                                          {stats.dates_found_list.map(
-                                            (date: string) => (
-                                              <span
-                                                key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                              >
-                                                {date}
-                                              </span>
-                                            ),
-                                          )}
-                                        </div>
-                                      </div>
-                                    </details>
-                                  )}
-                                {/* Missing dates dropdown (red) */}
-                                {stats.dates_missing > 0 &&
-                                  stats.dates_missing_list &&
-                                  stats.dates_missing_list.length > 0 && (
-                                    <details className="w-full">
-                                      <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
-                                        ▸ {stats.dates_missing} missing shards
-                                        (click to expand)
-                                      </summary>
-                                      <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
-                                        <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
-                                          {stats.dates_missing_list.map(
-                                            (date: string) => (
-                                              <span
-                                                key={date}
-                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                              >
-                                                {date}
-                                              </span>
-                                            ),
-                                          )}
-                                        </div>
-                                      </div>
-                                    </details>
-                                  )}
+                              <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
+                                <span>
+                                  Found:{" "}
+                                  <span className="text-[var(--color-accent-green)]">
+                                    {instrumentAvailability.overall.found}
+                                  </span>
+                                </span>
+                                <span>
+                                  Missing:{" "}
+                                  <span className="text-[var(--color-accent-red)]">
+                                    {instrumentAvailability.overall.missing}
+                                  </span>
+                                </span>
+                                <span>Expected: {instrumentAvailability.overall.expected}</span>
+                              </div>
+                              <div className="text-xs text-[var(--color-text-muted)] mt-2">
+                                {/* Show effective date range (intersection of user range and instrument availability) */}
+                                {instrumentAvailability.availability_window ? (
+                                  <>
+                                    <span className="text-[var(--color-accent-amber)]">Effective: </span>
+                                    {instrumentAvailability.availability_window.effective_start} to{" "}
+                                    {instrumentAvailability.availability_window.effective_end}
+                                    {" • "}
+                                    {instrumentAvailability.availability_window.dates_in_window} dates
+                                    {instrumentAvailability.availability_window.instrument_from && (
+                                      <span className="block mt-1">
+                                        <span className="text-[var(--color-text-muted)]">Instrument available: </span>
+                                        {instrumentAvailability.availability_window.instrument_from.split("T")[0]}
+                                        {" → "}
+                                        {instrumentAvailability.availability_window.instrument_to
+                                          ? instrumentAvailability.availability_window.instrument_to.split("T")[0]
+                                          : "ongoing"}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {instrumentAvailability.date_range.start} to {instrumentAvailability.date_range.end}
+                                    {" • "}
+                                    {instrumentAvailability.date_range.total_dates} dates
+                                  </>
+                                )}
+                                {instrumentAvailability.date_range.first_day_of_month_only && (
+                                  <span className="text-[var(--color-accent-cyan)]"> (first day of month only)</span>
+                                )}
                               </div>
                             </div>
-                          ))}
-                        </div>
 
-                        {/* Parsed Instrument Info */}
-                        <div className="text-xs text-[var(--color-text-muted)]">
-                          Parsed: {instrumentAvailability.parsed.asset_group} /{" "}
-                          {instrumentAvailability.parsed.venue} /
-                          {instrumentAvailability.parsed.folder} /{" "}
-                          {instrumentAvailability.parsed.instrument_type}
-                        </div>
+                            {/* Deploy Missing for Instrument */}
+                            {instrumentAvailability.overall.missing > 0 && onDeployMissing && (
+                              <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                  <span className="text-sm">
+                                    {instrumentAvailability.overall.missing} missing across{" "}
+                                    {
+                                      Object.entries(instrumentAvailability.by_data_type).filter(
+                                        ([, s]) => s.dates_missing > 0,
+                                      ).length
+                                    }{" "}
+                                    data type(s)
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={handleInstrumentDeployMissing}
+                                  className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                                >
+                                  <Rocket className="h-4 w-4 mr-2" />
+                                  Deploy Missing
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Per Data Type Breakdown */}
+                            <div className="space-y-2">
+                              <div className="text-xs font-medium text-[var(--color-text-muted)]">By Data Type</div>
+                              {Object.entries(instrumentAvailability.by_data_type).map(([dataType, stats]) => (
+                                <div
+                                  key={dataType}
+                                  className="p-2 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]"
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm">{dataType}</span>
+                                    <span
+                                      className={cn(
+                                        "text-xs font-medium",
+                                        stats.completion_pct >= 100
+                                          ? "text-[var(--color-accent-green)]"
+                                          : stats.completion_pct >= 50
+                                            ? "text-[var(--color-accent-amber)]"
+                                            : "text-[var(--color-accent-red)]",
+                                      )}
+                                    >
+                                      {stats.completion_pct.toFixed(1)}% ({stats.dates_found}/
+                                      {stats.dates_found + stats.dates_missing})
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-[var(--color-bg-tertiary)] rounded-full h-1.5">
+                                    <div
+                                      className="h-1.5 rounded-full transition-all"
+                                      style={{
+                                        width: `${Math.min(stats.completion_pct, 100)}%`,
+                                        backgroundColor: getCompletionColor(stats.completion_pct),
+                                      }}
+                                    />
+                                  </div>
+                                  {/* Expandable date lists */}
+                                  <div className="mt-2 space-y-2">
+                                    {/* Found dates dropdown (green) */}
+                                    {stats.dates_found > 0 &&
+                                      stats.dates_found_list &&
+                                      stats.dates_found_list.length > 0 && (
+                                        <details className="w-full">
+                                          <summary className="text-[10px] text-[var(--color-accent-green)] cursor-pointer hover:underline font-medium">
+                                            ▸ {stats.dates_found} available shards (click to expand)
+                                          </summary>
+                                          <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
+                                            <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                              {stats.dates_found_list.map((date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </details>
+                                      )}
+                                    {/* Missing dates dropdown (red) */}
+                                    {stats.dates_missing > 0 &&
+                                      stats.dates_missing_list &&
+                                      stats.dates_missing_list.length > 0 && (
+                                        <details className="w-full">
+                                          <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline font-medium">
+                                            ▸ {stats.dates_missing} missing shards (click to expand)
+                                          </summary>
+                                          <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
+                                            <div className="flex flex-wrap gap-1 max-h-64 overflow-y-auto">
+                                              {stats.dates_missing_list.map((date: string) => (
+                                                <span
+                                                  key={date}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                >
+                                                  {date}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </details>
+                                      )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Parsed Instrument Info */}
+                            <div className="text-xs text-[var(--color-text-muted)]">
+                              Parsed: {instrumentAvailability.parsed.asset_group} /{" "}
+                              {instrumentAvailability.parsed.venue} /{instrumentAvailability.parsed.folder} /{" "}
+                              {instrumentAvailability.parsed.instrument_type}
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          Search for a specific instrument to check its data availability across all data types and
+                          dates. This uses the aggregated instruments file for {selectedCategories[0]}.
+                        </p>
                       </div>
                     )}
-
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Search for a specific instrument to check its data
-                      availability across all data types and dates. This uses
-                      the aggregated instruments file for{" "}
-                      {selectedCategories[0]}.
-                    </p>
                   </div>
                 )}
+
+              {/* Check Data Types Toggle - DISABLED: turbo mode shows data_types by default in breakdown */}
+              {/* Feature removed - checkDataTypes is hardcoded to false, turbo mode handles this automatically */}
+            </CardContent>
+          </Card>
+
+          {/* View Toggle - available for all modes (except turbo which has its own simpler view) */}
+          {(data || venueCheckData) && !turboData && !loading && (
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-xs text-[var(--color-text-muted)]">View:</span>
+              <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
+                    viewMode === "table"
+                      ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
+                  )}
+                >
+                  <Table2 className="h-3.5 w-3.5" />
+                  Table
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("calendar")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
+                    viewMode === "calendar"
+                      ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
+                  )}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Calendar
+                </Button>
               </div>
-            )}
-
-          {/* Check Data Types Toggle - DISABLED: turbo mode shows data_types by default in breakdown */}
-          {/* Feature removed - checkDataTypes is hardcoded to false, turbo mode handles this automatically */}
-        </CardContent>
-      </Card>
-
-      {/* View Toggle - available for all modes (except turbo which has its own simpler view) */}
-      {(data || venueCheckData) && !turboData && !loading && (
-        <div className="flex items-center justify-end gap-2">
-          <span className="text-xs text-[var(--color-text-muted)]">View:</span>
-          <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                viewMode === "table"
-                  ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
-              )}
-            >
-              <Table2 className="h-3.5 w-3.5" />
-              Table
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode("calendar")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-                viewMode === "calendar"
-                  ? "bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]",
-              )}
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              Calendar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Status/Error */}
-      {loading && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
-              <p className="text-sm text-[var(--color-text-muted)]">
-                {checkVenues
-                  ? "Deep scanning parquet files for venue coverage..."
-                  : checkDataTypes
-                    ? "Validating per data_type completion..."
-                    : useManifestMode
-                      ? `MANIFEST mode: Reading index for ${serviceName}...`
-                      : useTurboMode
-                        ? `TURBO mode: Scanning ${serviceName} data...`
-                        : `Checking ${serviceName} data status...`}
-              </p>
-              {checkVenues && (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  This may take 20-30 seconds
-                </p>
-              )}
-              {checkDataTypes && (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  This may take 60-90 seconds for detailed validation
-                </p>
-              )}
-              {!checkVenues && !checkDataTypes && (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {startDate} to {endDate}
-                  {(useManifestMode || useTurboMode) &&
-                    (() => {
-                      // Calculate months for ETA estimate
-                      // Local: ~1.2s per month, Cloud Run: ~0.5s per month
-                      const start = new Date(startDate);
-                      const end = new Date(endDate);
-                      const months = Math.ceil(
-                        (end.getTime() - start.getTime()) /
-                          (1000 * 60 * 60 * 24 * 30),
-                      );
-                      const etaSeconds =
-                        months > 6
-                          ? Math.ceil(months * 1.2)
-                          : Math.ceil(months * 3);
-                      return ` • Optimized scan (~${etaSeconds}s for ${months} months)`;
-                    })()}
-                </p>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={cancelQuery}
-                className="mt-4 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Cancel Query
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {error && (
-        <Card>
-          <CardContent className="py-8">
-            <div className="flex items-center justify-center gap-3 text-[var(--color-accent-red)]">
-              <AlertCircle className="h-5 w-5" />
-              <span>{error}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Venue Check Results */}
-      {venueCheckData &&
-        checkVenues &&
-        venueCheckData.start_date === startDate &&
-        venueCheckData.end_date === endDate && (
-          <>
-            {/* Venue Check Summary */}
+          {/* Status/Error */}
+          {loading && (
             <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-mono flex items-center gap-2">
-                      <Eye className="h-5 w-5 text-[var(--color-accent-purple)]" />
-                      Venue Coverage Check
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {venueCheckData.start_date} to {venueCheckData.end_date} •
-                      Deep scan of parquet files
-                    </CardDescription>
-                  </div>
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {checkVenues
+                      ? "Deep scanning parquet files for venue coverage..."
+                      : checkDataTypes
+                        ? "Validating per data_type completion..."
+                        : useManifestMode
+                          ? `MANIFEST mode: Reading index for ${serviceName}...`
+                          : useTurboMode
+                            ? `TURBO mode: Scanning ${serviceName} data...`
+                            : `Checking ${serviceName} data status...`}
+                  </p>
+                  {checkVenues && <p className="text-xs text-[var(--color-text-muted)]">This may take 20-30 seconds</p>}
+                  {checkDataTypes && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      This may take 60-90 seconds for detailed validation
+                    </p>
+                  )}
+                  {!checkVenues && !checkDataTypes && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      {startDate} to {endDate}
+                      {(useManifestMode || useTurboMode) &&
+                        (() => {
+                          // Calculate months for ETA estimate
+                          // Local: ~1.2s per month, Cloud Run: ~0.5s per month
+                          const start = new Date(startDate);
+                          const end = new Date(endDate);
+                          const months = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                          const etaSeconds = months > 6 ? Math.ceil(months * 1.2) : Math.ceil(months * 3);
+                          return ` • Optimized scan (~${etaSeconds}s for ${months} months)`;
+                        })()}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelQuery}
+                    className="mt-4 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Cancel Query
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(venueCheckData.asset_groups).map(
-                    ([catName, catData]) => {
-                      const datesWithIssues =
-                        catData.dates_with_missing_venues.length;
-                      const totalDates = catData.total_dates;
-                      const isClean = datesWithIssues === 0;
-                      const isExpanded = expandedCategories.has(catName);
+              </CardContent>
+            </Card>
+          )}
 
-                      return (
-                        <div
-                          key={catName}
-                          className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
-                        >
-                          {/* Category Header */}
-                          <Button
-                            variant="ghost"
-                            onClick={() => toggleCategory(catName)}
-                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+          {error && (
+            <Card>
+              <CardContent className="py-8">
+                <div className="flex items-center justify-center gap-3 text-[var(--color-accent-red)]">
+                  <AlertCircle className="h-5 w-5" />
+                  <span>{error}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Venue Check Results */}
+          {venueCheckData &&
+            checkVenues &&
+            venueCheckData.start_date === startDate &&
+            venueCheckData.end_date === endDate && (
+              <>
+                {/* Venue Check Summary */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-xl font-mono flex items-center gap-2">
+                          <Eye className="h-5 w-5 text-[var(--color-accent-purple)]" />
+                          Venue Coverage Check
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {venueCheckData.start_date} to {venueCheckData.end_date} • Deep scan of parquet files
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.entries(venueCheckData.asset_groups).map(([catName, catData]) => {
+                        const datesWithIssues = catData.dates_with_missing_venues.length;
+                        const totalDates = catData.total_dates;
+                        const isClean = datesWithIssues === 0;
+                        const isExpanded = expandedCategories.has(catName);
+
+                        return (
+                          <div
+                            key={catName}
+                            className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
                           >
-                            <div className="flex items-center gap-3">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                              )}
-                              <span className="font-medium">{catName}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {isClean ? (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                                >
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  All venues present
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
-                                >
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  {datesWithIssues} / {totalDates} dates have
-                                  missing venues
-                                </Badge>
-                              )}
-                            </div>
-                          </Button>
+                            {/* Category Header */}
+                            <Button
+                              variant="ghost"
+                              onClick={() => toggleCategory(catName)}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                            >
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                )}
+                                <span className="font-medium">{catName}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {isClean ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    All venues present
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
+                                  >
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    {datesWithIssues} / {totalDates} dates have missing venues
+                                  </Badge>
+                                )}
+                              </div>
+                            </Button>
 
-                          {/* Expanded: Dates with missing venues */}
-                          {isExpanded && datesWithIssues > 0 && (
-                            <div className="bg-[var(--color-bg-secondary)] px-4 py-3 space-y-2">
-                              {catData.dates_with_missing_venues.map(
-                                (dateInfo) => {
+                            {/* Expanded: Dates with missing venues */}
+                            {isExpanded && datesWithIssues > 0 && (
+                              <div className="bg-[var(--color-bg-secondary)] px-4 py-3 space-y-2">
+                                {catData.dates_with_missing_venues.map((dateInfo) => {
                                   const dateKey = `${catName}-${dateInfo.date}`;
-                                  const isDateExpanded =
-                                    expandedDates.has(dateKey);
+                                  const isDateExpanded = expandedDates.has(dateKey);
 
                                   return (
                                     <div
@@ -3210,9 +2819,7 @@ function DataStatusTabInternal({
                                             <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
                                           )}
                                           <Calendar className="h-3 w-3 text-[var(--color-text-muted)]" />
-                                          <span className="font-mono text-sm">
-                                            {dateInfo.date}
-                                          </span>
+                                          <span className="font-mono text-sm">{dateInfo.date}</span>
                                         </div>
                                         <Badge
                                           variant="outline"
@@ -3242,234 +2849,204 @@ function DataStatusTabInternal({
                                       )}
                                     </div>
                                   );
-                                },
-                              )}
-                            </div>
-                          )}
+                                })}
+                              </div>
+                            )}
 
-                          {isExpanded && datesWithIssues === 0 && (
-                            <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
-                              <CheckCircle2 className="h-8 w-8 text-[var(--color-accent-green)] mx-auto mb-2" />
-                              <p className="text-sm text-[var(--color-text-muted)]">
-                                All {totalDates} dates have complete venue
-                                coverage
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-
-                {/* Deploy Missing from Venue Check */}
-                {Object.values(venueCheckData.asset_groups).some(
-                  (c) => c.dates_with_missing_venues.length > 0,
-                ) &&
-                  onDeployMissing && (
-                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                        <span className="text-sm">
-                          Re-run dates with missing venues to regenerate parquet
-                          files
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleOpenDeployMissingModal}
-                        className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
-                      >
-                        <Rocket className="h-4 w-4 mr-2" />
-                        Re-deploy Affected Dates
-                      </Button>
+                            {isExpanded && datesWithIssues === 0 && (
+                              <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
+                                <CheckCircle2 className="h-8 w-8 text-[var(--color-accent-green)] mx-auto mb-2" />
+                                <p className="text-sm text-[var(--color-text-muted)]">
+                                  All {totalDates} dates have complete venue coverage
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-              </CardContent>
-            </Card>
 
-            {/* Calendar View for Venue Check Mode */}
-            {viewMode === "calendar" && heatmapData.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Coverage Calendar</CardTitle>
-                  <CardDescription>
-                    Visual overview of venue coverage by day
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <HeatmapCalendar
-                    data={heatmapData}
-                    startDate={startDate}
-                    endDate={endDate}
-                    onDateClick={(date) => setSelectedCalendarDate(date)}
-                    selectedDate={selectedCalendarDate || undefined}
-                  />
-
-                  {/* Selected Date Details */}
-                  {selectedCalendarDate && (
-                    <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">
-                          {new Date(selectedCalendarDate).toLocaleDateString(
-                            "en-US",
-                            {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            },
-                          )}
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedCalendarDate(null)}
-                          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
-                        >
-                          ✕ Close
-                        </Button>
-                      </div>
-                      {heatmapData.find((d) => d.date === selectedCalendarDate)
-                        ?.tooltip && (
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                          {
-                            heatmapData.find(
-                              (d) => d.date === selectedCalendarDate,
-                            )?.tooltip
-                          }
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-
-      {/* Data Type Check Results */}
-      {dataTypeCheckData &&
-        checkDataTypes &&
-        dataTypeCheckData.start_date === startDate &&
-        dataTypeCheckData.end_date === endDate && (
-          <>
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-mono flex items-center gap-2">
-                      <Database className="h-5 w-5 text-[var(--color-accent-green)]" />
-                      Data Type Validation
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {dataTypeCheckData.start_date} to{" "}
-                      {dataTypeCheckData.end_date} • Per data_type validation
-                      (TRADFI)
-                    </CardDescription>
-                  </div>
-                  <div className="text-right">
-                    <div
-                      className="text-3xl font-mono font-bold"
-                      style={{
-                        color: getCompletionColor(
-                          dataTypeCheckData.overall_completion,
-                        ),
-                      }}
-                    >
-                      {dataTypeCheckData.overall_completion.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      {dataTypeCheckData.overall_complete} /{" "}
-                      {dataTypeCheckData.overall_total} data_type × date
-                      combinations
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Progress bar */}
-                <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden mb-6">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${dataTypeCheckData.overall_completion}%`,
-                      backgroundColor: getCompletionColor(
-                        dataTypeCheckData.overall_completion,
-                      ),
-                    }}
-                  />
-                </div>
-
-                {/* Venue Breakdown with Data Types */}
-                <div className="space-y-3">
-                  {dataTypeCheckData.venues &&
-                    Object.entries(dataTypeCheckData.venues).map(
-                      ([venueName, venueData]) => {
-                        const isExpanded = expandedVenues.has(venueName);
-                        const isComplete = venueData.completion_percent === 100;
-
-                        return (
-                          <div
-                            key={venueName}
-                            className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
+                    {/* Deploy Missing from Venue Check */}
+                    {Object.values(venueCheckData.asset_groups).some((c) => c.dates_with_missing_venues.length > 0) &&
+                      onDeployMissing && (
+                        <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                            <span className="text-sm">
+                              Re-run dates with missing venues to regenerate parquet files
+                            </span>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={handleOpenDeployMissingModal}
+                            className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
                           >
+                            <Rocket className="h-4 w-4 mr-2" />
+                            Re-deploy Affected Dates
+                          </Button>
+                        </div>
+                      )}
+                  </CardContent>
+                </Card>
+
+                {/* Calendar View for Venue Check Mode */}
+                {viewMode === "calendar" && heatmapData.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Coverage Calendar</CardTitle>
+                      <CardDescription>Visual overview of venue coverage by day</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <HeatmapCalendar
+                        data={heatmapData}
+                        startDate={startDate}
+                        endDate={endDate}
+                        onDateClick={(date) => setSelectedCalendarDate(date)}
+                        selectedDate={selectedCalendarDate || undefined}
+                      />
+
+                      {/* Selected Date Details */}
+                      {selectedCalendarDate && (
+                        <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">
+                              {new Date(selectedCalendarDate).toLocaleDateString("en-US", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                            </h4>
                             <Button
                               variant="ghost"
-                              onClick={() => toggleVenue(venueName)}
-                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                              size="sm"
+                              onClick={() => setSelectedCalendarDate(null)}
+                              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
                             >
-                              <div className="flex items-center gap-3">
-                                {isExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                                )}
-                                <span className="font-medium">{venueName}</span>
-                                <span className="text-xs text-[var(--color-text-muted)]">
-                                  (
-                                  {
-                                    Object.keys(venueData.data_types || {})
-                                      .length
-                                  }{" "}
-                                  data types)
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    isComplete
-                                      ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                                      : "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]",
-                                  )}
-                                >
-                                  {isComplete ? (
-                                    <>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
-                                      {venueData.completion_percent.toFixed(0)}%
-                                    </>
-                                  ) : (
-                                    <>
-                                      <AlertCircle className="h-3 w-3 mr-1" />{" "}
-                                      {venueData.completion_percent.toFixed(0)}%
-                                    </>
-                                  )}
-                                </Badge>
-                                <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                  {venueData.complete}/{venueData.total}
-                                </span>
-                              </div>
+                              ✕ Close
                             </Button>
+                          </div>
+                          {heatmapData.find((d) => d.date === selectedCalendarDate)?.tooltip && (
+                            <p className="text-sm text-[var(--color-text-secondary)]">
+                              {heatmapData.find((d) => d.date === selectedCalendarDate)?.tooltip}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
 
-                            {/* Expanded: Data type breakdown */}
-                            {isExpanded && venueData.data_types && (
-                              <div className="bg-[var(--color-bg-secondary)] px-4 py-3">
-                                <div className="grid gap-2">
-                                  {Object.entries(venueData.data_types).map(
-                                    ([dataType, typeData]) => {
-                                      const typeComplete =
-                                        typeData.completion_percent === 100;
+          {/* Data Type Check Results */}
+          {dataTypeCheckData &&
+            checkDataTypes &&
+            dataTypeCheckData.start_date === startDate &&
+            dataTypeCheckData.end_date === endDate && (
+              <>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-xl font-mono flex items-center gap-2">
+                          <Database className="h-5 w-5 text-[var(--color-accent-green)]" />
+                          Data Type Validation
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {dataTypeCheckData.start_date} to {dataTypeCheckData.end_date} • Per data_type validation
+                          (TRADFI)
+                        </CardDescription>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className="text-3xl font-mono font-bold"
+                          style={{
+                            color: getCompletionColor(dataTypeCheckData.overall_completion),
+                          }}
+                        >
+                          {dataTypeCheckData.overall_completion.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-[var(--color-text-muted)]">
+                          {dataTypeCheckData.overall_complete} / {dataTypeCheckData.overall_total} data_type × date
+                          combinations
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Progress bar */}
+                    <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden mb-6">
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${dataTypeCheckData.overall_completion}%`,
+                          backgroundColor: getCompletionColor(dataTypeCheckData.overall_completion),
+                        }}
+                      />
+                    </div>
+
+                    {/* Venue Breakdown with Data Types */}
+                    <div className="space-y-3">
+                      {dataTypeCheckData.venues &&
+                        Object.entries(dataTypeCheckData.venues).map(([venueName, venueData]) => {
+                          const isExpanded = expandedVenues.has(venueName);
+                          const isComplete = venueData.completion_percent === 100;
+
+                          return (
+                            <div
+                              key={venueName}
+                              className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
+                            >
+                              <Button
+                                variant="ghost"
+                                onClick={() => toggleVenue(venueName)}
+                                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                  )}
+                                  <span className="font-medium">{venueName}</span>
+                                  <span className="text-xs text-[var(--color-text-muted)]">
+                                    ({Object.keys(venueData.data_types || {}).length} data types)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      isComplete
+                                        ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                        : "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]",
+                                    )}
+                                  >
+                                    {isComplete ? (
+                                      <>
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
+                                        {venueData.completion_percent.toFixed(0)}%
+                                      </>
+                                    ) : (
+                                      <>
+                                        <AlertCircle className="h-3 w-3 mr-1" />{" "}
+                                        {venueData.completion_percent.toFixed(0)}%
+                                      </>
+                                    )}
+                                  </Badge>
+                                  <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                    {venueData.complete}/{venueData.total}
+                                  </span>
+                                </div>
+                              </Button>
+
+                              {/* Expanded: Data type breakdown */}
+                              {isExpanded && venueData.data_types && (
+                                <div className="bg-[var(--color-bg-secondary)] px-4 py-3">
+                                  <div className="grid gap-2">
+                                    {Object.entries(venueData.data_types).map(([dataType, typeData]) => {
+                                      const typeComplete = typeData.completion_percent === 100;
                                       return (
                                         <div
                                           key={dataType}
@@ -3481,448 +3058,410 @@ function DataStatusTabInternal({
                                             ) : (
                                               <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                                             )}
-                                            <span className="font-mono text-sm">
-                                              {dataType}
-                                            </span>
+                                            <span className="font-mono text-sm">{dataType}</span>
                                           </div>
                                           <div className="flex items-center gap-3">
                                             <span
                                               className="text-sm font-medium"
                                               style={{
-                                                color: getCompletionColor(
-                                                  typeData.completion_percent,
-                                                ),
+                                                color: getCompletionColor(typeData.completion_percent),
                                               }}
                                             >
-                                              {typeData.completion_percent.toFixed(
-                                                0,
-                                              )}
-                                              %
+                                              {typeData.completion_percent.toFixed(0)}%
                                             </span>
                                             <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                              {typeData.found}/
-                                              {typeData.expected}
+                                              {typeData.found}/{typeData.expected}
                                             </span>
                                           </div>
                                         </div>
                                       );
-                                    },
-                                  )}
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {/* Expanded: Feature-FAMILY breakdown (Phase 8B
+                              {/* Expanded: Feature-FAMILY breakdown (Phase 8B
                               of features_repo_consolidation_2026_05_08.plan).
                               Prefer the API-rolled feature_families map; if
                               absent, group the flat feature_groups by their
                               embedded feature_family axis client-side. The
                               existing feature_groups block below stays as a
                               fallback for legacy / non-features rows. */}
-                            {isExpanded &&
-                              venueData.feature_families &&
-                              Object.keys(venueData.feature_families || {})
-                                .length > 0 && (
-                                <FeatureFamilyBreakdown
-                                  feature_families={venueData.feature_families}
-                                />
-                              )}
-                            {isExpanded &&
-                              !venueData.feature_families &&
-                              venueData.feature_groups &&
-                              Object.values(venueData.feature_groups).some(
-                                (fg) => Boolean(fg.feature_family),
-                              ) && (
-                                <FeatureFamilyBreakdown
-                                  feature_families={groupFeatureGroupsByFamily(
-                                    venueData.feature_groups,
-                                  )}
-                                />
-                              )}
+                              {isExpanded &&
+                                venueData.feature_families &&
+                                Object.keys(venueData.feature_families || {}).length > 0 && (
+                                  <FeatureFamilyBreakdown feature_families={venueData.feature_families} />
+                                )}
+                              {isExpanded &&
+                                !venueData.feature_families &&
+                                venueData.feature_groups &&
+                                Object.values(venueData.feature_groups).some((fg) => Boolean(fg.feature_family)) && (
+                                  <FeatureFamilyBreakdown
+                                    feature_families={groupFeatureGroupsByFamily(venueData.feature_groups)}
+                                  />
+                                )}
 
-                            {/* Expanded: Feature-group breakdown (features-* services).
+                              {/* Expanded: Feature-group breakdown (features-* services).
                               Renders when feature_groups exist but no
                               feature_family axis is populated — preserves the
                               pre-Phase-8B view for legacy rows. */}
-                            {isExpanded &&
-                              venueData.feature_groups &&
-                              Object.keys(venueData.feature_groups || {})
-                                .length > 0 &&
-                              !venueData.feature_families &&
-                              !Object.values(venueData.feature_groups).some(
-                                (fg) => Boolean(fg.feature_family),
-                              ) && (
-                                <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
-                                  <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
-                                    Feature Groups
-                                  </div>
-                                  <div className="grid gap-2">
-                                    {Object.entries(
-                                      venueData.feature_groups || {},
-                                    ).map(([fgName, fgData]) => {
-                                      const fgComplete =
-                                        fgData.completion_pct === 100;
-                                      return (
-                                        <div
-                                          key={fgName}
-                                          className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            {fgComplete ? (
-                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                                            ) : (
-                                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                            )}
-                                            <span className="font-mono text-sm">
-                                              {fgName}
-                                            </span>
+                              {isExpanded &&
+                                venueData.feature_groups &&
+                                Object.keys(venueData.feature_groups || {}).length > 0 &&
+                                !venueData.feature_families &&
+                                !Object.values(venueData.feature_groups).some((fg) => Boolean(fg.feature_family)) && (
+                                  <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
+                                      Feature Groups
+                                    </div>
+                                    <div className="grid gap-2">
+                                      {Object.entries(venueData.feature_groups || {}).map(([fgName, fgData]) => {
+                                        const fgComplete = fgData.completion_pct === 100;
+                                        return (
+                                          <div
+                                            key={fgName}
+                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              {fgComplete ? (
+                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                              ) : (
+                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                              )}
+                                              <span className="font-mono text-sm">{fgName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span
+                                                className="text-sm font-medium"
+                                                style={{
+                                                  color: getCompletionColor(fgData.completion_pct),
+                                                }}
+                                              >
+                                                {fgData.completion_pct.toFixed(0)}%
+                                              </span>
+                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                                {fgData.dates_found}/{fgData.dates_expected}
+                                              </span>
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-3">
-                                            <span
-                                              className="text-sm font-medium"
-                                              style={{
-                                                color: getCompletionColor(
-                                                  fgData.completion_pct,
-                                                ),
-                                              }}
-                                            >
-                                              {fgData.completion_pct.toFixed(0)}
-                                              %
-                                            </span>
-                                            <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                              {fgData.dates_found}/
-                                              {fgData.dates_expected}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                            {/* Expanded: Timeframe breakdown (features-* services). */}
-                            {isExpanded &&
-                              venueData.timeframes &&
-                              Object.keys(venueData.timeframes || {}).length >
-                                0 && (
-                                <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
-                                  <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
-                                    Timeframes
-                                  </div>
-                                  <div className="grid gap-2">
-                                    {Object.entries(
-                                      venueData.timeframes || {},
-                                    ).map(([tfName, tfData]) => {
-                                      const tfComplete =
-                                        tfData.completion_pct === 100;
-                                      return (
-                                        <div
-                                          key={tfName}
-                                          className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            {tfComplete ? (
-                                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                                            ) : (
-                                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                                            )}
-                                            <span className="font-mono text-sm">
-                                              {tfName}
-                                            </span>
+                              {/* Expanded: Timeframe breakdown (features-* services). */}
+                              {isExpanded &&
+                                venueData.timeframes &&
+                                Object.keys(venueData.timeframes || {}).length > 0 && (
+                                  <div className="bg-[var(--color-bg-secondary)] px-4 py-3 border-t border-[var(--color-border-subtle)]">
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold uppercase tracking-wide">
+                                      Timeframes
+                                    </div>
+                                    <div className="grid gap-2">
+                                      {Object.entries(venueData.timeframes || {}).map(([tfName, tfData]) => {
+                                        const tfComplete = tfData.completion_pct === 100;
+                                        return (
+                                          <div
+                                            key={tfName}
+                                            className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-primary)] rounded border border-[var(--color-border-subtle)]"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              {tfComplete ? (
+                                                <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                              ) : (
+                                                <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                              )}
+                                              <span className="font-mono text-sm">{tfName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span
+                                                className="text-sm font-medium"
+                                                style={{
+                                                  color: getCompletionColor(tfData.completion_pct),
+                                                }}
+                                              >
+                                                {tfData.completion_pct.toFixed(0)}%
+                                              </span>
+                                              <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                                                {tfData.dates_found}/{tfData.dates_expected}
+                                              </span>
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-3">
-                                            <span
-                                              className="text-sm font-medium"
-                                              style={{
-                                                color: getCompletionColor(
-                                                  tfData.completion_pct,
-                                                ),
-                                              }}
-                                            >
-                                              {tfData.completion_pct.toFixed(0)}
-                                              %
-                                            </span>
-                                            <span className="text-xs text-[var(--color-text-muted)] font-mono">
-                                              {tfData.dates_found}/
-                                              {tfData.dates_expected}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                          </div>
-                        );
-                      },
-                    )}
-                </div>
+                                )}
+                            </div>
+                          );
+                        })}
+                    </div>
 
-                {/* Info about tick windows - TRADFI specific */}
-                <div className="mt-4 p-3 bg-[var(--color-bg-tertiary)] rounded-lg">
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    <strong>Tick Windows (TRADFI only):</strong> May 2023 and
-                    July 2024 expect 3 data types (trades, ohlcv_1m, tbbo) for
-                    backtesting. Other dates expect only ohlcv_1m for cost
-                    optimization. DEFI/CEFI always expect all data types.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
+                    {/* Info about tick windows - TRADFI specific */}
+                    <div className="mt-4 p-3 bg-[var(--color-bg-tertiary)] rounded-lg">
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        <strong>Tick Windows (TRADFI only):</strong> May 2023 and July 2024 expect 3 data types (trades,
+                        ohlcv_1m, tbbo) for backtesting. Other dates expect only ohlcv_1m for cost optimization.
+                        DEFI/CEFI always expect all data types.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
-      {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
-      {/* Manifest secondary-axis filter banner — surfaces the active filter
+          {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
+          {/* Manifest secondary-axis filter banner — surfaces the active filter
           set from the BreakdownsAccordion so the operator can clear it.
           Phase 3 of data_status_multi_axis_shard_propagation. */}
-      {manifestFilter && (
-        <div
-          className="rounded border border-[var(--color-accent-cyan)] bg-[var(--color-bg-tertiary)] px-3 py-2 text-xs flex items-center justify-between gap-3"
-          data-testid="manifest-filter-banner"
-        >
-          <span className="font-mono">
-            <span className="text-[var(--color-text-muted)]">
-              Filter active:
-            </span>{" "}
-            <strong>{manifestFilter.axis}</strong>
-            <span className="text-[var(--color-text-muted)]">=</span>
-            <strong>{manifestFilter.value}</strong>
-            <span className="text-[var(--color-text-muted)] ml-2">
-              · cell grid scoped to this value
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setManifestFilter(null)}
-            className="rounded border border-[var(--color-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--color-bg-hover)]"
-            data-testid="manifest-filter-clear"
-          >
-            Clear filter
-          </button>
-        </div>
-      )}
-      {turboData && turboData.date_range && !checkVenues && !checkDataTypes && (
-        <>
-          {/* Summary Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-xl font-mono flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    Data Coverage
-                    <Badge
-                      variant="outline"
-                      className="ml-2 bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                    >
-                      TURBO
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {turboData.date_range.start} to {turboData.date_range.end} (
-                    {turboData.date_range.days || "?"} days)
-                  </CardDescription>
-                </div>
-                <div className="text-right">
-                  <div
-                    className="text-3xl font-mono font-bold"
-                    style={{
-                      color: getCompletionColor(
-                        turboData.overall_completion_pct,
-                      ),
-                    }}
-                  >
-                    {turboData.overall_completion_pct.toFixed(1)}%
+          {manifestFilter && (
+            <div
+              className="rounded border border-[var(--color-accent-cyan)] bg-[var(--color-bg-tertiary)] px-3 py-2 text-xs flex items-center justify-between gap-3"
+              data-testid="manifest-filter-banner"
+            >
+              <span className="font-mono">
+                <span className="text-[var(--color-text-muted)]">Filter active:</span>{" "}
+                <strong>{manifestFilter.axis}</strong>
+                <span className="text-[var(--color-text-muted)]">=</span>
+                <strong>{manifestFilter.value}</strong>
+                <span className="text-[var(--color-text-muted)] ml-2">· cell grid scoped to this value</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setManifestFilter(null)}
+                className="rounded border border-[var(--color-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--color-bg-hover)]"
+                data-testid="manifest-filter-clear"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+          {turboData && turboData.date_range && !checkVenues && !checkDataTypes && (
+            <>
+              {/* Summary Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-mono flex items-center gap-2">
+                        <Database className="h-5 w-5" />
+                        Data Coverage
+                        <Badge
+                          variant="outline"
+                          className="ml-2 bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                        >
+                          TURBO
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {turboData.date_range.start} to {turboData.date_range.end} ({turboData.date_range.days || "?"}{" "}
+                        days)
+                      </CardDescription>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className="text-3xl font-mono font-bold"
+                        style={{
+                          color: getCompletionColor(turboData.overall_completion_pct),
+                        }}
+                      >
+                        {turboData.overall_completion_pct.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
+                        {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards
+                      </div>
+                      {turboData.overall_dates_found_asset_group !== undefined && (
+                        <div className="text-xs text-[var(--color-text-muted)] opacity-70">
+                          ({turboData.overall_dates_found_asset_group} / {turboData.overall_dates_expected_asset_group}{" "}
+                          dates)
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    {turboData.overall_shards_found ??
-                      turboData.overall_dates_found}{" "}
-                    /{" "}
-                    {turboData.overall_shards_expected ??
-                      turboData.overall_dates_expected}{" "}
-                    shards
+                </CardHeader>
+                <CardContent>
+                  {/* Progress bar */}
+                  <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${turboData.overall_completion_pct}%`,
+                        backgroundColor: getCompletionColor(turboData.overall_completion_pct),
+                      }}
+                    />
                   </div>
-                  {turboData.overall_dates_found_asset_group !== undefined && (
-                    <div className="text-xs text-[var(--color-text-muted)] opacity-70">
-                      ({turboData.overall_dates_found_asset_group} /{" "}
-                      {turboData.overall_dates_expected_asset_group} dates)
+
+                  {/* Deploy Missing Button - shows only expected missing (dates >= venue start) */}
+                  {totalMissing > 0 && onDeployMissing && (
+                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                        <span className="text-sm">
+                          <strong>{totalMissing}</strong> missing shards
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleOpenDeployMissingModal}
+                        className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                      >
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Deploy Missing
+                      </Button>
                     </div>
                   )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Progress bar */}
-              <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${turboData.overall_completion_pct}%`,
-                    backgroundColor: getCompletionColor(
-                      turboData.overall_completion_pct,
-                    ),
-                  }}
-                />
-              </div>
 
-              {/* Deploy Missing Button - shows only expected missing (dates >= venue start) */}
-              {totalMissing > 0 && onDeployMissing && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                    <span className="text-sm">
-                      <strong>{totalMissing}</strong> missing shards
-                    </span>
+                  {/* All data complete message */}
+                  {totalMissing === 0 && (
+                    <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)]">
+                      <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] mr-2" />
+                      <span className="text-sm text-[var(--color-accent-green)]">All expected data present</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Categories Breakdown */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Asset group breakdown</CardTitle>
+                    {/* Phase C: scope to shards with failure_rate > 0 */}
+                    <label
+                      className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer"
+                      data-testid="show-only-failures-label"
+                    >
+                      <Checkbox
+                        id="show-only-failures"
+                        data-testid="show-only-failures-toggle"
+                        checked={showOnlyFailures}
+                        onCheckedChange={(checked) => setShowOnlyFailures(checked === true)}
+                      />
+                      Show only failures
+                    </label>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={handleOpenDeployMissingModal}
-                    className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
-                  >
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Deploy Missing
-                  </Button>
-                </div>
-              )}
-
-              {/* All data complete message */}
-              {totalMissing === 0 && (
-                <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)]">
-                  <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] mr-2" />
-                  <span className="text-sm text-[var(--color-accent-green)]">
-                    All expected data present
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Categories Breakdown */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">
-                  Asset group breakdown
-                </CardTitle>
-                {/* Phase C: scope to shards with failure_rate > 0 */}
-                <label
-                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer"
-                  data-testid="show-only-failures-label"
-                >
-                  <Checkbox
-                    id="show-only-failures"
-                    data-testid="show-only-failures-toggle"
-                    checked={showOnlyFailures}
-                    onCheckedChange={(checked) =>
-                      setShowOnlyFailures(checked === true)
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const allEntries = Object.entries(turboData.asset_groups || {});
+                    const hasFailureData = allEntries.some(([, c]) => {
+                      const fr = (c as { failure_rate?: number }).failure_rate;
+                      return typeof fr === "number" && fr > 0;
+                    });
+                    const visibleEntries =
+                      showOnlyFailures && hasFailureData
+                        ? allEntries.filter(([, c]) => {
+                            const fr = (c as { failure_rate?: number }).failure_rate;
+                            return typeof fr === "number" && fr > 0;
+                          })
+                        : allEntries;
+                    if (showOnlyFailures && hasFailureData && visibleEntries.length === 0) {
+                      return (
+                        <p
+                          className="text-sm text-[var(--color-text-muted)] italic"
+                          data-testid="show-only-failures-empty"
+                        >
+                          No shards with failures in the selected range.
+                        </p>
+                      );
                     }
-                  />
-                  Show only failures
-                </label>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const allEntries = Object.entries(turboData.asset_groups || {});
-                const hasFailureData = allEntries.some(([, c]) => {
-                  const fr = (c as { failure_rate?: number }).failure_rate;
-                  return typeof fr === "number" && fr > 0;
-                });
-                const visibleEntries =
-                  showOnlyFailures && hasFailureData
-                    ? allEntries.filter(([, c]) => {
-                        const fr = (c as { failure_rate?: number })
-                          .failure_rate;
+                    if (showOnlyFailures && !hasFailureData) {
+                      return (
+                        <p
+                          className="text-xs text-[var(--color-text-muted)] italic mb-3"
+                          data-testid="show-only-failures-no-data"
+                        >
+                          No failure_rate data yet — showing all categories. Phase B adapters emit ADAPTER_FETCH_FAILED
+                          rows into the manifest.
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <div className="space-y-4">
+                    {Object.entries(turboData.asset_groups || {})
+                      .filter(([, catData]) => {
+                        if (!showOnlyFailures) return true;
+                        const fr = (catData as { failure_rate?: number }).failure_rate;
+                        // When no failure data exists anywhere, preserve the full
+                        // list so the user isn't staring at an empty page.
+                        const anyFailures = Object.values(turboData.asset_groups || {}).some((c) => {
+                          const f = (c as { failure_rate?: number }).failure_rate;
+                          return typeof f === "number" && f > 0;
+                        });
+                        if (!anyFailures) return true;
                         return typeof fr === "number" && fr > 0;
                       })
-                    : allEntries;
-                if (
-                  showOnlyFailures &&
-                  hasFailureData &&
-                  visibleEntries.length === 0
-                ) {
-                  return (
-                    <p
-                      className="text-sm text-[var(--color-text-muted)] italic"
-                      data-testid="show-only-failures-empty"
-                    >
-                      No shards with failures in the selected range.
-                    </p>
-                  );
-                }
-                if (showOnlyFailures && !hasFailureData) {
-                  return (
-                    <p
-                      className="text-xs text-[var(--color-text-muted)] italic mb-3"
-                      data-testid="show-only-failures-no-data"
-                    >
-                      No failure_rate data yet — showing all categories. Phase B
-                      adapters emit ADAPTER_FETCH_FAILED rows into the manifest.
-                    </p>
-                  );
-                }
-                return null;
-              })()}
-              <div className="space-y-4">
-                {Object.entries(turboData.asset_groups || {})
-                  .filter(([, catData]) => {
-                    if (!showOnlyFailures) return true;
-                    const fr = (catData as { failure_rate?: number })
-                      .failure_rate;
-                    // When no failure data exists anywhere, preserve the full
-                    // list so the user isn't staring at an empty page.
-                    const anyFailures = Object.values(
-                      turboData.asset_groups || {},
-                    ).some((c) => {
-                      const f = (c as { failure_rate?: number }).failure_rate;
-                      return typeof f === "number" && f > 0;
-                    });
-                    if (!anyFailures) return true;
-                    return typeof fr === "number" && fr > 0;
-                  })
-                  .map(([catName, catData]) => {
-                    const isComplete = catData.completion_pct >= 100;
+                      .map(([catName, catData]) => {
+                        const isComplete = catData.completion_pct >= 100;
 
-                    return (
-                      <div key={catName} className="space-y-2">
-                        <div
-                          className="flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-secondary)] rounded px-1 -mx-1 transition-colors"
-                          onClick={() => setSelectedCategories([catName])}
-                          title={`Filter to ${catName}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isComplete ? (
-                              <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-                            ) : catData.error ? (
-                              <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                            ) : (
-                              <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                            )}
-                            <span className="font-medium">{catName}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {catData.error ? (
-                              <span className="text-sm text-[var(--color-accent-red)]">
-                                {catData.error}
-                              </span>
-                            ) : catData.coverage_semantics ===
-                              "event_driven" ? (
-                              (() => {
-                                const eventLabel =
-                                  formatEventDrivenCoverageLabel(
-                                    catData.attempt_coverage_pct,
-                                    catData.capture_coverage_pct,
-                                    catData.empty_rate_estimate ?? null,
-                                  );
-                                return (
+                        return (
+                          <div key={catName} className="space-y-2">
+                            <div
+                              className="flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-secondary)] rounded px-1 -mx-1 transition-colors"
+                              onClick={() => setSelectedCategories([catName])}
+                              title={`Filter to ${catName}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isComplete ? (
+                                  <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
+                                ) : catData.error ? (
+                                  <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                                ) : (
+                                  <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                                )}
+                                <span className="font-medium">{catName}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {catData.error ? (
+                                  <span className="text-sm text-[var(--color-accent-red)]">{catData.error}</span>
+                                ) : catData.coverage_semantics === "event_driven" ? (
+                                  (() => {
+                                    const eventLabel = formatEventDrivenCoverageLabel(
+                                      catData.attempt_coverage_pct,
+                                      catData.capture_coverage_pct,
+                                      catData.empty_rate_estimate ?? null,
+                                    );
+                                    return (
+                                      <>
+                                        <span className="text-sm text-[var(--color-text-muted)]">
+                                          {catData.overall_shards_found ??
+                                            catData.venue_dates_found ??
+                                            catData.dates_found}{" "}
+                                          /{" "}
+                                          {catData.overall_shards_expected ??
+                                            catData.venue_dates_expected ??
+                                            catData.dates_expected}{" "}
+                                          shards
+                                        </span>
+                                        <span
+                                          className="text-sm font-mono font-medium"
+                                          style={{
+                                            // Event-driven row colour follows
+                                            // captured% (real data on disk),
+                                            // not attempted%. Pre-2026-04-29
+                                            // this used completion_pct which
+                                            // for SPORTS aliases to attempted%
+                                            // and made the row look healthier
+                                            // than reality.
+                                            color: getCompletionColor(
+                                              catData.capture_coverage_pct ?? catData.completion_pct,
+                                            ),
+                                          }}
+                                          title={eventLabel.tooltip}
+                                          data-testid={`event-driven-label-${catName}`}
+                                        >
+                                          {eventLabel.text}
+                                        </span>
+                                      </>
+                                    );
+                                  })()
+                                ) : (
                                   <>
                                     <span className="text-sm text-[var(--color-text-muted)]">
-                                      {catData.overall_shards_found ??
-                                        catData.venue_dates_found ??
-                                        catData.dates_found}{" "}
+                                      {catData.overall_shards_found ?? catData.venue_dates_found ?? catData.dates_found}{" "}
                                       /{" "}
                                       {catData.overall_shards_expected ??
                                         catData.venue_dates_expected ??
@@ -3932,235 +3471,154 @@ function DataStatusTabInternal({
                                     <span
                                       className="text-sm font-mono font-medium"
                                       style={{
-                                        // Event-driven row colour follows
-                                        // captured% (real data on disk),
-                                        // not attempted%. Pre-2026-04-29
-                                        // this used completion_pct which
-                                        // for SPORTS aliases to attempted%
-                                        // and made the row look healthier
-                                        // than reality.
-                                        color: getCompletionColor(
-                                          catData.capture_coverage_pct ??
-                                            catData.completion_pct,
-                                        ),
+                                        color: getCompletionColor(catData.completion_pct),
                                       }}
-                                      title={eventLabel.tooltip}
-                                      data-testid={`event-driven-label-${catName}`}
                                     >
-                                      {eventLabel.text}
+                                      {catData.completion_pct.toFixed(1)}%
                                     </span>
                                   </>
-                                );
-                              })()
-                            ) : (
-                              <>
-                                <span className="text-sm text-[var(--color-text-muted)]">
-                                  {catData.overall_shards_found ??
-                                    catData.venue_dates_found ??
-                                    catData.dates_found}{" "}
-                                  /{" "}
-                                  {catData.overall_shards_expected ??
-                                    catData.venue_dates_expected ??
-                                    catData.dates_expected}{" "}
-                                  shards
-                                </span>
-                                <span
-                                  className="text-sm font-mono font-medium"
+                                )}
+                              </div>
+                            </div>
+                            {!catData.error && (
+                              <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                                <div
+                                  className="h-full transition-all duration-500"
                                   style={{
-                                    color: getCompletionColor(
-                                      catData.completion_pct,
+                                    // Bar reflects captured% (real data) for
+                                    // event-driven categories so the visual
+                                    // matches the headline. Dense categories
+                                    // fall through to completion_pct since
+                                    // captured == attempted there.
+                                    width: `${
+                                      catData.coverage_semantics === "event_driven"
+                                        ? (catData.capture_coverage_pct ?? catData.completion_pct)
+                                        : catData.completion_pct
+                                    }%`,
+                                    backgroundColor: getCompletionColor(
+                                      catData.coverage_semantics === "event_driven"
+                                        ? (catData.capture_coverage_pct ?? catData.completion_pct)
+                                        : catData.completion_pct,
                                     ),
                                   }}
-                                >
-                                  {catData.completion_pct.toFixed(1)}%
-                                </span>
-                              </>
+                                />
+                              </div>
                             )}
-                          </div>
-                        </div>
-                        {!catData.error && (
-                          <div className="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                            <div
-                              className="h-full transition-all duration-500"
-                              style={{
-                                // Bar reflects captured% (real data) for
-                                // event-driven categories so the visual
-                                // matches the headline. Dense categories
-                                // fall through to completion_pct since
-                                // captured == attempted there.
-                                width: `${
-                                  catData.coverage_semantics === "event_driven"
-                                    ? (catData.capture_coverage_pct ??
-                                      catData.completion_pct)
-                                    : catData.completion_pct
-                                }%`,
-                                backgroundColor: getCompletionColor(
-                                  catData.coverage_semantics === "event_driven"
-                                    ? (catData.capture_coverage_pct ??
-                                        catData.completion_pct)
-                                    : catData.completion_pct,
-                                ),
-                              }}
-                            />
-                          </div>
-                        )}
-                        {catData.dates_missing > 0 &&
-                          !catData.error &&
-                          !catData.bulk_service && (
-                            <p className="text-xs text-[var(--color-text-muted)]">
-                              {catData.dates_missing} date
-                              {catData.dates_missing !== 1 ? "s" : ""} missing
-                              {Array.isArray(catData.missing_dates) &&
-                                catData.missing_dates.length > 0 && (
+                            {catData.dates_missing > 0 && !catData.error && !catData.bulk_service && (
+                              <p className="text-xs text-[var(--color-text-muted)]">
+                                {catData.dates_missing} date
+                                {catData.dates_missing !== 1 ? "s" : ""} missing
+                                {Array.isArray(catData.missing_dates) && catData.missing_dates.length > 0 && (
                                   <span className="ml-1">
-                                    (e.g.,{" "}
-                                    {catData.missing_dates
-                                      .slice(0, 3)
-                                      .join(", ")}
-                                    {catData.missing_dates.length > 3
-                                      ? "..."
-                                      : ""}
-                                    )
+                                    (e.g., {catData.missing_dates.slice(0, 3).join(", ")}
+                                    {catData.missing_dates.length > 3 ? "..." : ""})
                                   </span>
                                 )}
-                            </p>
-                          )}
-                        {catData.bulk_service && (
-                          <p className="text-xs text-[var(--color-text-muted)] italic">
-                            Bulk download service — {catData.dates_found} of{" "}
-                            {catData.dates_expected} dates have data.
-                            {catData.dates_missing > 0 &&
-                              " Run the service to populate all dates."}
-                          </p>
-                        )}
+                              </p>
+                            )}
+                            {catData.bulk_service && (
+                              <p className="text-xs text-[var(--color-text-muted)] italic">
+                                Bulk download service — {catData.dates_found} of {catData.dates_expected} dates have
+                                data.
+                                {catData.dates_missing > 0 && " Run the service to populate all dates."}
+                              </p>
+                            )}
 
-                        {/* Category-level date dropdowns (for services without sub-dimensions) */}
-                        {!getSubDimensionData(catData).data &&
-                          !catData.error && (
-                            <div className="flex gap-4 mt-2">
-                              {/* Available dates dropdown (green) */}
-                              {catData.dates_found_list &&
-                                catData.dates_found_list.length > 0 && (
+                            {/* Category-level date dropdowns (for services without sub-dimensions) */}
+                            {!getSubDimensionData(catData).data && !catData.error && (
+                              <div className="flex gap-4 mt-2">
+                                {/* Available dates dropdown (green) */}
+                                {catData.dates_found_list && catData.dates_found_list.length > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                      {catData.dates_found ??
-                                        catData.dates_found_list.length}{" "}
-                                      available shards
+                                      {catData.dates_found ?? catData.dates_found_list.length} available shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-success-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                        {catData.dates_found_list?.map(
-                                          (date: string) => (
-                                            <span
-                                              key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                            >
-                                              {date}
-                                            </span>
-                                          ),
-                                        )}
+                                        {catData.dates_found_list?.map((date: string) => (
+                                          <span
+                                            key={date}
+                                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                          >
+                                            {date}
+                                          </span>
+                                        ))}
                                         {catData.dates_found_truncated && (
                                           <>
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">
-                                              ...
-                                            </span>
-                                            {catData.dates_found_list_tail?.map(
-                                              (date: string) => (
-                                                <span
-                                                  key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                                >
-                                                  {date}
-                                                </span>
-                                              ),
-                                            )}
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">...</span>
+                                            {catData.dates_found_list_tail?.map((date: string) => (
+                                              <span
+                                                key={date}
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                              >
+                                                {date}
+                                              </span>
+                                            ))}
                                           </>
                                         )}
                                       </div>
                                     </div>
                                   </details>
                                 )}
-                              {/* Missing dates dropdown (red) */}
-                              {catData.dates_missing_list &&
-                                catData.dates_missing_list.length > 0 && (
+                                {/* Missing dates dropdown (red) */}
+                                {catData.dates_missing_list && catData.dates_missing_list.length > 0 && (
                                   <details className="flex-1">
                                     <summary className="text-xs text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                      {catData.dates_missing ??
-                                        catData.dates_missing_list.length}{" "}
-                                      missing shards
+                                      {catData.dates_missing ?? catData.dates_missing_list.length} missing shards
                                     </summary>
                                     <div className="mt-1 pl-2 border-l-2 border-[var(--color-status-error-border-strong)]">
                                       <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                        {catData.dates_missing_list?.map(
-                                          (date: string) => (
-                                            <span
-                                              key={date}
-                                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                            >
-                                              {date}
-                                            </span>
-                                          ),
-                                        )}
+                                        {catData.dates_missing_list?.map((date: string) => (
+                                          <span
+                                            key={date}
+                                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                          >
+                                            {date}
+                                          </span>
+                                        ))}
                                         {catData.dates_missing_truncated && (
                                           <>
-                                            <span className="text-[9px] text-[var(--color-text-muted)]">
-                                              ...
-                                            </span>
-                                            {catData.dates_missing_list_tail?.map(
-                                              (date: string) => (
-                                                <span
-                                                  key={date}
-                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                                >
-                                                  {date}
-                                                </span>
-                                              ),
-                                            )}
+                                            <span className="text-[9px] text-[var(--color-text-muted)]">...</span>
+                                            {catData.dates_missing_list_tail?.map((date: string) => (
+                                              <span
+                                                key={date}
+                                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                              >
+                                                {date}
+                                              </span>
+                                            ))}
                                           </>
                                         )}
                                       </div>
                                     </div>
                                   </details>
                                 )}
-                            </div>
-                          )}
+                              </div>
+                            )}
 
-                        {/* Sub-dimension breakdown (venues, data_types, feature_groups, strategies, models, etc.) */}
-                        {getSubDimensionData(catData).data && (
-                          <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
-                            {/* Folders/Instrument Types section - own bordered container */}
-                            {catData.folders &&
-                              Object.keys(catData.folders).length > 0 && (
-                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                    Instrument Types (Folders)
-                                  </p>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {Object.entries(catData.folders).map(
-                                      ([folderName, folderData]) => (
-                                        <div
-                                          key={folderName}
-                                          className="bg-[var(--color-bg-tertiary)] rounded p-2"
-                                        >
+                            {/* Sub-dimension breakdown (venues, data_types, feature_groups, strategies, models, etc.) */}
+                            {getSubDimensionData(catData).data && (
+                              <div className="mt-3 pl-6 space-y-3 border-l-2 border-[var(--color-border)]">
+                                {/* Folders/Instrument Types section - own bordered container */}
+                                {catData.folders && Object.keys(catData.folders).length > 0 && (
+                                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                    <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                      Instrument Types (Folders)
+                                    </p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                      {Object.entries(catData.folders).map(([folderName, folderData]) => (
+                                        <div key={folderName} className="bg-[var(--color-bg-tertiary)] rounded p-2">
                                           <div className="flex items-center justify-between">
-                                            <span
-                                              className="text-xs font-mono truncate"
-                                              title={folderName}
-                                            >
+                                            <span className="text-xs font-mono truncate" title={folderName}>
                                               {folderName}
                                             </span>
                                             <span
                                               className="text-xs font-mono font-medium ml-1"
                                               style={{
-                                                color: getCompletionColor(
-                                                  folderData.completion_pct,
-                                                ),
+                                                color: getCompletionColor(folderData.completion_pct),
                                               }}
                                             >
-                                              {folderData.completion_pct.toFixed(
-                                                0,
-                                              )}
-                                              %
+                                              {folderData.completion_pct.toFixed(0)}%
                                             </span>
                                           </div>
                                           <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden mt-1">
@@ -4168,34 +3626,27 @@ function DataStatusTabInternal({
                                               className="h-full"
                                               style={{
                                                 width: `${folderData.completion_pct}%`,
-                                                backgroundColor:
-                                                  getCompletionColor(
-                                                    folderData.completion_pct,
-                                                  ),
+                                                backgroundColor: getCompletionColor(folderData.completion_pct),
                                               }}
                                             />
                                           </div>
                                           <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-                                            {folderData.dates_found}/
-                                            {folderData.dates_expected} shards
+                                            {folderData.dates_found}/{folderData.dates_expected} shards
                                           </div>
                                         </div>
-                                      ),
-                                    )}
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                            {/* Chain breakdown for DeFi (v4) — replaces flat venue list. PREDICTION uses the same chains structure but labels it "Venues" since Polymarket/Kalshi are venues, not chains */}
-                            {catData.chains &&
-                              Object.keys(catData.chains).length > 0 && (
-                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                    {catName === "PREDICTION" ? "Venues" : "Chains"}
-                                  </p>
-                                  <div className="space-y-0.5">
-                                    {Object.entries(catData.chains).map(
-                                      ([chainName, chainData]) => {
+                                {/* Chain breakdown for DeFi (v4) — replaces flat venue list. PREDICTION uses the same chains structure but labels it "Venues" since Polymarket/Kalshi are venues, not chains */}
+                                {catData.chains && Object.keys(catData.chains).length > 0 && (
+                                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                    <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                      {catName === "PREDICTION" ? "Venues" : "Chains"}
+                                    </p>
+                                    <div className="space-y-0.5">
+                                      {Object.entries(catData.chains).map(([chainName, chainData]) => {
                                         const cd = chainData as {
                                           dates_found: number;
                                           dates_expected: number;
@@ -4206,48 +3657,33 @@ function DataStatusTabInternal({
                                           shards_expected?: number;
                                         };
                                         // Get per-venue data for venues in this chain
-                                        const venueData =
-                                          getSubDimensionData(catData).data ||
-                                          {};
+                                        const venueData = getSubDimensionData(catData).data || {};
                                         return (
-                                          <details
-                                            key={chainName}
-                                            className="group/chain"
-                                          >
+                                          <details key={chainName} className="group/chain">
                                             <summary className="flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                               <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/chain:rotate-90" />
-                                              <span className="text-xs font-mono font-medium">
-                                                {chainName}
-                                              </span>
+                                              <span className="text-xs font-mono font-medium">{chainName}</span>
                                               <span className="text-[9px] text-[var(--color-text-muted)]">
                                                 ({cd.venue_count} protocols)
                                               </span>
                                               <div className="flex-1" />
                                               <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                                                {cd.shards_found ??
-                                                  cd.dates_found}
-                                                /
-                                                {cd.shards_expected ??
-                                                  cd.dates_expected}
+                                                {cd.shards_found ?? cd.dates_found}/
+                                                {cd.shards_expected ?? cd.dates_expected}
                                               </span>
                                               <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
                                                 <div
                                                   className="h-full"
                                                   style={{
                                                     width: `${cd.completion_pct}%`,
-                                                    backgroundColor:
-                                                      getCompletionColor(
-                                                        cd.completion_pct,
-                                                      ),
+                                                    backgroundColor: getCompletionColor(cd.completion_pct),
                                                   }}
                                                 />
                                               </div>
                                               <span
                                                 className="text-xs font-mono font-medium w-10 text-right"
                                                 style={{
-                                                  color: getCompletionColor(
-                                                    cd.completion_pct,
-                                                  ),
+                                                  color: getCompletionColor(cd.completion_pct),
                                                 }}
                                               >
                                                 {formatPct(cd.completion_pct)}%
@@ -4258,32 +3694,21 @@ function DataStatusTabInternal({
                                                 const vd = venueData[v];
                                                 if (!vd) {
                                                   return (
-                                                    <div
-                                                      key={v}
-                                                      className="flex items-center gap-2 py-0.5 px-1.5"
-                                                    >
+                                                    <div key={v} className="flex items-center gap-2 py-0.5 px-1.5">
                                                       <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
                                                         {v}
                                                       </span>
                                                     </div>
                                                   );
                                                 }
-                                                const vdTyped =
-                                                  vd as TurboSubDimension;
+                                                const vdTyped = vd as TurboSubDimension;
                                                 // ``v`` is the composite "<PROTOCOL>-<CHAIN>" (e.g.
                                                 // ``EIGENLAYER-ETHEREUM``). We strip the trailing
                                                 // ``-{chainName}`` to recover the protocol — the
                                                 // /api/data-status/pools/breakdown endpoint expects
                                                 // ``venue`` (protocol) + ``chain`` separately.
-                                                const defiProtocol = v.endsWith(
-                                                  `-${chainName}`,
-                                                )
-                                                  ? v.slice(
-                                                      0,
-                                                      v.length -
-                                                        chainName.length -
-                                                        1,
-                                                    )
+                                                const defiProtocol = v.endsWith(`-${chainName}`)
+                                                  ? v.slice(0, v.length - chainName.length - 1)
                                                   : v;
                                                 // Pick the most-recent day with data — last entry of
                                                 // ``dates_found_list_tail`` (most-recent slice) or
@@ -4291,68 +3716,46 @@ function DataStatusTabInternal({
                                                 // the venue has zero captured days; the button is
                                                 // hidden in that case.
                                                 const defiPoolsDay =
-                                                  vdTyped
-                                                    .dates_found_list_tail?.[
-                                                    (vdTyped
-                                                      .dates_found_list_tail
-                                                      ?.length ?? 0) - 1
+                                                  vdTyped.dates_found_list_tail?.[
+                                                    (vdTyped.dates_found_list_tail?.length ?? 0) - 1
                                                   ] ??
                                                   vdTyped.dates_found_list?.[
-                                                    (vdTyped.dates_found_list
-                                                      ?.length ?? 0) - 1
+                                                    (vdTyped.dates_found_list?.length ?? 0) - 1
                                                   ];
                                                 return (
-                                                  <details
-                                                    key={v}
-                                                    className="group/cv"
-                                                  >
+                                                  <details key={v} className="group/cv">
                                                     <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                                       <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/cv:rotate-90" />
-                                                      <span className="text-[10px] font-mono">
-                                                        {v}
-                                                      </span>
+                                                      <span className="text-[10px] font-mono">{v}</span>
                                                       {vdTyped.venue_start_date && (
                                                         <span
                                                           className="text-[8px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
                                                           title={`Data starts: ${vdTyped.venue_start_date}`}
                                                         >
-                                                          from{" "}
-                                                          {String(
-                                                            vdTyped.venue_start_date,
-                                                          ).substring(0, 7)}
+                                                          from {String(vdTyped.venue_start_date).substring(0, 7)}
                                                         </span>
                                                       )}
                                                       <div className="flex-1" />
                                                       <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
                                                         {vdTyped.dates_found}/
-                                                        {vdTyped.dates_expected_venue ||
-                                                          vdTyped.dates_expected}
+                                                        {vdTyped.dates_expected_venue || vdTyped.dates_expected}
                                                       </span>
                                                       <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
                                                         <div
                                                           className="h-full"
                                                           style={{
                                                             width: `${vdTyped.completion_pct}%`,
-                                                            backgroundColor:
-                                                              getCompletionColor(
-                                                                vdTyped.completion_pct,
-                                                              ),
+                                                            backgroundColor: getCompletionColor(vdTyped.completion_pct),
                                                           }}
                                                         />
                                                       </div>
                                                       <span
                                                         className="text-[9px] font-mono w-8 text-right"
                                                         style={{
-                                                          color:
-                                                            getCompletionColor(
-                                                              vdTyped.completion_pct,
-                                                            ),
+                                                          color: getCompletionColor(vdTyped.completion_pct),
                                                         }}
                                                       >
-                                                        {formatPct(
-                                                          vdTyped.completion_pct,
-                                                        )}
-                                                        %
+                                                        {formatPct(vdTyped.completion_pct)}%
                                                       </span>
                                                       {defiPoolsDay && (
                                                         <button
@@ -4363,15 +3766,11 @@ function DataStatusTabInternal({
                                                           onClick={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
-                                                            setPoolBreakdownModal(
-                                                              {
-                                                                venue:
-                                                                  defiProtocol,
-                                                                chain:
-                                                                  chainName,
-                                                                day: defiPoolsDay,
-                                                              },
-                                                            );
+                                                            setPoolBreakdownModal({
+                                                              venue: defiProtocol,
+                                                              chain: chainName,
+                                                              day: defiPoolsDay,
+                                                            });
                                                           }}
                                                         >
                                                           breakdown
@@ -4381,17 +3780,10 @@ function DataStatusTabInternal({
                                                     <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-1">
                                                       {/* Data types breakdown */}
                                                       {vdTyped.data_types &&
-                                                        Object.keys(
-                                                          vdTyped.data_types,
-                                                        ).length > 0 && (
+                                                        Object.keys(vdTyped.data_types).length > 0 && (
                                                           <div className="space-y-0.5">
-                                                            {Object.entries(
-                                                              vdTyped.data_types,
-                                                            ).map(
-                                                              ([
-                                                                dtName,
-                                                                dtData,
-                                                              ]) => (
+                                                            {Object.entries(vdTyped.data_types).map(
+                                                              ([dtName, dtData]) => (
                                                                 <div
                                                                   key={dtName}
                                                                   className="flex items-center gap-2 py-0.5 px-1"
@@ -4399,37 +3791,22 @@ function DataStatusTabInternal({
                                                                   <span
                                                                     className="text-[9px] font-mono"
                                                                     style={{
-                                                                      color:
-                                                                        getCompletionColor(
-                                                                          dtData.completion_pct,
-                                                                        ),
+                                                                      color: getCompletionColor(dtData.completion_pct),
                                                                     }}
                                                                   >
                                                                     {dtName}
                                                                   </span>
                                                                   <div className="flex-1" />
                                                                   <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
-                                                                    {
-                                                                      dtData.dates_found
-                                                                    }
-                                                                    /
-                                                                    {
-                                                                      dtData.dates_expected
-                                                                    }
+                                                                    {dtData.dates_found}/{dtData.dates_expected}
                                                                   </span>
                                                                   <span
                                                                     className="text-[8px] font-mono w-7 text-right"
                                                                     style={{
-                                                                      color:
-                                                                        getCompletionColor(
-                                                                          dtData.completion_pct,
-                                                                        ),
+                                                                      color: getCompletionColor(dtData.completion_pct),
                                                                     }}
                                                                   >
-                                                                    {formatPct(
-                                                                      dtData.completion_pct,
-                                                                    )}
-                                                                    %
+                                                                    {formatPct(dtData.completion_pct)}%
                                                                   </span>
                                                                 </div>
                                                               ),
@@ -4438,22 +3815,12 @@ function DataStatusTabInternal({
                                                         )}
                                                       {/* Available / missing dates — clickable for DeFi chain→protocol. */}
                                                       {(() => {
-                                                        const cvFoundList: string[] =
-                                                          vdTyped.dates_found_list ??
-                                                          [];
+                                                        const cvFoundList: string[] = vdTyped.dates_found_list ?? [];
                                                         const cvMissingList: string[] =
-                                                          vdTyped.missing_dates ??
-                                                          vdTyped.dates_missing_list ??
-                                                          [];
+                                                          vdTyped.missing_dates ?? vdTyped.dates_missing_list ?? [];
                                                         const cvMissingCount =
-                                                          vdTyped.dates_missing ??
-                                                          cvMissingList.length;
-                                                        if (
-                                                          cvFoundList.length ===
-                                                            0 &&
-                                                          cvMissingList.length ===
-                                                            0
-                                                        )
+                                                          vdTyped.dates_missing ?? cvMissingList.length;
+                                                        if (cvFoundList.length === 0 && cvMissingList.length === 0)
                                                           return null;
                                                         // For DeFi the composite venue is "<PROTOCOL>-<CHAIN>" (e.g. AAVE_V3-ETHEREUM).
                                                         // We reach this branch under catData.chains → protocol tree so ``v`` is the
@@ -4461,116 +3828,75 @@ function DataStatusTabInternal({
                                                         // ``instrument_type`` is left as ``"AUTO"`` so the deployment-api resolves
                                                         // it from the UAC SchemaContract registry (the click site doesn't have
                                                         // ``instrument_type`` in scope, only ``data_type``).
-                                                        const firstDt =
-                                                          vdTyped.data_types
-                                                            ? Object.keys(
-                                                                vdTyped.data_types,
-                                                              )[0]
-                                                            : undefined;
+                                                        const firstDt = vdTyped.data_types
+                                                          ? Object.keys(vdTyped.data_types)[0]
+                                                          : undefined;
                                                         const dataTypeHint =
                                                           firstDt ??
-                                                          (serviceName ===
-                                                          "instruments-service"
+                                                          (serviceName === "instruments-service"
                                                             ? "INSTRUMENTS"
                                                             : "AUTO_DETECT_FAIL");
-                                                        const makeOnClick =
-                                                          (date: string) =>
-                                                          () =>
-                                                            openShardDetail({
-                                                              service:
-                                                                serviceName,
-                                                              asset_group:
-                                                                catName,
-                                                              instrument_type:
-                                                                "AUTO",
-                                                              data_type:
-                                                                dataTypeHint,
-                                                              day: date,
-                                                              venue: v,
-                                                            });
+                                                        const makeOnClick = (date: string) => () =>
+                                                          openShardDetail({
+                                                            service: serviceName,
+                                                            asset_group: catName,
+                                                            instrument_type: "AUTO",
+                                                            data_type: dataTypeHint,
+                                                            day: date,
+                                                            venue: v,
+                                                          });
                                                         return (
                                                           <div className="flex gap-3 pt-0.5 border-t border-[var(--color-border-subtle)]">
-                                                            {cvFoundList.length >
-                                                              0 && (
+                                                            {cvFoundList.length > 0 && (
                                                               <details>
                                                                 <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                  {
-                                                                    vdTyped.dates_found
-                                                                  }{" "}
-                                                                  available
-                                                                  dates
+                                                                  {vdTyped.dates_found} available dates
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                                   <DateList
-                                                                    dates={
-                                                                      cvFoundList
-                                                                    }
+                                                                    dates={cvFoundList}
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-found-${v}`}
                                                                     onClickDate={makeOnClick}
-                                                                    downloadUrl={(
-                                                                      date,
-                                                                    ) =>
-                                                                      buildShardDownloadUrl(
-                                                                        {
-                                                                          service:
-                                                                            serviceName,
-                                                                          asset_group:
-                                                                            catName,
-                                                                          venue:
-                                                                            v,
-                                                                          date,
-                                                                          data_type:
-                                                                            dataTypeHint !==
-                                                                            "AUTO_DETECT_FAIL"
-                                                                              ? dataTypeHint
-                                                                              : undefined,
-                                                                        },
-                                                                      )
+                                                                    downloadUrl={(date) =>
+                                                                      buildShardDownloadUrl({
+                                                                        service: serviceName,
+                                                                        asset_group: catName,
+                                                                        venue: v,
+                                                                        date,
+                                                                        data_type:
+                                                                          dataTypeHint !== "AUTO_DETECT_FAIL"
+                                                                            ? dataTypeHint
+                                                                            : undefined,
+                                                                      })
                                                                     }
-                                                                    downloadTitle={(
-                                                                      date,
-                                                                    ) =>
+                                                                    downloadTitle={(date) =>
                                                                       `Download manifest catalog CSV for ${v} on ${date}`
                                                                     }
                                                                   />
-                                                                  {vdTyped.dates_found >
-                                                                    cvFoundList.length && (
+                                                                  {vdTyped.dates_found > cvFoundList.length && (
                                                                     <span className="text-[7px] text-[var(--color-text-muted)]">
-                                                                      +
-                                                                      {vdTyped.dates_found -
-                                                                        cvFoundList.length}{" "}
-                                                                      more
+                                                                      +{vdTyped.dates_found - cvFoundList.length} more
                                                                     </span>
                                                                   )}
                                                                 </div>
                                                               </details>
                                                             )}
-                                                            {cvMissingList.length >
-                                                              0 && (
+                                                            {cvMissingList.length > 0 && (
                                                               <details>
                                                                 <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                  {
-                                                                    cvMissingCount
-                                                                  }{" "}
-                                                                  missing dates
+                                                                  {cvMissingCount} missing dates
                                                                 </summary>
                                                                 <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
                                                                   <DateList
-                                                                    dates={
-                                                                      cvMissingList
-                                                                    }
+                                                                    dates={cvMissingList}
                                                                     btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
                                                                     testIdPrefix={`defi-date-missing-${v}`}
                                                                     onClickDate={makeOnClick}
                                                                   />
-                                                                  {cvMissingCount >
-                                                                    cvMissingList.length && (
+                                                                  {cvMissingCount > cvMissingList.length && (
                                                                     <span className="text-[7px] text-[var(--color-text-muted)]">
-                                                                      +
-                                                                      {cvMissingCount -
-                                                                        cvMissingList.length}{" "}
-                                                                      more
+                                                                      +{cvMissingCount - cvMissingList.length} more
                                                                     </span>
                                                                   )}
                                                                 </div>
@@ -4583,27 +3909,17 @@ function DataStatusTabInternal({
                                                       <div className="pt-0.5">
                                                         <span
                                                           className="text-[8px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
-                                                          onClick={() =>
-                                                            handleVenueClick(
-                                                              catName,
-                                                              v,
-                                                            )
-                                                          }
+                                                          onClick={() => handleVenueClick(catName, v)}
                                                           data-testid={`defi-instrument-breakdown-toggle-${v}`}
                                                         >
                                                           Instrument breakdown
                                                         </span>
                                                       </div>
-                                                      {venueDetailKey ===
-                                                        `${catName}:${v}` && (
+                                                      {venueDetailKey === `${catName}:${v}` && (
                                                         <div className="mt-1">
                                                           <VenueDetailPanel
-                                                            loading={
-                                                              venueDetailLoading
-                                                            }
-                                                            data={
-                                                              venueDetailData
-                                                            }
+                                                            loading={venueDetailLoading}
+                                                            data={venueDetailData}
                                                           />
                                                         </div>
                                                       )}
@@ -4614,23 +3930,19 @@ function DataStatusTabInternal({
                                             </div>
                                           </details>
                                         );
-                                      },
-                                    )}
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                            {/* Feature group breakdown (v4) */}
-                            {catData.feature_groups &&
-                              Object.keys(catData.feature_groups).length >
-                                0 && (
-                                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
-                                    Feature Groups
-                                  </p>
-                                  <div className="space-y-0.5">
-                                    {Object.entries(catData.feature_groups).map(
-                                      ([fgName, fgData]) => {
+                                {/* Feature group breakdown (v4) */}
+                                {catData.feature_groups && Object.keys(catData.feature_groups).length > 0 && (
+                                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                    <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide mb-2">
+                                      Feature Groups
+                                    </p>
+                                    <div className="space-y-0.5">
+                                      {Object.entries(catData.feature_groups).map(([fgName, fgData]) => {
                                         const fg = fgData as {
                                           dates_found: number;
                                           dates_expected: number;
@@ -4645,302 +3957,219 @@ function DataStatusTabInternal({
                                           >;
                                         };
                                         return (
-                                          <details
-                                            key={fgName}
-                                            className="group/fg"
-                                          >
+                                          <details key={fgName} className="group/fg">
                                             <summary className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
                                               <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/fg:rotate-90" />
-                                              <span className="text-xs font-mono">
-                                                {fgName}
-                                              </span>
+                                              <span className="text-xs font-mono">{fgName}</span>
                                               <div className="flex-1" />
                                               <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                                                {fg.dates_found}/
-                                                {fg.dates_expected}
+                                                {fg.dates_found}/{fg.dates_expected}
                                               </span>
                                               <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
                                                 <div
                                                   className="h-full"
                                                   style={{
                                                     width: `${fg.completion_pct}%`,
-                                                    backgroundColor:
-                                                      getCompletionColor(
-                                                        fg.completion_pct,
-                                                      ),
+                                                    backgroundColor: getCompletionColor(fg.completion_pct),
                                                   }}
                                                 />
                                               </div>
                                               <span
                                                 className="text-xs font-mono font-medium w-10 text-right"
                                                 style={{
-                                                  color: getCompletionColor(
-                                                    fg.completion_pct,
-                                                  ),
+                                                  color: getCompletionColor(fg.completion_pct),
                                                 }}
                                               >
                                                 {formatPct(fg.completion_pct)}%
                                               </span>
                                             </summary>
-                                            {fg.timeframes &&
-                                              Object.keys(fg.timeframes)
-                                                .length > 0 && (
-                                                <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
-                                                  {Object.entries(
-                                                    fg.timeframes,
-                                                  ).map(([tf, tfData]) => (
-                                                    <div
-                                                      key={tf}
-                                                      className="flex items-center gap-2 py-0.5 px-1.5"
-                                                    >
-                                                      <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
-                                                        {tf}
-                                                      </span>
-                                                      <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
-                                                        {tfData.dates_found}/
-                                                        {tfData.dates_expected}
-                                                      </span>
-                                                      <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                                        <div
-                                                          className="h-full"
-                                                          style={{
-                                                            width: `${tfData.completion_pct}%`,
-                                                            backgroundColor:
-                                                              getCompletionColor(
-                                                                tfData.completion_pct,
-                                                              ),
-                                                          }}
-                                                        />
-                                                      </div>
-                                                      <span
-                                                        className="text-[9px] font-mono w-8 text-right"
+                                            {fg.timeframes && Object.keys(fg.timeframes).length > 0 && (
+                                              <div className="ml-5 pl-3 border-l border-[var(--color-border-subtle)] py-1 space-y-0.5">
+                                                {Object.entries(fg.timeframes).map(([tf, tfData]) => (
+                                                  <div key={tf} className="flex items-center gap-2 py-0.5 px-1.5">
+                                                    <span className="text-[10px] font-mono text-[var(--color-text-secondary)]">
+                                                      {tf}
+                                                    </span>
+                                                    <div className="flex-1" />
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                                                      {tfData.dates_found}/{tfData.dates_expected}
+                                                    </span>
+                                                    <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                      <div
+                                                        className="h-full"
                                                         style={{
-                                                          color:
-                                                            getCompletionColor(
-                                                              tfData.completion_pct,
-                                                            ),
+                                                          width: `${tfData.completion_pct}%`,
+                                                          backgroundColor: getCompletionColor(tfData.completion_pct),
                                                         }}
-                                                      >
-                                                        {formatPct(
-                                                          tfData.completion_pct,
-                                                        )}
-                                                        %
-                                                      </span>
+                                                      />
                                                     </div>
-                                                  ))}
-                                                </div>
-                                              )}
+                                                    <span
+                                                      className="text-[9px] font-mono w-8 text-right"
+                                                      style={{
+                                                        color: getCompletionColor(tfData.completion_pct),
+                                                      }}
+                                                    >
+                                                      {formatPct(tfData.completion_pct)}%
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
                                           </details>
                                         );
-                                      },
-                                    )}
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                            {/* Sub-dimension section - own bordered container (hidden when chains present — chain view replaces it) */}
-                            {!(
-                              catData.chains &&
-                              Object.keys(catData.chains).length > 0
-                            ) && (
-                              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
-                                    {getSubDimensionData(catData).label}
-                                  </p>
-                                  {/* Venue Summary Badges */}
-                                  {catData.venue_summary && (
-                                    <div className="flex items-center gap-2 text-xs">
-                                      {catData.venue_summary
-                                        .expected_coverage_pct === 100 ? (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                                        >
-                                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                                          All{" "}
-                                          {catData.venue_summary.expected_count}{" "}
-                                          expected
-                                        </Badge>
-                                      ) : (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)] cursor-help"
-                                          title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
-                                        >
-                                          <XCircle className="h-3 w-3 mr-1" />
-                                          {
-                                            catData.venue_summary
-                                              .expected_but_missing.length
-                                          }{" "}
-                                          expected missing
-                                        </Badge>
-                                      )}
-                                      {catData.venue_summary
-                                        .unexpected_but_found.length > 0 && (
-                                        <Badge
-                                          variant="outline"
-                                          className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
-                                        >
-                                          +
-                                          {
-                                            catData.venue_summary
-                                              .unexpected_but_found.length
-                                          }{" "}
-                                          bonus
-                                        </Badge>
+                                {/* Sub-dimension section - own bordered container (hidden when chains present — chain view replaces it) */}
+                                {!(catData.chains && Object.keys(catData.chains).length > 0) && (
+                                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-xs text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
+                                        {getSubDimensionData(catData).label}
+                                      </p>
+                                      {/* Venue Summary Badges */}
+                                      {catData.venue_summary && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                          {catData.venue_summary.expected_coverage_pct === 100 ? (
+                                            <Badge
+                                              variant="outline"
+                                              className="bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                            >
+                                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                                              All {catData.venue_summary.expected_count} expected
+                                            </Badge>
+                                          ) : (
+                                            <Badge
+                                              variant="outline"
+                                              className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)] cursor-help"
+                                              title={`Missing: ${catData.venue_summary.expected_but_missing.join(", ")}`}
+                                            >
+                                              <XCircle className="h-3 w-3 mr-1" />
+                                              {catData.venue_summary.expected_but_missing.length} expected missing
+                                            </Badge>
+                                          )}
+                                          {catData.venue_summary.unexpected_but_found.length > 0 && (
+                                            <Badge
+                                              variant="outline"
+                                              className="bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                            >
+                                              +{catData.venue_summary.unexpected_but_found.length} bonus
+                                            </Badge>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
-                                  )}
-                                </div>
-                                {/* Show missing venues inline */}
-                                {catData.venue_summary &&
-                                  catData.venue_summary.expected_but_missing
-                                    .length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                      <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
-                                        Missing:
-                                      </span>
-                                      {catData.venue_summary.expected_but_missing.map(
-                                        (venue: string) => (
+                                    {/* Show missing venues inline */}
+                                    {catData.venue_summary && catData.venue_summary.expected_but_missing.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                        <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wide">
+                                          Missing:
+                                        </span>
+                                        {catData.venue_summary.expected_but_missing.map((venue: string) => (
                                           <span
                                             key={venue}
                                             className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg-alt)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
                                           >
                                             {venue}
                                           </span>
-                                        ),
-                                      )}
-                                    </div>
-                                  )}
+                                        ))}
+                                      </div>
+                                    )}
 
-                                <div className="space-y-0.5">
-                                  {Object.entries(
-                                    getSubDimensionData(catData).data || {},
-                                  ).map(([name, subData]) => {
-                                    const expectedDates =
-                                      subData.dates_expected_venue ||
-                                      subData.dates_expected;
-                                    const venueStartDate =
-                                      subData.venue_start_date;
-                                    const foundList =
-                                      subData.dates_found_list ?? [];
-                                    const missingList =
-                                      subData.missing_dates ??
-                                      subData.dates_missing_list ??
-                                      [];
-                                    const missingCount =
-                                      subData.dates_missing ??
-                                      subData.dates_missing_count ??
-                                      missingList.length;
-                                    const hasDataTypes =
-                                      subData.data_types &&
-                                      Object.keys(subData.data_types).length >
-                                        0;
-                                    const hasInstrumentTypes =
-                                      subData.instrument_types &&
-                                      Object.keys(subData.instrument_types)
-                                        .length > 0;
-                                    const hasLeagues =
-                                      subData.leagues &&
-                                      Object.keys(subData.leagues).length > 0;
-                                    // MTDS honest-coverage — deployment-api's `_apply_mtds_honest_coverage`
-                                    // emits `missing_data_types` / `expected_data_types` / `honest_data_types`
-                                    // per venue. These are UAC-declared data types this venue should
-                                    // publish but where we observed zero shards, independent of day-level
-                                    // coverage. Absent for non-MTDS services.
-                                    const missingDataTypes =
-                                      subData.missing_data_types ?? [];
-                                    const expectedDataTypes =
-                                      subData.expected_data_types ?? [];
-                                    const honestDataTypes =
-                                      subData.honest_data_types ?? {};
-                                    const honestDataTypeEntries =
-                                      Object.entries(honestDataTypes);
-                                    const hasMissingDataTypes =
-                                      missingDataTypes.length > 0;
-                                    const hasHonestDataTypes =
-                                      honestDataTypeEntries.length > 0;
-                                    // Phase-1 four-state aggregation across this venue's data_types
-                                    // (deployment-api commit c73c732). Blocked-on-raw counts are
-                                    // non-actionable for this row (the fix is upstream raw); the
-                                    // out-of-scope flag lets us gray rows where every dt is
-                                    // EXPECTED_COVERAGE-omitted (e.g. NASDAQ trades on TradFi).
-                                    const dtEntries = Object.entries(
-                                      subData.data_types ?? {},
-                                    );
-                                    const blockedOnRawTotal = dtEntries.reduce(
-                                      (acc, [, dt]) =>
-                                        acc + (dt.dates_blocked_on_raw ?? 0),
-                                      0,
-                                    );
-                                    const allOutOfScope =
-                                      dtEntries.length > 0 &&
-                                      dtEntries.every(
-                                        ([, dt]) => dt.out_of_scope === true,
-                                      );
-                                    const hasBlockedOnRaw =
-                                      blockedOnRawTotal > 0;
+                                    <div className="space-y-0.5">
+                                      {Object.entries(getSubDimensionData(catData).data || {}).map(
+                                        ([name, subData]) => {
+                                          const expectedDates = subData.dates_expected_venue || subData.dates_expected;
+                                          const venueStartDate = subData.venue_start_date;
+                                          const foundList = subData.dates_found_list ?? [];
+                                          const missingList = subData.missing_dates ?? subData.dates_missing_list ?? [];
+                                          const missingCount =
+                                            subData.dates_missing ?? subData.dates_missing_count ?? missingList.length;
+                                          const hasDataTypes =
+                                            subData.data_types && Object.keys(subData.data_types).length > 0;
+                                          const hasInstrumentTypes =
+                                            subData.instrument_types &&
+                                            Object.keys(subData.instrument_types).length > 0;
+                                          const hasLeagues = subData.leagues && Object.keys(subData.leagues).length > 0;
+                                          // MTDS honest-coverage — deployment-api's `_apply_mtds_honest_coverage`
+                                          // emits `missing_data_types` / `expected_data_types` / `honest_data_types`
+                                          // per venue. These are UAC-declared data types this venue should
+                                          // publish but where we observed zero shards, independent of day-level
+                                          // coverage. Absent for non-MTDS services.
+                                          const missingDataTypes = subData.missing_data_types ?? [];
+                                          const expectedDataTypes = subData.expected_data_types ?? [];
+                                          const honestDataTypes = subData.honest_data_types ?? {};
+                                          const honestDataTypeEntries = Object.entries(honestDataTypes);
+                                          const hasMissingDataTypes = missingDataTypes.length > 0;
+                                          const hasHonestDataTypes = honestDataTypeEntries.length > 0;
+                                          // Phase-1 four-state aggregation across this venue's data_types
+                                          // (deployment-api commit c73c732). Blocked-on-raw counts are
+                                          // non-actionable for this row (the fix is upstream raw); the
+                                          // out-of-scope flag lets us gray rows where every dt is
+                                          // EXPECTED_COVERAGE-omitted (e.g. NASDAQ trades on TradFi).
+                                          const dtEntries = Object.entries(subData.data_types ?? {});
+                                          const blockedOnRawTotal = dtEntries.reduce(
+                                            (acc, [, dt]) => acc + (dt.dates_blocked_on_raw ?? 0),
+                                            0,
+                                          );
+                                          const allOutOfScope =
+                                            dtEntries.length > 0 &&
+                                            dtEntries.every(([, dt]) => dt.out_of_scope === true);
+                                          const hasBlockedOnRaw = blockedOnRawTotal > 0;
 
-                                    return (
-                                      <details
-                                        key={name}
-                                        className="group/venue rounded bg-[var(--color-bg-tertiary)]"
-                                      >
-                                        <summary
-                                          className={cn(
-                                            "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
-                                            subData.status === "bonus" &&
-                                              "opacity-60 border border-dashed border-[var(--color-border)]",
-                                            allOutOfScope &&
-                                              "opacity-50 grayscale",
-                                          )}
-                                        >
-                                          <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
-                                          <span
-                                            className="text-xs font-mono truncate min-w-0"
-                                            title={name}
-                                          >
-                                            {name}
-                                          </span>
-                                          {subData.status === "bonus" && (
-                                            <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
-                                              bonus
-                                            </span>
-                                          )}
-                                          {allOutOfScope && (
-                                            <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-                                              title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
-                                              data-testid="out-of-scope-badge"
+                                          return (
+                                            <details
+                                              key={name}
+                                              className="group/venue rounded bg-[var(--color-bg-tertiary)]"
                                             >
-                                              out of scope
-                                            </span>
-                                          )}
-                                          {hasMissingDataTypes && (
-                                            <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                              title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
-                                              data-testid="missing-data-types-badge"
-                                            >
-                                              {missingDataTypes.length} data{" "}
-                                              {missingDataTypes.length === 1
-                                                ? "type"
-                                                : "types"}{" "}
-                                              missing
-                                            </span>
-                                          )}
-                                          {hasBlockedOnRaw && (
-                                            <span
-                                              className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
-                                              title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
-                                              data-testid="blocked-on-raw-badge"
-                                            >
-                                              {blockedOnRawTotal} blocked on raw
-                                            </span>
-                                          )}
-                                          {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
+                                              <summary
+                                                className={cn(
+                                                  "flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] transition-colors select-none list-none [&::-webkit-details-marker]:hidden",
+                                                  subData.status === "bonus" &&
+                                                    "opacity-60 border border-dashed border-[var(--color-border)]",
+                                                  allOutOfScope && "opacity-50 grayscale",
+                                                )}
+                                              >
+                                                <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
+                                                <span className="text-xs font-mono truncate min-w-0" title={name}>
+                                                  {name}
+                                                </span>
+                                                {subData.status === "bonus" && (
+                                                  <span className="text-[9px] text-[var(--color-accent-amber)] font-medium shrink-0">
+                                                    bonus
+                                                  </span>
+                                                )}
+                                                {allOutOfScope && (
+                                                  <span
+                                                    className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                                    title="Not in EXPECTED_COVERAGE_BY_ASSET_GROUP — excluded from denominator"
+                                                    data-testid="out-of-scope-badge"
+                                                  >
+                                                    out of scope
+                                                  </span>
+                                                )}
+                                                {hasMissingDataTypes && (
+                                                  <span
+                                                    className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                    title={`Missing (UAC-declared but zero shards found): ${missingDataTypes.join(", ")}`}
+                                                    data-testid="missing-data-types-badge"
+                                                  >
+                                                    {missingDataTypes.length} data{" "}
+                                                    {missingDataTypes.length === 1 ? "type" : "types"} missing
+                                                  </span>
+                                                )}
+                                                {hasBlockedOnRaw && (
+                                                  <span
+                                                    className="text-[9px] font-medium shrink-0 px-1.5 py-0.5 rounded bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border border-[var(--color-status-warning-border-strong)]"
+                                                    title="Processed shards absent because the underlying raw shard is also absent — fix raw upstream first"
+                                                    data-testid="blocked-on-raw-badge"
+                                                  >
+                                                    {blockedOnRawTotal} blocked on raw
+                                                  </span>
+                                                )}
+                                                {/* Writegate Phase 4.B — typed-reason badges (failure_pillars +
                                                 empty_reasons closed taxonomies) + failure-pillar stacked
                                                 bar. Both auto-suppress when every count is zero so the
                                                 summary line stays compact for healthy venues. Click on a
@@ -4948,1178 +4177,860 @@ function DataStatusTabInternal({
                                                 representative leaf parquet (most-recent captured day,
                                                 first data_type, AUTO instrument_type — deployment-api's
                                                 /leaf-stats resolves via _gcs_path_for_shard). */}
-                                          <TypedReasonBadges
-                                            emptyReasons={subData.empty_reasons}
-                                            failurePillars={
-                                              subData.failure_pillars
-                                            }
-                                            testIdPrefix={`venue-${name}`}
-                                            onBadgeClick={() => {
-                                              const firstDt = subData.data_types
-                                                ? Object.keys(
-                                                    subData.data_types,
-                                                  )[0]
-                                                : undefined;
-                                              const anchorDay =
-                                                foundList.length > 0
-                                                  ? foundList[
-                                                      foundList.length - 1
-                                                    ]
-                                                  : null;
-                                              if (!firstDt || !anchorDay)
-                                                return;
-                                              setLeafSchemaCoord({
-                                                service: serviceName,
-                                                asset_group: catName,
-                                                instrument_type: "AUTO",
-                                                data_type: firstDt,
-                                                day: anchorDay,
-                                                venue: name,
-                                              });
-                                            }}
-                                          />
-                                          <FailurePillarStack
-                                            failurePillars={
-                                              subData.failure_pillars
-                                            }
-                                            testIdPrefix={`venue-${name}`}
-                                          />
-                                          {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
-                                          {(() => {
-                                            const firstDt =
-                                              subData.data_types &&
-                                              Object.keys(
-                                                subData.data_types,
-                                              )[0];
-                                            const anchorDay =
-                                              (foundList.length > 0
-                                                ? foundList[
-                                                    foundList.length - 1
-                                                  ]
-                                                : null) ?? null;
-                                            if (!firstDt || !anchorDay)
-                                              return null;
-                                            return (
-                                              <BucketCountsBadge
-                                                service={serviceName}
-                                                asset_group={catName}
-                                                venue={name}
-                                                day={anchorDay}
-                                                data_type={firstDt}
-                                              />
-                                            );
-                                          })()}
-                                          {/* Prediction v9 source badge — shown for cqg-axis entries */}
-                                          {isPredictionCqgAxis(catData) &&
-                                            subData.source && (
-                                              <span
-                                                className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)] shrink-0"
-                                                title={`Source API: ${subData.source}`}
-                                                data-testid="prediction-cqg-row-source"
-                                              >
-                                                {subData.source}
-                                              </span>
-                                            )}
-                                          <div className="flex-1" />
-                                          <div className="flex items-center gap-2 shrink-0">
-                                            {venueStartDate && (
-                                              <span
-                                                className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
-                                                title={`Data starts: ${venueStartDate}`}
-                                              >
-                                                from{" "}
-                                                {venueStartDate.substring(0, 7)}
-                                              </span>
-                                            )}
-                                            {(() => {
-                                              const isRate = isRateMetricRow(
-                                                subData.dates_found,
-                                                expectedDates,
-                                              );
-                                              if (isRate) {
-                                                // Numerator is row count; denominator is day count.
-                                                // Show rate-per-day instead of a bogus 100% bar.
-                                                return (
-                                                  <>
-                                                    <span
-                                                      className="text-[10px] text-[var(--color-text-muted)] font-mono"
-                                                      title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
-                                                    >
-                                                      {subData.dates_found.toLocaleString()}{" "}
-                                                      rows / {expectedDates}{" "}
-                                                      days
-                                                    </span>
-                                                    <div
-                                                      className="w-16 h-1.5 rounded-full overflow-hidden"
-                                                      style={{
-                                                        backgroundImage:
-                                                          "repeating-linear-gradient(45deg, var(--color-bg-secondary) 0 4px, var(--color-border-subtle) 4px 8px)",
-                                                      }}
-                                                      data-rate-metric="true"
-                                                    />
-                                                    <span
-                                                      className="text-xs font-mono font-medium w-14 text-right"
-                                                      style={{
-                                                        color:
-                                                          getRateMetricColor(),
-                                                      }}
-                                                      data-rate-metric="true"
-                                                    >
-                                                      {formatRatePerDay(
-                                                        subData.dates_found,
-                                                        expectedDates,
-                                                      )}
-                                                    </span>
-                                                  </>
-                                                );
-                                              }
-                                              return (
-                                                <>
-                                                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                                                    {subData.dates_found}/
-                                                    {expectedDates}
-                                                  </span>
-                                                  <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
-                                                    <div
-                                                      className="h-full"
-                                                      style={{
-                                                        width: `${subData.completion_pct}%`,
-                                                        backgroundColor:
-                                                          getCompletionColor(
-                                                            subData.completion_pct,
-                                                          ),
-                                                      }}
-                                                    />
-                                                  </div>
-                                                  <span
-                                                    className="text-xs font-mono font-medium w-10 text-right"
-                                                    style={{
-                                                      color: getCompletionColor(
-                                                        subData.completion_pct,
-                                                      ),
-                                                    }}
-                                                  >
-                                                    {formatPct(
-                                                      subData.completion_pct,
-                                                    )}
-                                                    %
-                                                  </span>
-                                                </>
-                                              );
-                                            })()}
-                                            {(() => {
-                                              const firstDt = subData.data_types
-                                                ? Object.keys(
-                                                    subData.data_types,
-                                                  )[0]
-                                                : undefined;
-                                              // Empty data_type triggers the backend's
-                                              // ``instrument_catalogue`` synthesis branch for
-                                              // instruments-service so the venue-level click
-                                              // resolves to the registered
-                                              // ``CONTRACT_REGISTRY[("tradfi",
-                                              // "instrument_catalogue", "instrument_catalogue")]``
-                                              // contract. The previous "AUTO" placeholder
-                                              // literal broke the synthesis and made every
-                                              // instruments-service venue schema view return
-                                              // "no schema yet".
-                                              const schemaDt =
-                                                catName === "SPORTS"
-                                                  ? name
-                                                  : (firstDt ?? "");
-                                              const schemaVenue =
-                                                catName === "SPORTS"
-                                                  ? ""
-                                                  : name;
-                                              return (
-                                                <button
-                                                  type="button"
-                                                  className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                  title={
-                                                    catName === "SPORTS"
-                                                      ? `View ${name} schema`
-                                                      : firstDt
-                                                        ? `View ${name} schema (${firstDt})`
-                                                        : `View ${name} schema`
-                                                  }
-                                                  onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setSchemaModal({
+                                                <TypedReasonBadges
+                                                  emptyReasons={subData.empty_reasons}
+                                                  failurePillars={subData.failure_pillars}
+                                                  testIdPrefix={`venue-${name}`}
+                                                  onBadgeClick={() => {
+                                                    const firstDt = subData.data_types
+                                                      ? Object.keys(subData.data_types)[0]
+                                                      : undefined;
+                                                    const anchorDay =
+                                                      foundList.length > 0 ? foundList[foundList.length - 1] : null;
+                                                    if (!firstDt || !anchorDay) return;
+                                                    setLeafSchemaCoord({
                                                       service: serviceName,
                                                       asset_group: catName,
-                                                      venue: schemaVenue,
-                                                      instrument_type: "",
-                                                      data_type: schemaDt,
+                                                      instrument_type: "AUTO",
+                                                      data_type: firstDt,
+                                                      day: anchorDay,
+                                                      venue: name,
                                                     });
                                                   }}
-                                                >
-                                                  schema
-                                                </button>
-                                              );
-                                            })()}
-                                          </div>
-                                        </summary>
+                                                />
+                                                <FailurePillarStack
+                                                  failurePillars={subData.failure_pillars}
+                                                  testIdPrefix={`venue-${name}`}
+                                                />
+                                                {/* Bucket counts annotation — Polymarket-style venues with named + OTHER buckets */}
+                                                {(() => {
+                                                  const firstDt =
+                                                    subData.data_types && Object.keys(subData.data_types)[0];
+                                                  const anchorDay =
+                                                    (foundList.length > 0 ? foundList[foundList.length - 1] : null) ??
+                                                    null;
+                                                  if (!firstDt || !anchorDay) return null;
+                                                  return (
+                                                    <BucketCountsBadge
+                                                      service={serviceName}
+                                                      asset_group={catName}
+                                                      venue={name}
+                                                      day={anchorDay}
+                                                      data_type={firstDt}
+                                                    />
+                                                  );
+                                                })()}
+                                                {/* Prediction v9 source badge — shown for cqg-axis entries */}
+                                                {isPredictionCqgAxis(catData) && subData.source && (
+                                                  <span
+                                                    className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)] shrink-0"
+                                                    title={`Source API: ${subData.source}`}
+                                                    data-testid="prediction-cqg-row-source"
+                                                  >
+                                                    {subData.source}
+                                                  </span>
+                                                )}
+                                                <div className="flex-1" />
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                  {venueStartDate && (
+                                                    <span
+                                                      className="text-[9px] text-[var(--color-text-muted)] opacity-70 hidden sm:inline"
+                                                      title={`Data starts: ${venueStartDate}`}
+                                                    >
+                                                      from {venueStartDate.substring(0, 7)}
+                                                    </span>
+                                                  )}
+                                                  {(() => {
+                                                    const isRate = isRateMetricRow(subData.dates_found, expectedDates);
+                                                    if (isRate) {
+                                                      // Numerator is row count; denominator is day count.
+                                                      // Show rate-per-day instead of a bogus 100% bar.
+                                                      return (
+                                                        <>
+                                                          <span
+                                                            className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                                                            title={`${subData.dates_found} rows across ${expectedDates} days — rate metric, not a coverage percentage`}
+                                                          >
+                                                            {subData.dates_found.toLocaleString()} rows /{" "}
+                                                            {expectedDates} days
+                                                          </span>
+                                                          <div
+                                                            className="w-16 h-1.5 rounded-full overflow-hidden"
+                                                            style={{
+                                                              backgroundImage:
+                                                                "repeating-linear-gradient(45deg, var(--color-bg-secondary) 0 4px, var(--color-border-subtle) 4px 8px)",
+                                                            }}
+                                                            data-rate-metric="true"
+                                                          />
+                                                          <span
+                                                            className="text-xs font-mono font-medium w-14 text-right"
+                                                            style={{
+                                                              color: getRateMetricColor(),
+                                                            }}
+                                                            data-rate-metric="true"
+                                                          >
+                                                            {formatRatePerDay(subData.dates_found, expectedDates)}
+                                                          </span>
+                                                        </>
+                                                      );
+                                                    }
+                                                    return (
+                                                      <>
+                                                        <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                                                          {subData.dates_found}/{expectedDates}
+                                                        </span>
+                                                        <div className="w-16 h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                                                          <div
+                                                            className="h-full"
+                                                            style={{
+                                                              width: `${subData.completion_pct}%`,
+                                                              backgroundColor: getCompletionColor(
+                                                                subData.completion_pct,
+                                                              ),
+                                                            }}
+                                                          />
+                                                        </div>
+                                                        <span
+                                                          className="text-xs font-mono font-medium w-10 text-right"
+                                                          style={{
+                                                            color: getCompletionColor(subData.completion_pct),
+                                                          }}
+                                                        >
+                                                          {formatPct(subData.completion_pct)}%
+                                                        </span>
+                                                      </>
+                                                    );
+                                                  })()}
+                                                  {(() => {
+                                                    const firstDt = subData.data_types
+                                                      ? Object.keys(subData.data_types)[0]
+                                                      : undefined;
+                                                    // Empty data_type triggers the backend's
+                                                    // ``instrument_catalogue`` synthesis branch for
+                                                    // instruments-service so the venue-level click
+                                                    // resolves to the registered
+                                                    // ``CONTRACT_REGISTRY[("tradfi",
+                                                    // "instrument_catalogue", "instrument_catalogue")]``
+                                                    // contract. The previous "AUTO" placeholder
+                                                    // literal broke the synthesis and made every
+                                                    // instruments-service venue schema view return
+                                                    // "no schema yet".
+                                                    const schemaDt = catName === "SPORTS" ? name : (firstDt ?? "");
+                                                    const schemaVenue = catName === "SPORTS" ? "" : name;
+                                                    return (
+                                                      <button
+                                                        type="button"
+                                                        className="text-[9px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                        title={
+                                                          catName === "SPORTS"
+                                                            ? `View ${name} schema`
+                                                            : firstDt
+                                                              ? `View ${name} schema (${firstDt})`
+                                                              : `View ${name} schema`
+                                                        }
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          setSchemaModal({
+                                                            service: serviceName,
+                                                            asset_group: catName,
+                                                            venue: schemaVenue,
+                                                            instrument_type: "",
+                                                            data_type: schemaDt,
+                                                          });
+                                                        }}
+                                                      >
+                                                        schema
+                                                      </button>
+                                                    );
+                                                  })()}
+                                                </div>
+                                              </summary>
 
-                                        {/* Expanded: hierarchical sub-breakdown */}
-                                        <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
-                                          {/* MTDS honest-coverage per-data-type panel (deployment-api 9d21ac8):
+                                              {/* Expanded: hierarchical sub-breakdown */}
+                                              <div className="ml-5 pl-3 pr-2 pb-2 border-l-2 border-[var(--color-border-subtle)] space-y-1">
+                                                {/* MTDS honest-coverage per-data-type panel (deployment-api 9d21ac8):
                                             lists declared data types with zero found shards + a
                                             per-data-type table showing found/expected shards and
                                             completion. Additive — does not replace the legacy
                                             `data_types` block below. */}
-                                          {(hasMissingDataTypes ||
-                                            hasHonestDataTypes) && (
-                                            <div
-                                              className="space-y-1 pt-1 pb-1 border-b border-[var(--color-border-subtle)]"
-                                              data-testid="honest-coverage-panel"
-                                            >
-                                              <div className="flex items-baseline gap-2">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                  Honest coverage (data types)
-                                                </span>
-                                                {subData.honest_axis && (
-                                                  <span
-                                                    className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
-                                                    title={`Shards are counted along ${subData.honest_axis}`}
+                                                {(hasMissingDataTypes || hasHonestDataTypes) && (
+                                                  <div
+                                                    className="space-y-1 pt-1 pb-1 border-b border-[var(--color-border-subtle)]"
+                                                    data-testid="honest-coverage-panel"
                                                   >
-                                                    {subData.honest_axis}
-                                                  </span>
-                                                )}
-                                                {expectedDataTypes.length >
-                                                  0 && (
-                                                  <span
-                                                    className="text-[8px] text-[var(--color-text-muted)] opacity-70"
-                                                    title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
-                                                  >
-                                                    {expectedDataTypes.length}{" "}
-                                                    declared
-                                                  </span>
-                                                )}
-                                              </div>
-                                              {hasMissingDataTypes && (
-                                                <div
-                                                  className="flex flex-wrap items-center gap-1"
-                                                  data-testid="missing-data-types-list"
-                                                >
-                                                  <span className="text-[9px] text-[var(--color-accent-red)]">
-                                                    Missing (
-                                                    {missingDataTypes.length}):
-                                                  </span>
-                                                  {missingDataTypes.map(
-                                                    (dt) => (
-                                                      <span
-                                                        key={dt}
-                                                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                                        title={`UAC-declared data type '${dt}' has zero found shards for ${name}`}
-                                                      >
-                                                        {dt}
+                                                    <div className="flex items-baseline gap-2">
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                        Honest coverage (data types)
                                                       </span>
-                                                    ),
-                                                  )}
-                                                </div>
-                                              )}
-                                              {hasHonestDataTypes && (
-                                                <div
-                                                  className="space-y-0.5"
-                                                  data-testid="honest-data-types-table"
-                                                >
-                                                  {honestDataTypeEntries.map(
-                                                    ([dtName, dtData]) => {
-                                                      const found =
-                                                        dtData.found_shards;
-                                                      const expected =
-                                                        dtData.expected_shards;
-                                                      const pct =
-                                                        dtData.completion_pct;
-                                                      // Phase 8H: unit discriminator — distinguishes
-                                                      // per-instrument Tier-3 shards from venue-level
-                                                      // shards and legacy pre-Phase-8C denominators.
-                                                      const rawUnit =
-                                                        dtData.unit ??
-                                                        "shard_days";
-                                                      const isPerInstrument =
-                                                        rawUnit ===
-                                                        "shard_instrument_days";
-                                                      const isLegacy =
-                                                        rawUnit ===
-                                                        "shard_days_legacy";
-                                                      const unitLabel =
-                                                        isPerInstrument
-                                                          ? "per-instrument"
-                                                          : isLegacy
-                                                            ? "legacy"
-                                                            : "venue-level";
-                                                      const unitBadgeClass =
-                                                        isPerInstrument
-                                                          ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
-                                                          : isLegacy
-                                                            ? "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
-                                                            : "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
-                                                      const unitBadgeTitle =
-                                                        isLegacy
-                                                          ? "pre-Phase-8C manifest — migration in progress (denominator degraded to venue-level shard_days until ManifestWriter backfills instrument_id)"
-                                                          : isPerInstrument
-                                                            ? `Tier-3 per-instrument data_type — shards counted per (venue, instrument, date)${typeof dtData.legacy_row_count === "number" ? ` (legacy_row_count=${dtData.legacy_row_count})` : ""}`
-                                                            : "Venue-level data_type — shards counted per (venue, date)";
-                                                      const missingInstruments =
-                                                        dtData.missing_instruments ??
-                                                        [];
-                                                      const expectedInstruments =
-                                                        dtData.expected_instruments ??
-                                                        [];
-                                                      const perInstrument =
-                                                        dtData.per_instrument;
-                                                      const perInstrumentEntries =
-                                                        perInstrument
-                                                          ? Object.entries(
-                                                              perInstrument,
-                                                            )
-                                                          : [];
-                                                      const hasMissingInstruments =
-                                                        missingInstruments.length >
-                                                        0;
-                                                      const hasPerInstrument =
-                                                        perInstrumentEntries.length >
-                                                        0;
-                                                      const hasPhase8Detail =
-                                                        hasMissingInstruments ||
-                                                        hasPerInstrument;
-                                                      const dtRowCore = (
-                                                        <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
-                                                          <span
-                                                            className="text-[10px] font-mono truncate min-w-0"
-                                                            style={{
-                                                              color:
-                                                                getCompletionColor(
-                                                                  pct,
-                                                                ),
-                                                            }}
-                                                            title={dtName}
-                                                          >
-                                                            {dtName}
-                                                          </span>
-                                                          <span
-                                                            className={cn(
-                                                              "text-[8px] font-mono px-1 py-px rounded border shrink-0",
-                                                              unitBadgeClass,
-                                                            )}
-                                                            title={
-                                                              unitBadgeTitle
-                                                            }
-                                                            data-testid="honest-dt-unit-badge"
-                                                            data-unit={rawUnit}
-                                                          >
-                                                            {unitLabel}
-                                                          </span>
-                                                          {hasMissingInstruments && (
-                                                            <span
-                                                              className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)] shrink-0"
-                                                              title={`Instruments with zero captured shards: ${missingInstruments.join(", ")}`}
-                                                              data-testid="honest-dt-missing-instruments-badge"
-                                                            >
-                                                              {
-                                                                missingInstruments.length
-                                                              }{" "}
-                                                              {missingInstruments.length ===
-                                                              1
-                                                                ? "instrument"
-                                                                : "instruments"}{" "}
-                                                              missing
-                                                            </span>
-                                                          )}
-                                                          <div className="flex-1" />
-                                                          <span
-                                                            className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0"
-                                                            title={
-                                                              expectedInstruments.length >
-                                                              0
-                                                                ? `Denominator: ${expectedInstruments.length} instrument(s) × window`
-                                                                : undefined
-                                                            }
-                                                          >
-                                                            {found}/{expected}{" "}
-                                                            {rawUnit}
-                                                          </span>
-                                                          <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                            <div
-                                                              className="h-full"
-                                                              style={{
-                                                                width: `${pct}%`,
-                                                                backgroundColor:
-                                                                  getCompletionColor(
-                                                                    pct,
-                                                                  ),
-                                                              }}
-                                                            />
-                                                          </div>
-                                                          <span
-                                                            className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                            style={{
-                                                              color:
-                                                                getCompletionColor(
-                                                                  pct,
-                                                                ),
-                                                            }}
-                                                          >
-                                                            {formatPct(pct)}%
-                                                          </span>
-                                                        </div>
-                                                      );
-                                                      if (!hasPhase8Detail) {
-                                                        return (
-                                                          <div
-                                                            key={dtName}
-                                                            data-testid="honest-dt-row"
-                                                            data-dt={dtName}
-                                                          >
-                                                            {dtRowCore}
-                                                          </div>
-                                                        );
-                                                      }
-                                                      return (
-                                                        <details
-                                                          key={dtName}
-                                                          className="group/dt"
-                                                          data-testid="honest-dt-row"
-                                                          data-dt={dtName}
+                                                      {subData.honest_axis && (
+                                                        <span
+                                                          className="text-[8px] text-[var(--color-text-muted)] font-mono opacity-70"
+                                                          title={`Shards are counted along ${subData.honest_axis}`}
                                                         >
-                                                          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                                                            {dtRowCore}
-                                                          </summary>
-                                                          <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                            {hasMissingInstruments && (
-                                                              <div
-                                                                className="flex flex-wrap items-center gap-1 py-0.5 px-1"
-                                                                data-testid="honest-dt-missing-instruments-list"
+                                                          {subData.honest_axis}
+                                                        </span>
+                                                      )}
+                                                      {expectedDataTypes.length > 0 && (
+                                                        <span
+                                                          className="text-[8px] text-[var(--color-text-muted)] opacity-70"
+                                                          title={`UAC-declared data types for this venue: ${expectedDataTypes.join(", ")}`}
+                                                        >
+                                                          {expectedDataTypes.length} declared
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    {hasMissingDataTypes && (
+                                                      <div
+                                                        className="flex flex-wrap items-center gap-1"
+                                                        data-testid="missing-data-types-list"
+                                                      >
+                                                        <span className="text-[9px] text-[var(--color-accent-red)]">
+                                                          Missing ({missingDataTypes.length}):
+                                                        </span>
+                                                        {missingDataTypes.map((dt) => (
+                                                          <span
+                                                            key={dt}
+                                                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                            title={`UAC-declared data type '${dt}' has zero found shards for ${name}`}
+                                                          >
+                                                            {dt}
+                                                          </span>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                    {hasHonestDataTypes && (
+                                                      <div
+                                                        className="space-y-0.5"
+                                                        data-testid="honest-data-types-table"
+                                                      >
+                                                        {honestDataTypeEntries.map(([dtName, dtData]) => {
+                                                          const found = dtData.found_shards;
+                                                          const expected = dtData.expected_shards;
+                                                          const pct = dtData.completion_pct;
+                                                          // Phase 8H: unit discriminator — distinguishes
+                                                          // per-instrument Tier-3 shards from venue-level
+                                                          // shards and legacy pre-Phase-8C denominators.
+                                                          const rawUnit = dtData.unit ?? "shard_days";
+                                                          const isPerInstrument = rawUnit === "shard_instrument_days";
+                                                          const isLegacy = rawUnit === "shard_days_legacy";
+                                                          const unitLabel = isPerInstrument
+                                                            ? "per-instrument"
+                                                            : isLegacy
+                                                              ? "legacy"
+                                                              : "venue-level";
+                                                          const unitBadgeClass = isPerInstrument
+                                                            ? "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-[var(--color-status-success-border-strong)]"
+                                                            : isLegacy
+                                                              ? "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)] border-[var(--color-status-warning-border)]"
+                                                              : "bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]";
+                                                          const unitBadgeTitle = isLegacy
+                                                            ? "pre-Phase-8C manifest — migration in progress (denominator degraded to venue-level shard_days until ManifestWriter backfills instrument_id)"
+                                                            : isPerInstrument
+                                                              ? `Tier-3 per-instrument data_type — shards counted per (venue, instrument, date)${typeof dtData.legacy_row_count === "number" ? ` (legacy_row_count=${dtData.legacy_row_count})` : ""}`
+                                                              : "Venue-level data_type — shards counted per (venue, date)";
+                                                          const missingInstruments = dtData.missing_instruments ?? [];
+                                                          const expectedInstruments = dtData.expected_instruments ?? [];
+                                                          const perInstrument = dtData.per_instrument;
+                                                          const perInstrumentEntries = perInstrument
+                                                            ? Object.entries(perInstrument)
+                                                            : [];
+                                                          const hasMissingInstruments = missingInstruments.length > 0;
+                                                          const hasPerInstrument = perInstrumentEntries.length > 0;
+                                                          const hasPhase8Detail =
+                                                            hasMissingInstruments || hasPerInstrument;
+                                                          const dtRowCore = (
+                                                            <div className="flex items-center gap-2 py-0.5 px-1.5 rounded">
+                                                              <span
+                                                                className="text-[10px] font-mono truncate min-w-0"
+                                                                style={{
+                                                                  color: getCompletionColor(pct),
+                                                                }}
+                                                                title={dtName}
                                                               >
-                                                                <span className="text-[9px] text-[var(--color-accent-red)] shrink-0">
-                                                                  Missing (
-                                                                  {
-                                                                    missingInstruments.length
-                                                                  }
-                                                                  ):
-                                                                </span>
-                                                                {missingInstruments.map(
-                                                                  (iid) => (
-                                                                    <span
-                                                                      key={iid}
-                                                                      className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
-                                                                      title={`Instrument '${iid}' has zero captured shards in window`}
-                                                                    >
-                                                                      {iid}
-                                                                    </span>
-                                                                  ),
+                                                                {dtName}
+                                                              </span>
+                                                              <span
+                                                                className={cn(
+                                                                  "text-[8px] font-mono px-1 py-px rounded border shrink-0",
+                                                                  unitBadgeClass,
                                                                 )}
-                                                              </div>
-                                                            )}
-                                                            {hasPerInstrument && (
-                                                              <div
-                                                                className="space-y-0.5"
-                                                                data-testid="honest-dt-per-instrument-table"
+                                                                title={unitBadgeTitle}
+                                                                data-testid="honest-dt-unit-badge"
+                                                                data-unit={rawUnit}
                                                               >
-                                                                {perInstrumentEntries.map(
-                                                                  ([
-                                                                    iid,
-                                                                    idata,
-                                                                  ]) => {
-                                                                    const instMissing =
-                                                                      idata.missing_dates ??
-                                                                      [];
-                                                                    const instHasMissing =
-                                                                      instMissing.length >
-                                                                      0;
-                                                                    const instRowCore =
-                                                                      (
+                                                                {unitLabel}
+                                                              </span>
+                                                              {hasMissingInstruments && (
+                                                                <span
+                                                                  className="text-[8px] font-mono px-1 py-px rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)] shrink-0"
+                                                                  title={`Instruments with zero captured shards: ${missingInstruments.join(", ")}`}
+                                                                  data-testid="honest-dt-missing-instruments-badge"
+                                                                >
+                                                                  {missingInstruments.length}{" "}
+                                                                  {missingInstruments.length === 1
+                                                                    ? "instrument"
+                                                                    : "instruments"}{" "}
+                                                                  missing
+                                                                </span>
+                                                              )}
+                                                              <div className="flex-1" />
+                                                              <span
+                                                                className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0"
+                                                                title={
+                                                                  expectedInstruments.length > 0
+                                                                    ? `Denominator: ${expectedInstruments.length} instrument(s) × window`
+                                                                    : undefined
+                                                                }
+                                                              >
+                                                                {found}/{expected} {rawUnit}
+                                                              </span>
+                                                              <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                                <div
+                                                                  className="h-full"
+                                                                  style={{
+                                                                    width: `${pct}%`,
+                                                                    backgroundColor: getCompletionColor(pct),
+                                                                  }}
+                                                                />
+                                                              </div>
+                                                              <span
+                                                                className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                                style={{
+                                                                  color: getCompletionColor(pct),
+                                                                }}
+                                                              >
+                                                                {formatPct(pct)}%
+                                                              </span>
+                                                            </div>
+                                                          );
+                                                          if (!hasPhase8Detail) {
+                                                            return (
+                                                              <div
+                                                                key={dtName}
+                                                                data-testid="honest-dt-row"
+                                                                data-dt={dtName}
+                                                              >
+                                                                {dtRowCore}
+                                                              </div>
+                                                            );
+                                                          }
+                                                          return (
+                                                            <details
+                                                              key={dtName}
+                                                              className="group/dt"
+                                                              data-testid="honest-dt-row"
+                                                              data-dt={dtName}
+                                                            >
+                                                              <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                {dtRowCore}
+                                                              </summary>
+                                                              <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                {hasMissingInstruments && (
+                                                                  <div
+                                                                    className="flex flex-wrap items-center gap-1 py-0.5 px-1"
+                                                                    data-testid="honest-dt-missing-instruments-list"
+                                                                  >
+                                                                    <span className="text-[9px] text-[var(--color-accent-red)] shrink-0">
+                                                                      Missing ({missingInstruments.length}
+                                                                      ):
+                                                                    </span>
+                                                                    {missingInstruments.map((iid) => (
+                                                                      <span
+                                                                        key={iid}
+                                                                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border border-[var(--color-status-error-border-strong)]"
+                                                                        title={`Instrument '${iid}' has zero captured shards in window`}
+                                                                      >
+                                                                        {iid}
+                                                                      </span>
+                                                                    ))}
+                                                                  </div>
+                                                                )}
+                                                                {hasPerInstrument && (
+                                                                  <div
+                                                                    className="space-y-0.5"
+                                                                    data-testid="honest-dt-per-instrument-table"
+                                                                  >
+                                                                    {perInstrumentEntries.map(([iid, idata]) => {
+                                                                      const instMissing = idata.missing_dates ?? [];
+                                                                      const instHasMissing = instMissing.length > 0;
+                                                                      const instRowCore = (
                                                                         <div className="flex items-center gap-2 py-0.5 px-1.5">
                                                                           <span
                                                                             className="text-[9px] font-mono truncate min-w-0"
                                                                             style={{
-                                                                              color:
-                                                                                getCompletionColor(
-                                                                                  idata.completion_pct,
-                                                                                ),
+                                                                              color: getCompletionColor(
+                                                                                idata.completion_pct,
+                                                                              ),
                                                                             }}
-                                                                            title={
-                                                                              iid
-                                                                            }
+                                                                            title={iid}
                                                                           >
-                                                                            {
-                                                                              iid
-                                                                            }
+                                                                            {iid}
                                                                           </span>
                                                                           <div className="flex-1" />
                                                                           <span className="text-[8px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                                            {
-                                                                              idata.found_shards
-                                                                            }
-                                                                            /
-                                                                            {
-                                                                              idata.expected_shards
-                                                                            }
+                                                                            {idata.found_shards}/{idata.expected_shards}
                                                                           </span>
                                                                           <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
                                                                             <div
                                                                               className="h-full"
                                                                               style={{
                                                                                 width: `${idata.completion_pct}%`,
-                                                                                backgroundColor:
-                                                                                  getCompletionColor(
-                                                                                    idata.completion_pct,
-                                                                                  ),
+                                                                                backgroundColor: getCompletionColor(
+                                                                                  idata.completion_pct,
+                                                                                ),
                                                                               }}
                                                                             />
                                                                           </div>
                                                                           <span
                                                                             className="text-[8px] font-mono font-medium w-8 text-right shrink-0"
                                                                             style={{
-                                                                              color:
-                                                                                getCompletionColor(
-                                                                                  idata.completion_pct,
-                                                                                ),
+                                                                              color: getCompletionColor(
+                                                                                idata.completion_pct,
+                                                                              ),
                                                                             }}
                                                                           >
-                                                                            {formatPct(
-                                                                              idata.completion_pct,
-                                                                            )}
-                                                                            %
+                                                                            {formatPct(idata.completion_pct)}%
                                                                           </span>
                                                                         </div>
                                                                       );
-                                                                    if (
-                                                                      !instHasMissing
-                                                                    ) {
+                                                                      if (!instHasMissing) {
+                                                                        return (
+                                                                          <div
+                                                                            key={iid}
+                                                                            data-testid="honest-dt-per-instrument-row"
+                                                                            data-instrument={iid}
+                                                                          >
+                                                                            {instRowCore}
+                                                                          </div>
+                                                                        );
+                                                                      }
                                                                       return (
-                                                                        <div
-                                                                          key={
-                                                                            iid
-                                                                          }
+                                                                        <details
+                                                                          key={iid}
                                                                           data-testid="honest-dt-per-instrument-row"
-                                                                          data-instrument={
-                                                                            iid
-                                                                          }
+                                                                          data-instrument={iid}
                                                                         >
-                                                                          {
-                                                                            instRowCore
-                                                                          }
-                                                                        </div>
-                                                                      );
-                                                                    }
-                                                                    return (
-                                                                      <details
-                                                                        key={
-                                                                          iid
-                                                                        }
-                                                                        data-testid="honest-dt-per-instrument-row"
-                                                                        data-instrument={
-                                                                          iid
-                                                                        }
-                                                                      >
-                                                                        <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                                                                          {
-                                                                            instRowCore
-                                                                          }
-                                                                        </summary>
-                                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
-                                                                          <details>
-                                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                              {
-                                                                                instMissing.length
-                                                                              }{" "}
-                                                                              missing
-                                                                              dates
-                                                                            </summary>
-                                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                              <DateList
-                                                                                dates={
-                                                                                  instMissing
-                                                                                }
-                                                                                btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                                testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
-                                                                                onClickDate={(
-                                                                                  date,
-                                                                                ) =>
-                                                                                  openShardDetail(
-                                                                                    {
-                                                                                      service:
-                                                                                        serviceName,
-                                                                                      asset_group:
-                                                                                        catName,
-                                                                                      venue:
-                                                                                        name,
+                                                                          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                            {instRowCore}
+                                                                          </summary>
+                                                                          <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                            <details>
+                                                                              <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                                {instMissing.length} missing dates
+                                                                              </summary>
+                                                                              <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                                <DateList
+                                                                                  dates={instMissing}
+                                                                                  btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                                  testIdPrefix={`honest-inst-missing-${name}-${dtName}-${iid}`}
+                                                                                  onClickDate={(date) =>
+                                                                                    openShardDetail({
+                                                                                      service: serviceName,
+                                                                                      asset_group: catName,
+                                                                                      venue: name,
                                                                                       day: date,
-                                                                                      instrument_type:
-                                                                                        "AUTO",
-                                                                                      data_type:
-                                                                                        dtName,
-                                                                                      instrument_id:
-                                                                                        iid,
-                                                                                    },
-                                                                                  )
-                                                                                }
-                                                                              />
-                                                                            </div>
-                                                                          </details>
-                                                                          {idata.found_shards >
-                                                                            0 && (
-                                                                            <a
-                                                                              href={
-                                                                                buildShardDownloadUrl(
-                                                                                  {
-                                                                                    service:
-                                                                                      serviceName,
-                                                                                    asset_group:
-                                                                                      catName,
-                                                                                    venue:
-                                                                                      name,
+                                                                                      instrument_type: "AUTO",
+                                                                                      data_type: dtName,
+                                                                                      instrument_id: iid,
+                                                                                    })
+                                                                                  }
+                                                                                />
+                                                                              </div>
+                                                                            </details>
+                                                                            {idata.found_shards > 0 && (
+                                                                              <a
+                                                                                href={
+                                                                                  buildShardDownloadUrl({
+                                                                                    service: serviceName,
+                                                                                    asset_group: catName,
+                                                                                    venue: name,
                                                                                     date: "ALL",
-                                                                                    data_type:
-                                                                                      dtName,
-                                                                                    instrument_type:
-                                                                                      "AUTO",
-                                                                                  },
-                                                                                ) +
-                                                                                `&instrument_ids=${encodeURIComponent(iid)}`
-                                                                              }
-                                                                              className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
-                                                                              title={`Download ${dtName} CSV for ${iid} across the full window`}
-                                                                              download
-                                                                              data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
-                                                                            >
-                                                                              <Download className="h-3 w-3" />
-                                                                              <span className="font-mono">
-                                                                                {
-                                                                                  iid
-                                                                                }{" "}
-                                                                                all-window
-                                                                                CSV
-                                                                              </span>
-                                                                            </a>
-                                                                          )}
-                                                                        </div>
-                                                                      </details>
-                                                                    );
-                                                                  },
+                                                                                    data_type: dtName,
+                                                                                    instrument_type: "AUTO",
+                                                                                  }) +
+                                                                                  `&instrument_ids=${encodeURIComponent(iid)}`
+                                                                                }
+                                                                                className="inline-flex items-center gap-1 mt-0.5 text-[8px] px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)]"
+                                                                                title={`Download ${dtName} CSV for ${iid} across the full window`}
+                                                                                download
+                                                                                data-testid={`honest-inst-download-${name}-${dtName}-${iid}`}
+                                                                              >
+                                                                                <Download className="h-3 w-3" />
+                                                                                <span className="font-mono">
+                                                                                  {iid} all-window CSV
+                                                                                </span>
+                                                                              </a>
+                                                                            )}
+                                                                          </div>
+                                                                        </details>
+                                                                      );
+                                                                    })}
+                                                                  </div>
                                                                 )}
                                                               </div>
-                                                            )}
-                                                          </div>
-                                                        </details>
-                                                      );
-                                                    },
-                                                  )}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
+                                                            </details>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
 
-                                          {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
-                                          {hasInstrumentTypes && (
-                                            <div className="space-y-0.5 pt-1">
-                                              <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                Instrument Types
-                                              </span>
-                                              {Object.entries(
-                                                subData.instrument_types!,
-                                              ).map(([itName, itData]) => {
-                                                const it = itData as {
-                                                  dates_found: number;
-                                                  dates_expected: number;
-                                                  completion_pct: number;
-                                                  data_types?: Record<
-                                                    string,
-                                                    {
-                                                      dates_found: number;
-                                                      dates_expected: number;
-                                                      completion_pct: number;
-                                                    }
-                                                  >;
-                                                  underlyings?: Record<
-                                                    string,
-                                                    {
-                                                      dates_found: number;
-                                                      dates_expected: number;
-                                                      completion_pct: number;
-                                                      data_types?: Record<
-                                                        string,
-                                                        {
+                                                {/* Instrument type breakdown (CEFI / TRADFI — v4) */}
+                                                {hasInstrumentTypes && (
+                                                  <div className="space-y-0.5 pt-1">
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                      Instrument Types
+                                                    </span>
+                                                    {Object.entries(subData.instrument_types!).map(
+                                                      ([itName, itData]) => {
+                                                        const it = itData as {
                                                           dates_found: number;
                                                           dates_expected: number;
                                                           completion_pct: number;
-                                                        }
-                                                      >;
-                                                    }
-                                                  >;
-                                                };
-                                                return (
-                                                  <details
-                                                    key={itName}
-                                                    className="group/itype"
-                                                  >
-                                                    <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                      <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
-                                                      <span className="text-[10px] font-mono truncate">
-                                                        {itName}
-                                                      </span>
-                                                      <div className="flex-1" />
-                                                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                        {it.dates_found}/
-                                                        {it.dates_expected}
-                                                      </span>
-                                                      <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                        <div
-                                                          className="h-full"
-                                                          style={{
-                                                            width: `${it.completion_pct}%`,
-                                                            backgroundColor:
-                                                              getCompletionColor(
-                                                                it.completion_pct,
-                                                              ),
-                                                          }}
-                                                        />
-                                                      </div>
-                                                      <span
-                                                        className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                        style={{
-                                                          color:
-                                                            getCompletionColor(
-                                                              it.completion_pct,
-                                                            ),
-                                                        }}
-                                                      >
-                                                        {formatPct(
-                                                          it.completion_pct,
-                                                        )}
-                                                        %
-                                                      </span>
-                                                    </summary>
-                                                    {/* Per-underlying breakdown (options_chain / futures_chain) */}
-                                                    {it.underlyings &&
-                                                      Object.keys(
-                                                        it.underlyings,
-                                                      ).length > 0 && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                          <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                            Underlyings
-                                                          </span>
-                                                          {Object.entries(
-                                                            it.underlyings,
-                                                          ).map(
-                                                            ([
-                                                              ulName,
-                                                              ulData,
-                                                            ]) => (
-                                                              <details
-                                                                key={ulName}
-                                                                className="group/ul"
-                                                              >
-                                                                <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                                  <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
-                                                                  <span className="text-[10px] font-mono truncate">
-                                                                    {ulName}
-                                                                  </span>
-                                                                  <div className="flex-1" />
-                                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                                    {
-                                                                      ulData.dates_found
-                                                                    }
-                                                                    /
-                                                                    {
-                                                                      ulData.dates_expected
-                                                                    }
-                                                                  </span>
-                                                                  <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
-                                                                    <div
-                                                                      className="h-full"
-                                                                      style={{
-                                                                        width: `${ulData.completion_pct}%`,
-                                                                        backgroundColor:
-                                                                          getCompletionColor(
-                                                                            ulData.completion_pct,
-                                                                          ),
-                                                                      }}
-                                                                    />
-                                                                  </div>
-                                                                  <span
-                                                                    className="text-[9px] font-mono w-8 text-right shrink-0"
-                                                                    style={{
-                                                                      color:
-                                                                        getCompletionColor(
-                                                                          ulData.completion_pct,
-                                                                        ),
-                                                                    }}
-                                                                  >
-                                                                    {formatPct(
-                                                                      ulData.completion_pct,
-                                                                    )}
-                                                                    %
-                                                                  </span>
-                                                                </summary>
-                                                                {ulData.data_types &&
-                                                                  Object.keys(
-                                                                    ulData.data_types,
-                                                                  ).length >
-                                                                    0 && (
-                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                                      {Object.entries(
-                                                                        ulData.data_types,
-                                                                      ).map(
-                                                                        ([
-                                                                          dtName,
-                                                                          dtData,
-                                                                        ]) => (
-                                                                          <div
-                                                                            key={
-                                                                              dtName
-                                                                            }
-                                                                            className="flex items-center gap-2 py-0.5 px-1.5"
-                                                                          >
-                                                                            <span
-                                                                              className="text-[9px] font-mono text-[var(--color-text-secondary)]"
-                                                                              style={{
-                                                                                color:
-                                                                                  getCompletionColor(
-                                                                                    dtData.completion_pct,
-                                                                                  ),
-                                                                              }}
-                                                                            >
-                                                                              {
-                                                                                dtName
-                                                                              }
-                                                                            </span>
-                                                                            <div className="flex-1" />
-                                                                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
-                                                                              {
-                                                                                dtData.dates_found
-                                                                              }
-                                                                              /
-                                                                              {
-                                                                                dtData.dates_expected
-                                                                              }
-                                                                            </span>
-                                                                            <span
-                                                                              className="text-[8px] font-mono w-7 text-right"
-                                                                              style={{
-                                                                                color:
-                                                                                  getCompletionColor(
-                                                                                    dtData.completion_pct,
-                                                                                  ),
-                                                                              }}
-                                                                            >
-                                                                              {formatPct(
-                                                                                dtData.completion_pct,
-                                                                              )}
-                                                                              %
-                                                                            </span>
-                                                                          </div>
-                                                                        ),
-                                                                      )}
-                                                                    </div>
-                                                                  )}
-                                                              </details>
-                                                            ),
-                                                          )}
-                                                        </div>
-                                                      )}
-                                                    {/* Direct data_types (when no underlyings) */}
-                                                    {it.data_types &&
-                                                      Object.keys(it.data_types)
-                                                        .length > 0 &&
-                                                      !(
-                                                        it.underlyings &&
-                                                        Object.keys(
-                                                          it.underlyings,
-                                                        ).length > 0
-                                                      ) && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                          {Object.entries(
-                                                            it.data_types,
-                                                          ).map(
-                                                            ([
-                                                              dtName,
-                                                              dtData,
-                                                            ]) => (
-                                                              <div
-                                                                key={dtName}
-                                                                className="flex items-center gap-2 py-0.5 px-1.5"
-                                                              >
-                                                                <span
-                                                                  className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                          data_types?: Record<
+                                                            string,
+                                                            {
+                                                              dates_found: number;
+                                                              dates_expected: number;
+                                                              completion_pct: number;
+                                                            }
+                                                          >;
+                                                          underlyings?: Record<
+                                                            string,
+                                                            {
+                                                              dates_found: number;
+                                                              dates_expected: number;
+                                                              completion_pct: number;
+                                                              data_types?: Record<
+                                                                string,
+                                                                {
+                                                                  dates_found: number;
+                                                                  dates_expected: number;
+                                                                  completion_pct: number;
+                                                                }
+                                                              >;
+                                                            }
+                                                          >;
+                                                        };
+                                                        return (
+                                                          <details key={itName} className="group/itype">
+                                                            <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                              <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/itype:rotate-90" />
+                                                              <span className="text-[10px] font-mono truncate">
+                                                                {itName}
+                                                              </span>
+                                                              <div className="flex-1" />
+                                                              <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                {it.dates_found}/{it.dates_expected}
+                                                              </span>
+                                                              <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                                <div
+                                                                  className="h-full"
                                                                   style={{
-                                                                    color:
-                                                                      getCompletionColor(
-                                                                        dtData.completion_pct,
-                                                                      ),
+                                                                    width: `${it.completion_pct}%`,
+                                                                    backgroundColor: getCompletionColor(
+                                                                      it.completion_pct,
+                                                                    ),
                                                                   }}
-                                                                >
-                                                                  {dtName}
-                                                                </span>
-                                                                <div className="flex-1" />
-                                                                <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
-                                                                  {
-                                                                    dtData.dates_found
-                                                                  }
-                                                                  /
-                                                                  {
-                                                                    dtData.dates_expected
-                                                                  }
-                                                                </span>
-                                                                <span
-                                                                  className="text-[8px] font-mono w-7 text-right"
-                                                                  style={{
-                                                                    color:
-                                                                      getCompletionColor(
-                                                                        dtData.completion_pct,
-                                                                      ),
-                                                                  }}
-                                                                >
-                                                                  {formatPct(
-                                                                    dtData.completion_pct,
-                                                                  )}
-                                                                  %
-                                                                </span>
+                                                                />
                                                               </div>
-                                                            ),
-                                                          )}
-                                                        </div>
-                                                      )}
-                                                  </details>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-
-                                          {/* Data types / Markets breakdown — expandable with date lists */}
-                                          {hasDataTypes &&
-                                            !hasInstrumentTypes && (
-                                              <div className="space-y-0.5 pt-1">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                  {catName === "PREDICTION"
-                                                    ? "Markets"
-                                                    : "Data Types"}
-                                                </span>
-                                                {Object.entries(
-                                                  subData.data_types!,
-                                                ).map(([dtName, dtData]) => {
-                                                  const dtFoundList: string[] =
-                                                    ((
-                                                      dtData as unknown as Record<
-                                                        string,
-                                                        unknown
-                                                      >
-                                                    )
-                                                      .dates_found_list as string[]) ??
-                                                    [];
-                                                  const dtMissingList: string[] =
-                                                    ((
-                                                      dtData as unknown as Record<
-                                                        string,
-                                                        unknown
-                                                      >
-                                                    )
-                                                      .missing_dates as string[]) ??
-                                                    [];
-                                                  const hasDates =
-                                                    dtFoundList.length > 0 ||
-                                                    dtMissingList.length > 0;
-                                                  return (
-                                                    <details
-                                                      key={dtName}
-                                                      className="group/dt"
-                                                    >
-                                                      <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                        <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
-                                                        <span
-                                                          className="text-[10px] font-mono truncate min-w-0"
-                                                          style={{
-                                                            color:
-                                                              getCompletionColor(
-                                                                dtData.completion_pct,
-                                                              ),
-                                                          }}
-                                                        >
-                                                          {dtName}
-                                                        </span>
-                                                        <div className="flex-1" />
-                                                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                          {dtData.dates_found}/
-                                                          {
-                                                            dtData.dates_expected
-                                                          }
-                                                        </span>
-                                                        <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                          <div
-                                                            className="h-full"
-                                                            style={{
-                                                              width: `${dtData.completion_pct}%`,
-                                                              backgroundColor:
-                                                                getCompletionColor(
-                                                                  dtData.completion_pct,
-                                                                ),
-                                                            }}
-                                                          />
-                                                        </div>
-                                                        <span
-                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                          style={{
-                                                            color:
-                                                              getCompletionColor(
-                                                                dtData.completion_pct,
-                                                              ),
-                                                          }}
-                                                        >
-                                                          {formatPct(
-                                                            dtData.completion_pct,
-                                                          )}
-                                                          %
-                                                        </span>
-                                                        <button
-                                                          type="button"
-                                                          className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                          title={`View schema for ${name} / ${dtName}`}
-                                                          onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setSchemaModal({
-                                                              service:
-                                                                serviceName,
-                                                              asset_group:
-                                                                catName,
-                                                              venue: name,
-                                                              instrument_type:
-                                                                "",
-                                                              data_type: dtName,
-                                                            });
-                                                          }}
-                                                        >
-                                                          schema
-                                                        </button>
-                                                      </summary>
-                                                      {hasDates && (
-                                                        <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
-                                                          <div className="flex gap-3">
-                                                            {dtFoundList.length >
-                                                              0 && (
-                                                              <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                  {
-                                                                    dtData.dates_found
-                                                                  }{" "}
-                                                                  available —
-                                                                  click a day to
-                                                                  drill down
-                                                                </summary>
-                                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                  <DateList
-                                                                    dates={
-                                                                      dtFoundList
-                                                                    }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                    testIdPrefix={`cefi-date-found-${name}-${dtName}`}
-                                                                    onClickDate={(
-                                                                      date,
-                                                                    ) => {
-                                                                      const itGuess =
-                                                                        name.toUpperCase() ===
-                                                                        "POLYMARKET"
-                                                                          ? "OTHER"
-                                                                          : "AUTO";
-                                                                      openShardDetail(
-                                                                        {
-                                                                          service:
-                                                                            serviceName,
-                                                                          asset_group:
-                                                                            catName,
-                                                                          venue:
-                                                                            name,
-                                                                          day: date,
-                                                                          instrument_type:
-                                                                            itGuess,
-                                                                          data_type:
-                                                                            dtName,
-                                                                        },
-                                                                      );
-                                                                    }}
-                                                                    downloadUrl={(
-                                                                      date,
-                                                                    ) =>
-                                                                      buildShardDownloadUrl(
-                                                                        {
-                                                                          service:
-                                                                            serviceName,
-                                                                          asset_group:
-                                                                            catName,
-                                                                          venue:
-                                                                            name,
-                                                                          date,
-                                                                          data_type:
-                                                                            dtName,
-                                                                        },
-                                                                      )
-                                                                    }
-                                                                    downloadTitle={(
-                                                                      date,
-                                                                    ) =>
-                                                                      `Download ${dtName} CSV for ${name} on ${date}`
-                                                                    }
-                                                                  />
+                                                              <span
+                                                                className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                                style={{
+                                                                  color: getCompletionColor(it.completion_pct),
+                                                                }}
+                                                              >
+                                                                {formatPct(it.completion_pct)}%
+                                                              </span>
+                                                            </summary>
+                                                            {/* Per-underlying breakdown (options_chain / futures_chain) */}
+                                                            {it.underlyings &&
+                                                              Object.keys(it.underlyings).length > 0 && (
+                                                                <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                  <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                                    Underlyings
+                                                                  </span>
+                                                                  {Object.entries(it.underlyings).map(
+                                                                    ([ulName, ulData]) => (
+                                                                      <details key={ulName} className="group/ul">
+                                                                        <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                          <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
+                                                                          <span className="text-[10px] font-mono truncate">
+                                                                            {ulName}
+                                                                          </span>
+                                                                          <div className="flex-1" />
+                                                                          <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                            {ulData.dates_found}/{ulData.dates_expected}
+                                                                          </span>
+                                                                          <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                            <div
+                                                                              className="h-full"
+                                                                              style={{
+                                                                                width: `${ulData.completion_pct}%`,
+                                                                                backgroundColor: getCompletionColor(
+                                                                                  ulData.completion_pct,
+                                                                                ),
+                                                                              }}
+                                                                            />
+                                                                          </div>
+                                                                          <span
+                                                                            className="text-[9px] font-mono w-8 text-right shrink-0"
+                                                                            style={{
+                                                                              color: getCompletionColor(
+                                                                                ulData.completion_pct,
+                                                                              ),
+                                                                            }}
+                                                                          >
+                                                                            {formatPct(ulData.completion_pct)}%
+                                                                          </span>
+                                                                        </summary>
+                                                                        {ulData.data_types &&
+                                                                          Object.keys(ulData.data_types).length > 0 && (
+                                                                            <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                              {Object.entries(ulData.data_types).map(
+                                                                                ([dtName, dtData]) => (
+                                                                                  <div
+                                                                                    key={dtName}
+                                                                                    className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                                  >
+                                                                                    <span
+                                                                                      className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                                      style={{
+                                                                                        color: getCompletionColor(
+                                                                                          dtData.completion_pct,
+                                                                                        ),
+                                                                                      }}
+                                                                                    >
+                                                                                      {dtName}
+                                                                                    </span>
+                                                                                    <div className="flex-1" />
+                                                                                    <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                                      {dtData.dates_found}/
+                                                                                      {dtData.dates_expected}
+                                                                                    </span>
+                                                                                    <span
+                                                                                      className="text-[8px] font-mono w-7 text-right"
+                                                                                      style={{
+                                                                                        color: getCompletionColor(
+                                                                                          dtData.completion_pct,
+                                                                                        ),
+                                                                                      }}
+                                                                                    >
+                                                                                      {formatPct(dtData.completion_pct)}
+                                                                                      %
+                                                                                    </span>
+                                                                                  </div>
+                                                                                ),
+                                                                              )}
+                                                                            </div>
+                                                                          )}
+                                                                      </details>
+                                                                    ),
+                                                                  )}
                                                                 </div>
-                                                              </details>
-                                                            )}
-                                                            {dtMissingList.length >
-                                                              0 && (
-                                                              <details>
-                                                                <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                  {
-                                                                    dtMissingList.length
-                                                                  }{" "}
-                                                                  missing
-                                                                </summary>
-                                                                <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                  <DateList
-                                                                    dates={
-                                                                      dtMissingList
-                                                                    }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                    testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
-                                                                    onClickDate={(
-                                                                      date,
-                                                                    ) => {
-                                                                      const itGuess =
-                                                                        name.toUpperCase() ===
-                                                                        "POLYMARKET"
-                                                                          ? "OTHER"
-                                                                          : "AUTO";
-                                                                      openShardDetail(
-                                                                        {
-                                                                          service:
-                                                                            serviceName,
-                                                                          asset_group:
-                                                                            catName,
-                                                                          venue:
-                                                                            name,
-                                                                          day: date,
-                                                                          instrument_type:
-                                                                            itGuess,
-                                                                          data_type:
-                                                                            dtName,
-                                                                        },
-                                                                      );
-                                                                    }}
-                                                                  />
+                                                              )}
+                                                            {/* Direct data_types (when no underlyings) */}
+                                                            {it.data_types &&
+                                                              Object.keys(it.data_types).length > 0 &&
+                                                              !(
+                                                                it.underlyings && Object.keys(it.underlyings).length > 0
+                                                              ) && (
+                                                                <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                  {Object.entries(it.data_types).map(
+                                                                    ([dtName, dtData]) => (
+                                                                      <div
+                                                                        key={dtName}
+                                                                        className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                      >
+                                                                        <span
+                                                                          className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                          style={{
+                                                                            color: getCompletionColor(
+                                                                              dtData.completion_pct,
+                                                                            ),
+                                                                          }}
+                                                                        >
+                                                                          {dtName}
+                                                                        </span>
+                                                                        <div className="flex-1" />
+                                                                        <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                          {dtData.dates_found}/{dtData.dates_expected}
+                                                                        </span>
+                                                                        <span
+                                                                          className="text-[8px] font-mono w-7 text-right"
+                                                                          style={{
+                                                                            color: getCompletionColor(
+                                                                              dtData.completion_pct,
+                                                                            ),
+                                                                          }}
+                                                                        >
+                                                                          {formatPct(dtData.completion_pct)}%
+                                                                        </span>
+                                                                      </div>
+                                                                    ),
+                                                                  )}
                                                                 </div>
-                                                              </details>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      )}
-                                                    </details>
-                                                  );
-                                                })}
-                                              </div>
-                                            )}
+                                                              )}
+                                                          </details>
+                                                        );
+                                                      },
+                                                    )}
+                                                  </div>
+                                                )}
 
-                                          {/* Prediction v9 — per-market cluster drilldown.
+                                                {/* Data types / Markets breakdown — expandable with date lists */}
+                                                {hasDataTypes && !hasInstrumentTypes && (
+                                                  <div className="space-y-0.5 pt-1">
+                                                    <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                      {catName === "PREDICTION" ? "Markets" : "Data Types"}
+                                                    </span>
+                                                    {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
+                                                      const dtFoundList: string[] =
+                                                        ((dtData as unknown as Record<string, unknown>)
+                                                          .dates_found_list as string[]) ?? [];
+                                                      const dtMissingList: string[] =
+                                                        ((dtData as unknown as Record<string, unknown>)
+                                                          .missing_dates as string[]) ?? [];
+                                                      const hasDates =
+                                                        dtFoundList.length > 0 || dtMissingList.length > 0;
+                                                      return (
+                                                        <details key={dtName} className="group/dt">
+                                                          <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                            <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
+                                                            <span
+                                                              className="text-[10px] font-mono truncate min-w-0"
+                                                              style={{
+                                                                color: getCompletionColor(dtData.completion_pct),
+                                                              }}
+                                                            >
+                                                              {dtName}
+                                                            </span>
+                                                            <div className="flex-1" />
+                                                            <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                              {dtData.dates_found}/{dtData.dates_expected}
+                                                            </span>
+                                                            <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                              <div
+                                                                className="h-full"
+                                                                style={{
+                                                                  width: `${dtData.completion_pct}%`,
+                                                                  backgroundColor: getCompletionColor(
+                                                                    dtData.completion_pct,
+                                                                  ),
+                                                                }}
+                                                              />
+                                                            </div>
+                                                            <span
+                                                              className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                              style={{
+                                                                color: getCompletionColor(dtData.completion_pct),
+                                                              }}
+                                                            >
+                                                              {formatPct(dtData.completion_pct)}%
+                                                            </span>
+                                                            <button
+                                                              type="button"
+                                                              className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                              title={`View schema for ${name} / ${dtName}`}
+                                                              onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setSchemaModal({
+                                                                  service: serviceName,
+                                                                  asset_group: catName,
+                                                                  venue: name,
+                                                                  instrument_type: "",
+                                                                  data_type: dtName,
+                                                                });
+                                                              }}
+                                                            >
+                                                              schema
+                                                            </button>
+                                                          </summary>
+                                                          {hasDates && (
+                                                            <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                              <div className="flex gap-3">
+                                                                {dtFoundList.length > 0 && (
+                                                                  <details>
+                                                                    <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                      {dtData.dates_found} available — click a day to
+                                                                      drill down
+                                                                    </summary>
+                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                      <DateList
+                                                                        dates={dtFoundList}
+                                                                        btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                        testIdPrefix={`cefi-date-found-${name}-${dtName}`}
+                                                                        onClickDate={(date) => {
+                                                                          const itGuess =
+                                                                            name.toUpperCase() === "POLYMARKET"
+                                                                              ? "OTHER"
+                                                                              : "AUTO";
+                                                                          openShardDetail({
+                                                                            service: serviceName,
+                                                                            asset_group: catName,
+                                                                            venue: name,
+                                                                            day: date,
+                                                                            instrument_type: itGuess,
+                                                                            data_type: dtName,
+                                                                          });
+                                                                        }}
+                                                                        downloadUrl={(date) =>
+                                                                          buildShardDownloadUrl({
+                                                                            service: serviceName,
+                                                                            asset_group: catName,
+                                                                            venue: name,
+                                                                            date,
+                                                                            data_type: dtName,
+                                                                          })
+                                                                        }
+                                                                        downloadTitle={(date) =>
+                                                                          `Download ${dtName} CSV for ${name} on ${date}`
+                                                                        }
+                                                                      />
+                                                                    </div>
+                                                                  </details>
+                                                                )}
+                                                                {dtMissingList.length > 0 && (
+                                                                  <details>
+                                                                    <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                      {dtMissingList.length} missing
+                                                                    </summary>
+                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                      <DateList
+                                                                        dates={dtMissingList}
+                                                                        btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                        testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
+                                                                        onClickDate={(date) => {
+                                                                          const itGuess =
+                                                                            name.toUpperCase() === "POLYMARKET"
+                                                                              ? "OTHER"
+                                                                              : "AUTO";
+                                                                          openShardDetail({
+                                                                            service: serviceName,
+                                                                            asset_group: catName,
+                                                                            venue: name,
+                                                                            day: date,
+                                                                            instrument_type: itGuess,
+                                                                            data_type: dtName,
+                                                                          });
+                                                                        }}
+                                                                      />
+                                                                    </div>
+                                                                  </details>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                        </details>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                )}
+
+                                                {/* Prediction v9 — per-market cluster drilldown.
                                             Shown for PREDICTION asset groups using the
                                             canonical_question_group breakdown_axis (post-v9
                                             bundled-atom). Each cqg group row carries
@@ -6128,740 +5039,570 @@ function DataStatusTabInternal({
                                             call, and `source` = the data-source API
                                             (polymarket_clob / polymarket_gamma_api / kalshi_*).
                                             This replaces the old flat `venues` table for PREDICTION. */}
-                                          {isPredictionCqgAxis(catData) &&
-                                            subData.observed_clusters &&
-                                            Object.keys(
-                                              subData.observed_clusters,
-                                            ).length > 0 && (
-                                              <div
-                                                className="space-y-0.5 pt-1"
-                                                data-testid="prediction-cqg-clusters"
-                                              >
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                    Markets (conditionId clusters)
-                                                  </span>
-                                                  {subData.source && (
-                                                    <span
-                                                      className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]"
-                                                      title={`Data source API: ${subData.source}`}
-                                                      data-testid="prediction-cqg-source-badge"
+                                                {isPredictionCqgAxis(catData) &&
+                                                  subData.observed_clusters &&
+                                                  Object.keys(subData.observed_clusters).length > 0 && (
+                                                    <div
+                                                      className="space-y-0.5 pt-1"
+                                                      data-testid="prediction-cqg-clusters"
                                                     >
-                                                      {subData.source}
-                                                    </span>
-                                                  )}
-                                                  <span className="text-[8px] text-[var(--color-text-muted)] ml-auto font-mono">
-                                                    {
-                                                      Object.keys(
-                                                        subData.observed_clusters,
-                                                      ).length
-                                                    }{" "}
-                                                    markets
-                                                  </span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                                                  {Object.entries(
-                                                    subData.observed_clusters,
-                                                  )
-                                                    .sort(([, a], [, b]) => b - a)
-                                                    .map(
-                                                      ([
-                                                        conditionId,
-                                                        rowCount,
-                                                      ]) => (
-                                                        <span
-                                                          key={conditionId}
-                                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] font-mono"
-                                                          title={`conditionId: ${conditionId} — ${rowCount.toLocaleString()} rows`}
-                                                          data-testid={`prediction-cluster-${conditionId}`}
-                                                        >
-                                                          {conditionId.length >
-                                                          12
-                                                            ? `${conditionId.slice(0, 6)}…${conditionId.slice(-4)}`
-                                                            : conditionId}
-                                                          <strong>
-                                                            {rowCount.toLocaleString()}
-                                                          </strong>
+                                                      <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                          Markets (conditionId clusters)
                                                         </span>
-                                                      ),
-                                                    )}
-                                                </div>
-                                              </div>
-                                            )}
-
-                                          {/* Leagues breakdown (SPORTS / PREDICTION) */}
-                                          {hasLeagues && (
-                                            <div className="space-y-0.5 pt-1">
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                  {catName === "PREDICTION"
-                                                    ? "Markets"
-                                                    : "Leagues"}
-                                                </span>
-                                                {catName === "SPORTS" &&
-                                                  name === "FIXTURES" && (
-                                                    <button
-                                                      type="button"
-                                                      className="text-[9px] text-[var(--color-accent-cyan)] hover:underline"
-                                                      title="View the FIXTURES parquet schema from unified-api-contracts — date-independent"
-                                                      onClick={() =>
-                                                        setSchemaModal({
-                                                          service:
-                                                            "instruments-service",
-                                                          asset_group: "SPORTS",
-                                                          venue: "",
-                                                          instrument_type: "",
-                                                          data_type: "FIXTURES",
-                                                        })
-                                                      }
-                                                    >
-                                                      View schema
-                                                    </button>
-                                                  )}
-                                              </div>
-                                              {Object.entries(
-                                                subData.leagues!,
-                                              ).map(
-                                                ([leagueName, leagueData]) => {
-                                                  const ld =
-                                                    leagueData as TurboLeagueStatus;
-                                                  // v5 honest-coverage fields are canonical; legacy `dates_*` kept as fallback.
-                                                  const foundCount =
-                                                    ld.found_shards ??
-                                                    ld.dates_found;
-                                                  const expectedCount =
-                                                    ld.expected_shards ??
-                                                    ld.dates_expected;
-                                                  const missingCount =
-                                                    ld.missing_count ??
-                                                    ld.missing_shards ??
-                                                    ld.dates_missing ??
-                                                    ld.missing_dates?.length;
-                                                  const foundDatesList =
-                                                    ld.found_dates_list ??
-                                                    ld.dates_found_list ??
-                                                    [];
-                                                  const missingDatesList =
-                                                    ld.missing_dates ?? [];
-                                                  const missingIsSample =
-                                                    missingCount !==
-                                                      undefined &&
-                                                    missingDatesList.length >
-                                                      0 &&
-                                                    missingDatesList.length <
-                                                      missingCount;
-                                                  const unitLabel =
-                                                    formatUnitLabel(ld.unit);
-                                                  const countDisplay =
-                                                    foundCount === undefined ||
-                                                    expectedCount === undefined
-                                                      ? "—"
-                                                      : `${foundCount}/${expectedCount} ${unitLabel}`;
-                                                  if (ld.not_applicable) {
-                                                    return (
-                                                      <div
-                                                        key={leagueName}
-                                                        className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50"
-                                                      >
-                                                        <span className="h-2.5 w-2.5 shrink-0" />
-                                                        <span
-                                                          className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]"
-                                                          title={leagueName}
-                                                        >
-                                                          {leagueName}
-                                                        </span>
-                                                        <div className="flex-1" />
-                                                        <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">
-                                                          N/A
+                                                        {subData.source && (
+                                                          <span
+                                                            className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]"
+                                                            title={`Data source API: ${subData.source}`}
+                                                            data-testid="prediction-cqg-source-badge"
+                                                          >
+                                                            {subData.source}
+                                                          </span>
+                                                        )}
+                                                        <span className="text-[8px] text-[var(--color-text-muted)] ml-auto font-mono">
+                                                          {Object.keys(subData.observed_clusters).length} markets
                                                         </span>
                                                       </div>
-                                                    );
-                                                  }
-                                                  return (
-                                                    <details
-                                                      key={leagueName}
-                                                      className="group/league"
-                                                    >
-                                                      <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                        <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
-                                                        <span
-                                                          className="text-[10px] font-mono truncate min-w-0"
-                                                          title={leagueName}
+                                                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                                                        {Object.entries(subData.observed_clusters)
+                                                          .sort(([, a], [, b]) => b - a)
+                                                          .map(([conditionId, rowCount]) => (
+                                                            <span
+                                                              key={conditionId}
+                                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] font-mono"
+                                                              title={`conditionId: ${conditionId} — ${rowCount.toLocaleString()} rows`}
+                                                              data-testid={`prediction-cluster-${conditionId}`}
+                                                            >
+                                                              {conditionId.length > 12
+                                                                ? `${conditionId.slice(0, 6)}…${conditionId.slice(-4)}`
+                                                                : conditionId}
+                                                              <strong>{rowCount.toLocaleString()}</strong>
+                                                            </span>
+                                                          ))}
+                                                      </div>
+                                                    </div>
+                                                  )}
+
+                                                {/* Leagues breakdown (SPORTS / PREDICTION) */}
+                                                {hasLeagues && (
+                                                  <div className="space-y-0.5 pt-1">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                        {catName === "PREDICTION" ? "Markets" : "Leagues"}
+                                                      </span>
+                                                      {catName === "SPORTS" && name === "FIXTURES" && (
+                                                        <button
+                                                          type="button"
+                                                          className="text-[9px] text-[var(--color-accent-cyan)] hover:underline"
+                                                          title="View the FIXTURES parquet schema from unified-api-contracts — date-independent"
+                                                          onClick={() =>
+                                                            setSchemaModal({
+                                                              service: "instruments-service",
+                                                              asset_group: "SPORTS",
+                                                              venue: "",
+                                                              instrument_type: "",
+                                                              data_type: "FIXTURES",
+                                                            })
+                                                          }
                                                         >
-                                                          {leagueName}
-                                                        </span>
-                                                        <div className="flex-1" />
-                                                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                          {countDisplay}
-                                                        </span>
-                                                        <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                          <div
-                                                            className="h-full"
-                                                            style={{
-                                                              width: `${ld.completion_pct}%`,
-                                                              backgroundColor:
-                                                                getCompletionColor(
-                                                                  ld.completion_pct,
-                                                                ),
-                                                            }}
+                                                          View schema
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                    {Object.entries(subData.leagues!).map(
+                                                      ([leagueName, leagueData]) => {
+                                                        const ld = leagueData as TurboLeagueStatus;
+                                                        // v5 honest-coverage fields are canonical; legacy `dates_*` kept as fallback.
+                                                        const foundCount = ld.found_shards ?? ld.dates_found;
+                                                        const expectedCount = ld.expected_shards ?? ld.dates_expected;
+                                                        const missingCount =
+                                                          ld.missing_count ??
+                                                          ld.missing_shards ??
+                                                          ld.dates_missing ??
+                                                          ld.missing_dates?.length;
+                                                        const foundDatesList =
+                                                          ld.found_dates_list ?? ld.dates_found_list ?? [];
+                                                        const missingDatesList = ld.missing_dates ?? [];
+                                                        const missingIsSample =
+                                                          missingCount !== undefined &&
+                                                          missingDatesList.length > 0 &&
+                                                          missingDatesList.length < missingCount;
+                                                        const unitLabel = formatUnitLabel(ld.unit);
+                                                        const countDisplay =
+                                                          foundCount === undefined || expectedCount === undefined
+                                                            ? "—"
+                                                            : `${foundCount}/${expectedCount} ${unitLabel}`;
+                                                        if (ld.not_applicable) {
+                                                          return (
+                                                            <div
+                                                              key={leagueName}
+                                                              className="flex items-center gap-2 py-0.5 px-1.5 rounded opacity-50"
+                                                            >
+                                                              <span className="h-2.5 w-2.5 shrink-0" />
+                                                              <span
+                                                                className="text-[10px] font-mono truncate min-w-0 text-[var(--color-text-muted)]"
+                                                                title={leagueName}
+                                                              >
+                                                                {leagueName}
+                                                              </span>
+                                                              <div className="flex-1" />
+                                                              <span className="text-[9px] font-mono text-[var(--color-text-muted)] shrink-0 italic">
+                                                                N/A
+                                                              </span>
+                                                            </div>
+                                                          );
+                                                        }
+                                                        return (
+                                                          <details key={leagueName} className="group/league">
+                                                            <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                              <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/league:rotate-90" />
+                                                              <span
+                                                                className="text-[10px] font-mono truncate min-w-0"
+                                                                title={leagueName}
+                                                              >
+                                                                {leagueName}
+                                                              </span>
+                                                              <div className="flex-1" />
+                                                              <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                {countDisplay}
+                                                              </span>
+                                                              <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                                <div
+                                                                  className="h-full"
+                                                                  style={{
+                                                                    width: `${ld.completion_pct}%`,
+                                                                    backgroundColor: getCompletionColor(
+                                                                      ld.completion_pct,
+                                                                    ),
+                                                                  }}
+                                                                />
+                                                              </div>
+                                                              <span
+                                                                className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                                style={{
+                                                                  color: getCompletionColor(ld.completion_pct),
+                                                                }}
+                                                              >
+                                                                {formatPct(ld.completion_pct)}%
+                                                              </span>
+                                                            </summary>
+                                                            {/* League date details */}
+                                                            <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                              <div className="flex gap-3">
+                                                                {foundDatesList.length > 0 && (
+                                                                  <details>
+                                                                    <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                      {foundCount ?? foundDatesList.length} available
+                                                                      {catName === "SPORTS" && name === "FIXTURES" && (
+                                                                        <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                          · click date to expand fixtures · CSV icon
+                                                                          downloads league-day CSV
+                                                                        </span>
+                                                                      )}
+                                                                    </summary>
+                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                      {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                        <DateList
+                                                                          dates={foundDatesList}
+                                                                          btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
+                                                                          testIdPrefix={`fixture-date-toggle-${leagueName}`}
+                                                                          onClickDate={(date) =>
+                                                                            toggleFixtureBreakdown(
+                                                                              date,
+                                                                              leagueName,
+                                                                              false,
+                                                                            )
+                                                                          }
+                                                                          downloadUrl={(date) =>
+                                                                            buildFixturesCsvDownloadUrl({
+                                                                              day: date,
+                                                                              league_id: leagueName,
+                                                                            })
+                                                                          }
+                                                                          downloadTitle={(date) =>
+                                                                            `Download league-day FIXTURES CSV for ${leagueName} on ${date}`
+                                                                          }
+                                                                        />
+                                                                      ) : (
+                                                                        foundDatesList.map((date: string) => (
+                                                                          <span
+                                                                            key={date}
+                                                                            className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
+                                                                          >
+                                                                            {date}
+                                                                          </span>
+                                                                        ))
+                                                                      )}
+                                                                    </div>
+                                                                  </details>
+                                                                )}
+                                                                {missingDatesList.length > 0 && (
+                                                                  <details>
+                                                                    <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                      {missingCount ?? missingDatesList.length} missing
+                                                                      {missingIsSample && (
+                                                                        <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                          (sample of {missingDatesList.length})
+                                                                        </span>
+                                                                      )}
+                                                                      {catName === "SPORTS" && name === "FIXTURES" && (
+                                                                        <span className="ml-1 text-[var(--color-text-muted)]">
+                                                                          · click to see expected fixtures (read-only)
+                                                                        </span>
+                                                                      )}
+                                                                    </summary>
+                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                      {catName === "SPORTS" && name === "FIXTURES" ? (
+                                                                        <DateList
+                                                                          dates={missingDatesList}
+                                                                          btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
+                                                                          testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
+                                                                          onClickDate={(date) =>
+                                                                            toggleFixtureBreakdown(
+                                                                              date,
+                                                                              leagueName,
+                                                                              true,
+                                                                            )
+                                                                          }
+                                                                        />
+                                                                      ) : (
+                                                                        missingDatesList.map((date: string) => (
+                                                                          <span
+                                                                            key={date}
+                                                                            className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                                                          >
+                                                                            {date}
+                                                                          </span>
+                                                                        ))
+                                                                      )}
+                                                                    </div>
+                                                                  </details>
+                                                                )}
+                                                                {catName === "SPORTS" &&
+                                                                  name === "FIXTURES" &&
+                                                                  fixtureBreakdownKey &&
+                                                                  fixtureBreakdownKey.league_id === leagueName && (
+                                                                    <FixtureBreakdown
+                                                                      day={fixtureBreakdownKey.day}
+                                                                      league_id={fixtureBreakdownKey.league_id}
+                                                                      readOnly={fixtureBreakdownKey.readOnly}
+                                                                    />
+                                                                  )}
+                                                              </div>
+                                                            </div>
+                                                          </details>
+                                                        );
+                                                      },
+                                                    )}
+                                                  </div>
+                                                )}
+
+                                                {/* Venue-level available/missing dates */}
+                                                {(missingList.length > 0 || foundList.length > 0) && (
+                                                  <div
+                                                    className={cn(
+                                                      "flex gap-3 pt-0.5",
+                                                      (hasDataTypes || hasLeagues) &&
+                                                        "mt-1 border-t border-[var(--color-border-subtle)]",
+                                                    )}
+                                                  >
+                                                    {foundList.length > 0 && (
+                                                      <details>
+                                                        <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                          {subData.dates_found} available{" "}
+                                                          {catName === "SPORTS" ? "fixtures" : "dates"}
+                                                        </summary>
+                                                        <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                          <DateList
+                                                            dates={foundList}
+                                                            btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                            testIdPrefix={`shard-csv-date-found-${name}`}
+                                                            onClickDate={(date) =>
+                                                              openShardDetail({
+                                                                service: serviceName,
+                                                                asset_group: catName,
+                                                                instrument_type: "AUTO",
+                                                                data_type: "AUTO",
+                                                                day: date,
+                                                                venue: name,
+                                                              })
+                                                            }
+                                                            downloadUrl={(date) =>
+                                                              buildShardDownloadUrl({
+                                                                service: serviceName,
+                                                                asset_group: catName,
+                                                                venue: name,
+                                                                date,
+                                                              })
+                                                            }
+                                                            downloadTitle={(date) =>
+                                                              serviceName === "market-tick-data-service" ||
+                                                              serviceName === "market-data-processing-service"
+                                                                ? `Download availability catalog CSV for ${name} on ${date}`
+                                                                : `Download shard CSV for ${name} on ${date}`
+                                                            }
                                                           />
                                                         </div>
-                                                        <span
-                                                          className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                          style={{
-                                                            color:
-                                                              getCompletionColor(
-                                                                ld.completion_pct,
-                                                              ),
-                                                          }}
-                                                        >
-                                                          {formatPct(
-                                                            ld.completion_pct,
+                                                      </details>
+                                                    )}
+                                                    {missingList.length > 0 && (
+                                                      <details>
+                                                        <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                          {missingCount} missing{" "}
+                                                          {catName === "SPORTS" ? "fixtures" : "dates"}
+                                                        </summary>
+                                                        <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                                                          <DateList
+                                                            dates={missingList}
+                                                            btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                            testIdPrefix={`shard-csv-date-missing-${name}`}
+                                                            onClickDate={(date) =>
+                                                              openShardDetail({
+                                                                service: serviceName,
+                                                                asset_group: catName,
+                                                                instrument_type: "AUTO",
+                                                                data_type: "AUTO",
+                                                                day: date,
+                                                                venue: name,
+                                                              })
+                                                            }
+                                                          />
+                                                          {missingCount > missingList.length && (
+                                                            <span className="text-[8px] text-[var(--color-text-muted)]">
+                                                              +{missingCount - missingList.length} more
+                                                            </span>
                                                           )}
-                                                          %
-                                                        </span>
-                                                      </summary>
-                                                      {/* League date details */}
-                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
-                                                        <div className="flex gap-3">
-                                                          {foundDatesList.length >
-                                                            0 && (
-                                                            <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                {foundCount ??
-                                                                  foundDatesList.length}{" "}
-                                                                available
-                                                                {catName ===
-                                                                  "SPORTS" &&
-                                                                  name ===
-                                                                    "FIXTURES" && (
-                                                                    <span className="ml-1 text-[var(--color-text-muted)]">
-                                                                      · click
-                                                                      date to
-                                                                      expand
-                                                                      fixtures ·
-                                                                      CSV icon
-                                                                      downloads
-                                                                      league-day
-                                                                      CSV
-                                                                    </span>
-                                                                  )}
-                                                              </summary>
-                                                              <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {catName ===
-                                                                  "SPORTS" &&
-                                                                name ===
-                                                                  "FIXTURES" ? (
-                                                                  <DateList
-                                                                    dates={
-                                                                      foundDatesList
-                                                                    }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:underline hover:bg-[var(--color-status-success-border-strong)]"
-                                                                    testIdPrefix={`fixture-date-toggle-${leagueName}`}
-                                                                    onClickDate={(
-                                                                      date,
-                                                                    ) =>
-                                                                      toggleFixtureBreakdown(
-                                                                        date,
-                                                                        leagueName,
-                                                                        false,
-                                                                      )
-                                                                    }
-                                                                    downloadUrl={(
-                                                                      date,
-                                                                    ) =>
-                                                                      buildFixturesCsvDownloadUrl(
-                                                                        {
-                                                                          day: date,
-                                                                          league_id:
-                                                                            leagueName,
-                                                                        },
-                                                                      )
-                                                                    }
-                                                                    downloadTitle={(
-                                                                      date,
-                                                                    ) =>
-                                                                      `Download league-day FIXTURES CSV for ${leagueName} on ${date}`
-                                                                    }
-                                                                  />
-                                                                ) : (
-                                                                  foundDatesList.map(
-                                                                    (
-                                                                      date: string,
-                                                                    ) => (
-                                                                      <span
-                                                                        key={
-                                                                          date
-                                                                        }
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]"
-                                                                      >
-                                                                        {date}
-                                                                      </span>
-                                                                    ),
-                                                                  )
-                                                                )}
-                                                              </div>
-                                                            </details>
-                                                          )}
-                                                          {missingDatesList.length >
-                                                            0 && (
-                                                            <details>
-                                                              <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                {missingCount ??
-                                                                  missingDatesList.length}{" "}
-                                                                missing
-                                                                {missingIsSample && (
-                                                                  <span className="ml-1 text-[var(--color-text-muted)]">
-                                                                    (sample of{" "}
-                                                                    {
-                                                                      missingDatesList.length
-                                                                    }
-                                                                    )
-                                                                  </span>
-                                                                )}
-                                                                {catName ===
-                                                                  "SPORTS" &&
-                                                                  name ===
-                                                                    "FIXTURES" && (
-                                                                    <span className="ml-1 text-[var(--color-text-muted)]">
-                                                                      · click to
-                                                                      see
-                                                                      expected
-                                                                      fixtures
-                                                                      (read-only)
-                                                                    </span>
-                                                                  )}
-                                                              </summary>
-                                                              <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                {catName ===
-                                                                  "SPORTS" &&
-                                                                name ===
-                                                                  "FIXTURES" ? (
-                                                                  <DateList
-                                                                    dates={
-                                                                      missingDatesList
-                                                                    }
-                                                                    btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:underline"
-                                                                    testIdPrefix={`fixture-date-toggle-missing-${leagueName}`}
-                                                                    onClickDate={(
-                                                                      date,
-                                                                    ) =>
-                                                                      toggleFixtureBreakdown(
-                                                                        date,
-                                                                        leagueName,
-                                                                        true,
-                                                                      )
-                                                                    }
-                                                                  />
-                                                                ) : (
-                                                                  missingDatesList.map(
-                                                                    (
-                                                                      date: string,
-                                                                    ) => (
-                                                                      <span
-                                                                        key={
-                                                                          date
-                                                                        }
-                                                                        className="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
-                                                                      >
-                                                                        {date}
-                                                                      </span>
-                                                                    ),
-                                                                  )
-                                                                )}
-                                                              </div>
-                                                            </details>
-                                                          )}
-                                                          {catName ===
-                                                            "SPORTS" &&
-                                                            name ===
-                                                              "FIXTURES" &&
-                                                            fixtureBreakdownKey &&
-                                                            fixtureBreakdownKey.league_id ===
-                                                              leagueName && (
-                                                              <FixtureBreakdown
-                                                                day={
-                                                                  fixtureBreakdownKey.day
-                                                                }
-                                                                league_id={
-                                                                  fixtureBreakdownKey.league_id
-                                                                }
-                                                                readOnly={
-                                                                  fixtureBreakdownKey.readOnly
-                                                                }
-                                                              />
-                                                            )}
                                                         </div>
-                                                      </div>
-                                                    </details>
-                                                  );
-                                                },
-                                              )}
-                                            </div>
-                                          )}
-
-                                          {/* Venue-level available/missing dates */}
-                                          {(missingList.length > 0 ||
-                                            foundList.length > 0) && (
-                                            <div
-                                              className={cn(
-                                                "flex gap-3 pt-0.5",
-                                                (hasDataTypes || hasLeagues) &&
-                                                  "mt-1 border-t border-[var(--color-border-subtle)]",
-                                              )}
-                                            >
-                                              {foundList.length > 0 && (
-                                                <details>
-                                                  <summary className="text-[9px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                    {subData.dates_found}{" "}
-                                                    available{" "}
-                                                    {catName === "SPORTS"
-                                                      ? "fixtures"
-                                                      : "dates"}
-                                                  </summary>
-                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                    <DateList
-                                                      dates={foundList}
-                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                      testIdPrefix={`shard-csv-date-found-${name}`}
-                                                      onClickDate={(date) =>
-                                                        openShardDetail({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          instrument_type:
-                                                            "AUTO",
-                                                          data_type: "AUTO",
-                                                          day: date,
-                                                          venue: name,
-                                                        })
-                                                      }
-                                                      downloadUrl={(date) =>
-                                                        buildShardDownloadUrl({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          venue: name,
-                                                          date,
-                                                        })
-                                                      }
-                                                      downloadTitle={(date) =>
-                                                        serviceName ===
-                                                          "market-tick-data-service" ||
-                                                        serviceName ===
-                                                          "market-data-processing-service"
-                                                          ? `Download availability catalog CSV for ${name} on ${date}`
-                                                          : `Download shard CSV for ${name} on ${date}`
-                                                      }
-                                                    />
-                                                  </div>
-                                                </details>
-                                              )}
-                                              {missingList.length > 0 && (
-                                                <details>
-                                                  <summary className="text-[9px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                    {missingCount} missing{" "}
-                                                    {catName === "SPORTS"
-                                                      ? "fixtures"
-                                                      : "dates"}
-                                                  </summary>
-                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
-                                                    <DateList
-                                                      dates={missingList}
-                                                      btnClassName="text-[8px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                      testIdPrefix={`shard-csv-date-missing-${name}`}
-                                                      onClickDate={(date) =>
-                                                        openShardDetail({
-                                                          service: serviceName,
-                                                          asset_group: catName,
-                                                          instrument_type:
-                                                            "AUTO",
-                                                          data_type: "AUTO",
-                                                          day: date,
-                                                          venue: name,
-                                                        })
-                                                      }
-                                                    />
-                                                    {missingCount >
-                                                      missingList.length && (
-                                                      <span className="text-[8px] text-[var(--color-text-muted)]">
-                                                        +
-                                                        {missingCount -
-                                                          missingList.length}{" "}
-                                                        more
-                                                      </span>
+                                                      </details>
                                                     )}
                                                   </div>
-                                                </details>
-                                              )}
-                                            </div>
-                                          )}
+                                                )}
 
-                                          {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
-                                          <div className="pt-0.5">
-                                            <span
-                                              className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
-                                              onClick={() =>
-                                                handleVenueClick(catName, name)
-                                              }
-                                            >
-                                              Instrument breakdown
-                                            </span>
-                                          </div>
-                                          {venueDetailKey ===
-                                            `${catName}:${name}` && (
-                                            <VenueDetailPanel
-                                              loading={venueDetailLoading}
-                                              data={venueDetailData}
-                                            />
-                                          )}
-                                        </div>
-                                      </details>
-                                    );
-                                  })}
-                                </div>
+                                                {/* Venue detail drill-down (instrument breakdown from instruments-service) */}
+                                                <div className="pt-0.5">
+                                                  <span
+                                                    className="text-[9px] text-[var(--color-accent-cyan)] cursor-pointer hover:underline"
+                                                    onClick={() => handleVenueClick(catName, name)}
+                                                  >
+                                                    Instrument breakdown
+                                                  </span>
+                                                </div>
+                                                {venueDetailKey === `${catName}:${name}` && (
+                                                  <VenueDetailPanel
+                                                    loading={venueDetailLoading}
+                                                    data={venueDetailData}
+                                                  />
+                                                )}
+                                              </div>
+                                            </details>
+                                          );
+                                        },
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Regular Data Status Results */}
-      {data && !checkVenues && !checkDataTypes && (
-        <>
-          {/* Summary Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-xl font-mono flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    Data Coverage
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {startDate} to {endDate}
-                  </CardDescription>
-                </div>
-                <div className="text-right">
-                  <div
-                    className="text-3xl font-mono font-bold"
-                    style={{
-                      color: getCompletionColor(data.overall_completion),
-                    }}
-                  >
-                    {data.overall_completion.toFixed(1)}%
+                        );
+                      })}
                   </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    {data.overall_complete} / {data.overall_total} files
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Progress bar */}
-              <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${data.overall_completion}%`,
-                    backgroundColor: getCompletionColor(
-                      data.overall_completion,
-                    ),
-                  }}
-                />
-              </div>
-
-              {/* Deploy Missing Button */}
-              {totalMissing > 0 && onDeployMissing && (
-                <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
-                    <span className="text-sm">
-                      <strong>{totalMissing}</strong> missing data points
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={handleOpenDeployMissingModal}
-                    className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
-                  >
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Deploy Missing
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Calendar View */}
-          {viewMode === "calendar" && heatmapData.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Coverage Calendar</CardTitle>
-                <CardDescription>
-                  Visual overview of data coverage by day
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <HeatmapCalendar
-                  data={heatmapData}
-                  startDate={startDate}
-                  endDate={endDate}
-                  onDateClick={(date) => setSelectedCalendarDate(date)}
-                  selectedDate={selectedCalendarDate || undefined}
-                />
-
-                {/* Selected Date Details */}
-                {selectedCalendarDate && (
-                  <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">
-                        {new Date(selectedCalendarDate).toLocaleDateString(
-                          "en-US",
-                          {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          },
-                        )}
-                      </h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedCalendarDate(null)}
-                        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
-                      >
-                        ✕ Close
-                      </Button>
-                    </div>
-                    {heatmapData.find((d) => d.date === selectedCalendarDate)
-                      ?.tooltip && (
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        {
-                          heatmapData.find(
-                            (d) => d.date === selectedCalendarDate,
-                          )?.tooltip
-                        }
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </>
           )}
 
-          {/* Asset group breakdown table */}
-          {viewMode === "table" && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  Asset group breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-[var(--color-border-subtle)]">
-                  {Object.entries(data.asset_groups).map(
-                    ([catName, catData]) => {
-                      const completion = getCategoryCompletion(catData);
-                      const missing = getMissingCount(catData);
-                      const isExpanded = expandedCategories.has(catName);
+          {/* Regular Data Status Results */}
+          {data && !checkVenues && !checkDataTypes && (
+            <>
+              {/* Summary Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-mono flex items-center gap-2">
+                        <Database className="h-5 w-5" />
+                        Data Coverage
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {startDate} to {endDate}
+                      </CardDescription>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className="text-3xl font-mono font-bold"
+                        style={{
+                          color: getCompletionColor(data.overall_completion),
+                        }}
+                      >
+                        {data.overall_completion.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        {data.overall_complete} / {data.overall_total} files
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Progress bar */}
+                  <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${data.overall_completion}%`,
+                        backgroundColor: getCompletionColor(data.overall_completion),
+                      }}
+                    />
+                  </div>
 
-                      return (
-                        <div key={catName}>
-                          {/* Category Row */}
+                  {/* Deploy Missing Button */}
+                  {totalMissing > 0 && onDeployMissing && (
+                    <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
+                        <span className="text-sm">
+                          <strong>{totalMissing}</strong> missing data points
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleOpenDeployMissingModal}
+                        className="bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                      >
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Deploy Missing
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Calendar View */}
+              {viewMode === "calendar" && heatmapData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Coverage Calendar</CardTitle>
+                    <CardDescription>Visual overview of data coverage by day</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <HeatmapCalendar
+                      data={heatmapData}
+                      startDate={startDate}
+                      endDate={endDate}
+                      onDateClick={(date) => setSelectedCalendarDate(date)}
+                      selectedDate={selectedCalendarDate || undefined}
+                    />
+
+                    {/* Selected Date Details */}
+                    {selectedCalendarDate && (
+                      <div className="mt-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border-default)]">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium">
+                            {new Date(selectedCalendarDate).toLocaleDateString("en-US", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </h4>
                           <Button
                             variant="ghost"
-                            onClick={() => toggleCategory(catName)}
-                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                            size="sm"
+                            onClick={() => setSelectedCalendarDate(null)}
+                            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] h-auto p-0"
                           >
-                            <div className="flex items-center gap-3">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                              )}
-                              <span className="font-medium">{catName}</span>
-                              <span className="text-xs text-[var(--color-text-muted)]">
-                                ({Object.keys(catData.venues || {}).length}{" "}
-                                venues)
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              {missing > 0 && (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
-                                >
-                                  {missing} missing
-                                </Badge>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className={getCompletionBadgeClass(completion)}
-                              >
-                                {completion.toFixed(1)}%
-                              </Badge>
-                              <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-                                <div
-                                  className="h-full transition-all"
-                                  style={{
-                                    width: `${completion}%`,
-                                    backgroundColor:
-                                      getCompletionColor(completion),
-                                  }}
-                                />
-                              </div>
-                            </div>
+                            ✕ Close
                           </Button>
+                        </div>
+                        {heatmapData.find((d) => d.date === selectedCalendarDate)?.tooltip && (
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {heatmapData.find((d) => d.date === selectedCalendarDate)?.tooltip}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
-                          {/* Expanded Venue Table */}
-                          {isExpanded && (
-                            <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="text-xs text-[var(--color-text-muted)]">
-                                    <th className="text-left py-2 font-medium">
-                                      Venue
-                                    </th>
-                                    <th className="text-right py-2 font-medium">
-                                      Complete
-                                    </th>
-                                    <th className="text-right py-2 font-medium">
-                                      Total
-                                    </th>
-                                    <th className="text-right py-2 font-medium">
-                                      Coverage
-                                    </th>
-                                    <th className="text-right py-2 font-medium">
-                                      Status
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                                  {Object.entries(catData.venues).map(
-                                    ([venueName, venueData]) => {
-                                      const venuePct =
-                                        venueData.completion_percent;
-                                      const venueMissing =
-                                        venueData.total - venueData.complete;
+              {/* Asset group breakdown table */}
+              {viewMode === "table" && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Asset group breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-[var(--color-border-subtle)]">
+                      {Object.entries(data.asset_groups).map(([catName, catData]) => {
+                        const completion = getCategoryCompletion(catData);
+                        const missing = getMissingCount(catData);
+                        const isExpanded = expandedCategories.has(catName);
+
+                        return (
+                          <div key={catName}>
+                            {/* Category Row */}
+                            <Button
+                              variant="ghost"
+                              onClick={() => toggleCategory(catName)}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--color-bg-secondary)] transition-colors h-auto"
+                            >
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
+                                )}
+                                <span className="font-medium">{catName}</span>
+                                <span className="text-xs text-[var(--color-text-muted)]">
+                                  ({Object.keys(catData.venues || {}).length} venues)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                {missing > 0 && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
+                                  >
+                                    {missing} missing
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className={getCompletionBadgeClass(completion)}>
+                                  {completion.toFixed(1)}%
+                                </Badge>
+                                <div className="w-24 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full transition-all"
+                                    style={{
+                                      width: `${completion}%`,
+                                      backgroundColor: getCompletionColor(completion),
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </Button>
+
+                            {/* Expanded Venue Table */}
+                            {isExpanded && (
+                              <div className="bg-[var(--color-bg-secondary)] px-4 py-2">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-xs text-[var(--color-text-muted)]">
+                                      <th className="text-left py-2 font-medium">Venue</th>
+                                      <th className="text-right py-2 font-medium">Complete</th>
+                                      <th className="text-right py-2 font-medium">Total</th>
+                                      <th className="text-right py-2 font-medium">Coverage</th>
+                                      <th className="text-right py-2 font-medium">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                                    {Object.entries(catData.venues).map(([venueName, venueData]) => {
+                                      const venuePct = venueData.completion_percent;
+                                      const venueMissing = venueData.total - venueData.complete;
 
                                       return (
-                                        <tr
-                                          key={venueName}
-                                          className="hover:bg-[var(--color-bg-tertiary)]"
-                                        >
-                                          <td className="py-2 font-mono text-xs">
-                                            {venueName}
-                                          </td>
-                                          <td className="py-2 text-right font-mono">
-                                            {venueData.complete}
-                                          </td>
+                                        <tr key={venueName} className="hover:bg-[var(--color-bg-tertiary)]">
+                                          <td className="py-2 font-mono text-xs">{venueName}</td>
+                                          <td className="py-2 text-right font-mono">{venueData.complete}</td>
                                           <td className="py-2 text-right font-mono text-[var(--color-text-muted)]">
                                             {venueData.total}
                                           </td>
@@ -6869,8 +5610,7 @@ function DataStatusTabInternal({
                                             <span
                                               className="font-mono"
                                               style={{
-                                                color:
-                                                  getCompletionColor(venuePct),
+                                                color: getCompletionColor(venuePct),
                                               }}
                                             >
                                               {venuePct.toFixed(1)}%
@@ -6887,537 +5627,415 @@ function DataStatusTabInternal({
                                           </td>
                                         </tr>
                                       );
-                                    },
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    },
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+
+          {/* Deploy Missing Modal */}
+          <Dialog open={deployMissingModalOpen} onClose={() => setDeployMissingModalOpen(false)} className="max-w-lg">
+            <DialogHeader onClose={() => setDeployMissingModalOpen(false)}>
+              <DialogTitle>Deploy Missing Data</DialogTitle>
+            </DialogHeader>
+            <DialogContent>
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
+                  <div className="flex items-center gap-2 text-sm">
+                    <AlertCircle className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                    <span>
+                      <strong>{totalMissing}</strong> missing data points
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-[var(--color-text-muted)]">
+                    Date range: {startDate} to {endDate}
+                    {firstDayOfMonthOnly && (
+                      <span className="ml-2 text-[var(--color-accent-cyan)]">(first day of month only)</span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-xs">
+                    <span className="text-[var(--color-text-muted)]">Categories: </span>
+                    <span className="text-[var(--color-accent-cyan)] font-medium">
+                      {effectiveDeployCategories.length > 0
+                        ? effectiveDeployCategories.join(", ")
+                        : "All categories with missing data"}
+                    </span>
+                  </div>
+                  {selectedVenues.length > 0 && (
+                    <div className="mt-1 text-xs">
+                      <span className="text-[var(--color-text-muted)]">Venues: </span>
+                      <span className="text-[var(--color-accent-purple)] font-medium">{selectedVenues.join(", ")}</span>
+                    </div>
+                  )}
+                  {selectedFolders.length > 0 && (
+                    <div className="mt-1 text-xs">
+                      <span className="text-[var(--color-text-muted)]">Instrument Types: </span>
+                      <span className="text-[var(--color-accent-green)] font-medium">{selectedFolders.join(", ")}</span>
+                    </div>
+                  )}
+                  {selectedDataTypes.length > 0 && (
+                    <div className="mt-1 text-xs">
+                      <span className="text-[var(--color-text-muted)]">Data Types: </span>
+                      <span className="text-[var(--color-accent-amber)] font-medium">
+                        {selectedDataTypes.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {selectedCategories.length > 0 && effectiveDeployCategories.length === 0 && (
+                    <div className="mt-1 text-xs text-[var(--color-accent-amber)]">
+                      ⚠️ Selected categories have no missing data
+                    </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
 
-      {/* Deploy Missing Modal */}
-      <Dialog
-        open={deployMissingModalOpen}
-        onClose={() => setDeployMissingModalOpen(false)}
-        className="max-w-lg"
-      >
-        <DialogHeader onClose={() => setDeployMissingModalOpen(false)}>
-          <DialogTitle>Deploy Missing Data</DialogTitle>
-        </DialogHeader>
-        <DialogContent>
-          <div className="space-y-4">
-            {/* Summary */}
-            <div className="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
-              <div className="flex items-center gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                <span>
-                  <strong>{totalMissing}</strong> missing data points
-                </span>
-              </div>
-              <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-                Date range: {startDate} to {endDate}
-                {firstDayOfMonthOnly && (
-                  <span className="ml-2 text-[var(--color-accent-cyan)]">
-                    (first day of month only)
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 text-xs">
-                <span className="text-[var(--color-text-muted)]">
-                  Categories:{" "}
-                </span>
-                <span className="text-[var(--color-accent-cyan)] font-medium">
-                  {effectiveDeployCategories.length > 0
-                    ? effectiveDeployCategories.join(", ")
-                    : "All categories with missing data"}
-                </span>
-              </div>
-              {selectedVenues.length > 0 && (
-                <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">
-                    Venues:{" "}
-                  </span>
-                  <span className="text-[var(--color-accent-purple)] font-medium">
-                    {selectedVenues.join(", ")}
-                  </span>
+                {/* Region (with cross-region egress warning) */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">Region</Label>
+                  <Select value={deployMissingRegion} onValueChange={setDeployMissingRegion}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select region..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        {
+                          value: "asia-northeast1",
+                          label: "asia-northeast1 (Tokyo)",
+                        },
+                        {
+                          value: "asia-northeast2",
+                          label: "asia-northeast2 (Osaka)",
+                        },
+                        {
+                          value: "asia-southeast1",
+                          label: "asia-southeast1 (Singapore)",
+                        },
+                        { value: "us-central1", label: "us-central1 (Iowa)" },
+                        { value: "us-east1", label: "us-east1 (South Carolina)" },
+                        { value: "us-west1", label: "us-west1 (Oregon)" },
+                        { value: "europe-west1", label: "europe-west1 (Belgium)" },
+                        { value: "europe-west2", label: "europe-west2 (London)" },
+                      ].map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {showDeployMissingRegionWarning && (
+                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-amber-800">
+                          <p className="font-semibold">Cross-Region Egress Warning</p>
+                          <p className="mt-1">
+                            Selected region ({deployMissingRegion}) differs from configured storage region (
+                            {backendRegion}). This will incur significant egress costs.
+                          </p>
+                          <p className="mt-1 font-medium">
+                            Recommendation: Use {backendRegion} to avoid egress charges.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-              {selectedFolders.length > 0 && (
-                <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">
-                    Instrument Types:{" "}
-                  </span>
-                  <span className="text-[var(--color-accent-green)] font-medium">
-                    {selectedFolders.join(", ")}
-                  </span>
+
+                {/* Deployment Mode */}
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">
+                    Deployment Mode
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="deploy-missing-dry-run"
+                      checked={deployMissingDryRun}
+                      onCheckedChange={(checked) => setDeployMissingDryRun(checked === true)}
+                    />
+                    <Label htmlFor="deploy-missing-dry-run" className="text-sm cursor-pointer">
+                      <span className="font-medium">Preview only (dry run)</span>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Show what shards would be deployed without actually deploying
+                      </p>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="deploy-missing-force"
+                      checked={deployMissingForce}
+                      onCheckedChange={(checked) => setDeployMissingForce(checked === true)}
+                    />
+                    <Label htmlFor="deploy-missing-force" className="text-sm cursor-pointer">
+                      <span className="font-medium">Force re-process (--force)</span>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Regenerate even if data already exists for the venue/date
+                      </p>
+                    </Label>
+                  </div>
                 </div>
-              )}
-              {selectedDataTypes.length > 0 && (
-                <div className="mt-1 text-xs">
-                  <span className="text-[var(--color-text-muted)]">
-                    Data Types:{" "}
-                  </span>
-                  <span className="text-[var(--color-accent-amber)] font-medium">
-                    {selectedDataTypes.join(", ")}
-                  </span>
+
+                {/* Date Granularity */}
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">
+                    Date Granularity
+                  </div>
+                  <div className="flex gap-2">
+                    {(["daily", "weekly", "monthly", "none"] as const).map((g) => (
+                      <Button
+                        key={g}
+                        type="button"
+                        variant={deployMissingDateGranularity === g ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setDeployMissingDateGranularity(g)}
+                      >
+                        {g === "none" ? "None (Bulk)" : g.charAt(0).toUpperCase() + g.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {deployMissingDateGranularity === "daily" && "One shard per day (most granular, more shards)"}
+                    {deployMissingDateGranularity === "weekly" && "One shard per week (balanced)"}
+                    {deployMissingDateGranularity === "monthly" && "One shard per month (fewer shards, larger jobs)"}
+                    {deployMissingDateGranularity === "none" &&
+                      "Single shard, no date range — service fetches all data in bulk"}
+                  </p>
                 </div>
-              )}
-              {selectedCategories.length > 0 &&
-                effectiveDeployCategories.length === 0 && (
-                  <div className="mt-1 text-xs text-[var(--color-accent-amber)]">
-                    ⚠️ Selected categories have no missing data
+
+                {/* Preview result - shows updated shard count when granularity changes (stays visible in modal) */}
+                {(isDeploying || deploymentResult?.dry_run) && (
+                  <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
+                    {isDeploying ? (
+                      <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        Calculating shards for {deployMissingDateGranularity} granularity…
+                      </div>
+                    ) : deploymentResult?.dry_run && deploymentResult.total_shards !== undefined ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] shrink-0" />
+                        <span>
+                          <strong className="font-mono text-[var(--color-accent-cyan)]">
+                            {deploymentResult.total_shards.toLocaleString()}
+                          </strong>{" "}
+                          shards would be deployed
+                          {deploymentResult.shards_truncated && (
+                            <span className="text-[var(--color-text-muted)]">
+                              {" "}
+                              (truncated — full list on Deploy tab)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 )}
-            </div>
 
-            {/* Region (with cross-region egress warning) */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">Region</Label>
-              <Select
-                value={deployMissingRegion}
-                onValueChange={setDeployMissingRegion}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select region..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {[
-                    {
-                      value: "asia-northeast1",
-                      label: "asia-northeast1 (Tokyo)",
-                    },
-                    {
-                      value: "asia-northeast2",
-                      label: "asia-northeast2 (Osaka)",
-                    },
-                    {
-                      value: "asia-southeast1",
-                      label: "asia-southeast1 (Singapore)",
-                    },
-                    { value: "us-central1", label: "us-central1 (Iowa)" },
-                    { value: "us-east1", label: "us-east1 (South Carolina)" },
-                    { value: "us-west1", label: "us-west1 (Oregon)" },
-                    { value: "europe-west1", label: "europe-west1 (Belgium)" },
-                    { value: "europe-west2", label: "europe-west2 (London)" },
-                  ].map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {showDeployMissingRegionWarning && (
-                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800">
-                      <p className="font-semibold">
-                        Cross-Region Egress Warning
-                      </p>
-                      <p className="mt-1">
-                        Selected region ({deployMissingRegion}) differs from
-                        configured storage region ({backendRegion}). This will
-                        incur significant egress costs.
-                      </p>
-                      <p className="mt-1 font-medium">
-                        Recommendation: Use {backendRegion} to avoid egress
-                        charges.
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setDeployMissingModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleConfirmDeployMissing(false)}
+                    disabled={effectiveDeployCategories.length === 0}
+                    className={
+                      deployMissingDryRun
+                        ? "bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/80"
+                        : "bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
+                    }
+                  >
+                    <Rocket className="h-4 w-4 mr-2" />
+                    {deployMissingDryRun ? "Preview Shards" : "Deploy Now"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* File Listing Modal */}
+          <Dialog open={showFileListing} onClose={() => setShowFileListing(false)} className="max-w-4xl">
+            <DialogHeader onClose={() => setShowFileListing(false)}>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                File Listing
+                {fileListingData && (
+                  <span className="text-sm font-normal text-[var(--color-text-muted)] ml-2">
+                    {fileListingData.venue} / {fileListingData.folder} / {fileListingData.data_type}
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <DialogContent>
+              <div className="max-h-[60vh] overflow-auto">
+                {fileListingLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
+                    <span className="ml-3 text-[var(--color-text-muted)]">Querying GCS for files...</span>
+                  </div>
+                ) : fileListingError ? (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="h-8 w-8 text-[var(--color-accent-red)] mx-auto mb-2" />
+                    <p className="text-[var(--color-accent-red)]">{fileListingError}</p>
+                  </div>
+                ) : fileListingData ? (
+                  <div className="space-y-4">
+                    {/* Summary */}
+                    <div className="bg-[var(--color-bg-tertiary)] rounded-lg p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <div className="text-[var(--color-text-muted)]">Total Files</div>
+                          <div className="font-semibold text-lg">
+                            {fileListingData.summary.total_files.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[var(--color-text-muted)]">Total Size</div>
+                          <div className="font-semibold text-lg">{fileListingData.summary.total_size_formatted}</div>
+                        </div>
+                        <div>
+                          <div className="text-[var(--color-text-muted)]">Days with Data</div>
+                          <div className="font-semibold text-lg text-[var(--color-accent-green)]">
+                            {fileListingData.summary.dates_with_data}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[var(--color-text-muted)]">Days Empty</div>
+                          <div
+                            className={cn(
+                              "font-semibold text-lg",
+                              fileListingData.summary.dates_empty > 0
+                                ? "text-[var(--color-accent-orange)]"
+                                : "text-[var(--color-text-muted)]",
+                            )}
+                          >
+                            {fileListingData.summary.dates_empty}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="flex-1 bg-[var(--color-bg-secondary)] rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-[var(--color-accent-green)] h-full transition-all"
+                            style={{
+                              width: `${fileListingData.summary.completion_pct}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium">{fileListingData.summary.completion_pct}%</span>
+                      </div>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                        Bucket: {fileListingData.bucket} | {fileListingData.date_range.start} to{" "}
+                        {fileListingData.date_range.end} ({fileListingData.date_range.total_days} days)
                       </p>
                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Deployment Mode */}
-            <div className="space-y-3">
-              <div className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">
-                Deployment Mode
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="deploy-missing-dry-run"
-                  checked={deployMissingDryRun}
-                  onCheckedChange={(checked) =>
-                    setDeployMissingDryRun(checked === true)
-                  }
-                />
-                <Label
-                  htmlFor="deploy-missing-dry-run"
-                  className="text-sm cursor-pointer"
-                >
-                  <span className="font-medium">Preview only (dry run)</span>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Show what shards would be deployed without actually
-                    deploying
-                  </p>
-                </Label>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="deploy-missing-force"
-                  checked={deployMissingForce}
-                  onCheckedChange={(checked) =>
-                    setDeployMissingForce(checked === true)
-                  }
-                />
-                <Label
-                  htmlFor="deploy-missing-force"
-                  className="text-sm cursor-pointer"
-                >
-                  <span className="font-medium">
-                    Force re-process (--force)
-                  </span>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Regenerate even if data already exists for the venue/date
-                  </p>
-                </Label>
-              </div>
-            </div>
-
-            {/* Date Granularity */}
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">
-                Date Granularity
-              </div>
-              <div className="flex gap-2">
-                {(["daily", "weekly", "monthly", "none"] as const).map((g) => (
-                  <Button
-                    key={g}
-                    type="button"
-                    variant={
-                      deployMissingDateGranularity === g ? "default" : "outline"
-                    }
-                    size="sm"
-                    onClick={() => setDeployMissingDateGranularity(g)}
-                  >
-                    {g === "none"
-                      ? "None (Bulk)"
-                      : g.charAt(0).toUpperCase() + g.slice(1)}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {deployMissingDateGranularity === "daily" &&
-                  "One shard per day (most granular, more shards)"}
-                {deployMissingDateGranularity === "weekly" &&
-                  "One shard per week (balanced)"}
-                {deployMissingDateGranularity === "monthly" &&
-                  "One shard per month (fewer shards, larger jobs)"}
-                {deployMissingDateGranularity === "none" &&
-                  "Single shard, no date range — service fetches all data in bulk"}
-              </p>
-            </div>
-
-            {/* Preview result - shows updated shard count when granularity changes (stays visible in modal) */}
-            {(isDeploying || deploymentResult?.dry_run) && (
-              <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
-                {isDeploying ? (
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    Calculating shards for {deployMissingDateGranularity}{" "}
-                    granularity…
-                  </div>
-                ) : deploymentResult?.dry_run &&
-                  deploymentResult.total_shards !== undefined ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] shrink-0" />
-                    <span>
-                      <strong className="font-mono text-[var(--color-accent-cyan)]">
-                        {deploymentResult.total_shards.toLocaleString()}
-                      </strong>{" "}
-                      shards would be deployed
-                      {deploymentResult.shards_truncated && (
-                        <span className="text-[var(--color-text-muted)]">
-                          {" "}
-                          (truncated — full list on Deploy tab)
-                        </span>
-                      )}
-                    </span>
+                    {/* Files by Date */}
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-2">Files by Date</h3>
+                      <div className="max-h-[300px] overflow-auto border border-[var(--color-border-subtle)] rounded">
+                        <table className="w-full text-sm">
+                          <thead className="bg-[var(--color-bg-tertiary)] sticky top-0">
+                            <tr>
+                              <th className="text-left px-3 py-2 font-medium">Date</th>
+                              <th className="text-right px-3 py-2 font-medium">Files</th>
+                              <th className="text-right px-3 py-2 font-medium">Size</th>
+                              <th className="text-left px-3 py-2 font-medium">Last modified</th>
+                              <th className="text-left px-3 py-2 font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fileListingData.by_date.map((dayResult) => (
+                              <tr
+                                key={dayResult.date}
+                                className={cn(
+                                  "border-t border-[var(--color-border-subtle)]",
+                                  dayResult.file_count === 0 && "bg-[var(--color-accent-red)]/5",
+                                )}
+                              >
+                                <td className="px-3 py-2 font-mono">{dayResult.date}</td>
+                                <td className="px-3 py-2 text-right font-mono">{dayResult.file_count}</td>
+                                <td className="px-3 py-2 text-right font-mono text-[var(--color-text-muted)]">
+                                  {dayResult.total_size_bytes > 0
+                                    ? (dayResult.total_size_bytes / (1024 * 1024)).toFixed(1) + " MB"
+                                    : "-"}
+                                </td>
+                                <td className="px-3 py-2 font-mono text-[var(--color-text-muted)] text-xs">
+                                  {dayResult.last_modified
+                                    ? new Date(dayResult.last_modified).toLocaleString(undefined, {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      })
+                                    : "-"}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {dayResult.error ? (
+                                    <span className="text-[var(--color-accent-red)] text-xs">{dayResult.error}</span>
+                                  ) : dayResult.file_count > 0 ? (
+                                    <span className="text-[var(--color-accent-green)] text-xs flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" /> OK
+                                    </span>
+                                  ) : (
+                                    <span className="text-[var(--color-accent-orange)] text-xs flex items-center gap-1">
+                                      <XCircle className="h-3 w-3" /> Empty
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
               </div>
-            )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setDeployMissingModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleConfirmDeployMissing(false)}
-                disabled={effectiveDeployCategories.length === 0}
-                className={
-                  deployMissingDryRun
-                    ? "bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/80"
-                    : "bg-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/80"
-                }
-              >
-                <Rocket className="h-4 w-4 mr-2" />
-                {deployMissingDryRun ? "Preview Shards" : "Deploy Now"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* File Listing Modal */}
-      <Dialog
-        open={showFileListing}
-        onClose={() => setShowFileListing(false)}
-        className="max-w-4xl"
-      >
-        <DialogHeader onClose={() => setShowFileListing(false)}>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            File Listing
-            {fileListingData && (
-              <span className="text-sm font-normal text-[var(--color-text-muted)] ml-2">
-                {fileListingData.venue} / {fileListingData.folder} /{" "}
-                {fileListingData.data_type}
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-        <DialogContent>
-          <div className="max-h-[60vh] overflow-auto">
-            {fileListingLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
-                <span className="ml-3 text-[var(--color-text-muted)]">
-                  Querying GCS for files...
-                </span>
+              <div className="flex justify-end pt-4 mt-4 border-t border-[var(--color-border-default)]">
+                <Button variant="outline" onClick={() => setShowFileListing(false)}>
+                  Close
+                </Button>
               </div>
-            ) : fileListingError ? (
-              <div className="text-center py-12">
-                <AlertTriangle className="h-8 w-8 text-[var(--color-accent-red)] mx-auto mb-2" />
-                <p className="text-[var(--color-accent-red)]">
-                  {fileListingError}
-                </p>
-              </div>
-            ) : fileListingData ? (
-              <div className="space-y-4">
-                {/* Summary */}
-                <div className="bg-[var(--color-bg-tertiary)] rounded-lg p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <div className="text-[var(--color-text-muted)]">
-                        Total Files
-                      </div>
-                      <div className="font-semibold text-lg">
-                        {fileListingData.summary.total_files.toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[var(--color-text-muted)]">
-                        Total Size
-                      </div>
-                      <div className="font-semibold text-lg">
-                        {fileListingData.summary.total_size_formatted}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[var(--color-text-muted)]">
-                        Days with Data
-                      </div>
-                      <div className="font-semibold text-lg text-[var(--color-accent-green)]">
-                        {fileListingData.summary.dates_with_data}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[var(--color-text-muted)]">
-                        Days Empty
-                      </div>
-                      <div
-                        className={cn(
-                          "font-semibold text-lg",
-                          fileListingData.summary.dates_empty > 0
-                            ? "text-[var(--color-accent-orange)]"
-                            : "text-[var(--color-text-muted)]",
-                        )}
-                      >
-                        {fileListingData.summary.dates_empty}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 bg-[var(--color-bg-secondary)] rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-[var(--color-accent-green)] h-full transition-all"
-                        style={{
-                          width: `${fileListingData.summary.completion_pct}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium">
-                      {fileListingData.summary.completion_pct}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                    Bucket: {fileListingData.bucket} |{" "}
-                    {fileListingData.date_range.start} to{" "}
-                    {fileListingData.date_range.end} (
-                    {fileListingData.date_range.total_days} days)
-                  </p>
-                </div>
+            </DialogContent>
+          </Dialog>
 
-                {/* Files by Date */}
-                <div className="space-y-1">
-                  <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-2">
-                    Files by Date
-                  </h3>
-                  <div className="max-h-[300px] overflow-auto border border-[var(--color-border-subtle)] rounded">
-                    <table className="w-full text-sm">
-                      <thead className="bg-[var(--color-bg-tertiary)] sticky top-0">
-                        <tr>
-                          <th className="text-left px-3 py-2 font-medium">
-                            Date
-                          </th>
-                          <th className="text-right px-3 py-2 font-medium">
-                            Files
-                          </th>
-                          <th className="text-right px-3 py-2 font-medium">
-                            Size
-                          </th>
-                          <th className="text-left px-3 py-2 font-medium">
-                            Last modified
-                          </th>
-                          <th className="text-left px-3 py-2 font-medium">
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fileListingData.by_date.map((dayResult) => (
-                          <tr
-                            key={dayResult.date}
-                            className={cn(
-                              "border-t border-[var(--color-border-subtle)]",
-                              dayResult.file_count === 0 &&
-                                "bg-[var(--color-accent-red)]/5",
-                            )}
-                          >
-                            <td className="px-3 py-2 font-mono">
-                              {dayResult.date}
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono">
-                              {dayResult.file_count}
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono text-[var(--color-text-muted)]">
-                              {dayResult.total_size_bytes > 0
-                                ? (
-                                    dayResult.total_size_bytes /
-                                    (1024 * 1024)
-                                  ).toFixed(1) + " MB"
-                                : "-"}
-                            </td>
-                            <td className="px-3 py-2 font-mono text-[var(--color-text-muted)] text-xs">
-                              {dayResult.last_modified
-                                ? new Date(
-                                    dayResult.last_modified,
-                                  ).toLocaleString(undefined, {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  })
-                                : "-"}
-                            </td>
-                            <td className="px-3 py-2">
-                              {dayResult.error ? (
-                                <span className="text-[var(--color-accent-red)] text-xs">
-                                  {dayResult.error}
-                                </span>
-                              ) : dayResult.file_count > 0 ? (
-                                <span className="text-[var(--color-accent-green)] text-xs flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3" /> OK
-                                </span>
-                              ) : (
-                                <span className="text-[var(--color-accent-orange)] text-xs flex items-center gap-1">
-                                  <XCircle className="h-3 w-3" /> Empty
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex justify-end pt-4 mt-4 border-t border-[var(--color-border-default)]">
-            <Button variant="outline" onClick={() => setShowFileListing(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Drill-down modals — schema / per-day instruments + CSV download */}
-      {instrumentsModal && (
-        <InstrumentsModal
-          coord={instrumentsModal}
-          onClose={() => setInstrumentsModal(null)}
-        />
+          {/* Drill-down modals — schema / per-day instruments + CSV download */}
+          {instrumentsModal && <InstrumentsModal coord={instrumentsModal} onClose={() => setInstrumentsModal(null)} />}
+          {schemaModal && (
+            // Schema lookup is venue-level (data_type schema doesn't change per
+            // day), so the click sites don't carry a ``day`` -- the modal's
+            // ShardCoordinate prop expects one, so inject an empty string at
+            // render. SchemaModal's downstream calls treat empty ``day`` as
+            // "any day" which matches the venue-level schema semantics.
+            <SchemaModal coord={{ ...schemaModal, day: "" }} onClose={() => setSchemaModal(null)} />
+          )}
+          {poolBreakdownModal && (
+            <PoolBreakdownModal
+              venue={poolBreakdownModal.venue}
+              chain={poolBreakdownModal.chain}
+              day={poolBreakdownModal.day}
+              onClose={() => setPoolBreakdownModal(null)}
+            />
+          )}
+          {shardDetailCoord && <ShardDetailModal coord={shardDetailCoord} onClose={() => setShardDetailCoord(null)} />}
+          {leafSchemaCoord && <LeafSchemaModal coord={leafSchemaCoord} onClose={() => setLeafSchemaCoord(null)} />}
+        </>
       )}
-      {schemaModal && (
-        // Schema lookup is venue-level (data_type schema doesn't change per
-        // day), so the click sites don't carry a ``day`` -- the modal's
-        // ShardCoordinate prop expects one, so inject an empty string at
-        // render. SchemaModal's downstream calls treat empty ``day`` as
-        // "any day" which matches the venue-level schema semantics.
-        <SchemaModal
-          coord={{ ...schemaModal, day: "" }}
-          onClose={() => setSchemaModal(null)}
-        />
-      )}
-      {poolBreakdownModal && (
-        <PoolBreakdownModal
-          venue={poolBreakdownModal.venue}
-          chain={poolBreakdownModal.chain}
-          day={poolBreakdownModal.day}
-          onClose={() => setPoolBreakdownModal(null)}
-        />
-      )}
-      {shardDetailCoord && (
-        <ShardDetailModal
-          coord={shardDetailCoord}
-          onClose={() => setShardDetailCoord(null)}
-        />
-      )}
-      {leafSchemaCoord && (
-        <LeafSchemaModal
-          coord={leafSchemaCoord}
-          onClose={() => setLeafSchemaCoord(null)}
-        />
-      )}
-      </>)}
     </div>
   );
 }
 
 // Exported wrapper component that delegates to specialized components
-export function DataStatusTab({
-  serviceName,
-  deploymentResult,
-  isDeploying,
-  onDeployMissing,
-}: DataStatusTabProps) {
+export function DataStatusTab({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
   // Use specialized component for execution-services (different data model)
   if (serviceName === "execution-services") {
     return <ExecutionDataStatus serviceName={serviceName} />;

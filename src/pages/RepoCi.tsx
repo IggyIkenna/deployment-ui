@@ -19,7 +19,9 @@ import {
   type RepoCiImageSignal,
   type RepoCiOverviewRow,
   type RepoCiPr,
+  type RepoCiPromoteRun,
   type RepoCiPromotionBlocked,
+  type RepoCiPromotionDrain,
   type RepoCiSitLastRun,
 } from "../api/client";
 import {
@@ -86,7 +88,7 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
     <Card data-testid="sit-run-panel">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          Last SIT / cascade run
+          Breaking cascade / SIT
           {run && (
             <Chip tone={run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue"}>
               {run.conclusion ?? run.status}
@@ -114,6 +116,49 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
             ))}
             {run.jobs.length === 0 && <p className="text-sm text-[var(--color-text-muted)]">No jobs reported.</p>}
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** One leg of the routine promotion drain (LDR→staging or LDR→main). */
+function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPromoteRun | null; testId?: string }) {
+  const tone: ChipTone = !run ? "gray" : run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue";
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId}>
+      <span className="text-[var(--color-text-secondary)]">{label}</span>
+      <div className="flex items-center gap-2">
+        <Chip tone={tone}>{run ? (run.conclusion ?? run.status) : "—"}</Chip>
+        {run && <span className="text-[var(--color-text-muted)]">{formatAge(run.age_min)} ago</span>}
+        {run?.url && (
+          <a href={run.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Routine LDR→staging / LDR→main auto-merge drain (PM-central, every 15 min) — DISTINCT from the
+ * Breaking cascade/SIT panel (which only fires on a breaking change). Answers the operator gap
+ * "when did we last promote LDR→staging via auto-merge + QG, and did it pass". */
+function PromotionDrainPanel({ drain }: { drain: RepoCiPromotionDrain | null | undefined }) {
+  return (
+    <Card data-testid="promotion-drain-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Promotion drain</CardTitle>
+        <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {drain ? (
+          <>
+            <PromoteDrainRow label="LDR → staging" run={drain.ldr_to_staging} testId="drain-ldr-to-staging" />
+            <PromoteDrainRow label="LDR → main" run={drain.ldr_to_main} testId="drain-ldr-to-main" />
+          </>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">No promote-drain data.</p>
         )}
       </CardContent>
     </Card>
@@ -312,6 +357,7 @@ function OverviewTable({
           <th className="text-left py-1.5 font-medium">LDR</th>
           <th className="text-left py-1.5 font-medium">staging</th>
           <th className="text-left py-1.5 font-medium">main</th>
+          <th className="text-left py-1.5 font-medium">last green (main)</th>
           <th className="text-left py-1.5 font-medium">LDR→main delta</th>
           <th className="text-left py-1.5 font-medium">SIT</th>
           <th className="text-left py-1.5 font-medium">PRs</th>
@@ -353,8 +399,28 @@ function OverviewTable({
               <td className="py-1.5 font-mono">
                 <ShaLink repo={row.repo} sha={bySha.get("main") ?? null} />
               </td>
+              {/* N2: the last GREEN main sha + age ("green as of <sha> · <age>") — distinct from the
+                  main head above, which may be red/pending. */}
+              <td className="py-1.5 font-mono text-xs" data-testid={`last-green-${row.repo}`}>
+                {row.last_green_main ? (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ShaLink repo={row.repo} sha={row.last_green_main.sha} />
+                    <span className="text-[var(--color-text-muted)]">· {buildTimeLabel(row.last_green_main.at)}</span>
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
               <td className="py-1.5 text-[var(--color-text-secondary)]">
-                {ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
+                  {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
+                  {typeof row.main_lag_age_min === "number" && (
+                    <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
+                      {formatAge(row.main_lag_age_min)} lag
+                    </Chip>
+                  )}
+                </span>
               </td>
               <td className="py-1.5">
                 {row.sit.stuck_in_sit ? (
@@ -387,6 +453,113 @@ function OverviewTable({
 
 /** Exported for the per-service "CI" tab on the home view (operator add 2026-06-10) —
  * one drill-down component serves both the fleet page and the single-service context. */
+/** SIT-stage tone — defensive against unknown last_sit_run_status strings. */
+function sitStageTone(sit: RepoCiDetail["sit"]): ChipTone {
+  if (sit.stuck_in_sit) return "red";
+  const s = (sit.last_sit_run_status ?? "").toLowerCase();
+  if (!s) return "gray";
+  if (s.includes("success") || s.includes("complete")) return "green";
+  if (s.includes("fail") || s.includes("cancel") || s.includes("timed")) return "red";
+  if (s.includes("progress") || s.includes("queue") || s.includes("pending") || s.includes("running")) return "blue";
+  return "gray";
+}
+
+/** One labelled node in the promotion pipeline strip. */
+function PipelineStage({
+  label,
+  tone,
+  testId,
+  children,
+}: {
+  label: string;
+  tone: ChipTone;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[76px] shrink-0" data-testid={testId}>
+      <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</span>
+      <Chip tone={tone}>{children}</Chip>
+    </div>
+  );
+}
+
+function PipelineArrow() {
+  return <span className="text-[var(--color-text-muted)] px-0.5 shrink-0">→</span>;
+}
+
+/**
+ * Promotion pipeline strip — the repo's position in the LDR → staging PR → SIT →
+ * main → image cycle, rendered from the detail payload (branches/deltas/open_prs/
+ * sit/image). The v2-never-reported deadlock + [skip ci] jam classes surface as
+ * explicit badges so a stuck promotion is visible at a glance rather than buried in
+ * the PR list. Plan: monitoring master — promotion-pipeline-visualization.
+ */
+function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
+  const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
+  const ldr = branchHead("live-defi-rollout");
+  const main = branchHead("main");
+  const stagingPr = detail.open_prs.find((pr) => pr.base === "staging") ?? null;
+  const mainPr = detail.open_prs.find((pr) => pr.base === "main") ?? null;
+  const mainDelta = detail.deltas.find((d) => d.base === "main") ?? null;
+  const sit = detail.sit;
+  const img = detail.image;
+
+  const stagingTone: ChipTone = stagingPr?.stuck_class
+    ? stuckClassTone(stagingPr.stuck_class)
+    : stagingPr
+      ? "blue"
+      : sit.staging_locked
+        ? "yellow"
+        : "gray";
+  const mainTone: ChipTone = mainPr?.stuck_class ? stuckClassTone(mainPr.stuck_class) : ciStatusTone(detail.ci_status);
+  const imageTone: ChipTone = img.last_build_status === "SUCCESS" ? "green" : img.last_build_status ? "red" : "gray";
+
+  // Explicit badges for the deadlock/jam classes the cycle most often hides.
+  const jammed = detail.open_prs.flatMap((pr) =>
+    pr.stuck_class === "v2_never_reported" || pr.stuck_class === "skip_ci_jammed"
+      ? [{ number: pr.number, stuckClass: pr.stuck_class }]
+      : [],
+  );
+
+  return (
+    <div
+      className="flex items-center gap-1 overflow-x-auto rounded-lg border border-[var(--color-border-default)] px-3 py-2"
+      data-testid="promotion-pipeline"
+    >
+      <PipelineStage label="LDR" tone="blue" testId="pipeline-stage-ldr">
+        {ldr?.sha ? <ShaLink repo={detail.repo} sha={ldr.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="staging PR" tone={stagingTone} testId="pipeline-stage-staging">
+        {stagingPr ? `#${stagingPr.number}` : sit.staging_locked ? "locked" : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="SIT" tone={sitStageTone(sit)} testId="pipeline-stage-sit">
+        {sit.stuck_in_sit ? "stuck" : (sit.last_sit_run_status ?? "—")}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="main" tone={mainTone} testId="pipeline-stage-main">
+        {main?.sha ? <ShaLink repo={detail.repo} sha={main.sha} /> : "—"}
+      </PipelineStage>
+      <PipelineArrow />
+      <PipelineStage label="image" tone={imageTone} testId="pipeline-stage-image">
+        {img.last_build_status ?? "—"}
+      </PipelineStage>
+      {mainDelta && (mainDelta.files_changed > 0 || mainDelta.ahead_by > 0) && (
+        <span className="ml-2 text-[10px] text-[var(--color-text-muted)] shrink-0" data-testid="pipeline-main-delta">
+          {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+        </span>
+      )}
+      {jammed.map((j) => (
+        <Chip key={j.number} tone={stuckClassTone(j.stuckClass)} testId="pipeline-jam-badge">
+          #{j.number} {STUCK_CLASS_LABELS[j.stuckClass]}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function RepoDetailPanel({ repo }: { repo: string }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -446,6 +619,8 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           Fleet Git
         </Link>
       </div>
+      {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
+      <PromotionPipeline detail={detail} />
       {/* B2: build-details header — the last image build's status + source (Cloud Build/CodeBuild)
           + time + built commit (→ GitHub) + log link. Shares the B1 image signal; honest-absent
           when the repo has no Cloud Build / CodeBuild. */}
@@ -566,7 +741,7 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="repo-detail-history">
         {detail.history.map((branchHistory) => (
           <Card key={branchHistory.branch}>
             <CardHeader className="pb-2">
@@ -693,7 +868,8 @@ export function RepoCiContent() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <PromotionDrainPanel drain={overview.promotion_drain} />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
