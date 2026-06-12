@@ -1,33 +1,50 @@
 /**
- * CapabilityTab — static capability matrix + gaps/orphans + sources views.
+ * CapabilityTab — static capability matrix + gaps/orphans + sources + verdicts views.
  *
  * Sits next to the Data Status tab in the per-service view.  Reads from the
  * static capability-manifest.json (committed under src/data/) — no network
  * calls, no runtime data availability.
  *
- * Three views (sub-tabs):
+ * Four views (sub-tabs):
  *   1. Matrix   — archetype × instrument_type grid, coloured by edge status;
  *                 filterable by venue category; cell click → detail panel.
  *   2. Gaps     — gap summary by type + unbuilt/logical dead-end lists +
- *                 orphan node count (use-case-3 audit surface).
+ *                 orphan node count; dead-end/orphan rows cross-link to Data Status.
  *   3. Sources  — data_source × mode (batch/live/replay) × transport table;
  *                 cross-links to the existing Data Status tab for that service.
+ *   4. Verdicts — verdict-matrix summary (total/available/blocked/not_registered)
+ *                 + per-archetype drill-down listing blocked paths with reasons.
+ *                 Lazy-loaded from capability-verdict-matrix.json (~2.2 MB).
  *
- * Plan: capability_wizard_and_manifest_2026_06_11.md Phase 4.
+ * Plan: capability_wizard_and_manifest_2026_06_11.md Phase 4 + Phase 6C P2.
  */
 
-import { AlertTriangle, BookOpen, Database, ExternalLink, Grid3x3, Info, TriangleAlert } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  Database,
+  ExternalLink,
+  Grid3x3,
+  Info,
+  ShieldAlert,
+  TriangleAlert,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { capabilityManifest } from "../data/capability-manifest-loader";
 import type { CapabilityEdge, EdgeStatus } from "../data/capability-manifest-loader";
+import { loadVerdictMatrix } from "../data/capability-verdict-matrix-loader";
+import type { CapabilityVerdictMatrix } from "../data/capability-verdict-matrix-loader";
 import {
   buildDeadEndList,
   buildGapSummary,
   buildMatrix,
   buildOrphanList,
   buildSourcesTable,
+  buildVerdictArchetypeList,
+  buildVerdictSummary,
 } from "../lib/capability-helpers";
-import type { MatrixCell } from "../lib/capability-helpers";
+import type { MatrixCell, VerdictArchetypeSummary } from "../lib/capability-helpers";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -332,7 +349,12 @@ function MatrixView({ onLinkToDataStatus }: { onLinkToDataStatus: (service: stri
 // Gaps & orphans view
 // ---------------------------------------------------------------------------
 
-function GapsView() {
+interface GapsViewProps {
+  /** Called when the user clicks a Data Status cross-link for a dead-end or orphan row. */
+  onLinkToDataStatus: (service: string) => void;
+}
+
+function GapsView({ onLinkToDataStatus }: GapsViewProps) {
   const gapSummary = useMemo(() => buildGapSummary(capabilityManifest), []);
   const deadEnds = useMemo(() => buildDeadEndList(capabilityManifest), []);
   const orphans = useMemo(() => buildOrphanList(capabilityManifest), []);
@@ -396,7 +418,7 @@ function GapsView() {
             </CardTitle>
             <CardDescription>
               Archetypes with not_available edges that are NOT classified as logical — missing adapter, registry, or
-              code.
+              code. Click &quot;Data Status&quot; to check whether the underlying data is present.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -410,6 +432,9 @@ function GapsView() {
                     <th className="text-right px-3 py-2 border-b border-[var(--color-border-primary)] font-medium text-[var(--color-text-secondary)]">
                       Dead-end edges
                     </th>
+                    <th className="text-center px-3 py-2 border-b border-[var(--color-border-primary)] font-medium text-[var(--color-text-secondary)]">
+                      Data Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -420,6 +445,17 @@ function GapsView() {
                     >
                       <td className="px-3 py-1.5 text-[var(--color-text-primary)]">{row.archetypeLabel}</td>
                       <td className="px-3 py-1.5 text-right text-[var(--color-text-secondary)]">{row.edges.length}</td>
+                      <td className="px-3 py-1.5 text-center">
+                        <button
+                          onClick={() => onLinkToDataStatus("market-tick-data-service")}
+                          title="Check data availability in Data Status"
+                          className="inline-flex items-center gap-1 text-[var(--color-accent-blue)] hover:opacity-80 text-xs"
+                          data-testid="gaps-data-status-link"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          MTDS
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -478,7 +514,8 @@ function GapsView() {
           <CardHeader>
             <CardTitle className="text-base">Orphan Nodes ({orphans.length})</CardTitle>
             <CardDescription>
-              Nodes that appear in no edge — registered in the manifest but not wired into any capability path.
+              Nodes that appear in no edge — registered in the manifest but not wired into any capability path. Click
+              &quot;Data Status&quot; to check data presence for the underlying service.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -495,6 +532,9 @@ function GapsView() {
                     <th className="text-left px-3 py-2 border-b border-[var(--color-border-primary)] font-medium text-[var(--color-text-secondary)]">
                       Kind
                     </th>
+                    <th className="text-center px-3 py-2 border-b border-[var(--color-border-primary)] font-medium text-[var(--color-text-secondary)]">
+                      Data Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -508,6 +548,17 @@ function GapsView() {
                       </td>
                       <td className="px-3 py-1.5 text-[var(--color-text-primary)]">{node.label}</td>
                       <td className="px-3 py-1.5 text-[var(--color-text-secondary)]">{node.kind}</td>
+                      <td className="px-3 py-1.5 text-center">
+                        <button
+                          onClick={() => onLinkToDataStatus("market-tick-data-service")}
+                          title="Check data availability in Data Status"
+                          className="inline-flex items-center gap-1 text-[var(--color-accent-blue)] hover:opacity-80 text-xs"
+                          data-testid="gaps-data-status-link"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          MTDS
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -628,6 +679,225 @@ function StatusPill({ status }: { status: EdgeStatus }) {
 }
 
 // ---------------------------------------------------------------------------
+// Verdicts view
+// ---------------------------------------------------------------------------
+
+function ArchetypeVerdictRow({ entry }: { entry: VerdictArchetypeSummary }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (entry.not_registered) {
+    return (
+      <div className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-4 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge variant="outline" className="shrink-0 text-xs text-[var(--color-text-secondary)]">
+              not_registered
+            </Badge>
+            <code className="text-xs font-mono text-[var(--color-text-secondary)] truncate">{entry.archetype}</code>
+          </div>
+          {entry.not_registered_reason && (
+            <span className="text-xs text-[var(--color-text-secondary)] ml-4 truncate max-w-[320px]">
+              {entry.not_registered_reason}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const hasBlocked = entry.blocked_count > 0;
+
+  return (
+    <div className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)]">
+      <button
+        onClick={() => hasBlocked && setExpanded((e) => !e)}
+        className={cn(
+          "w-full flex items-center justify-between gap-2 px-4 py-2 text-left",
+          hasBlocked ? "cursor-pointer hover:bg-[var(--color-bg-tertiary)]" : "cursor-default",
+        )}
+        aria-expanded={hasBlocked ? expanded : undefined}
+        data-testid={`verdict-archetype-row-${entry.archetype}`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {hasBlocked ? (
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-red)]" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-green)]" />
+          )}
+          <code className="text-xs font-mono text-[var(--color-text-primary)] truncate">{entry.archetype}</code>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 text-xs">
+          <span className="text-[var(--color-accent-green)]">{entry.available_count} avail</span>
+          {hasBlocked && <span className="text-[var(--color-accent-red)]">{entry.blocked_count} blocked</span>}
+          <span className="text-[var(--color-text-secondary)]">{entry.cell_count} cells</span>
+          {hasBlocked && <span className="text-[var(--color-accent-blue)] ml-1">{expanded ? "▲" : "▼"}</span>}
+        </div>
+      </button>
+
+      {expanded && hasBlocked && (
+        <div
+          className="border-t border-[var(--color-border-primary)] px-4 py-2 space-y-2"
+          data-testid={`verdict-archetype-blocked-${entry.archetype}`}
+        >
+          {entry.blocked_cells.map((cell, cellIdx) => (
+            <div key={cellIdx} className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <code className="font-mono">{cell.venue}</code>
+                <span>·</span>
+                <code className="font-mono">{cell.instrument_type}</code>
+                <span>·</span>
+                <code className="font-mono">{cell.instruction_action}</code>
+                {cell.leg_id && (
+                  <>
+                    <span>·</span>
+                    <code className="font-mono text-[var(--color-accent-yellow)]">{cell.leg_id}</code>
+                  </>
+                )}
+              </div>
+              <div className="pl-2 space-y-0.5">
+                {cell.blocked_algos.map((ba, baIdx) => (
+                  <div key={baIdx} className="text-xs text-[var(--color-accent-red)]">
+                    <code className="font-mono font-medium">{ba.algo}</code>
+                    <span className="text-[var(--color-text-secondary)] ml-2">{ba.reason}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VerdictsView() {
+  const [matrix, setMatrix] = useState<CapabilityVerdictMatrix | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    loadVerdictMatrix()
+      .then((m) => {
+        setMatrix(m);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to load verdict matrix");
+        setLoading(false);
+      });
+  }, []);
+
+  const archetypeList = useMemo(() => (matrix ? buildVerdictArchetypeList(matrix) : []), [matrix]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return archetypeList;
+    return archetypeList.filter((e) => e.archetype.toLowerCase().includes(q));
+  }, [archetypeList, search]);
+
+  if (loading) {
+    return (
+      <div
+        className="flex items-center justify-center py-16 text-[var(--color-text-secondary)]"
+        data-testid="verdicts-loading"
+      >
+        <Info className="h-5 w-5 mr-2 animate-spin" />
+        Loading verdict matrix…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-16 text-[var(--color-accent-red)]">
+        <AlertTriangle className="h-5 w-5 mr-2" />
+        {error}
+      </div>
+    );
+  }
+
+  if (!matrix) return null;
+
+  const summary = buildVerdictSummary(matrix);
+
+  return (
+    <div className="space-y-6" data-testid="capability-verdicts-view">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div
+          className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-3 py-2 text-center"
+          data-testid="verdict-summary-total"
+        >
+          <div className="text-lg font-semibold text-[var(--color-text-primary)]">
+            {summary.total_cells.toLocaleString()}
+          </div>
+          <div className="text-xs text-[var(--color-text-secondary)]">Total cells</div>
+        </div>
+        <div
+          className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-3 py-2 text-center"
+          data-testid="verdict-summary-available"
+        >
+          <div className="text-lg font-semibold text-[var(--color-accent-green)]">
+            {summary.available.toLocaleString()}
+          </div>
+          <div className="text-xs text-[var(--color-text-secondary)]">Available</div>
+        </div>
+        <div
+          className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-3 py-2 text-center"
+          data-testid="verdict-summary-blocked"
+        >
+          <div className="text-lg font-semibold text-[var(--color-accent-red)]">{summary.blocked.toLocaleString()}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">Blocked</div>
+        </div>
+        <div
+          className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-3 py-2 text-center"
+          data-testid="verdict-summary-not-registered"
+        >
+          <div className="text-lg font-semibold text-[var(--color-text-secondary)]">{summary.not_registered}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">Not registered</div>
+        </div>
+      </div>
+
+      {/* Per-archetype drill-down */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-[var(--color-accent-red)]" />
+            Per-Archetype Verdict Drill-Down
+          </CardTitle>
+          <CardDescription>
+            Each row shows available / blocked counts. Expand a blocked archetype to see which venue × instrument_type ×
+            algo combinations are blocked and why.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-3">
+            <input
+              type="text"
+              placeholder="Filter archetypes…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full max-w-xs rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-blue)]"
+              data-testid="verdict-archetype-filter"
+            />
+          </div>
+          <div className="space-y-1.5">
+            {filtered.map((entry) => (
+              <ArchetypeVerdictRow key={entry.archetype} entry={entry} />
+            ))}
+            {filtered.length === 0 && (
+              <p className="text-xs text-[var(--color-text-secondary)] py-4 text-center">No archetypes match filter.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // CapabilityTab (top-level export)
 // ---------------------------------------------------------------------------
 
@@ -673,7 +943,7 @@ export function CapabilityTab({ onSelectDataStatus }: CapabilityTabProps) {
 
       {/* Sub-tabs */}
       <Tabs defaultValue="matrix" className="w-full">
-        <TabsList variant="pill" className="grid w-full grid-cols-3 mb-4">
+        <TabsList variant="pill" className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="matrix" className="gap-2" data-testid="capability-matrix-tab-trigger">
             <Grid3x3 className="h-4 w-4" />
             Matrix
@@ -686,6 +956,10 @@ export function CapabilityTab({ onSelectDataStatus }: CapabilityTabProps) {
             <Database className="h-4 w-4" />
             Sources
           </TabsTrigger>
+          <TabsTrigger value="verdicts" className="gap-2" data-testid="capability-verdicts-tab-trigger">
+            <ShieldAlert className="h-4 w-4" />
+            Verdicts
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="matrix" data-testid="capability-matrix-view">
@@ -693,11 +967,15 @@ export function CapabilityTab({ onSelectDataStatus }: CapabilityTabProps) {
         </TabsContent>
 
         <TabsContent value="gaps" data-testid="capability-gaps-view">
-          <GapsView />
+          <GapsView onLinkToDataStatus={handleLinkToDataStatus} />
         </TabsContent>
 
         <TabsContent value="sources" data-testid="capability-sources-view">
           <SourcesView onLinkToDataStatus={handleLinkToDataStatus} />
+        </TabsContent>
+
+        <TabsContent value="verdicts" data-testid="capability-verdicts-content">
+          <VerdictsView />
         </TabsContent>
       </Tabs>
     </div>

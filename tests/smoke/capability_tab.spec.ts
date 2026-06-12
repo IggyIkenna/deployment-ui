@@ -4,14 +4,16 @@
  * Regression guard (pw:L2):
  *   - Tab renders next to Data Status
  *   - Matrix view shows the archetype grid
- *   - Gaps panel counts match the manifest (missing_registry=60, etc.)
+ *   - Gaps panel counts match the manifest (missing_registry=161, etc.)
  *   - Sources view renders the sources table
+ *   - Verdicts sub-tab: summary counts match bundled matrix, archetype drill-down shows blocked reasons
+ *   - Gaps cross-link navigates to Data Status
  *
  * No API mocking needed — the Capability tab is 100% static (JSON bundled at
  * build time); the only external calls are the standard deployment-api routes
  * intercepted here to keep the app's navigation flow happy.
  *
- * Plan: capability_wizard_and_manifest_2026_06_11.md Phase 4
+ * Plan: capability_wizard_and_manifest_2026_06_11.md Phase 4 + Phase 6C P2
  */
 
 import { expect, Page, test } from "@playwright/test";
@@ -225,11 +227,11 @@ test.describe("CapabilityTab", () => {
     await expect(page.getByTestId("gap-row-missing_extraction")).toBeVisible();
     await expect(page.getByTestId("gap-row-logical_dead_end")).toBeVisible();
 
-    // Verify the manifest counts (regression: these are the static values from the manifest)
-    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("60");
+    // Verify the manifest counts (regression: static values from manifest @UAC 253effa)
+    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("161");
     await expect(page.getByTestId("gap-count-needs_code_scan")).toHaveText("3");
     await expect(page.getByTestId("gap-count-missing_extraction")).toHaveText("1");
-    await expect(page.getByTestId("gap-count-logical_dead_end")).toHaveText("19");
+    await expect(page.getByTestId("gap-count-logical_dead_end")).toHaveText("446");
   });
 
   test("Sources view renders data source table", async ({ page }) => {
@@ -264,7 +266,80 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 409 nodes / 663 edges
-    await expect(page.getByText(/409 nodes \/ 663 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 558 nodes / 2287 edges (@UAC 253effa)
+    await expect(page.getByText(/558 nodes \/ 2287 edges/)).toBeVisible({ timeout: 10000 });
+  });
+
+  test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByText("instruments").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: /Capability/i }).click();
+
+    // Switch to Verdicts sub-tab
+    await page.getByTestId("capability-verdicts-tab-trigger").click();
+
+    // Wait for the verdicts view (lazy-loaded)
+    await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
+
+    // Summary counts match the bundled matrix (total=22448, available=15093, blocked=7259, not_registered=96)
+    await expect(page.getByTestId("verdict-summary-total")).toContainText("22,448");
+    await expect(page.getByTestId("verdict-summary-available")).toContainText("15,093");
+    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,259");
+    await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("96");
+  });
+
+  test("Verdicts archetype drill-down shows blocked reasons", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByText("instruments").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: /Capability/i }).click();
+
+    await page.getByTestId("capability-verdicts-tab-trigger").click();
+    await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
+
+    // ARBITRAGE_CROSS_DOMAIN_EVENT has 576 blocked cells — click it to expand
+    const archetypeRow = page.getByTestId("verdict-archetype-row-ARBITRAGE_CROSS_DOMAIN_EVENT");
+    await expect(archetypeRow).toBeVisible({ timeout: 10000 });
+    await archetypeRow.click();
+
+    // Blocked reasons should now be visible
+    const blockedSection = page.getByTestId("verdict-archetype-blocked-ARBITRAGE_CROSS_DOMAIN_EVENT");
+    await expect(blockedSection).toBeVisible({ timeout: 5000 });
+    // Should show algo names and reasons (many cells so use .first() to avoid strict-mode violation)
+    await expect(blockedSection.getByText(/ADAPTIVE_TWAP/).first()).toBeVisible();
+    await expect(blockedSection.getByText(/not valid for/).first()).toBeVisible();
+  });
+
+  test("Gaps panel dead-end cross-link navigates to Data Status", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByText("instruments").first().click();
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("tab", { name: /Capability/i }).click();
+
+    // Switch to Gaps sub-tab
+    await page.getByTestId("capability-gaps-tab-trigger").click();
+    await expect(page.getByTestId("capability-gaps-panel")).toBeVisible({ timeout: 10000 });
+
+    // The Unbuilt Dead-Ends section contains Data Status cross-link buttons
+    const crossLink = page.getByTestId("gaps-data-status-link").first();
+    await expect(crossLink).toBeVisible({ timeout: 10000 });
+
+    // Click the cross-link — should switch to Data Status tab
+    await crossLink.click();
+
+    // The Data Status tab should now be active (the tab role or its panel visible)
+    await expect(page.getByRole("tab", { name: /Data Status/i })).toHaveAttribute("data-state", "active", {
+      timeout: 5000,
+    });
   });
 });
