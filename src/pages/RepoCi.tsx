@@ -38,6 +38,7 @@ import {
   githubCommitUrl,
   promotionBlockedLabel,
   promotionBlockedTone,
+  prV2State,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -888,21 +889,33 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
         )}
       {detail.open_prs.length > 0 && (
         <div className="space-y-1" data-testid="repo-detail-prs">
-          {detail.open_prs.map((pr) => (
-            <div key={pr.number} className="flex items-center gap-2 text-sm">
-              {pr.stuck_class && (
-                <Chip tone={stuckClassTone(pr.stuck_class)}>{STUCK_CLASS_LABELS[pr.stuck_class]}</Chip>
-              )}
-              <span className="font-mono">#{pr.number}</span>
-              <span className="text-[var(--color-text-secondary)] truncate max-w-[28rem]">{pr.title}</span>
-              <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
-              {pr.url && (
-                <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-            </div>
-          ))}
+          {detail.open_prs.map((pr) => {
+            const v2 = prV2State(pr);
+            return (
+              <div
+                key={pr.number}
+                className="flex items-center gap-2 text-sm"
+                data-testid={`repo-detail-pr-${pr.number}`}
+              >
+                {/* Explicit standing-PR quality-gates-v2 state (promotion-drain follow-up remainder) —
+                  previously only implicit via stuck_class. */}
+                <Chip tone={v2.tone} testId={`pr-v2-${pr.number}`}>
+                  {v2.label}
+                </Chip>
+                {pr.stuck_class && (
+                  <Chip tone={stuckClassTone(pr.stuck_class)}>{STUCK_CLASS_LABELS[pr.stuck_class]}</Chip>
+                )}
+                <span className="font-mono">#{pr.number}</span>
+                <span className="text-[var(--color-text-secondary)] truncate max-w-[28rem]">{pr.title}</span>
+                <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
+                {pr.url && (
+                  <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="repo-detail-history">

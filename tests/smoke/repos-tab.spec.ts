@@ -107,6 +107,11 @@ test.describe("Repos CI page", () => {
     await expect(history.getByText("main", { exact: true })).toBeVisible();
     // PR cards with stuck classification render.
     await expect(page.getByTestId("repo-detail-prs")).toBeVisible();
+    // Each PR card carries an EXPLICIT quality-gates-v2 state chip (promotion-drain follow-up
+    // remainder) — execution-service's main PR is skip_ci_jammed (v2 not reported), staging PR
+    // failing_check (v2 failed).
+    await expect(page.getByTestId("repo-detail-prs")).toContainText("v2");
+    await expect(page.getByTestId("pr-v2-89")).toContainText("v2 failed"); // PR #89 = failing_check fixture
   });
 
   test("repo drill-down renders the promotion pipeline strip (LDR → staging → SIT → main → image)", async ({
