@@ -235,7 +235,10 @@ test.describe("Page renders — no crash smoke", () => {
   test("Live deployments page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/ops/live-deployments");
-    await page.waitForLoadState("networkidle");
+    // This page streams (event/log feeds) so `networkidle` never settles — wait on the
+    // page heading as the deterministic render signal instead (a crash → error boundary,
+    // no heading).
+    await expect(page.getByRole("heading", { name: "Live Deployments" })).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
@@ -243,7 +246,9 @@ test.describe("Page renders — no crash smoke", () => {
   test("VM Deployments page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    // This page polls the deployment registry so `networkidle` never settles — wait on the
+    // page heading as the deterministic render signal instead.
+    await expect(page.getByRole("heading", { name: "VM Deployments" })).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
