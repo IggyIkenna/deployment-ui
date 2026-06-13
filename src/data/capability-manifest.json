@@ -15218,31 +15218,31 @@
     {
       "agent_annotation": null,
       "from_node_id": "gap_registry:fees",
-      "gap_type": "missing_registry",
+      "gap_type": null,
       "readiness": null,
-      "reason": "Fee schedules registry is honest-empty \u2014 per-venue fee tier backfill",
+      "reason": "Fee schedules: 24 entries registered",
       "relation": "registry_gap",
-      "status": "not_registered",
+      "status": "available",
       "to_node_id": "gap_registry:fees"
     },
     {
       "agent_annotation": null,
       "from_node_id": "gap_registry:fund_structure",
-      "gap_type": "missing_registry",
+      "gap_type": null,
       "readiness": null,
-      "reason": "Fund structures registry is honest-empty \u2014 offered fund-structure backfill",
+      "reason": "Fund structures: 2 entries registered",
       "relation": "registry_gap",
-      "status": "not_registered",
+      "status": "available",
       "to_node_id": "gap_registry:fund_structure"
     },
     {
       "agent_annotation": null,
       "from_node_id": "gap_registry:order_semantics",
-      "gap_type": "needs_code_scan",
+      "gap_type": null,
       "readiness": null,
-      "reason": "Venue order semantics registry is honest-empty \u2014 per-adapter order-semantics honor matrix code-scan",
+      "reason": "Venue order semantics: 9 entries registered",
       "relation": "registry_gap",
-      "status": "not_registered",
+      "status": "available",
       "to_node_id": "gap_registry:order_semantics"
     },
     {
@@ -15253,21 +15253,21 @@
         "resolved_status": "partial"
       },
       "from_node_id": "gap_registry:sim_assumptions",
-      "gap_type": "needs_code_scan",
+      "gap_type": null,
       "readiness": null,
-      "reason": "Simulation assumptions registry is honest-empty \u2014 needs_code_scan of backtest runner (finding F11)",
+      "reason": "Simulation assumptions: 20 entries registered",
       "relation": "registry_gap",
-      "status": "not_registered",
+      "status": "available",
       "to_node_id": "gap_registry:sim_assumptions"
     },
     {
       "agent_annotation": null,
       "from_node_id": "gap_registry:trading_agent",
-      "gap_type": "missing_registry",
+      "gap_type": null,
       "readiness": null,
-      "reason": "Trading-agent capabilities registry is honest-empty \u2014 LLM/agent capability declaration backfill",
+      "reason": "Trading-agent capabilities: 3 entries registered",
       "relation": "registry_gap",
-      "status": "not_registered",
+      "status": "available",
       "to_node_id": "gap_registry:trading_agent"
     },
     {
@@ -23267,13 +23267,13 @@
     "logical_dead_end": 446,
     "logical_dead_ends": 16,
     "missing_extraction": 1,
-    "missing_registry": 161,
-    "needs_code_scan": 3,
-    "not_registered_total": 164,
+    "missing_registry": 158,
+    "needs_code_scan": 1,
+    "not_registered_total": 159,
     "orphan_nodes": 87,
     "unbuilt_dead_ends": 159
   },
-  "generated_from_commit": "def855c23947d2692c58f1edd11562baaa2d7642",
+  "generated_from_commit": "fd87026ae56b30557570fe3942a9fd22bde50602",
   "manifest_version": "1.0.0",
   "nodes": [
     {
@@ -24005,7 +24005,7 @@
       "kind": "custody_provider",
       "label": "Fee schedules",
       "metadata": {
-        "entry_count": "0",
+        "entry_count": "24",
         "registry": "fees"
       },
       "node_id": "gap_registry:fees"
@@ -24014,7 +24014,7 @@
       "kind": "custody_provider",
       "label": "Fund structures",
       "metadata": {
-        "entry_count": "0",
+        "entry_count": "2",
         "registry": "fund_structure"
       },
       "node_id": "gap_registry:fund_structure"
@@ -24023,7 +24023,7 @@
       "kind": "custody_provider",
       "label": "Venue order semantics",
       "metadata": {
-        "entry_count": "0",
+        "entry_count": "9",
         "registry": "order_semantics"
       },
       "node_id": "gap_registry:order_semantics"
@@ -24032,7 +24032,7 @@
       "kind": "custody_provider",
       "label": "Simulation assumptions",
       "metadata": {
-        "entry_count": "0",
+        "entry_count": "20",
         "registry": "sim_assumptions"
       },
       "node_id": "gap_registry:sim_assumptions"
@@ -24041,7 +24041,7 @@
       "kind": "custody_provider",
       "label": "Trading-agent capabilities",
       "metadata": {
-        "entry_count": "0",
+        "entry_count": "3",
         "registry": "trading_agent"
       },
       "node_id": "gap_registry:trading_agent"

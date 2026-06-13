@@ -227,9 +227,11 @@ test.describe("CapabilityTab", () => {
     await expect(page.getByTestId("gap-row-missing_extraction")).toBeVisible();
     await expect(page.getByTestId("gap-row-logical_dead_end")).toBeVisible();
 
-    // Verify the manifest counts (regression: static values from manifest @UAC 238e58f)
-    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("161");
-    await expect(page.getByTestId("gap-count-needs_code_scan")).toHaveText("3");
+    // Verify the manifest counts (regression: static values from manifest @UAC 5e7d068 —
+    // 2026-06-13 registry backfills flipped fees/fund/trading_agent (missing_registry 161→158)
+    // and order_semantics/sim (needs_code_scan 3→1) to available).
+    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("158");
+    await expect(page.getByTestId("gap-count-needs_code_scan")).toHaveText("1");
     await expect(page.getByTestId("gap-count-missing_extraction")).toHaveText("1");
     await expect(page.getByTestId("gap-count-logical_dead_end")).toHaveText("446");
   });
