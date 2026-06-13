@@ -302,18 +302,18 @@ function DateList({
 
 // Internal component for non-execution-services
 function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
-  // Default startDate = today − 90 days. The landing query auto-fires on mount,
-  // and a full-history (2018→now, ~103 months) scan is the heaviest the manifest
-  // builder runs — fine in prod (parallel process pool, ~124s) but on a macOS dev
-  // host the pool can't fork (BrokenProcessPool) so the build falls back to a
-  // thread pool that's slower on a wide range, and the auto-fire monopolised the
-  // single dev worker (operator-reported "data status page is so damn slow",
-  // 2026-06-13). A 90-day default keeps the landing query cheap; operators widen
-  // to "All" via the quick-range buttons when they want full history (the rollup
-  // fast-path serves that in <500ms in prod when a fresh rollup blob exists).
+  // Default startDate = today − 30 days. The landing query auto-fires on mount, and a
+  // full-history (2018→now, ~103 months) scan is the heaviest thing the manifest builder
+  // runs — fine in prod (parallel process pool + a <500ms rollup fast-path when a fresh
+  // rollup blob exists), but on a macOS dev host the pool can't fork (BrokenProcessPool →
+  // thread-pool fallback) AND beta mode always takes the on-demand compute path (no rollup).
+  // Measured on-demand all-asset-group cost climbs super-linearly with the window: 30d ~12s,
+  // 60d ~21s, 90d >90s (recent dates carry far more instruments). 30 days keeps the auto-fire
+  // snappy (~12s); operators widen via the 90d/1y/All quick-range buttons when they accept the
+  // wait. (operator-reported "data status page is so damn slow", 2026-06-13.)
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 90);
+    d.setDate(d.getDate() - 30);
     return d.toISOString().split("T")[0];
   });
   const [endDate, setEndDate] = useState(() => {
