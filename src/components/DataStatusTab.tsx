@@ -302,19 +302,20 @@ function DateList({
 
 // Internal component for non-execution-services
 function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
-  // Default startDate = workspace-wide rollup origin (2018-01-01) so the
-  // initial Asset-group-breakdown card shows the full historical coverage
-  // (instruments-service goes back to 2019-03; MTDS to 2018+; all
-  // pre-2018 dates are pre-launch venue starts and clip out via per-venue
-  // effective_start). Pre-2026-05-06 the rollup-slicer didn't yet respect
-  // the UI date window, so a "today - 30 days" default was harmless —
-  // every fetch returned all-time. After the slicer landed (deployment-api
-  // commit ad1e80b "offline rollup fast-path — slicer + worker"), the
-  // 30-day default started clipping the breakdown to ~28 days per venue
-  // even though the rollup itself contains full history. Defaulting to
-  // 2018-01-01 reverses the regression; operators narrow the window via
-  // the date picker if they want recent-only.
-  const [startDate, setStartDate] = useState(() => "2018-01-01");
+  // Default startDate = today − 30 days. The landing query auto-fires on mount, and a
+  // full-history (2018→now, ~103 months) scan is the heaviest thing the manifest builder
+  // runs — fine in prod (parallel process pool + a <500ms rollup fast-path when a fresh
+  // rollup blob exists), but on a macOS dev host the pool can't fork (BrokenProcessPool →
+  // thread-pool fallback) AND beta mode always takes the on-demand compute path (no rollup).
+  // Measured on-demand all-asset-group cost climbs super-linearly with the window: 30d ~12s,
+  // 60d ~21s, 90d >90s (recent dates carry far more instruments). 30 days keeps the auto-fire
+  // snappy (~12s); operators widen via the 90d/1y/All quick-range buttons when they accept the
+  // wait. (operator-reported "data status page is so damn slow", 2026-06-13.)
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
