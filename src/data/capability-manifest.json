@@ -1195,7 +1195,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals funding_rate,iv_dispersion,odds,price \u2192 targets clv,clv_meta,direction,funding_rate (cefi,defi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -1205,7 +1205,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,iv_dispersion,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -1215,7 +1215,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals funding_rate,iv_dispersion,odds,price \u2192 targets clv,clv_meta,direction,funding_rate (cefi,defi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -1225,7 +1225,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals funding_rate,iv_dispersion,odds,price \u2192 targets clv,clv_meta,direction,funding_rate (cefi,defi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -1235,7 +1235,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,iv_dispersion,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -1245,7 +1245,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,iv_dispersion,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -1255,7 +1255,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals funding_rate,iv_dispersion,odds,price \u2192 targets clv,clv_meta,direction,funding_rate (cefi,defi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -1265,7 +1265,7 @@
       "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals funding_rate,iv_dispersion,odds,price \u2192 targets clv,clv_meta,direction,funding_rate (cefi,defi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -1805,86 +1805,6 @@
       "from_node_id": "CARRY_BASIS_DATED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
       "reason": null,
       "relation": "supports",
       "status": "available",
@@ -2165,86 +2085,6 @@
       "from_node_id": "CARRY_BASIS_DATED_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_DATED_INV",
-      "gap_type": null,
-      "readiness": "backtest-only",
       "reason": null,
       "relation": "supports",
       "status": "available",
@@ -2485,7 +2325,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -2495,7 +2335,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -2505,7 +2345,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -2515,7 +2355,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -2525,7 +2365,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -2535,7 +2375,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -2545,7 +2385,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -2555,7 +2395,7 @@
       "from_node_id": "CARRY_BASIS_PERP",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -2865,7 +2705,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -2875,7 +2715,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -2885,7 +2725,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -2895,7 +2735,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -2905,7 +2745,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -2915,7 +2755,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -2925,7 +2765,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -2935,7 +2775,7 @@
       "from_node_id": "CARRY_BASIS_PERP_INV",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -3189,86 +3029,6 @@
       "relation": "has_leg",
       "status": "available",
       "to_node_id": "leg:CARRY_RECURSIVE_BORROW_LENDING_ONLY:loop_collateral"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_BORROW_LENDING_ONLY",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
     },
     {
       "agent_annotation": null,
@@ -3539,86 +3299,6 @@
       "relation": "has_leg",
       "status": "available",
       "to_node_id": "leg:CARRY_RECURSIVE_STAKED:loop_stake"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_RECURSIVE_STAKED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
     },
     {
       "agent_annotation": null,
@@ -3905,7 +3585,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -3915,7 +3595,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -3925,7 +3605,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -3935,7 +3615,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -3945,7 +3625,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -3955,7 +3635,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -3965,7 +3645,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -3975,7 +3655,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
+      "reason": "signals funding_rate \u2192 targets funding_rate (defi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -4339,86 +4019,6 @@
       "relation": "has_leg",
       "status": "available",
       "to_node_id": "leg:CARRY_STAKED_BASIS_DATED:stake"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS_DATED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "partial",
-      "to_node_id": "ml_model:xgboost"
     },
     {
       "agent_annotation": null,
@@ -5295,7 +4895,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:catboost"
@@ -5305,7 +4905,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:ensemble"
@@ -5315,7 +4915,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:huber"
@@ -5325,7 +4925,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:lightgbm"
@@ -5335,7 +4935,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:poisson_glm"
@@ -5345,7 +4945,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:random_forest"
@@ -5355,7 +4955,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:ridge"
@@ -5365,7 +4965,7 @@
       "from_node_id": "EVENT_DRIVEN",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals iv_dispersion \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:xgboost"
@@ -5785,86 +5385,6 @@
       "from_node_id": "LIQUIDATION_CAPTURE",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
       "reason": null,
       "relation": "supports",
       "status": "available",
@@ -6175,7 +5695,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals odds,spread_capture,vol_metric \u2192 targets clv,clv_meta,cross_venue_spread,ht_delta (cefi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -6185,7 +5705,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals spread_capture,vol_metric \u2192 targets cross_venue_spread,volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -6195,7 +5715,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals odds,spread_capture,vol_metric \u2192 targets clv,clv_meta,cross_venue_spread,ht_delta (cefi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -6205,7 +5725,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals odds,spread_capture,vol_metric \u2192 targets clv,clv_meta,cross_venue_spread,ht_delta (cefi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -6215,7 +5735,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals spread_capture,vol_metric \u2192 targets cross_venue_spread,volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -6225,7 +5745,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals spread_capture,vol_metric \u2192 targets cross_venue_spread,volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -6235,7 +5755,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals odds,spread_capture,vol_metric \u2192 targets clv,clv_meta,cross_venue_spread,ht_delta (cefi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -6245,7 +5765,7 @@
       "from_node_id": "MARKET_MAKING_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,sports,tradfi; targets cross_venue_spread,direction,funding_rate,ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h",
+      "reason": "signals odds,spread_capture,vol_metric \u2192 targets clv,clv_meta,cross_venue_spread,ht_delta (cefi,sports,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -6705,7 +6225,7 @@
       "from_node_id": "MARKET_MAKING_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -6715,7 +6235,7 @@
       "from_node_id": "MARKET_MAKING_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -6725,7 +6245,7 @@
       "from_node_id": "MARKET_MAKING_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -6735,7 +6255,7 @@
       "from_node_id": "MARKET_MAKING_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -6745,7 +6265,7 @@
       "from_node_id": "MARKET_MAKING_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -7965,7 +7485,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -7975,7 +7495,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -7985,7 +7505,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -7995,7 +7515,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -8005,7 +7525,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -8015,7 +7535,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -8025,7 +7545,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -8035,7 +7555,7 @@
       "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals price \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -8465,7 +7985,7 @@
       "from_node_id": "ML_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -8475,7 +7995,7 @@
       "from_node_id": "ML_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -8485,7 +8005,7 @@
       "from_node_id": "ML_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -8495,7 +8015,7 @@
       "from_node_id": "ML_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -8505,7 +8025,7 @@
       "from_node_id": "ML_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -9525,7 +9045,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -9535,7 +9055,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -9545,7 +9065,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -9555,7 +9075,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -9565,7 +9085,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -9575,7 +9095,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -9585,7 +9105,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -9595,7 +9115,7 @@
       "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals funding_rate,price \u2192 targets direction,funding_rate,swing_high,swing_low (cefi,defi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -9965,7 +9485,7 @@
       "from_node_id": "RULES_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:catboost"
@@ -9975,7 +9495,7 @@
       "from_node_id": "RULES_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:huber"
@@ -9985,7 +9505,7 @@
       "from_node_id": "RULES_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:lightgbm"
@@ -9995,7 +9515,7 @@
       "from_node_id": "RULES_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:ridge"
@@ -10005,7 +9525,7 @@
       "from_node_id": "RULES_DIRECTIONAL_EVENT_SETTLED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) sports; targets ht.away_xg_2h,ht.goal_diff_2h,ht.home_xg_2h,ht.market.clv_bps,ht.market.move_direction_flag,ht.market.positive_clv_flag",
+      "reason": "signals odds \u2192 targets clv,clv_meta,ht_delta,xg (sports)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:xgboost"
@@ -10305,7 +9825,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:catboost"
@@ -10315,7 +9835,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:ensemble"
@@ -10325,7 +9845,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:huber"
@@ -10335,7 +9855,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:lightgbm"
@@ -10345,7 +9865,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:poisson_glm"
@@ -10355,7 +9875,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:random_forest"
@@ -10365,7 +9885,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:ridge"
@@ -10375,7 +9895,7 @@
       "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals momentum_ranking \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "partial",
       "to_node_id": "ml_model:xgboost"
@@ -10705,7 +10225,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -10715,7 +10235,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -10725,7 +10245,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -10735,7 +10255,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -10745,7 +10265,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -10755,7 +10275,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -10765,7 +10285,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -10775,7 +10295,7 @@
       "from_node_id": "STAT_ARB_PAIRS_FIXED",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,defi,tradfi; targets cross_venue_spread,direction,funding_rate,impermanent_loss,lending_rate,swing_high",
+      "reason": "signals zscore_reversion \u2192 targets direction,swing_high,swing_low (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -14275,7 +13795,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:catboost"
@@ -14285,7 +13805,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ensemble"
@@ -14295,7 +13815,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:huber"
@@ -14305,7 +13825,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:lightgbm"
@@ -14315,7 +13835,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:poisson_glm"
@@ -14325,7 +13845,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:random_forest"
@@ -14335,7 +13855,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:ridge"
@@ -14345,7 +13865,7 @@
       "from_node_id": "VOL_TRADING_OPTIONS",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) cefi,tradfi; targets cross_venue_spread,direction,swing_high,swing_low,volatility",
+      "reason": "signals iv_dispersion,vol_metric \u2192 targets volatility (cefi,tradfi)",
       "relation": "uses_model",
       "status": "available",
       "to_node_id": "ml_model:xgboost"
@@ -14765,86 +14285,6 @@
       "from_node_id": "YIELD_ROTATION_LENDING",
       "gap_type": null,
       "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_ROTATION_LENDING",
-      "gap_type": null,
-      "readiness": "backtest-only",
       "reason": null,
       "relation": "supports",
       "status": "available",
@@ -15079,86 +14519,6 @@
       "relation": "has_leg",
       "status": "available",
       "to_node_id": "leg:YIELD_STAKING_SIMPLE:stake"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:catboost"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ensemble"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:huber"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:lightgbm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:poisson_glm"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:random_forest"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:ridge"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "YIELD_STAKING_SIMPLE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": "trainable for asset_group(s) defi; targets funding_rate,impermanent_loss,lending_rate",
-      "relation": "uses_model",
-      "status": "available",
-      "to_node_id": "ml_model:xgboost"
     },
     {
       "agent_annotation": null,
@@ -24993,7 +24353,7 @@
     "orphan_nodes": 81,
     "unbuilt_dead_ends": 159
   },
-  "generated_from_commit": "a0b883620e0d1d897acefe492c6da61b3aa2bf7d",
+  "generated_from_commit": "9b03b3bfdda77361313b0286863a0122d4a99630",
   "manifest_version": "1.0.0",
   "nodes": [
     {

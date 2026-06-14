@@ -269,8 +269,8 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 574 nodes / 2497 edges (@UAC F53 uses_model edges)
-    await expect(page.getByText(/574 nodes \/ 2497 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 574 nodes / 2433 edges (@UAC F53 uses_model edges)
+    await expect(page.getByText(/574 nodes \/ 2433 edges/)).toBeVisible({ timeout: 10000 });
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
