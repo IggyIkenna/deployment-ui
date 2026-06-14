@@ -1,7 +1,7 @@
 /** Unit tests for the Repo-CI presentation helpers (plan: ci_dashboard_deployment_ui_2026_06_10.md). */
 
 import { describe, expect, it } from "vitest";
-import type { RepoCiOverviewRow } from "../api/client";
+import type { RepoCiOverviewRow, RepoCiPr } from "../api/client";
 import {
   buildSourceLabel,
   buildTimeLabel,
@@ -15,6 +15,7 @@ import {
   githubCommitUrl,
   promotionBlockedLabel,
   promotionBlockedTone,
+  prV2State,
   isDrainingClass,
   rowSeverity,
   shortSha,
@@ -81,6 +82,25 @@ describe("promotionBlockedTone / promotionBlockedLabel (G1)", () => {
     expect(promotionBlockedTone(warn)).toBe("yellow");
     expect(promotionBlockedLabel(quar)).toBe("3 fails · quarantined");
     expect(promotionBlockedLabel(warn)).toBe("1 fail");
+  });
+});
+
+describe("prV2State (standing-PR v2 explicit)", () => {
+  const pr = (over: Partial<RepoCiPr>): RepoCiPr => ({ repo: "r", number: 1, ...over });
+  it("a genuinely failed check reads 'v2 failed' (red)", () => {
+    expect(prV2State(pr({ failed_check: true, v2_present: true }))).toEqual({ label: "v2 failed", tone: "red" });
+  });
+  it("v2 absent from the rollup reads 'v2 not reported' (yellow — the deadlock)", () => {
+    expect(prV2State(pr({ failed_check: false, v2_present: false }))).toEqual({
+      label: "v2 not reported",
+      tone: "yellow",
+    });
+  });
+  it("reported + not failed reads 'v2 reported' (green)", () => {
+    expect(prV2State(pr({ failed_check: false, v2_present: true }))).toEqual({ label: "v2 reported", tone: "green" });
+  });
+  it("failed_check wins over a present check (failure is the actionable state)", () => {
+    expect(prV2State(pr({ failed_check: true, v2_present: false })).label).toBe("v2 failed");
   });
 });
 

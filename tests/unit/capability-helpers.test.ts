@@ -1,8 +1,8 @@
 /**
  * Unit tests for capability-helpers.ts aggregation logic.
- * Regression guard for the matrix, gap summary, sources, and orphan/dead-end
- * functions.  Uses a minimal synthetic manifest so tests run without the
- * full 9 KB JSON.
+ * Regression guard for the matrix, gap summary, sources, orphan/dead-end,
+ * and verdict aggregation functions.  Uses minimal synthetic data so tests
+ * run without the full JSON files.
  *
  * @vitest-environment node
  */
@@ -14,8 +14,11 @@ import {
   buildNodeIndex,
   buildOrphanList,
   buildSourcesTable,
+  buildVerdictArchetypeList,
+  buildVerdictSummary,
 } from "../../src/lib/capability-helpers";
 import type { CapabilityEdge, CapabilityManifest, CapabilityNode } from "../../src/data/capability-manifest-loader";
+import type { CapabilityVerdictMatrix } from "../../src/data/capability-verdict-matrix-loader";
 
 // ---------------------------------------------------------------------------
 // Minimal synthetic manifest
@@ -346,5 +349,137 @@ describe("buildDeadEndList", () => {
     const rows = buildDeadEndList(MANIFEST);
     // ARCH_A and ARCH_B have not_available edges; no other archetypes do
     expect(rows).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildVerdictSummary + buildVerdictArchetypeList
+// ---------------------------------------------------------------------------
+
+const VERDICT_MATRIX: CapabilityVerdictMatrix = {
+  matrix_version: "1.0.0",
+  generated_from_commit: "test_commit",
+  summary: {
+    total_cells: 100,
+    available: 60,
+    blocked: 30,
+    not_registered: 10,
+  },
+  verdicts: ["available", "blocked", "not_registered"],
+  axes: {
+    archetype: "archetype",
+    venue: "venue",
+    instrument_type: "instrument_type",
+    instruction_action: "instruction_action",
+    algo: "algo",
+  },
+  archetypes: [
+    {
+      archetype: "ARCH_REGISTERED_BLOCKED",
+      available_count: 5,
+      blocked_count: 3,
+      cell_count: 8,
+      instruction_actions: ["TRADE"],
+      valid_algos: ["TWAP", "VWAP"],
+      not_registered: false,
+      cells: [
+        {
+          venue: "binance",
+          instrument_type: "perpetual",
+          instruction_action: "TRADE",
+          available_algos: ["TWAP"],
+          blocked_algos: [
+            { algo: "VWAP", reason: "VWAP not valid for TRADE on perpetual" },
+            { algo: "BEST_PRICE", reason: "BEST_PRICE requires spot" },
+          ],
+        },
+        {
+          venue: "bybit",
+          instrument_type: "spot",
+          instruction_action: "TRADE",
+          available_algos: ["TWAP", "VWAP"],
+          blocked_algos: [],
+        },
+      ],
+    },
+    {
+      archetype: "ARCH_ALL_AVAILABLE",
+      available_count: 10,
+      blocked_count: 0,
+      cell_count: 10,
+      instruction_actions: ["TRADE"],
+      valid_algos: ["TWAP"],
+      not_registered: false,
+      cells: [
+        {
+          venue: "coinbase",
+          instrument_type: "spot",
+          instruction_action: "TRADE",
+          available_algos: ["TWAP"],
+          blocked_algos: [],
+        },
+      ],
+    },
+    {
+      archetype: "ARCH_NOT_REGISTERED",
+      cell_count: 0,
+      not_registered: true,
+      reason: "theoretical-only strategy, not implemented",
+      gap_type: "not_registered",
+      not_registered_algos: [],
+    },
+  ],
+};
+
+describe("buildVerdictSummary", () => {
+  it("returns the summary object from the matrix", () => {
+    const summary = buildVerdictSummary(VERDICT_MATRIX);
+    expect(summary.total_cells).toBe(100);
+    expect(summary.available).toBe(60);
+    expect(summary.blocked).toBe(30);
+    expect(summary.not_registered).toBe(10);
+  });
+});
+
+describe("buildVerdictArchetypeList", () => {
+  it("returns one entry per archetype", () => {
+    const list = buildVerdictArchetypeList(VERDICT_MATRIX);
+    expect(list).toHaveLength(3);
+  });
+
+  it("marks not_registered archetypes correctly", () => {
+    const list = buildVerdictArchetypeList(VERDICT_MATRIX);
+    const notReg = list.find((e) => e.archetype === "ARCH_NOT_REGISTERED");
+    expect(notReg).toBeDefined();
+    expect(notReg!.not_registered).toBe(true);
+    expect(notReg!.not_registered_reason).toBe("theoretical-only strategy, not implemented");
+    expect(notReg!.blocked_cells).toHaveLength(0);
+  });
+
+  it("collects blocked_cells only for cells with blocked_algos", () => {
+    const list = buildVerdictArchetypeList(VERDICT_MATRIX);
+    const blocked = list.find((e) => e.archetype === "ARCH_REGISTERED_BLOCKED");
+    expect(blocked).toBeDefined();
+    expect(blocked!.blocked_count).toBe(3);
+    // Only the binance cell has blocked_algos
+    expect(blocked!.blocked_cells).toHaveLength(1);
+    expect(blocked!.blocked_cells[0]!.venue).toBe("binance");
+    expect(blocked!.blocked_cells[0]!.blocked_algos).toHaveLength(2);
+  });
+
+  it("includes reason strings in blocked_cells", () => {
+    const list = buildVerdictArchetypeList(VERDICT_MATRIX);
+    const blocked = list.find((e) => e.archetype === "ARCH_REGISTERED_BLOCKED");
+    const reasons = blocked!.blocked_cells[0]!.blocked_algos.map((ba) => ba.reason);
+    expect(reasons).toContain("VWAP not valid for TRADE on perpetual");
+    expect(reasons).toContain("BEST_PRICE requires spot");
+  });
+
+  it("returns empty blocked_cells for fully-available archetypes", () => {
+    const list = buildVerdictArchetypeList(VERDICT_MATRIX);
+    const avail = list.find((e) => e.archetype === "ARCH_ALL_AVAILABLE");
+    expect(avail).toBeDefined();
+    expect(avail!.not_registered).toBe(false);
+    expect(avail!.blocked_cells).toHaveLength(0);
   });
 });

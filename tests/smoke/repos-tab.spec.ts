@@ -30,6 +30,32 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("sit-run-panel")).toContainText("Breaking cascade / SIT");
   });
 
+  test("Semver-agent health panel renders last bump + breaker-armed state (G2)", async ({ page }) => {
+    await page.goto("/repos");
+    const panel = page.getByTestId("semver-health-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Semver-agent health");
+    // Mock seeds a successful last bump run.
+    await expect(page.getByTestId("semver-last-run")).toContainText("success");
+    // Mock seeds 3 pending bumps == threshold → breaker reads ARMED.
+    await expect(page.getByTestId("semver-breaker")).toContainText("ARMED");
+    await expect(page.getByTestId("semver-breaker")).toContainText("3/3");
+    // The pending repos are listed so the operator sees WHICH repos are stacked.
+    await expect(page.getByTestId("semver-pending-repos")).toContainText("execution-service");
+  });
+
+  test("drain-stalled repo is flagged on the row + counted in the promotion-drain panel", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // execution-service (FAILING fixture) seeds the drain-stalled case: content ahead + stale drain.
+    await expect(page.getByTestId("drain-stalled-execution-service")).toContainText("drain stalled");
+    // A healthy repo carries no stalled chip.
+    await expect(page.getByTestId("drain-stalled-unified-trading-library")).toHaveCount(0);
+    // The promotion-drain panel summarises the count + names the stalled repos.
+    await expect(page.getByTestId("drain-stalled-summary")).toContainText("drain-stalled");
+    await expect(page.getByTestId("drain-stalled-summary")).toContainText("execution-service");
+  });
+
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");
@@ -81,6 +107,11 @@ test.describe("Repos CI page", () => {
     await expect(history.getByText("main", { exact: true })).toBeVisible();
     // PR cards with stuck classification render.
     await expect(page.getByTestId("repo-detail-prs")).toBeVisible();
+    // Each PR card carries an EXPLICIT quality-gates-v2 state chip (promotion-drain follow-up
+    // remainder) — execution-service's main PR is skip_ci_jammed (v2 not reported), staging PR
+    // failing_check (v2 failed).
+    await expect(page.getByTestId("repo-detail-prs")).toContainText("v2");
+    await expect(page.getByTestId("pr-v2-89")).toContainText("v2 failed"); // PR #89 = failing_check fixture
   });
 
   test("repo drill-down renders the promotion pipeline strip (LDR → staging → SIT → main → image)", async ({
@@ -98,6 +129,30 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("pipeline-stage-image")).toBeVisible();
     await expect(pipeline).toContainText("LDR");
     await expect(pipeline).toContainText("image");
+  });
+
+  test("repo drill-down renders per-branch last-green (LDR / staging / main) — N2-followup", async ({ page }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("execution-service");
+    const strip = page.getByTestId("repo-detail-last-green");
+    await expect(strip).toBeVisible();
+    await expect(strip).toContainText("Last green (v2)");
+    // All three promotion branches surface their own last-green axis.
+    await expect(page.getByTestId("last-green-branch-live-defi-rollout")).toBeVisible();
+    await expect(page.getByTestId("last-green-branch-staging")).toContainText("ab09111");
+    await expect(page.getByTestId("last-green-branch-main")).toBeVisible();
+  });
+
+  test("repo drill-down surfaces the staging-lock REASON + last-SIT-run age (SitLockDetail)", async ({ page }) => {
+    await page.goto("/repos");
+    // greeks-service is the stuck/breaking-pending fixture: staging locked + a SIT run age.
+    await page.getByTestId("repo-dropdown").selectOption("greeks-service");
+    const detail = page.getByTestId("repo-detail-sit-lock");
+    await expect(detail).toBeVisible();
+    // The WHY (not just "locked") — the reason the pipeline strip can't show.
+    await expect(detail).toContainText("breaking cascade in flight");
+    // The per-repo last-SIT-run age (distinct from the global SIT-run panel).
+    await expect(page.getByTestId("sit-run-age")).toContainText("last SIT run");
   });
 
   test("clicking a table row selects the repo for drill-down", async ({ page }) => {

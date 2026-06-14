@@ -3,7 +3,7 @@
  * Plan: ci_dashboard_deployment_ui_2026_06_10.md Phase 2 — unit-tested chip/label logic.
  */
 
-import type { RepoCiOverviewRow, RepoCiPromotionBlocked, RepoCiSitJob, StuckClass } from "../api/client";
+import type { RepoCiOverviewRow, RepoCiPr, RepoCiPromotionBlocked, RepoCiSitJob, StuckClass } from "../api/client";
 
 export type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
 
@@ -57,6 +57,20 @@ export function stuckClassTone(stuckClass: StuckClass): ChipTone {
     case "automerge_stuck":
       return "yellow";
   }
+}
+
+/** Explicit quality-gates-v2 state for a standing promotion PR (LDR→staging / LDR→main).
+ * Today the v2 outcome is implicit (you infer it from stuck_class / its absence); this makes it
+ * explicit per PR from the rollup the backend already provides:
+ *   - failed_check        → the gate genuinely FAILED (red, needs a fix)
+ *   - v2_present === false → v2 never reported (yellow — the auto-recoverable deadlock)
+ *   - otherwise           → v2 reported, no failure (green — draining / passed)
+ * Note: a rollup state, not a precise success/in_progress split (the overview doesn't fetch the
+ * exact conclusion for non-blocked PRs to stay within the GitHub-API budget). */
+export function prV2State(pr: RepoCiPr): { label: string; tone: ChipTone } {
+  if (pr.failed_check) return { label: "v2 failed", tone: "red" };
+  if (pr.v2_present === false) return { label: "v2 not reported", tone: "yellow" };
+  return { label: "v2 reported", tone: "green" };
 }
 
 /** Tone for one SIT job chip (queued/in_progress are blue; completed maps conclusion). */

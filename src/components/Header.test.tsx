@@ -47,9 +47,7 @@ describe("Header", () => {
   });
 
   it("renders the brand title + version chip when health resolves", async () => {
-    vi.spyOn(apiClient, "getHealth").mockResolvedValue(
-      makeHealth({ version: "1.2.3" }),
-    );
+    vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ version: "1.2.3" }));
     renderHeader();
     expect(screen.getByText(/Unified Trading Deployment/)).toBeTruthy();
     await waitFor(() => expect(screen.getByText("v1.2.3")).toBeTruthy());
@@ -62,26 +60,20 @@ describe("Header", () => {
   });
 
   it("shows the Disconnected badge on health error", async () => {
-    vi.spyOn(apiClient, "getHealth").mockRejectedValue(
-      new Error("backend down"),
-    );
+    vi.spyOn(apiClient, "getHealth").mockRejectedValue(new Error("backend down"));
     renderHeader();
     await waitFor(() => expect(screen.getByText("Disconnected")).toBeTruthy());
   });
 
   it("renders the MOCK (both) badge when frontend + backend are mock", async () => {
     // FRONTEND_MOCK comes from VITE_MOCK_API=true in .env.test.
-    vi.spyOn(apiClient, "getHealth").mockResolvedValue(
-      makeHealth({ mock_mode: true }),
-    );
+    vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ mock_mode: true }));
     renderHeader();
     await waitFor(() => expect(screen.getByText(/MOCK \(both\)/)).toBeTruthy());
   });
 
   it("renders the MOCK (UI) badge when only frontend is mock", async () => {
-    vi.spyOn(apiClient, "getHealth").mockResolvedValue(
-      makeHealth({ mock_mode: false }),
-    );
+    vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ mock_mode: false }));
     renderHeader();
     await waitFor(() => expect(screen.getByText(/MOCK \(UI\)/)).toBeTruthy());
   });
@@ -142,7 +134,6 @@ describe("Header", () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     renderHeader();
     expect(screen.getByText("VM Deployments")).toBeTruthy();
-    expect(screen.getByText("Subscriptions")).toBeTruthy();
     expect(screen.getByText("Chaos")).toBeTruthy();
   });
 });

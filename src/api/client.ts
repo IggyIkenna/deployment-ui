@@ -3128,35 +3128,13 @@ export async function getLiveDeploymentHealth(
 }
 
 // ---------------------------------------------------------------------------
-// v7 — Client subscriptions + chaos injections (Phase 4b)
+// v7 — Chaos injections (Phase 4b)
 // ---------------------------------------------------------------------------
+// NOTE: client subscriptions (SLA tier / isolation) moved to unified-trading-system-ui
+// (`services/manage/subscriptions`) per the dual-cut cleanup 2026-06-12. The
+// deployment-api `/subscriptions` backend is unchanged.
 
-import type { ChaosInjectionSpec, ClientSubscription, RuntimeProfile } from "../types";
-
-export async function listClientSubscriptions(): Promise<ClientSubscription[]> {
-  return fetchJson<ClientSubscription[]>("/subscriptions/");
-}
-
-export async function getClientSubscription(clientId: string): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`);
-}
-
-export async function createClientSubscription(sub: ClientSubscription): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>("/subscriptions/", {
-    method: "POST",
-    body: JSON.stringify(sub),
-  });
-}
-
-export async function updateClientSubscription(
-  clientId: string,
-  patch: Partial<ClientSubscription>,
-): Promise<ClientSubscription> {
-  return fetchJson<ClientSubscription>(`/subscriptions/${encodeURIComponent(clientId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
-  });
-}
+import type { ChaosInjectionSpec, RuntimeProfile } from "../types";
 
 export async function listActiveChaosInjections(runtimeProfile?: RuntimeProfile): Promise<ChaosInjectionSpec[]> {
   const qs = runtimeProfile ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}` : "";
@@ -3380,6 +3358,10 @@ export interface RepoCiOverviewRow {
   /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
    * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
   main_lag_age_min?: number | null;
+  /** promotion-drain follow-up: true when this repo has real file-content ahead of staging/main
+   * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
+   * on LDR with a dead drain). */
+  drain_stalled?: boolean;
 }
 
 export interface RepoCiLastGreen {
@@ -3417,6 +3399,22 @@ export interface RepoCiOverview {
   /** Routine LDR→staging / LDR→main promote drain (PM-central, every 15 min) — distinct from the
    * breaking cascade/SIT (sit_last_run). Null when the drain runs can't be fetched. */
   promotion_drain?: RepoCiPromotionDrain | null;
+  /** Semver-agent standing health (G2) — last bump run + pending-bump count + breaker-armed flag.
+   * Null when the semver-agent run can't be fetched. */
+  semver_health?: RepoCiSemverHealth | null;
+}
+
+export interface RepoCiSemverHealth {
+  last_run_status: string;
+  last_run_conclusion: string | null;
+  last_run_age_min: number | null;
+  last_run_url: string;
+  /** Repos whose staging version is ahead of main (pending promotion) — the breaker counts these. */
+  pending_bump_count: number;
+  pending_bump_repos: string[];
+  /** True when pending_bump_count >= breaker_threshold (the semver-agent circuit-breaker condition). */
+  breaker_armed: boolean;
+  breaker_threshold: number;
 }
 
 export interface RepoCiPromoteRun {
@@ -3448,6 +3446,9 @@ export interface RepoCiDetail {
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** N2-followup: per-branch last-green (keyed by branch name) — the most-recent SHA on each of
+   * LDR / staging / main whose quality-gates-v2 concluded success, or null when none. */
+  last_green?: Record<string, RepoCiLastGreen | null>;
 }
 
 export async function getRepoCiOverview(): Promise<RepoCiOverview> {

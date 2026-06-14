@@ -88,6 +88,7 @@ export default defineConfig({
         // React hooks (async fetch hooks - tested via component integration)
         "src/hooks/**",
         // Large visualization components (complex UI - tested via e2e/smoke)
+        "src/components/CapabilityTab.tsx",
         "src/components/DataStatusTab.tsx",
         "src/components/DeploymentDetails.tsx",
         "src/components/ExecutionDataStatus.tsx",
