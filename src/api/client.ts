@@ -1060,6 +1060,8 @@ export interface TurboSubDimension {
     // Phase 4 P1: all 5 fields exposed (expected_unattempted split)
     expected_unattempted_known_empty?: number;
     expected_unattempted_pending_fetch?: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // Phase 4 P1: canonical alias for capture_status_counts (all 5 fields always present)
   counts?: {
@@ -1068,6 +1070,8 @@ export interface TurboSubDimension {
     attempted_failed: number;
     expected_unattempted_known_empty: number;
     expected_unattempted_pending_fetch: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // Phase 4 P1: honest_coverage float (0–1) pre-computed by API; never re-derive client-side
   coverage?: number;
@@ -1248,6 +1252,8 @@ export interface TurboAssetGroupStatus {
     attempted_failed: number;
     expected_unattempted_known_empty?: number;
     expected_unattempted_pending_fetch?: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   counts?: {
     captured: number;
@@ -1255,6 +1261,8 @@ export interface TurboAssetGroupStatus {
     attempted_failed: number;
     expected_unattempted_known_empty: number;
     expected_unattempted_pending_fetch: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // honest_coverage float (0–1); use instead of recomputing from counts client-side
   coverage?: number;
@@ -3162,6 +3170,8 @@ export interface HonestCoverageStatusCounts {
   expected_unattempted_known_empty: number;
   expected_unattempted_pending_fetch: number;
   total: number;
+  /** Never-collectable cells excluded from the denominator (pre-genesis / delisted / etc.). */
+  out_of_window?: number;
   /**
    * Honest coverage: (captured + empty_confirmed + expected_unattempted_known_empty)
    *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)

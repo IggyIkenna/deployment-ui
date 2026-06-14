@@ -209,6 +209,7 @@ function _mkVenue(dates_expected: number, captured: number, empty: number, faile
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
+      out_of_window: 0,
     },
     counts: {
       captured,
@@ -216,6 +217,7 @@ function _mkVenue(dates_expected: number, captured: number, empty: number, faile
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
+      out_of_window: 0,
     },
     // Phase 4 P1: honest_coverage = (captured + empty) / (captured + empty + failed + pending)
     coverage: (() => {
@@ -294,6 +296,7 @@ function _mkCategory(
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
+      out_of_window: 0,
     },
     counts: {
       captured,
@@ -301,6 +304,7 @@ function _mkCategory(
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
+      out_of_window: 0,
     },
     coverage: (() => {
       const num = captured + empty;
@@ -418,6 +422,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
+      out_of_window: 0,
     },
     counts: {
       captured: totalFound,
@@ -425,6 +430,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
+      out_of_window: 0,
     },
     coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
     venue_weighted: true,
@@ -511,6 +517,7 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+      out_of_window: 0,
     },
     counts: {
       captured: totalFound,
@@ -518,6 +525,7 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+      out_of_window: 0,
     },
     coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
     missing_dates: [],

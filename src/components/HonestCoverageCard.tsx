@@ -13,6 +13,7 @@ function CoverageBar({
   attempted_failed,
   expected_unattempted_known_empty,
   expected_unattempted_pending_fetch,
+  out_of_window = 0,
   total,
 }: {
   captured: number;
@@ -20,10 +21,14 @@ function CoverageBar({
   attempted_failed: number;
   expected_unattempted_known_empty: number;
   expected_unattempted_pending_fetch: number;
+  out_of_window?: number;
   total: number;
 }) {
-  if (total === 0) return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
-  const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%`;
+  // `total` is the denominator from the API (excludes out_of_window already).
+  // We render the bar across all cells including OOW so the full width = total + oow.
+  const barTotal = total + out_of_window;
+  if (barTotal === 0) return <div className="h-2 rounded bg-[var(--color-bg-tertiary)]" />;
+  const pct = (n: number) => `${((n / barTotal) * 100).toFixed(1)}%`;
   return (
     <div className="flex h-2 rounded overflow-hidden w-full">
       <div className="bg-emerald-500" style={{ width: pct(captured) }} title={`captured: ${captured}`} />
@@ -47,6 +52,13 @@ function CoverageBar({
         style={{ width: pct(expected_unattempted_pending_fetch) }}
         title={`expected_unattempted_pending_fetch: ${expected_unattempted_pending_fetch}`}
       />
+      {out_of_window > 0 && (
+        <div
+          className="bg-slate-300 opacity-40"
+          style={{ width: pct(out_of_window) }}
+          title={`outside window — not a gap: ${out_of_window}`}
+        />
+      )}
     </div>
   );
 }
@@ -91,7 +103,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           </Badge>
           <span
             className="text-[10px] text-[var(--color-text-muted)] cursor-help"
-            title="(captured + empty_confirmed + expected_unattempted_known_empty) / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)"
+            title="(captured + empty_confirmed + expected_unattempted_known_empty) / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch) — out_of_window cells (pre-genesis/delisted/deprecated) are excluded from the denominator"
           >
             reachable
           </span>
@@ -146,6 +158,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                       attempted_failed={s.attempted_failed}
                       expected_unattempted_known_empty={s.expected_unattempted_known_empty}
                       expected_unattempted_pending_fetch={s.expected_unattempted_pending_fetch}
+                      out_of_window={s.out_of_window}
                       total={s.total}
                     />
                     <div className="text-[10px] text-[var(--color-text-muted)]">{s.total.toLocaleString()} shards</div>
@@ -173,6 +186,13 @@ export function HonestCoverageCard({ date }: { date?: string }) {
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-[var(--color-bg-tertiary)]" />
                 exp_unattempted_pending_fetch
+              </span>
+              <span
+                className="flex items-center gap-1"
+                title="pre-genesis / delisted / deprecated — never collectable, excluded from denominator"
+              >
+                <span className="inline-block w-2 h-2 rounded-sm bg-slate-300 opacity-40" />
+                outside window — not a gap
               </span>
             </div>
           </div>
