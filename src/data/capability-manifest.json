@@ -14312,86 +14312,6 @@
     },
     {
       "agent_annotation": null,
-      "from_node_id": "data_source:execution_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "default transport for execution_service",
-      "relation": "over_transport:rest",
-      "status": "available",
-      "to_node_id": "data_source:execution_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:execution_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "batch is the baseline mode for every source",
-      "relation": "supports_mode:batch",
-      "status": "available",
-      "to_node_id": "data_source:execution_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:execution_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "live-mode capability for execution_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:live",
-      "status": "not_registered",
-      "to_node_id": "data_source:execution_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:execution_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "replay-mode capability for execution_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:replay",
-      "status": "not_registered",
-      "to_node_id": "data_source:execution_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:features_onchain_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "default transport for features_onchain_service",
-      "relation": "over_transport:rest",
-      "status": "available",
-      "to_node_id": "data_source:features_onchain_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:features_onchain_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "batch is the baseline mode for every source",
-      "relation": "supports_mode:batch",
-      "status": "available",
-      "to_node_id": "data_source:features_onchain_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:features_onchain_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "live-mode capability for features_onchain_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:live",
-      "status": "not_registered",
-      "to_node_id": "data_source:features_onchain_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:features_onchain_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "replay-mode capability for features_onchain_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:replay",
-      "status": "not_registered",
-      "to_node_id": "data_source:features_onchain_service"
-    },
-    {
-      "agent_annotation": null,
       "from_node_id": "data_source:footystats",
       "gap_type": null,
       "readiness": null,
@@ -14509,46 +14429,6 @@
       "relation": "supports_mode:replay",
       "status": "not_registered",
       "to_node_id": "data_source:hyperliquid"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:instruments_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "default transport for instruments_service",
-      "relation": "over_transport:rest",
-      "status": "available",
-      "to_node_id": "data_source:instruments_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:instruments_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "batch is the baseline mode for every source",
-      "relation": "supports_mode:batch",
-      "status": "available",
-      "to_node_id": "data_source:instruments_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:instruments_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "live-mode capability for instruments_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:live",
-      "status": "not_registered",
-      "to_node_id": "data_source:instruments_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:instruments_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "replay-mode capability for instruments_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:replay",
-      "status": "not_registered",
-      "to_node_id": "data_source:instruments_service"
     },
     {
       "agent_annotation": null,
@@ -14992,46 +14872,6 @@
     },
     {
       "agent_annotation": null,
-      "from_node_id": "data_source:strategy_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "default transport for strategy_service",
-      "relation": "over_transport:rest",
-      "status": "available",
-      "to_node_id": "data_source:strategy_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:strategy_service",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "batch is the baseline mode for every source",
-      "relation": "supports_mode:batch",
-      "status": "available",
-      "to_node_id": "data_source:strategy_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:strategy_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "live-mode capability for strategy_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:live",
-      "status": "not_registered",
-      "to_node_id": "data_source:strategy_service"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:strategy_service",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "replay-mode capability for strategy_service lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:replay",
-      "status": "not_registered",
-      "to_node_id": "data_source:strategy_service"
-    },
-    {
-      "agent_annotation": null,
       "from_node_id": "data_source:tardis",
       "gap_type": null,
       "readiness": null,
@@ -15189,6 +15029,186 @@
       "relation": "supports_mode:replay",
       "status": "not_registered",
       "to_node_id": "data_source:yahoo"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class BTC",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:BTC"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class ETH",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:ETH"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class EUR",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:EUR"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class FDUSD",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:FDUSD"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class GBP",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:GBP"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class SOL",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:SOL"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class USD",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USD"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class USDC",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USDC"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:pooled",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "pooled offers share class USDT",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USDT"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class BTC",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:BTC"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class ETH",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:ETH"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class EUR",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:EUR"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class FDUSD",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:FDUSD"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class GBP",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:GBP"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class SOL",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:SOL"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class USD",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USD"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class USDC",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USDC"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "fund_structure:sma",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "sma offers share class USDT",
+      "relation": "offers_share_class",
+      "status": "available",
+      "to_node_id": "share_class:USDT"
     },
     {
       "agent_annotation": {
@@ -21452,6 +21472,36 @@
     },
     {
       "agent_annotation": null,
+      "from_node_id": "signing_surface:CLOUD_KMS_ENCRYPTED",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "CLOUD_KMS_ENCRYPTED signs for defi (active_may23)",
+      "relation": "signs_for:defi",
+      "status": "available",
+      "to_node_id": "signing_surface:CLOUD_KMS_ENCRYPTED"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "signing_surface:COPPER_MPC",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "COPPER_MPC signs for cefi (active_june1)",
+      "relation": "signs_for:cefi",
+      "status": "available",
+      "to_node_id": "signing_surface:COPPER_MPC"
+    },
+    {
+      "agent_annotation": null,
+      "from_node_id": "signing_surface:COPPER_MPC",
+      "gap_type": null,
+      "readiness": null,
+      "reason": "COPPER_MPC signs for defi (active_june1)",
+      "relation": "signs_for:defi",
+      "status": "available",
+      "to_node_id": "signing_surface:COPPER_MPC"
+    },
+    {
+      "agent_annotation": null,
       "from_node_id": "venue:AAVE-PLASMA",
       "gap_type": null,
       "readiness": null,
@@ -23267,13 +23317,13 @@
     "logical_dead_end": 446,
     "logical_dead_ends": 16,
     "missing_extraction": 1,
-    "missing_registry": 158,
+    "missing_registry": 150,
     "needs_code_scan": 1,
-    "not_registered_total": 159,
-    "orphan_nodes": 87,
+    "not_registered_total": 151,
+    "orphan_nodes": 89,
     "unbuilt_dead_ends": 159
   },
-  "generated_from_commit": "553850a242d4f3457f8f721d6cbf7c22332db211",
+  "generated_from_commit": "e59c1efa4767c8285e12dc186b373acbc13e095c",
   "manifest_version": "1.0.0",
   "nodes": [
     {
@@ -23631,252 +23681,286 @@
     },
     {
       "kind": "chain",
-      "label": "Chain 1",
-      "metadata": {},
-      "node_id": "chain:1"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 10",
-      "metadata": {},
-      "node_id": "chain:10"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 100",
-      "metadata": {},
-      "node_id": "chain:100"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 1088",
-      "metadata": {},
-      "node_id": "chain:1088"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 1101",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "1101"
+      },
       "node_id": "chain:1101"
     },
     {
       "kind": "chain",
       "label": "Chain 11155111",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "11155111"
+      },
       "node_id": "chain:11155111"
     },
     {
       "kind": "chain",
       "label": "Chain 11155420",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "11155420"
+      },
       "node_id": "chain:11155420"
     },
     {
       "kind": "chain",
-      "label": "Chain 1284",
-      "metadata": {},
-      "node_id": "chain:1284"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 130",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "130"
+      },
       "node_id": "chain:130"
     },
     {
       "kind": "chain",
-      "label": "Chain 1313161554",
-      "metadata": {},
-      "node_id": "chain:1313161554"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 137",
-      "metadata": {},
-      "node_id": "chain:137"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 168587773",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "168587773"
+      },
       "node_id": "chain:168587773"
     },
     {
       "kind": "chain",
-      "label": "Chain 250",
-      "metadata": {},
-      "node_id": "chain:250"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 2741",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "2741"
+      },
       "node_id": "chain:2741"
     },
     {
       "kind": "chain",
       "label": "Chain 300",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "300"
+      },
       "node_id": "chain:300"
     },
     {
       "kind": "chain",
-      "label": "Chain 324",
-      "metadata": {},
-      "node_id": "chain:324"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 34443",
-      "metadata": {},
-      "node_id": "chain:34443"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 42161",
-      "metadata": {},
-      "node_id": "chain:42161"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 421614",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "421614"
+      },
       "node_id": "chain:421614"
     },
     {
       "kind": "chain",
-      "label": "Chain 42220",
-      "metadata": {},
-      "node_id": "chain:42220"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 43113",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "43113"
+      },
       "node_id": "chain:43113"
     },
     {
       "kind": "chain",
-      "label": "Chain 43114",
-      "metadata": {},
-      "node_id": "chain:43114"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 480",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "480"
+      },
       "node_id": "chain:480"
     },
     {
       "kind": "chain",
-      "label": "Chain 5000",
-      "metadata": {},
-      "node_id": "chain:5000"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 534351",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "534351"
+      },
       "node_id": "chain:534351"
     },
     {
       "kind": "chain",
-      "label": "Chain 534352",
-      "metadata": {},
-      "node_id": "chain:534352"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 56",
-      "metadata": {},
-      "node_id": "chain:56"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 57073",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "57073"
+      },
       "node_id": "chain:57073"
     },
     {
       "kind": "chain",
       "label": "Chain 59141",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "59141"
+      },
       "node_id": "chain:59141"
     },
     {
       "kind": "chain",
-      "label": "Chain 59144",
-      "metadata": {},
-      "node_id": "chain:59144"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 7777777",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "7777777"
+      },
       "node_id": "chain:7777777"
     },
     {
       "kind": "chain",
       "label": "Chain 80002",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "80002"
+      },
       "node_id": "chain:80002"
     },
     {
       "kind": "chain",
-      "label": "Chain 81457",
-      "metadata": {},
-      "node_id": "chain:81457"
-    },
-    {
-      "kind": "chain",
-      "label": "Chain 8453",
-      "metadata": {},
-      "node_id": "chain:8453"
-    },
-    {
-      "kind": "chain",
       "label": "Chain 84532",
-      "metadata": {},
+      "metadata": {
+        "chain_id": "84532"
+      },
       "node_id": "chain:84532"
     },
     {
       "kind": "chain",
-      "label": "ARBITRUM",
-      "metadata": {},
+      "label": "Arbitrum",
+      "metadata": {
+        "chain_id": "42161"
+      },
       "node_id": "chain:ARBITRUM"
     },
     {
       "kind": "chain",
-      "label": "AVALANCHE",
-      "metadata": {},
+      "label": "Aurora",
+      "metadata": {
+        "chain_id": "1313161554"
+      },
+      "node_id": "chain:AURORA"
+    },
+    {
+      "kind": "chain",
+      "label": "Avalanche",
+      "metadata": {
+        "chain_id": "43114"
+      },
       "node_id": "chain:AVALANCHE"
     },
     {
       "kind": "chain",
-      "label": "BASE",
-      "metadata": {},
+      "label": "Base",
+      "metadata": {
+        "chain_id": "8453"
+      },
       "node_id": "chain:BASE"
     },
     {
       "kind": "chain",
-      "label": "BSC",
-      "metadata": {},
+      "label": "Blast",
+      "metadata": {
+        "chain_id": "81457"
+      },
+      "node_id": "chain:BLAST"
+    },
+    {
+      "kind": "chain",
+      "label": "Bsc",
+      "metadata": {
+        "chain_id": "56"
+      },
       "node_id": "chain:BSC"
     },
     {
       "kind": "chain",
-      "label": "ETHEREUM",
-      "metadata": {},
+      "label": "Celo",
+      "metadata": {
+        "chain_id": "42220"
+      },
+      "node_id": "chain:CELO"
+    },
+    {
+      "kind": "chain",
+      "label": "Ethereum",
+      "metadata": {
+        "chain_id": "1"
+      },
       "node_id": "chain:ETHEREUM"
     },
     {
       "kind": "chain",
-      "label": "OPTIMISM",
-      "metadata": {},
+      "label": "Fantom",
+      "metadata": {
+        "chain_id": "250"
+      },
+      "node_id": "chain:FANTOM"
+    },
+    {
+      "kind": "chain",
+      "label": "Gnosis",
+      "metadata": {
+        "chain_id": "100"
+      },
+      "node_id": "chain:GNOSIS"
+    },
+    {
+      "kind": "chain",
+      "label": "Linea",
+      "metadata": {
+        "chain_id": "59144"
+      },
+      "node_id": "chain:LINEA"
+    },
+    {
+      "kind": "chain",
+      "label": "Mantle",
+      "metadata": {
+        "chain_id": "5000"
+      },
+      "node_id": "chain:MANTLE"
+    },
+    {
+      "kind": "chain",
+      "label": "Metis",
+      "metadata": {
+        "chain_id": "1088"
+      },
+      "node_id": "chain:METIS"
+    },
+    {
+      "kind": "chain",
+      "label": "Mode",
+      "metadata": {
+        "chain_id": "34443"
+      },
+      "node_id": "chain:MODE"
+    },
+    {
+      "kind": "chain",
+      "label": "Moonbeam",
+      "metadata": {
+        "chain_id": "1284"
+      },
+      "node_id": "chain:MOONBEAM"
+    },
+    {
+      "kind": "chain",
+      "label": "Optimism",
+      "metadata": {
+        "chain_id": "10"
+      },
       "node_id": "chain:OPTIMISM"
     },
     {
-      "kind": "custody_provider",
+      "kind": "chain",
+      "label": "Polygon",
+      "metadata": {
+        "chain_id": "137"
+      },
+      "node_id": "chain:POLYGON"
+    },
+    {
+      "kind": "chain",
+      "label": "Scroll",
+      "metadata": {
+        "chain_id": "534352"
+      },
+      "node_id": "chain:SCROLL"
+    },
+    {
+      "kind": "chain",
+      "label": "Zksync",
+      "metadata": {
+        "chain_id": "324"
+      },
+      "node_id": "chain:ZKSYNC"
+    },
+    {
+      "kind": "collateral_policy",
       "label": "Collateral: Aave V3",
       "metadata": {
         "maintenance_margin": "",
@@ -23888,7 +23972,7 @@
       "node_id": "collateral:aave_v3"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Binance",
       "metadata": {
         "maintenance_margin": "0.004",
@@ -23900,7 +23984,7 @@
       "node_id": "collateral:binance"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Bybit",
       "metadata": {
         "maintenance_margin": "0.005",
@@ -23912,7 +23996,7 @@
       "node_id": "collateral:bybit"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Deribit",
       "metadata": {
         "maintenance_margin": "0.01",
@@ -23924,7 +24008,7 @@
       "node_id": "collateral:deribit"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Drift",
       "metadata": {
         "maintenance_margin": "",
@@ -23936,7 +24020,7 @@
       "node_id": "collateral:drift"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Gmx V2",
       "metadata": {
         "maintenance_margin": "",
@@ -23948,7 +24032,7 @@
       "node_id": "collateral:gmx_v2"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Hyperliquid",
       "metadata": {
         "maintenance_margin": "0.01",
@@ -23960,7 +24044,7 @@
       "node_id": "collateral:hyperliquid"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Kamino",
       "metadata": {
         "maintenance_margin": "",
@@ -23972,7 +24056,7 @@
       "node_id": "collateral:kamino"
     },
     {
-      "kind": "custody_provider",
+      "kind": "collateral_policy",
       "label": "Collateral: Okx",
       "metadata": {
         "maintenance_margin": "0.005",
@@ -23982,141 +24066,6 @@
         "venue_kind": "perp_cex"
       },
       "node_id": "collateral:okx"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "TradFi brokers",
-      "metadata": {
-        "entry_count": "0",
-        "registry": "broker"
-      },
-      "node_id": "gap_registry:broker"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Collateral policies",
-      "metadata": {
-        "entry_count": "9",
-        "registry": "collateral"
-      },
-      "node_id": "gap_registry:collateral"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Fee schedules",
-      "metadata": {
-        "entry_count": "24",
-        "registry": "fees"
-      },
-      "node_id": "gap_registry:fees"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Fund structures",
-      "metadata": {
-        "entry_count": "2",
-        "registry": "fund_structure"
-      },
-      "node_id": "gap_registry:fund_structure"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Venue order semantics",
-      "metadata": {
-        "entry_count": "9",
-        "registry": "order_semantics"
-      },
-      "node_id": "gap_registry:order_semantics"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Simulation assumptions",
-      "metadata": {
-        "entry_count": "20",
-        "registry": "sim_assumptions"
-      },
-      "node_id": "gap_registry:sim_assumptions"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Trading-agent capabilities",
-      "metadata": {
-        "entry_count": "3",
-        "registry": "trading_agent"
-      },
-      "node_id": "gap_registry:trading_agent"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Cointegration Breakdown",
-      "metadata": {},
-      "node_id": "kill_switch:COINTEGRATION_BREAKDOWN"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Daily Loss Breach",
-      "metadata": {},
-      "node_id": "kill_switch:DAILY_LOSS_BREACH"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Data Stale",
-      "metadata": {},
-      "node_id": "kill_switch:DATA_STALE"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Disabled",
-      "metadata": {},
-      "node_id": "kill_switch:DISABLED"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Greek Limit Breach",
-      "metadata": {},
-      "node_id": "kill_switch:GREEK_LIMIT_BREACH"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Kill Switch Triggered",
-      "metadata": {},
-      "node_id": "kill_switch:KILL_SWITCH_TRIGGERED"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Max Drawdown Breach",
-      "metadata": {},
-      "node_id": "kill_switch:MAX_DRAWDOWN_BREACH"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Kill Switch: Venue Unavailable",
-      "metadata": {},
-      "node_id": "kill_switch:VENUE_UNAVAILABLE"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Risk Gate: Execution Pretrade",
-      "metadata": {},
-      "node_id": "risk_layer:EXECUTION_PRETRADE"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Risk Gate: Risk Preflight",
-      "metadata": {},
-      "node_id": "risk_layer:RISK_PREFLIGHT"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Risk Gate: Strategy Self Check",
-      "metadata": {},
-      "node_id": "risk_layer:STRATEGY_SELF_CHECK"
-    },
-    {
-      "kind": "custody_provider",
-      "label": "Risk Gate: Venue Side",
-      "metadata": {},
-      "node_id": "risk_layer:VENUE_SIDE"
     },
     {
       "kind": "data_source",
@@ -24156,18 +24105,6 @@
     },
     {
       "kind": "data_source",
-      "label": "Execution Service",
-      "metadata": {},
-      "node_id": "data_source:execution_service"
-    },
-    {
-      "kind": "data_source",
-      "label": "Features Onchain Service",
-      "metadata": {},
-      "node_id": "data_source:features_onchain_service"
-    },
-    {
-      "kind": "data_source",
       "label": "Footystats",
       "metadata": {},
       "node_id": "data_source:footystats"
@@ -24183,12 +24120,6 @@
       "label": "Hyperliquid",
       "metadata": {},
       "node_id": "data_source:hyperliquid"
-    },
-    {
-      "kind": "data_source",
-      "label": "Instruments Service",
-      "metadata": {},
-      "node_id": "data_source:instruments_service"
     },
     {
       "kind": "data_source",
@@ -24255,12 +24186,6 @@
       "label": "Solana Rpc",
       "metadata": {},
       "node_id": "data_source:solana_rpc"
-    },
-    {
-      "kind": "data_source",
-      "label": "Strategy Service",
-      "metadata": {},
-      "node_id": "data_source:strategy_service"
     },
     {
       "kind": "data_source",
@@ -24805,6 +24730,97 @@
       "node_id": "min_data_to_run:feature_lookback"
     },
     {
+      "kind": "fund_structure",
+      "label": "Fund Structure: Pooled",
+      "metadata": {
+        "notes": "One fund holds multiple clients; each client is a SHARE CLASS with per-share-class NAV via the allocation engine (one set of positions / market-data feed / API keys). Source: sma-vs-pooled.md. Subscription/redemption/rebalance cadence is per-fund configuration, not constrained at the structure level.",
+        "rebalance_cadence": "",
+        "redemption_cadence": "",
+        "share_classes": "BTC,ETH,EUR,FDUSD,GBP,SOL,USD,USDC,USDT",
+        "structure_kind": "pooled",
+        "subscription_cadence": "",
+        "supports_daily_withdraw_deposit": "false"
+      },
+      "node_id": "fund_structure:pooled"
+    },
+    {
+      "kind": "fund_structure",
+      "label": "Fund Structure: Sma",
+      "metadata": {
+        "notes": "Separately Managed Account \u2014 each client has their OWN fund running independently (per-client positions / API keys / NAV = actual P&L; no allocation engine). HNW/institutional, bespoke mandate, per-client regulatory reporting. Source: sma-vs-pooled.md. Cadence is per-fund configuration.",
+        "rebalance_cadence": "",
+        "redemption_cadence": "",
+        "share_classes": "BTC,ETH,EUR,FDUSD,GBP,SOL,USD,USDC,USDT",
+        "structure_kind": "sma",
+        "subscription_cadence": "",
+        "supports_daily_withdraw_deposit": "false"
+      },
+      "node_id": "fund_structure:sma"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "TradFi brokers",
+      "metadata": {
+        "entry_count": "0",
+        "registry": "broker"
+      },
+      "node_id": "gap_registry:broker"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Collateral policies",
+      "metadata": {
+        "entry_count": "9",
+        "registry": "collateral"
+      },
+      "node_id": "gap_registry:collateral"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Fee schedules",
+      "metadata": {
+        "entry_count": "24",
+        "registry": "fees"
+      },
+      "node_id": "gap_registry:fees"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Fund structures",
+      "metadata": {
+        "entry_count": "2",
+        "registry": "fund_structure"
+      },
+      "node_id": "gap_registry:fund_structure"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Venue order semantics",
+      "metadata": {
+        "entry_count": "9",
+        "registry": "order_semantics"
+      },
+      "node_id": "gap_registry:order_semantics"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Simulation assumptions",
+      "metadata": {
+        "entry_count": "20",
+        "registry": "sim_assumptions"
+      },
+      "node_id": "gap_registry:sim_assumptions"
+    },
+    {
+      "kind": "gap_registry",
+      "label": "Trading-agent capabilities",
+      "metadata": {
+        "entry_count": "3",
+        "registry": "trading_agent"
+      },
+      "node_id": "gap_registry:trading_agent"
+    },
+    {
       "kind": "instrument_type",
       "label": "Collateral Asset: BTC",
       "metadata": {
@@ -25105,6 +25121,126 @@
         "asset_group": "DEFI"
       },
       "node_id": "instrument_type:staking"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: BTC",
+      "metadata": {
+        "share_class": "BTC"
+      },
+      "node_id": "share_class:BTC"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: ETH",
+      "metadata": {
+        "share_class": "ETH"
+      },
+      "node_id": "share_class:ETH"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: EUR",
+      "metadata": {
+        "share_class": "EUR"
+      },
+      "node_id": "share_class:EUR"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: FDUSD",
+      "metadata": {
+        "share_class": "FDUSD"
+      },
+      "node_id": "share_class:FDUSD"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: GBP",
+      "metadata": {
+        "share_class": "GBP"
+      },
+      "node_id": "share_class:GBP"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: SOL",
+      "metadata": {
+        "share_class": "SOL"
+      },
+      "node_id": "share_class:SOL"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: USD",
+      "metadata": {
+        "share_class": "USD"
+      },
+      "node_id": "share_class:USD"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: USDC",
+      "metadata": {
+        "share_class": "USDC"
+      },
+      "node_id": "share_class:USDC"
+    },
+    {
+      "kind": "instrument_type",
+      "label": "Share Class: USDT",
+      "metadata": {
+        "share_class": "USDT"
+      },
+      "node_id": "share_class:USDT"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Cointegration Breakdown",
+      "metadata": {},
+      "node_id": "kill_switch:COINTEGRATION_BREAKDOWN"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Daily Loss Breach",
+      "metadata": {},
+      "node_id": "kill_switch:DAILY_LOSS_BREACH"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Data Stale",
+      "metadata": {},
+      "node_id": "kill_switch:DATA_STALE"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Disabled",
+      "metadata": {},
+      "node_id": "kill_switch:DISABLED"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Greek Limit Breach",
+      "metadata": {},
+      "node_id": "kill_switch:GREEK_LIMIT_BREACH"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Kill Switch Triggered",
+      "metadata": {},
+      "node_id": "kill_switch:KILL_SWITCH_TRIGGERED"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Max Drawdown Breach",
+      "metadata": {},
+      "node_id": "kill_switch:MAX_DRAWDOWN_BREACH"
+    },
+    {
+      "kind": "kill_switch_reason",
+      "label": "Kill Switch: Venue Unavailable",
+      "metadata": {},
+      "node_id": "kill_switch:VENUE_UNAVAILABLE"
     },
     {
       "kind": "leg",
@@ -26208,11 +26344,140 @@
     },
     {
       "kind": "ml_model",
-      "label": "ML Model Variant Config",
+      "label": "ML Model: Catboost",
       "metadata": {
+        "model_type": "catboost",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
         "variant_fields": ""
       },
-      "node_id": "ml_model:variant_config"
+      "node_id": "ml_model:catboost"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Ensemble",
+      "metadata": {
+        "model_type": "ensemble",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:ensemble"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Huber",
+      "metadata": {
+        "model_type": "huber",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:huber"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Lightgbm",
+      "metadata": {
+        "model_type": "lightgbm",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:lightgbm"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Poisson Glm",
+      "metadata": {
+        "model_type": "poisson_glm",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:poisson_glm"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Random Forest",
+      "metadata": {
+        "model_type": "random_forest",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:random_forest"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Ridge",
+      "metadata": {
+        "model_type": "ridge",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:ridge"
+    },
+    {
+      "kind": "ml_model",
+      "label": "ML Model: Xgboost",
+      "metadata": {
+        "model_type": "xgboost",
+        "target_types": "clv,clv_meta,cross_venue_spread,direction,ht_delta,swing_high,swing_low,volatility,xg,xg_meta",
+        "variant_fields": ""
+      },
+      "node_id": "ml_model:xgboost"
+    },
+    {
+      "kind": "risk_gate_layer",
+      "label": "Risk Gate: Execution Pretrade",
+      "metadata": {},
+      "node_id": "risk_layer:EXECUTION_PRETRADE"
+    },
+    {
+      "kind": "risk_gate_layer",
+      "label": "Risk Gate: Risk Preflight",
+      "metadata": {},
+      "node_id": "risk_layer:RISK_PREFLIGHT"
+    },
+    {
+      "kind": "risk_gate_layer",
+      "label": "Risk Gate: Strategy Self Check",
+      "metadata": {},
+      "node_id": "risk_layer:STRATEGY_SELF_CHECK"
+    },
+    {
+      "kind": "risk_gate_layer",
+      "label": "Risk Gate: Venue Side",
+      "metadata": {},
+      "node_id": "risk_layer:VENUE_SIDE"
+    },
+    {
+      "kind": "signing_surface",
+      "label": "Signing Surface: Cloud Kms Encrypted",
+      "metadata": {
+        "asset_groups": "defi",
+        "source": "codex/04-architecture/custody-providers.md \u00a7 R9 RESOLVED 2026-05-12 (as_of 2026-06-13): May-23 cutover ships on CLOUD_KMS_ENCRYPTED (HSM-backed CMK envelope encryption); CloudKmsCustodyProvider SHIPPED (execution-service@d45d24b4). Default DeFi signing surface.",
+        "status": "active_may23",
+        "surface": "CLOUD_KMS_ENCRYPTED"
+      },
+      "node_id": "signing_surface:CLOUD_KMS_ENCRYPTED"
+    },
+    {
+      "kind": "signing_surface",
+      "label": "Signing Surface: Copper Mpc",
+      "metadata": {
+        "asset_groups": "cefi,defi",
+        "source": "codex/04-architecture/custody-providers.md \u00a7 R9 RESOLVED 2026-05-12 (as_of 2026-06-13): June-1 flips per-wallet to COPPER_MPC on POD-provided creds. CopperCustodyProvider covers DeFi (every chain) + non-Binance CeFi (Bybit/OKX/Deribit/Kraken/Aster/Hyperliquid).",
+        "status": "active_june1",
+        "surface": "COPPER_MPC"
+      },
+      "node_id": "signing_surface:COPPER_MPC"
+    },
+    {
+      "kind": "signing_surface",
+      "label": "Signing Surface: Fireblocks Mpc",
+      "metadata": {
+        "asset_groups": "",
+        "source": "codex/04-architecture/custody-providers.md \u00a7 'POD client scope clarified 2026-05-12' (as_of 2026-06-13): Fireblocks is OUT OF SCOPE per POD stack choice (POD uses Copper + CEFFU only). SigningSurface.FIREBLOCKS_MPC stays in the UAC enum for future flexibility but is NOT a May-23 / June-1 target.",
+        "status": "out_of_scope",
+        "surface": "FIREBLOCKS_MPC"
+      },
+      "node_id": "signing_surface:FIREBLOCKS_MPC"
     },
     {
       "kind": "venue",
