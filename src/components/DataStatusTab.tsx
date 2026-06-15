@@ -3255,14 +3255,33 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       </CardDescription>
                     </div>
                     <div className="text-right">
+                      {/* CAPTURED = could-exist cells that actually have data (the strict
+                          "do we have the data" metric). Falls back to the legacy
+                          overall_completion_pct (same value) until the backend field deploys. */}
                       <div
                         className="text-3xl font-mono font-bold"
                         style={{
-                          color: getCompletionColor(turboData.overall_completion_pct),
+                          color: getCompletionColor(
+                            turboData.overall_capture_coverage_pct ?? turboData.overall_completion_pct,
+                          ),
                         }}
+                        title="Captured coverage — fraction of could-exist cells (genesis/launch-clipped) that actually have data."
                       >
-                        {turboData.overall_completion_pct.toFixed(1)}%
+                        {(turboData.overall_capture_coverage_pct ?? turboData.overall_completion_pct).toFixed(1)}%
+                        <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">captured</span>
                       </div>
+                      {/* ATTEMPTED = could-exist cells we have an HONEST answer for (data OR
+                          confirmed-empty). empty_confirmed counts as covered here — this is the
+                          "are we missing anything we should have" number. */}
+                      {turboData.overall_attempt_coverage_pct != null && (
+                        <div
+                          className="text-sm font-mono text-[var(--color-text-muted)]"
+                          title="Attempt coverage — could-exist cells we have an honest answer for (captured OR confirmed-empty). Empty confirmations count as covered."
+                        >
+                          {turboData.overall_attempt_coverage_pct.toFixed(1)}%
+                          <span className="ml-1 text-xs font-normal">attempted</span>
+                        </div>
+                      )}
                       <div className="text-xs text-[var(--color-text-muted)]">
                         {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
                         {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards
