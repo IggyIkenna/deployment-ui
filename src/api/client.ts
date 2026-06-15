@@ -1322,6 +1322,12 @@ export interface TurboDataStatusResponse {
   first_day_of_month_only?: boolean; // True if only checking first day of each month (TARDIS free tier)
   sub_dimension?: string | null; // 'venue' | 'data_type' | 'feature_group' | 'feature_family' | null
   overall_completion_pct: number;
+  // Explicit capture-vs-attempt split (R7, 2026-06-15) — the headline shows these
+  // labeled instead of the ambiguous `overall_completion_pct`. capture = captured /
+  // could-exist; attempt = (captured + empty_confirmed + failed) / could-exist (empty
+  // confirmations count as covered). Optional until the backend field deploys.
+  overall_capture_coverage_pct?: number;
+  overall_attempt_coverage_pct?: number;
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
   // Category-level totals for reference (not venue-weighted)
