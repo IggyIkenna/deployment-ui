@@ -2183,6 +2183,60 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // Data status honest-coverage (per-date manifest-capture + shards-weighted could-exist)
+  if (path.startsWith("/api/data-status/honest-coverage")) {
+    const mkGroup = (
+      captured: number,
+      empty_confirmed: number,
+      attempted_failed: number,
+      expected_unattempted_known_empty: number,
+      expected_unattempted_pending_fetch: number,
+      out_of_window: number,
+      shards_found: number,
+      shards_expected: number,
+    ) => {
+      const total =
+        captured +
+        empty_confirmed +
+        attempted_failed +
+        expected_unattempted_known_empty +
+        expected_unattempted_pending_fetch;
+      const coverage_pct =
+        total > 0 ? ((captured + empty_confirmed + expected_unattempted_known_empty) / total) * 100 : 0;
+      const completion_pct_shards_weighted = shards_expected > 0 ? (shards_found / shards_expected) * 100 : 0;
+      return {
+        captured,
+        empty_confirmed,
+        attempted_failed,
+        expected_unattempted_known_empty,
+        expected_unattempted_pending_fetch,
+        out_of_window,
+        total,
+        coverage_pct,
+        completion_pct_shards_weighted,
+        completion_pct_dates: completion_pct_shards_weighted * 0.98,
+        completion_pct_attempt_blended: (coverage_pct + completion_pct_shards_weighted) / 2,
+        shards_found,
+        shards_expected,
+      };
+    };
+    const today = new Date().toISOString().split("T")[0];
+    return json({
+      generated_at: new Date().toISOString(),
+      date: today,
+      by_asset_group: {
+        // defi: ~27% could-exist (full UAC universe), ~97% manifest-capture
+        defi: mkGroup(2700, 200, 40, 100, 50, 6000, 2700, 10000),
+        cefi: mkGroup(9500, 200, 50, 100, 150, 1500, 9500, 11000),
+        tradfi: mkGroup(4800, 100, 20, 50, 30, 800, 4800, 5500),
+        sports: mkGroup(1200, 50, 10, 20, 20, 300, 1200, 1800),
+        prediction: mkGroup(600, 30, 5, 10, 10, 200, 600, 1000),
+      },
+      by_venue: {},
+      by_venue_data_type: {},
+    });
+  }
+
   // Data status turbo
   if (path.startsWith("/api/data-status/turbo/cache/clear")) {
     return json({ cleared: true });

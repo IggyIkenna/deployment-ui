@@ -1289,6 +1289,15 @@ export interface TurboAssetGroupStatus {
   venue_dates_expected?: number;
   overall_shards_found?: number;
   overall_shards_expected?: number;
+  /**
+   * Shards-weighted could-exist ratio for this asset group category.
+   * The operator-canonical metric exposed via /manifest drilldown.
+   */
+  completion_pct_shards_weighted?: number;
+  /** Date-axis could-exist coverage. */
+  completion_pct_dates?: number;
+  /** Blended attempt-weighted could-exist coverage. */
+  completion_pct_attempt_blended?: number;
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
@@ -3173,12 +3182,28 @@ export interface HonestCoverageStatusCounts {
   /** Never-collectable cells excluded from the denominator (pre-genesis / delisted / etc.). */
   out_of_window?: number;
   /**
-   * Honest coverage: (captured + empty_confirmed + expected_unattempted_known_empty)
+   * Manifest-capture ratio: (captured + empty_confirmed + expected_unattempted_known_empty)
    *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)
+   * This is a secondary metric — "of attempted shards". Use completion_pct_shards_weighted for the operator-canonical figure.
    */
   coverage_pct: number;
   /** Legacy all-shards formula including empty_confirmed in denominator. */
   all_shards_coverage_pct?: number;
+  /**
+   * Shards-weighted could-exist ratio: captured / full UAC-declared universe (shards_expected).
+   * This is the OPERATOR-CHOSEN canonical metric — "coverage (of could-exist)".
+   * Typically much lower than coverage_pct (~27% vs ~97%) because it counts uncollected
+   * shards from the full declared universe, not just the attempted subset.
+   */
+  completion_pct_shards_weighted?: number;
+  /** Date-axis could-exist coverage (captured_dates / could_exist_dates). */
+  completion_pct_dates?: number;
+  /** Blended attempt-weighted could-exist coverage. */
+  completion_pct_attempt_blended?: number;
+  /** Total shards found (captured) across the UAC universe. */
+  shards_found?: number;
+  /** Total shards expected across the full UAC-declared universe. */
+  shards_expected?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
