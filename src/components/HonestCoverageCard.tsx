@@ -103,7 +103,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           </Badge>
           <span
             className="text-[10px] text-[var(--color-text-muted)] cursor-help"
-            title="(captured + empty_confirmed + expected_unattempted_known_empty) / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch) — out_of_window cells (pre-genesis/delisted/deprecated) are excluded from the denominator"
+            title="Primary (canonical): shards-weighted could-exist ratio = captured / UAC-declared universe. Secondary: manifest-capture ratio = (captured + empty_confirmed + expected_unattempted_known_empty) / attempted shards. out_of_window cells (pre-genesis/delisted/deprecated) are excluded from both denominators."
           >
             reachable
           </span>
@@ -140,18 +140,53 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                       <Badge variant="outline" className="text-[10px] font-mono uppercase">
                         {ag}
                       </Badge>
-                      <span
-                        className={`text-xs font-mono font-bold ${
-                          s.coverage_pct >= 99
-                            ? "text-emerald-600"
-                            : s.coverage_pct >= 95
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                        }`}
-                      >
-                        {s.coverage_pct.toFixed(1)}%
-                      </span>
+                      {/* Primary (canonical): shards-weighted could-exist ratio */}
+                      {s.completion_pct_shards_weighted != null ? (
+                        <span
+                          className={`text-xs font-mono font-bold ${
+                            s.completion_pct_shards_weighted >= 99
+                              ? "text-emerald-600"
+                              : s.completion_pct_shards_weighted >= 50
+                                ? "text-yellow-600"
+                                : "text-red-600"
+                          }`}
+                          title="coverage (of could-exist) — shards-weighted UAC universe denominator"
+                          data-testid="coverage-could-exist"
+                        >
+                          {s.completion_pct_shards_weighted.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-xs font-mono font-bold ${
+                            s.coverage_pct >= 99
+                              ? "text-emerald-600"
+                              : s.coverage_pct >= 95
+                                ? "text-yellow-600"
+                                : "text-red-600"
+                          }`}
+                        >
+                          {s.coverage_pct.toFixed(1)}%
+                        </span>
+                      )}
                     </div>
+                    {/* Secondary metric: manifest-capture ratio (of attempted shards only) */}
+                    {s.completion_pct_shards_weighted != null && (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)]"
+                          title="coverage (of could-exist) — shards-weighted UAC universe denominator (canonical operator metric)"
+                        >
+                          of could-exist
+                        </span>
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                          title="manifest-capture ratio: of attempted shards only"
+                          data-testid="coverage-manifest-capture"
+                        >
+                          {s.coverage_pct.toFixed(1)}% of attempted
+                        </span>
+                      </div>
+                    )}
                     <CoverageBar
                       captured={s.captured}
                       empty_confirmed={s.empty_confirmed}

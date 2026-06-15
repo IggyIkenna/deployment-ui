@@ -302,20 +302,14 @@ function DateList({
 
 // Internal component for non-execution-services
 function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
-  // Default startDate = today − 30 days. The landing query auto-fires on mount, and a
-  // full-history (2018→now, ~103 months) scan is the heaviest thing the manifest builder
-  // runs — fine in prod (parallel process pool + a <500ms rollup fast-path when a fresh
-  // rollup blob exists), but on a macOS dev host the pool can't fork (BrokenProcessPool →
-  // thread-pool fallback) AND beta mode always takes the on-demand compute path (no rollup).
-  // Measured on-demand all-asset-group cost climbs super-linearly with the window: 30d ~12s,
-  // 60d ~21s, 90d >90s (recent dates carry far more instruments). 30 days keeps the auto-fire
-  // snappy (~12s); operators widen via the 90d/1y/All quick-range buttons when they accept the
-  // wait. (operator-reported "data status page is so damn slow", 2026-06-13.)
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
-  });
+  // Default startDate = 2018-01-01 (operator-specified canonical start of full history).
+  // A full-history (2018→now) scan is the heaviest thing the manifest builder runs — fine in
+  // prod (parallel process pool + a <500ms rollup fast-path when a fresh rollup blob exists),
+  // but on a macOS dev host the pool can't fork (BrokenProcessPool → thread-pool fallback) AND
+  // beta mode always takes the on-demand compute path (no rollup). Prior default was today−30d
+  // (~12s), but operator instruction (2026-06-14) requires 2018-01-01 as the canonical default
+  // so the shards-weighted could-exist ratio reflects the full UAC-declared universe.
+  const [startDate, setStartDate] = useState("2018-01-01");
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
