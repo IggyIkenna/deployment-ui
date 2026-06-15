@@ -288,11 +288,11 @@ test.describe("CapabilityTab", () => {
     // Wait for the verdicts view (lazy-loaded)
     await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
 
-    // Summary counts match the bundled matrix (total=24752, available=16913, blocked=7743, not_registered=96)
-    await expect(page.getByTestId("verdict-summary-total")).toContainText("24,752");
-    await expect(page.getByTestId("verdict-summary-available")).toContainText("16,913");
-    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,743");
-    await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("96");
+    // Summary counts match the bundled matrix (total=21600, available=12977, blocked=8175, not_registered=448)
+    await expect(page.getByTestId("verdict-summary-total")).toContainText("21,600");
+    await expect(page.getByTestId("verdict-summary-available")).toContainText("12,977");
+    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("8,175");
+    await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("448");
   });
 
   test("Verdicts archetype drill-down shows blocked reasons", async ({ page }) => {
