@@ -3295,6 +3295,12 @@ export interface RepoCiCommit {
   v2_conclusion: string | null;
 }
 
+export interface RepoCiBlockingCheck {
+  name: string; // the required check / status context, e.g. "AWS CodeBuild ap-northeast-1 (deployment-service)"
+  state: string; // failure | error | pending
+  description: string; // GitHub's reason string, e.g. "Pull request approval required for starting a build"
+}
+
 export interface RepoCiPr {
   repo: string;
   number: number;
@@ -3308,6 +3314,9 @@ export interface RepoCiPr {
   failed_check?: boolean;
   v2_present?: boolean;
   stuck_class?: StuckClass | null;
+  // Non-success required checks blocking the merge (classic status contexts like AWS
+  // CodeBuild) — the on-screen "why is this stuck" so the operator doesn't have to dig.
+  blocking_checks?: RepoCiBlockingCheck[];
 }
 
 export interface RepoCiSitState {

@@ -1066,6 +1066,7 @@ interface MockRepoCiPr {
   failed_check: boolean;
   v2_present: boolean;
   stuck_class: string | null;
+  blocking_checks?: { name: string; state: string; description: string }[];
 }
 
 function mockRepoCiPr(
@@ -1088,6 +1089,18 @@ function mockRepoCiPr(
     failed_check: stuckClass === "failing_check",
     v2_present: stuckClass === null || stuckClass === "failing_check" || stuckClass === "automerge_stuck",
     stuck_class: stuckClass,
+    // A failing-check PR carries the human reason (the AWS-CodeBuild PR-approval gate that
+    // stranded two drain PRs invisibly on 2026-06-15).
+    blocking_checks:
+      stuckClass === "failing_check"
+        ? [
+            {
+              name: `AWS CodeBuild ap-northeast-1 (${repo})`,
+              state: "failure",
+              description: "Pull request approval required for starting a build",
+            },
+          ]
+        : undefined,
   };
 }
 
