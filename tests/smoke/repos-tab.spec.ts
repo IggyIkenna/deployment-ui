@@ -56,6 +56,17 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("drain-stalled-summary")).toContainText("execution-service");
   });
 
+  test("a stuck PR shows the BLOCKING required check + reason on the triage row", async ({ page }) => {
+    // Regression for the 2026-06-15 escalation: a drain PR blocked on a failing AWS CodeBuild
+    // required check read as a clean "draining" row — the operator had to dig to find why. The
+    // stuck-panel now surfaces the blocking check name + GitHub's reason string inline.
+    await page.goto("/repos");
+    const blockers = page.getByTestId("stuck-pr-blockers-execution-service-89");
+    await expect(blockers).toBeVisible();
+    await expect(blockers).toContainText("AWS CodeBuild");
+    await expect(blockers).toContainText("Pull request approval required for starting a build");
+  });
+
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");

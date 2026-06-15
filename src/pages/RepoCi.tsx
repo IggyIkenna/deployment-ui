@@ -273,23 +273,40 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
         {stuckPrs.map((pr) => (
           <div
             key={`${pr.repo}#${pr.number}`}
-            className="flex items-center gap-2 text-sm"
+            className="flex flex-col gap-0.5"
             data-testid={`stuck-pr-${pr.repo}-${pr.number}`}
           >
-            {pr.stuck_class && (
-              <Chip tone={stuckClassTone(pr.stuck_class)} testId={`stuck-class-${pr.stuck_class}`}>
-                {STUCK_CLASS_LABELS[pr.stuck_class]}
-              </Chip>
-            )}
-            <span className="font-mono text-[var(--color-text-primary)]">
-              {pr.repo}#{pr.number}
-            </span>
-            <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
-            <span className="text-[var(--color-text-muted)]">{formatAge(pr.age_min)}</span>
-            {pr.url && (
-              <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
-                <ExternalLink className="h-3 w-3" />
-              </a>
+            <div className="flex items-center gap-2 text-sm">
+              {pr.stuck_class && (
+                <Chip tone={stuckClassTone(pr.stuck_class)} testId={`stuck-class-${pr.stuck_class}`}>
+                  {STUCK_CLASS_LABELS[pr.stuck_class]}
+                </Chip>
+              )}
+              <span className="font-mono text-[var(--color-text-primary)]">
+                {pr.repo}#{pr.number}
+              </span>
+              <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
+              <span className="text-[var(--color-text-muted)]">{formatAge(pr.age_min)}</span>
+              {pr.url && (
+                <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+            {/* The actual blocking required check(s) + reason — so the operator sees WHY a PR is
+              stuck (e.g. "AWS CodeBuild ✗ — PR approval required") without leaving the dashboard. */}
+            {pr.blocking_checks && pr.blocking_checks.length > 0 && (
+              <div className="flex flex-col gap-0.5 pl-1" data-testid={`stuck-pr-blockers-${pr.repo}-${pr.number}`}>
+                {pr.blocking_checks.map((c, i) => (
+                  <span key={i} className="text-[11px]" data-testid={`stuck-pr-blocker-${pr.repo}-${pr.number}`}>
+                    <span className={c.state === "pending" ? "text-amber-400" : "text-red-400"}>
+                      {c.state === "pending" ? "⏳ " : "✗ "}
+                      {c.name}
+                    </span>
+                    {c.description ? <span className="text-[var(--color-text-muted)]"> — {c.description}</span> : null}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         ))}
