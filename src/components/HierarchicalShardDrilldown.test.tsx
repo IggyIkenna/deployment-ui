@@ -552,6 +552,98 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     expect(container.querySelector(".provenance-status.status-attempted_failed")).toBeTruthy();
   });
 
+  it("M8: renders the cadence badge (human-readable) on a provenance row carrying a cadence", async () => {
+    // Regression guard for the M8 cadence observability axis. The
+    // deployment-api union threads `cadence` through each provenance row
+    // (parallel to `transport`); the drilldown must render a human-readable
+    // cadence badge mirroring the transport badge.
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2026-06-01",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "BINANCE-FUTURES", data_type: "funding_rate", date: "2026-06-01" },
+          is_leaf: true,
+          provenance: [
+            {
+              pipeline_mode: "batch_binance",
+              source: "binance",
+              transport: "rest",
+              cadence: "one_off_backfill",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+            {
+              pipeline_mode: "live_binance",
+              source: "binance",
+              transport: "websocket",
+              cadence: "continuous_live",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+          ],
+        }),
+      ]),
+    );
+    const { container } = render(
+      <HierarchicalShardDrilldown service="mtds" assetGroup="cefi" startDate="2026-06-01" endDate="2026-06-30" />,
+    );
+    await waitFor(() => expect(screen.getByText("One-off backfill")).toBeTruthy());
+    // Human-readable labels (NOT the raw enum value) render for both rows.
+    expect(screen.getByText("Continuous (live)")).toBeTruthy();
+    const cadenceBadges = container.querySelectorAll(".drilldown-provenance .provenance-cadence");
+    expect(cadenceBadges.length).toBe(2);
+    // The raw enum is preserved on data-cadence for SSOT traceability.
+    expect(container.querySelector('.provenance-cadence[data-cadence="one_off_backfill"]')).toBeTruthy();
+    expect(container.querySelector('.provenance-cadence[data-cadence="continuous_live"]')).toBeTruthy();
+  });
+
+  it("M8: cadence badge is blank-safe — absent/blank cadence renders no badge (mirrors transport)", async () => {
+    // A provenance row WITHOUT a cadence (manifest predating the column, or an
+    // unrecognised value) must render NO cadence badge — exactly like the
+    // transport badge's absence handling. Catches a regression that would
+    // render an empty/garbage cadence pill.
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2024-01-01",
+          captured: 1,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "CME", data_type: "ohlcv_1m", date: "2024-01-01" },
+          is_leaf: true,
+          provenance: [
+            {
+              pipeline_mode: "batch_databento",
+              source: "databento",
+              transport: "rest",
+              // no cadence field at all (v-pre-M8 manifest)
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+          ],
+        }),
+      ]),
+    );
+    const { container } = render(
+      <HierarchicalShardDrilldown service="mtds" assetGroup="tradfi" startDate="2024-01-01" endDate="2024-01-05" />,
+    );
+    await waitFor(() => expect(screen.getByText("batch_databento")).toBeTruthy());
+    // Provenance row renders, but NO cadence badge.
+    expect(container.querySelector(".drilldown-provenance-row")).toBeTruthy();
+    expect(container.querySelector(".provenance-cadence")).toBeNull();
+  });
+
   it("renders no provenance list when a leaf has no provenance (v8 manifest)", async () => {
     vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
       _mockResponse([
