@@ -81,6 +81,27 @@ const PREDICTION_CQG_RESPONSE = {
             KXGDP_24Q1: 2800,
           },
         },
+        // OTHER bucket — catch-all for unclassified markets. Inner data_types are
+        // all marked out_of_scope=true to exercise the DataStatusTab.tsx guard:
+        // the `allOutOfScope` expression must NOT fire for this bucket so no
+        // "out of scope" badge or grayscale styling appears (it IS in scope).
+        OTHER: {
+          dates_found: 12,
+          dates_expected: 15,
+          completion_pct: 80.0,
+          source: "polymarket_clob",
+          data_types: {
+            prediction_canonical_question_group: {
+              out_of_scope: true,
+              dates_found: 12,
+              dates_expected: 15,
+              completion_pct: 80.0,
+            },
+          },
+          observed_clusters: {
+            "0xother123abc456def789abc456def789abc456de": 200,
+          },
+        },
       },
     },
   },
@@ -114,17 +135,11 @@ test.describe("Prediction v9 canonical_question_group breakdown", () => {
       }),
     );
 
-    await page.route("**/api/data-status/manifest**", (route) =>
-      route.fulfill({ json: PREDICTION_CQG_RESPONSE }),
-    );
+    await page.route("**/api/data-status/manifest**", (route) => route.fulfill({ json: PREDICTION_CQG_RESPONSE }));
 
-    await page.route("**/api/data-status/turbo**", (route) =>
-      route.fulfill({ json: PREDICTION_CQG_RESPONSE }),
-    );
+    await page.route("**/api/data-status/turbo**", (route) => route.fulfill({ json: PREDICTION_CQG_RESPONSE }));
 
-    await page.route("**/api/data-status**", (route) =>
-      route.fulfill({ json: PREDICTION_CQG_RESPONSE }),
-    );
+    await page.route("**/api/data-status**", (route) => route.fulfill({ json: PREDICTION_CQG_RESPONSE }));
 
     await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
   });
@@ -141,9 +156,7 @@ test.describe("Prediction v9 canonical_question_group breakdown", () => {
     await expect(page.getByText("Something went wrong")).not.toBeVisible();
   });
 
-  test("getAssetGroupBreakdownLabel returns Question Groups for cqg axis", async ({
-    page,
-  }) => {
+  test("getAssetGroupBreakdownLabel returns Question Groups for cqg axis", async ({ page }) => {
     // This verifies the helper function contract used by getSubDimensionData
     // in DataStatusTab — if "Question Groups" appears in the rendered section
     // header the label function is working correctly.
@@ -162,5 +175,43 @@ test.describe("Prediction v9 canonical_question_group breakdown", () => {
     const cqg = result.find((r) => r.isCqg);
     expect(cqg).toBeDefined();
     expect(cqg!.isCqg).toBe(true);
+  });
+
+  test("OTHER CQG bucket never renders out-of-scope badge", async ({ page }) => {
+    // Regression guard for the `allOutOfScope` guard in DataStatusTab.tsx.
+    //
+    // The PREDICTION_CQG_RESPONSE fixture has an OTHER bucket whose inner
+    // `data_types` are ALL marked `out_of_scope: true`. Without the explicit
+    // `!(isPredictionCqgAxis(catData) && name === "OTHER")` guard, the
+    // `allOutOfScope` expression would evaluate to `true` and render a
+    // `data-testid="out-of-scope-badge"` span + grayscale the row.
+    //
+    // With the guard in place, no such badge must appear anywhere on the page.
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // The `<details>` elements are rendered into the DOM regardless of whether
+    // the parent accordion is open, so the badge would be detectable here even
+    // without clicking to expand any section.
+    await expect(page.locator('[data-testid="out-of-scope-badge"]')).toHaveCount(0);
+  });
+
+  test("OTHER CQG bucket span carries catch-all hover tooltip", async ({ page }) => {
+    // Regression guard for the special title attribute set in DataStatusTab.tsx
+    // for the PREDICTION CQG axis OTHER bucket row name span (line ~4157).
+    //
+    // The span must expose the operator-directed catch-all tooltip rather than
+    // the bare group name. We locate it by the full title value — if the guard
+    // is reverted, the title would fall back to "OTHER" and this test would
+    // fail.
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const tooltipEl = page.locator(
+      '[title="Markets not yet mapped to a curated canonical question group — review event stream + promote recurring patterns to first-class groups."]',
+    );
+    // The span is rendered in the DOM (inside a <details> that may be closed);
+    // count ≥ 1 confirms the attribute was set correctly.
+    await expect(tooltipEl).not.toHaveCount(0);
   });
 });
