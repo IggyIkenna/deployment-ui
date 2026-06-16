@@ -242,7 +242,7 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
 
 const DATE_PAGE_SIZE = 60;
 
-function DateList({
+export function DateList({
   dates,
   onClickDate,
   btnClassName,
@@ -259,7 +259,11 @@ function DateList({
 }) {
   const [limit, setLimit] = useState(DATE_PAGE_SIZE);
   const visible = dates.slice(0, limit);
-  const remaining = dates.length - limit;
+  // Visible-count options for the size selector. "All" maps to the full
+  // length so a single selection can render every date (replacing the slow
+  // fixed +60-at-a-time stepping). We only surface options that are smaller
+  // than the total plus the always-available "All".
+  const PAGE_SIZE_OPTIONS = [50, 100, 200, 1000, 2000];
   return (
     <>
       {visible.map((date) => (
@@ -287,14 +291,25 @@ function DateList({
           )}
         </span>
       ))}
-      {remaining > 0 && (
-        <button
-          type="button"
-          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
-          onClick={() => setLimit((l) => l + DATE_PAGE_SIZE)}
+      {dates.length > DATE_PAGE_SIZE && (
+        <select
+          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          title="Number of dates to show"
+          aria-label="Number of dates to show"
+          data-testid={`${testIdPrefix}-page-size`}
+          value={limit >= dates.length ? "all" : String(limit)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLimit(v === "all" ? dates.length : Number(v));
+          }}
         >
-          +{remaining} more
-        </button>
+          {PAGE_SIZE_OPTIONS.filter((n) => n < dates.length).map((n) => (
+            <option key={n} value={String(n)}>
+              Show {n}
+            </option>
+          ))}
+          <option value="all">All ({dates.length})</option>
+        </select>
       )}
     </>
   );
@@ -812,6 +827,28 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     // already closes over manifestFilter via its useCallback deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifestFilter]);
+
+  // Re-fetch when the venue / folder / data-type selection changes. These
+  // filters are threaded into the request (turbo mode `venue`/`folder`/
+  // `data_type` params — see fetchData above) but the request itself only
+  // fires from the manifest-mode effect, the cache-clear, and the manual
+  // "Check Status" button. Without this trigger, toggling a venue chip
+  // updates `selectedVenues` state but never re-narrows the scan, so the
+  // selection appears to do nothing. We guard it so it only fires AFTER the
+  // first manual load (data/turboData already populated) and never while a
+  // request is in flight — mirrors the manifest-mode effect above.
+  useEffect(() => {
+    // Only re-fetch once the operator has already loaded results once.
+    if (!data && !turboData) return;
+    if (loading) return;
+    if (!startDate || !endDate) return;
+    void fetchData(startDate, endDate);
+    // We depend on the selection arrays; fetchData closes over them via its
+    // useCallback deps. data/turboData/loading are read as a fire-guard only
+    // (we don't want to re-fetch when those identities change), so they are
+    // intentionally excluded from the dep list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVenues, selectedFolders, selectedDataTypes]);
 
   // Clear data status cache only (doesn't affect deployment state cache)
   const handleClearDataStatusCache = useCallback(async () => {
@@ -4894,8 +4931,12 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                   </div>
                                                 )}
 
-                                                {/* Data types / Markets breakdown — expandable with date lists */}
-                                                {hasDataTypes && !hasInstrumentTypes && (
+                                                {/* Data types / Markets breakdown — expandable with date lists.
+                                                    Gated with `!hasHonestDataTypes` so it does NOT double-render
+                                                    alongside the MTDS honest-coverage panel above (which is keyed
+                                                    by the same data types). For non-MTDS services the honest panel
+                                                    is absent, so this legacy per-day drill block still renders. */}
+                                                {hasDataTypes && !hasInstrumentTypes && !hasHonestDataTypes && (
                                                   <div className="space-y-0.5 pt-1">
                                                     <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                       {catName === "PREDICTION" ? "Markets" : "Data Types"}
