@@ -2133,6 +2133,64 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     ]);
   }
 
+  // Safety-ops endpoints (proxied to alerting-service in live mode)
+  if (path.startsWith("/api/safety-ops/")) {
+    if (path === "/api/safety-ops/recovery-audit-signoffs" && method === "GET") {
+      return json([
+        {
+          event_id: "signoff-oom-exec",
+          parent_incident_key: "inc-oom-execution-service",
+          timestamp: "2026-05-23T11:58:00Z",
+          verdict: "APPROVED",
+          narrative: "Layer-0 restart_service succeeded; heap recovered to 38% within 22s.",
+          llm_model: "claude-sonnet-4-6",
+          confidence: 0.94,
+        },
+        {
+          event_id: "signoff-dispute",
+          parent_incident_key: "inc-spurious-killswitch",
+          timestamp: "2026-05-23T08:03:00Z",
+          verdict: "DISPUTE_AUTOMATED_ACTION",
+          narrative: "GLOBAL kill-switch fired on a single-venue blip — disproportionate.",
+          llm_model: "claude-opus-4-8",
+          confidence: 0.88,
+        },
+      ]);
+    }
+    if (path === "/api/safety-ops/audit-ack-queue" && method === "GET") {
+      const now = new Date().toISOString();
+      const in4h = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+      return json([
+        {
+          incident_key: "inc-oom-execution-service",
+          audit_ack_due_at: in4h,
+          severity: "HIGH",
+          problem_type: "OOM_DETECTED",
+          service: "execution-service",
+          llm_verdict: "APPROVED",
+        },
+        {
+          incident_key: "inc-spurious-killswitch",
+          audit_ack_due_at: now,
+          severity: "CRITICAL",
+          problem_type: "SPURIOUS_GLOBAL_HALT",
+          service: "alerting-service",
+          llm_verdict: "DISPUTE_AUTOMATED_ACTION",
+        },
+      ]);
+    }
+    const ackMatch = path.match(/^\/api\/safety-ops\/incidents\/(.+)\/(operational-ack|audit-ack)$/);
+    if (ackMatch && method === "POST") {
+      return json({
+        ok: true,
+        incident_key: ackMatch[1],
+        ack_type: ackMatch[2] === "audit-ack" ? "audit" : "operational",
+        acked_at: new Date().toISOString(),
+      });
+    }
+    return json({ error: "Mock: safety-ops no handler", path }, 404);
+  }
+
   return json({ error: "Mock: no handler", path }, 404);
 }
 

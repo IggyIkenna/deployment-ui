@@ -13,15 +13,15 @@ export default defineConfig(({ mode }) => ({
     alias:
       mode === "development"
         ? [
-          {
-            find: "@unified-trading/ui-kit/globals.css",
-            replacement: path.join(uiKitSrc, "globals.css"),
-          },
-          {
-            find: "@unified-trading/ui-kit",
-            replacement: path.join(uiKitSrc, "index.ts"),
-          },
-        ]
+            {
+              find: "@unified-trading/ui-kit/globals.css",
+              replacement: path.join(uiKitSrc, "globals.css"),
+            },
+            {
+              find: "@unified-trading/ui-kit",
+              replacement: path.join(uiKitSrc, "index.ts"),
+            },
+          ]
         : undefined,
   },
   plugins: [react(), tailwindcss()],
@@ -37,8 +37,13 @@ export default defineConfig(({ mode }) => ({
       ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**"],
     },
     proxy: {
+      "/api/safety-ops": {
+        target: process.env.ALERTING_SERVICE_URL ?? "http://localhost:8009",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api/, ""),
+      },
       "/api": {
-        target: "http://localhost:8004",  // SSOT: ui-api-mapping.json — deployment-api port
+        target: "http://localhost:8004", // SSOT: ui-api-mapping.json — deployment-api port
         changeOrigin: true,
       },
     },
