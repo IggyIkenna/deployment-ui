@@ -4128,9 +4128,13 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                             (acc, [, dt]) => acc + (dt.dates_blocked_on_raw ?? 0),
                                             0,
                                           );
+                                          // OTHER is a legitimate catch-all bucket for PREDICTION CQG axis — never
+                                          // treat it as out-of-scope even if the backend marks its inner
+                                          // data_types as out_of_scope (it IS in scope by design).
                                           const allOutOfScope =
                                             dtEntries.length > 0 &&
-                                            dtEntries.every(([, dt]) => dt.out_of_scope === true);
+                                            dtEntries.every(([, dt]) => dt.out_of_scope === true) &&
+                                            !(isPredictionCqgAxis(catData) && name === "OTHER");
                                           const hasBlockedOnRaw = blockedOnRawTotal > 0;
 
                                           return (
@@ -4147,7 +4151,14 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                 )}
                                               >
                                                 <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
-                                                <span className="text-xs font-mono truncate min-w-0" title={name}>
+                                                <span
+                                                  className="text-xs font-mono truncate min-w-0"
+                                                  title={
+                                                    isPredictionCqgAxis(catData) && name === "OTHER"
+                                                      ? "Markets not yet mapped to a curated canonical question group — review event stream + promote recurring patterns to first-class groups."
+                                                      : name
+                                                  }
+                                                >
                                                   {name}
                                                 </span>
                                                 {subData.status === "bonus" && (
