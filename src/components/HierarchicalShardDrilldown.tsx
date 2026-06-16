@@ -62,6 +62,27 @@ function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<st
   });
 }
 
+/** Human-readable label for the M8 cadence axis (UAC ``Cadence`` StrEnum). The
+ * raw enum value is the manifest column; the UI shows the operator-friendly
+ * form. Unknown / blank cadence → null (render nothing — blank-safe, exactly
+ * like the transport badge handles absence). */
+function _cadenceLabel(cadence: string | undefined): string | null {
+  switch (cadence) {
+    case "one_off_backfill":
+      return "One-off backfill";
+    case "t1_daily":
+      return "T+1 daily";
+    case "scheduled_recurring":
+      return "Scheduled";
+    case "continuous_live":
+      return "Continuous (live)";
+    case "recovery_replay":
+      return "Recovery replay";
+    default:
+      return null;
+  }
+}
+
 /** Collapse a per-(pipeline_mode, source) breakdown row to its single honest
  * capture_status, by the M5 union precedence (captured > empty_confirmed >
  * attempted_failed > expected_unattempted). Drives the per-mode badge colour. */
@@ -397,17 +418,23 @@ function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth
         >
           {node.provenance.map((p) => {
             const status = _provenanceStatus(p);
+            const cadenceLabel = _cadenceLabel(p.cadence);
             return (
               <li
-                key={`${p.pipeline_mode}:${p.source}:${p.transport}`}
+                key={`${p.pipeline_mode}:${p.source}:${p.transport}:${p.cadence ?? ""}`}
                 className={`drilldown-provenance-row provenance-${status}`}
                 title={`${p.pipeline_mode || "—"} / ${p.source || "—"}${
                   p.transport ? ` / ${p.transport}` : ""
-                }: ${status}`}
+                }${cadenceLabel ? ` / ${cadenceLabel}` : ""}: ${status}`}
               >
                 <span className="provenance-mode">{p.pipeline_mode || "—"}</span>
                 <span className="provenance-source">{p.source || "—"}</span>
                 {p.transport && <span className="provenance-transport">{p.transport}</span>}
+                {cadenceLabel && (
+                  <span className="provenance-cadence" data-cadence={p.cadence}>
+                    {cadenceLabel}
+                  </span>
+                )}
                 <span className={`provenance-status status-${status}`}>{status}</span>
               </li>
             );

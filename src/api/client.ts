@@ -673,6 +673,12 @@ export interface DrilldownProvenance {
   pipeline_mode: string;
   source: string;
   transport: string;
+  /** M8 observability axis — operational cadence / deployment topology
+   * (one_off_backfill / t1_daily / scheduled_recurring / continuous_live /
+   * recovery_replay). ORTHOGONAL to pipeline_mode; threaded through the
+   * deployment-api data-status union like ``transport``. Blank on manifests
+   * predating the cadence column. */
+  cadence?: string;
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;

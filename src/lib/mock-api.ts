@@ -489,6 +489,25 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       KXINFL_24JAN: 3200,
       KXGDP_24Q1: 2800,
     }),
+    // OTHER catch-all bucket — markets not yet mapped to a curated canonical
+    // question group. Its inner `data_types` are all `out_of_scope: true`, but
+    // the bucket IS in scope by design: the DataStatusTab `allOutOfScope` guard
+    // MUST exempt (isPredictionCqgAxis && name === "OTHER") so no out-of-scope
+    // badge/grayscale appears, and the row name span carries the operator
+    // catch-all tooltip. Regression: prediction_v9_breakdown smoke.
+    OTHER: {
+      ...mkCqgEntry(12, 15, "polymarket_clob", {
+        "0xother123abc456def789abc456def789abc456de": 200,
+      }),
+      data_types: {
+        prediction_canonical_question_group: {
+          out_of_scope: true,
+          dates_found: 12,
+          dates_expected: 15,
+          completion_pct: 80.0,
+        },
+      },
+    },
   };
 
   const totalFound = Object.values(dataTypesDict).reduce((s, v) => s + v.dates_found, 0);
@@ -1854,6 +1873,118 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Data status (standalone)
+  // Hierarchical shard-atom drilldown — GET /api/data-status/drilldown/{service}/{ag}.
+  // Mounted (inside a collapsed <details>) for every asset-group card, so it
+  // ALWAYS fetches on the data-status tab. Returns a valid DrilldownResponse with
+  // ONE captured leaf whose `provenance` rows carry the M5b `transport` + M8
+  // `cadence` observability axes — this is the fixture the cadence-badge
+  // regression drives in mock mode. Without this handler the broad
+  // `/api/data-status` catch-all below returns a tree-less object → the
+  // component crashes on `topLevel.tree.length` (pre-existing mock gap).
+  // MUST precede the broad catch-all.
+  if (path.match(/^\/api\/data-status\/drilldown\/[^/]+\/[^/]+/)) {
+    return json({
+      service: "market-tick-data-service",
+      asset_group: "cefi",
+      axes: ["venue", "data_type", "date"],
+      tree: [
+        {
+          axis: "date",
+          value: "2026-06-01",
+          captured: 1,
+          empty_confirmed: 0,
+          attempted_failed: 0,
+          expected_unattempted: 0,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "BINANCE-FUTURES", data_type: "funding_rate", date: "2026-06-01" },
+          is_leaf: true,
+          children: [],
+          provenance: [
+            {
+              pipeline_mode: "batch_binance",
+              source: "binance",
+              transport: "rest",
+              cadence: "one_off_backfill",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+            {
+              pipeline_mode: "live_binance",
+              source: "binance",
+              transport: "websocket",
+              cadence: "continuous_live",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+          ],
+        },
+      ],
+      totals: {
+        captured: 1,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        expected_unattempted: 0,
+        total: 1,
+        completion_pct: 100,
+      },
+      filtered_by: {},
+      total_top_axis_children: 1,
+      child_offset: 0,
+      child_limit: 200,
+      mock: true,
+    });
+  }
+
+  // Coverage summary (auto-fetched on mount for MANIFEST_MODE_SERVICES) — drives
+  // the per-asset-group "Asset Groups" card + the BreakdownsAccordion (per-axis
+  // selectors from the UAC SHARD_AXIS_MATRIX SSOT). The PREDICTION entry carries
+  // a `canonical_question_group` breakdown so the accordion renders the cqg axis
+  // (regression: prediction_v9_breakdown smoke). MUST precede the broad
+  // `/api/data-status` catch-all below so it isn't shadowed.
+  if (path.startsWith("/api/data-status/coverage-summary")) {
+    const cqgBreakdown = {
+      "crypto-price-prediction": 280,
+      "election-outcome": 95,
+      "sports-result": 410,
+      "kalshi-economic-event": 60,
+      OTHER: 12,
+    };
+    return json({
+      service: "market-tick-data-service",
+      asset_groups: {
+        PREDICTION: {
+          total_shards: 857,
+          total_instrument_rows: 110_300,
+          total_instruments: 12,
+          unique_dates: 31,
+          unique_venues: 5,
+          sub_dimension_label: "question groups",
+          group_axis: "canonical_question_group",
+          date_range: { start: "2025-03-01", end: "2025-03-31" },
+          latest_day: "2025-03-31",
+          latest_day_instruments: { "crypto-price-prediction": 14200, "election-outcome": 5500 },
+          latest_day_total: 19700,
+          breakdowns: { canonical_question_group: cqgBreakdown, data_type: {} },
+        },
+      },
+      totals: {
+        shards: 857,
+        instrument_rows: 110_300,
+        dates_across_asset_groups: 31,
+        latest_day_instruments: 19700,
+        unique_instruments: 12,
+      },
+      totals_source: "rollup",
+      served_from: "mock",
+      mock: true,
+    });
+  }
+
   if (path.match(/^\/api\/data-status/)) {
     return json(MOCK_DATA_STATUS);
   }
