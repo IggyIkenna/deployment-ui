@@ -1662,6 +1662,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       zones: ["asia-northeast1-a", "asia-northeast1-b", "asia-northeast1-c"],
     });
   }
+  if (path === "/api/config/shard-axis-matrix") {
+    return json({
+      shard_axes: {
+        "market-tick-data-service": {
+          prediction: ["venue", "canonical_question_group", "data_type"],
+        },
+      },
+      display_axes: { "market-tick-data-service": { prediction: [] } },
+      primary_axis: { "market-tick-data-service": { prediction: "venue" } },
+      breakdown_axes: {
+        "market-tick-data-service": {
+          prediction: ["canonical_question_group", "data_type"],
+        },
+      },
+    });
+  }
 
   // Venues
   if (path.startsWith("/api/venues")) {

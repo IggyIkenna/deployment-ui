@@ -141,6 +141,29 @@ test.describe("Prediction v9 canonical_question_group breakdown", () => {
 
     await page.route("**/api/data-status**", (route) => route.fulfill({ json: PREDICTION_CQG_RESPONSE }));
 
+    // Shard-axis-matrix: expose canonical_question_group + data_type as breakdown
+    // axes for market-tick-data-service / prediction so BreakdownsAccordion renders
+    // the CQG axis in the PREDICTION panel. Without this stub the catch-all below
+    // returns {} and breakdownAxes evaluates to [], suppressing the accordion.
+    await page.route("**/api/config/shard-axis-matrix**", (route) =>
+      route.fulfill({
+        json: {
+          shard_axes: {
+            "market-tick-data-service": {
+              prediction: ["venue", "canonical_question_group", "data_type"],
+            },
+          },
+          display_axes: { "market-tick-data-service": { prediction: [] } },
+          primary_axis: { "market-tick-data-service": { prediction: "venue" } },
+          breakdown_axes: {
+            "market-tick-data-service": {
+              prediction: ["canonical_question_group", "data_type"],
+            },
+          },
+        },
+      }),
+    );
+
     await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
   });
 
@@ -213,5 +236,30 @@ test.describe("Prediction v9 canonical_question_group breakdown", () => {
     // The span is rendered in the DOM (inside a <details> that may be closed);
     // count ≥ 1 confirms the attribute was set correctly.
     await expect(tooltipEl).not.toHaveCount(0);
+  });
+
+  test("PREDICTION drill-down shape exposes canonical_question_group axis via shard-axis-matrix", async ({ page }) => {
+    // Regression guard for the (venue, canonical_question_group, day) drill-down
+    // shape declared in predictions_other_bucket_and_ui_drilldown_2026_06_20.md.
+    //
+    // The shard-axis-matrix stub in beforeEach supplies breakdown_axes for
+    // market-tick-data-service/prediction = ["canonical_question_group", "data_type"].
+    // The DataStatusTab reads this via:
+    //   breakdownAxes = shardAxisMatrix?.breakdown_axes?.[serviceName]?.[axisKey] ?? []
+    // where axisKey = cat.toLowerCase() ("prediction") and renders BreakdownsAccordion
+    // when breakdownAxes.length > 0.
+    //
+    // BreakdownsAccordion renders each axis name as a small <span> (raw value) inside
+    // the accordion button alongside the human label ("Question group"). Asserting on
+    // the raw "canonical_question_group" text catches any regression where the axis
+    // was dropped from the SSOT, the mock handler was removed, or the DataStatusTab
+    // lookup changed.
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // The raw axis name is rendered verbatim in BreakdownsAccordion (line 135 of
+    // BreakdownsAccordion.tsx). count > 0 = axis is present in the PREDICTION panel.
+    const axisSpan = page.getByText("canonical_question_group", { exact: true });
+    await expect(axisSpan).not.toHaveCount(0);
   });
 });
