@@ -3318,9 +3318,15 @@ export interface VenueYearCoverageResponse {
   asset_groups_failed: string[];
 }
 
-export async function getVenueYearCoverage(assetGroups: string[]): Promise<VenueYearCoverageResponse> {
+export type CoverageScope = "could_exist" | "mvp" | "all";
+
+export async function getVenueYearCoverage(
+  assetGroups: string[],
+  scope: CoverageScope = "could_exist",
+): Promise<VenueYearCoverageResponse> {
   const params = new URLSearchParams();
   params.set("asset_groups", assetGroups.join(","));
+  params.set("scope", scope);
   return fetchJson<VenueYearCoverageResponse>(`/data-status/venue-year-coverage?${params.toString()}`);
 }
 

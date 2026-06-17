@@ -1,6 +1,11 @@
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { getVenueYearCoverage, type VenueYearCoverageResponse, type VenueYearRow } from "../api/client";
+import {
+  getVenueYearCoverage,
+  type CoverageScope,
+  type VenueYearCoverageResponse,
+  type VenueYearRow,
+} from "../api/client";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -96,11 +101,54 @@ function AssetGroupToggle({ selected, onChange }: AssetGroupToggleProps): React.
 }
 
 // ---------------------------------------------------------------------------
+// Coverage-scope toggle pills (MVP vs could-exist vs all)
+// ---------------------------------------------------------------------------
+
+const SCOPE_OPTIONS: { value: CoverageScope; label: string }[] = [
+  { value: "mvp", label: "MVP" },
+  { value: "could_exist", label: "Could exist" },
+  { value: "all", label: "All" },
+];
+
+interface ScopeToggleProps {
+  selected: CoverageScope;
+  onChange: (next: CoverageScope) => void;
+}
+
+function ScopeToggle({ selected, onChange }: ScopeToggleProps): React.ReactElement {
+  return (
+    <div className="flex gap-1.5" data-testid="coverage-scope-toggle">
+      {SCOPE_OPTIONS.map(({ value, label }) => {
+        const active = selected === value;
+        return (
+          <button
+            key={value}
+            onClick={() => onChange(value)}
+            className={[
+              "rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+              active
+                ? "bg-[var(--color-accent-green)] text-white"
+                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]",
+            ].join(" ")}
+            data-testid={`scope-toggle-${value}`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
 export function VenueCoverageTable(): React.ReactElement {
   const [selectedAgs, setSelectedAgs] = useState<string[]>(DEFAULT_ASSET_GROUPS);
+  // MVP scope is the DEFAULT pre-launch view so coverage% reflects the MVP
+  // archetype universe, not the full could-exist universe.
+  const [scope, setScope] = useState<CoverageScope>("mvp");
   const [data, setData] = useState<VenueYearCoverageResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,13 +160,13 @@ export function VenueCoverageTable(): React.ReactElement {
     }
     setLoading(true);
     setError(null);
-    getVenueYearCoverage(selectedAgs)
+    getVenueYearCoverage(selectedAgs, scope)
       .then(setData)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Failed to load coverage");
       })
       .finally(() => setLoading(false));
-  }, [selectedAgs]);
+  }, [selectedAgs, scope]);
 
   useEffect(() => {
     load();
@@ -154,8 +202,9 @@ export function VenueCoverageTable(): React.ReactElement {
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <AssetGroupToggle selected={selectedAgs} onChange={setSelectedAgs} />
+          <ScopeToggle selected={scope} onChange={setScope} />
         </div>
         {data && data.asset_groups_failed.length > 0 && (
           <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-accent-red)]">
