@@ -1,8 +1,7 @@
 /**
  * Smoke spec — VenueCoverageTable (venue × year coverage).
  *
- * pw:L2 BLOCKED-INFRA: libatk-1.0.so.0 missing in slot env.
- * Spec is written and will execute when infra is available.
+ * Runs wherever chromium + its libs (libatk-1.0) are present (CI / UI-capable host).
  *
  * Covers:
  *   1. "Venue Coverage" tab visible for market-tick-data-service.
@@ -10,6 +9,8 @@
  *   3. pending_paid_key rows show "★key" marker (not "complete").
  *   4. Error state renders role="alert" when API fails.
  *   5. Asset-group toggles filter the request param.
+ *   6. MVP scope toggle renders (default MVP) + drives the ?scope= request param
+ *      (mvp_scope_catalogue_tagging_2026_06_08 — deployment-ui MVP toggle).
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -177,5 +178,35 @@ test.describe("VenueCoverageTable", () => {
     for (const ag of ["cefi", "tradfi", "defi"]) {
       await expect(page.locator(`[data-testid="ag-toggle-${ag}"]`)).toBeVisible();
     }
+  });
+
+  test("scope toggle renders with MVP selected by default", async ({ page }) => {
+    await mockBase(page);
+    await mockCoverageOk(page);
+    await navigateToVenueCoverage(page);
+
+    for (const scope of ["mvp", "could_exist", "all"]) {
+      await expect(page.locator(`[data-testid="scope-toggle-${scope}"]`)).toBeVisible();
+    }
+    // MVP is the default pre-launch view → active (accent-green) styling.
+    await expect(page.locator('[data-testid="scope-toggle-mvp"]')).toHaveClass(/accent-green/);
+  });
+
+  test("clicking a scope toggle moves the active state (drives the scope re-fetch)", async ({ page }) => {
+    // The app serves coverage via its window.fetch mock (mock-api.ts), so the
+    // ?scope= param is asserted at the client-unit/tsc layer; here we guard the
+    // UI wiring: clicking a scope pill makes it the active (accent-green) one and
+    // deactivates MVP, which is what triggers load() to re-fetch with that scope.
+    await mockBase(page);
+    await mockCoverageOk(page);
+    await navigateToVenueCoverage(page);
+
+    const mvp = page.locator('[data-testid="scope-toggle-mvp"]');
+    const couldExist = page.locator('[data-testid="scope-toggle-could_exist"]');
+    await expect(mvp).toHaveClass(/accent-green/); // default ON pre-launch
+
+    await couldExist.click();
+    await expect(couldExist).toHaveClass(/accent-green/);
+    await expect(mvp).not.toHaveClass(/accent-green/);
   });
 });
