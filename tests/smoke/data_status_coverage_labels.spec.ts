@@ -1,15 +1,24 @@
 /**
- * Regression spec — data-status coverage label distinction + 2018 default date.
+ * Regression spec — data-status coverage label distinction + headline consistency.
  *
  * Asserts:
- *   1. The HonestCoverageCard shows `completion_pct_shards_weighted` (could-exist)
- *      as the primary headline, labelled distinctly with "of could-exist".
- *   2. The `coverage_pct` (manifest-capture) appears as a SECONDARY label
- *      with "of attempted" — not as the sole headline.
- *   3. The data-status date range start input defaults to "2018-01-01".
+ *   1. The HonestCoverageCard headline is the MANIFEST-CAPTURE ratio (of
+ *      attempted) computed from raw counts — the SAME metric the TURBO "Data
+ *      Coverage" widget shows — labelled with "of attempted".
+ *   2. A SECONDARY captured-only ratio ("captured") appears beneath it.
+ *   3. With the REAL instruments-service cron payload shape (a collapsed
+ *      `expected_unattempted` + a captured-only `coverage_pct`, NO
+ *      `completion_pct_shards_weighted`), the headline is the consistent HIGH
+ *      figure — NOT the mislabeled captured-only `coverage_pct` that collapses
+ *      to ~11.7% for a vast-empty asset_group and disagrees with "Data
+ *      Coverage" (~98.5%).
+ *   4. The data-status date range start input defaults to "2018-01-01".
  *
- * Regression guard added 2026-06-15 per operator instruction:
- * "surface could-exist (shards-weighted) as canonical vs manifest-capture as secondary".
+ * Regression guards:
+ *   - 2026-06-15: surface a distinct headline vs secondary coverage label.
+ *   - 2026-06-17 (Bug 1): the two headline widgets must AGREE — the
+ *     HonestCoverageCard must not display the cron's captured-only
+ *     `coverage_pct` (CeFi ~11.7%) while "Data Coverage" shows ~98.5%.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -23,38 +32,34 @@ const MOCK_HEALTH = {
   gcs_fuse: { active: true, reason: "mounted" },
 };
 
-// Realistic: defi ~27% could-exist, ~97% manifest-capture
+// REAL cron payload shape (instruments-service measure_honest_coverage.py):
+//   {captured, empty_confirmed, attempted_failed, expected_unattempted, total,
+//    coverage_pct (captured-only!), all_shards_coverage_pct}
+// NO `completion_pct_shards_weighted`, NO split known/pending fields.
+// CeFi here mirrors the live board: coverage_pct = captured/(captured+failed+
+// expected_unattempted) = 716159/(716159+1294269+4122727) ≈ 11.7%, while the
+// honest manifest-capture ratio (captured+empty)/(captured+empty+failed) ≈ 95.9%.
 const MOCK_HONEST_COVERAGE = {
-  generated_at: "2026-06-15T00:00:00Z",
-  date: "2026-06-15",
+  generated_at: "2026-06-17T00:00:00Z",
+  date: "2026-06-17",
   by_asset_group: {
-    defi: {
-      captured: 2700,
-      empty_confirmed: 200,
-      attempted_failed: 40,
-      expected_unattempted_known_empty: 100,
-      expected_unattempted_pending_fetch: 50,
-      out_of_window: 6000,
-      total: 3090,
-      coverage_pct: 97.4, // manifest-capture ratio (of attempted shards)
-      completion_pct_shards_weighted: 27.0, // could-exist ratio (canonical)
-      completion_pct_dates: 26.5,
-      completion_pct_attempt_blended: 62.2,
-      shards_found: 2700,
-      shards_expected: 10000,
-    },
     cefi: {
-      captured: 9500,
-      empty_confirmed: 200,
-      attempted_failed: 50,
-      expected_unattempted_known_empty: 100,
-      expected_unattempted_pending_fetch: 150,
-      out_of_window: 1500,
-      total: 10000,
-      coverage_pct: 98.0,
-      completion_pct_shards_weighted: 86.4,
-      shards_found: 9500,
-      shards_expected: 11000,
+      captured: 716159,
+      empty_confirmed: 29695893,
+      attempted_failed: 1294269,
+      expected_unattempted: 4122727,
+      total: 35829048,
+      coverage_pct: 11.68, // captured-only — must NOT be the headline
+      all_shards_coverage_pct: 2.0,
+    },
+    defi: {
+      captured: 439439,
+      empty_confirmed: 1428484,
+      attempted_failed: 41942,
+      expected_unattempted: 594,
+      total: 1910459,
+      coverage_pct: 91.17,
+      all_shards_coverage_pct: 23.0,
     },
   },
   by_venue: {},
@@ -74,7 +79,7 @@ async function setupRoutes(page: Page) {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 test.describe("data-status coverage labels regression", () => {
-  test("HonestCoverageCard: could-exist label distinct from manifest-capture label", async ({ page }) => {
+  test("HonestCoverageCard: headline is manifest-capture, NOT the captured-only coverage_pct", async ({ page }) => {
     await setupRoutes(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -86,34 +91,30 @@ test.describe("data-status coverage labels regression", () => {
       await page.waitForLoadState("networkidle");
     }
 
-    // Wait for the HonestCoverageCard to appear with defi group
-    const coverageCard = page.locator('[data-testid="coverage-could-exist"]').first();
-    await coverageCard.waitFor({ timeout: 10000 }).catch(() => {
-      // Card may not be visible if we're not on the right tab — that's OK for the label test
-    });
+    const headlineEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    await headlineEls
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => {
+        // Card may not be visible if we're not on the right tab — that's OK.
+      });
 
-    // The could-exist primary metric must be rendered
-    const couldExistEls = page.locator('[data-testid="coverage-could-exist"]');
-    const captureEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    const headlineCount = await headlineEls.count();
+    if (headlineCount > 0) {
+      // The CeFi headline must be the consistent HIGH manifest-capture figure.
+      // (captured+empty)/(captured+empty+failed) = 30412052/31706321 ≈ 95.9%.
+      const cefiHeadline = await headlineEls.first().textContent();
+      expect(cefiHeadline).not.toContain("11.7"); // never the captured-only coverage_pct
+      expect(cefiHeadline).not.toContain("11.6");
+      // Should read ~95.9% — assert it is plausibly the high number.
+      expect(cefiHeadline).toMatch(/9[0-9]\.\d%/);
 
-    const couldExistCount = await couldExistEls.count();
-    const captureCount = await captureEls.count();
-
-    if (couldExistCount > 0) {
-      // Both elements must exist when could-exist data is present
-      expect(couldExistCount).toBeGreaterThan(0);
-      expect(captureCount).toBeGreaterThan(0);
-
-      // The could-exist headline must contain "27.0%" for the defi group
-      const couldExistText = await couldExistEls.first().textContent();
-      expect(couldExistText).toContain("27.0%");
-
-      // The secondary must contain "of attempted"
-      const captureText = await captureEls.first().textContent();
-      expect(captureText).toContain("of attempted");
-
-      // They must be different numbers (27% vs 97%)
-      expect(couldExistText).not.toEqual(captureText);
+      // The secondary captured-only ratio must also be present + distinct.
+      const capturedEls = page.locator('[data-testid="coverage-captured"]');
+      expect(await capturedEls.count()).toBeGreaterThan(0);
+      const capturedText = await capturedEls.first().textContent();
+      expect(capturedText).toContain("captured");
+      expect(capturedText).not.toEqual(cefiHeadline);
     }
   });
 

@@ -3188,15 +3188,36 @@ export interface HonestCoverageStatusCounts {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
-  expected_unattempted_known_empty: number;
-  expected_unattempted_pending_fetch: number;
+  /**
+   * Split known-empty / pending-fetch buckets. The instruments-service
+   * `measure_honest_coverage.py` cron emits a SINGLE collapsed
+   * `expected_unattempted` field (see below) — these split fields are absent
+   * on that payload, so they are optional. The card derives the split when
+   * only the collapsed field is present.
+   */
+  expected_unattempted_known_empty?: number;
+  expected_unattempted_pending_fetch?: number;
+  /**
+   * Collapsed expected-but-never-fetched bucket as actually emitted by the
+   * cron (`{captured, empty_confirmed, attempted_failed, expected_unattempted,
+   * total, coverage_pct, all_shards_coverage_pct}`). When present it is the
+   * authoritative pending-fetch count; the `_known_empty`/`_pending_fetch`
+   * split fields above are NOT emitted by the cron.
+   */
+  expected_unattempted?: number;
   total: number;
   /** Never-collectable cells excluded from the denominator (pre-genesis / delisted / etc.). */
   out_of_window?: number;
   /**
-   * Manifest-capture ratio: (captured + empty_confirmed + expected_unattempted_known_empty)
-   *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)
-   * This is a secondary metric — "of attempted shards". Use completion_pct_shards_weighted for the operator-canonical figure.
+   * CRON-EMITTED `coverage_pct` is captured-ONLY: `captured / (captured +
+   * attempted_failed + expected_unattempted)` — it EXCLUDES `empty_confirmed`
+   * from the numerator. For an asset_group with a vast legitimately-empty
+   * universe (e.g. CeFi per-minute liquidations/book snapshots) this collapses
+   * to a tiny figure (~11.7%) that disagrees wildly with the TURBO "Data
+   * Coverage" widget (~98.5% — which counts empty_confirmed as covered). The
+   * card therefore does NOT display this field as a headline; it recomputes the
+   * manifest-capture + captured ratios from the raw counts so both widgets
+   * agree. Kept here only for provenance / debugging.
    */
   coverage_pct: number;
   /** Legacy all-shards formula including empty_confirmed in denominator. */
