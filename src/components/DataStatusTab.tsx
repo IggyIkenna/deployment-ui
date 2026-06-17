@@ -242,7 +242,7 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
 
 const DATE_PAGE_SIZE = 60;
 
-function DateList({
+export function DateList({
   dates,
   onClickDate,
   btnClassName,
@@ -259,7 +259,11 @@ function DateList({
 }) {
   const [limit, setLimit] = useState(DATE_PAGE_SIZE);
   const visible = dates.slice(0, limit);
-  const remaining = dates.length - limit;
+  // Visible-count options for the size selector. "All" maps to the full
+  // length so a single selection can render every date (replacing the slow
+  // fixed +60-at-a-time stepping). We only surface options that are smaller
+  // than the total plus the always-available "All".
+  const PAGE_SIZE_OPTIONS = [50, 100, 200, 1000, 2000];
   return (
     <>
       {visible.map((date) => (
@@ -287,14 +291,25 @@ function DateList({
           )}
         </span>
       ))}
-      {remaining > 0 && (
-        <button
-          type="button"
-          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
-          onClick={() => setLimit((l) => l + DATE_PAGE_SIZE)}
+      {dates.length > DATE_PAGE_SIZE && (
+        <select
+          className="text-[7px] font-mono px-1 py-0.5 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          title="Number of dates to show"
+          aria-label="Number of dates to show"
+          data-testid={`${testIdPrefix}-page-size`}
+          value={limit >= dates.length ? "all" : String(limit)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLimit(v === "all" ? dates.length : Number(v));
+          }}
         >
-          +{remaining} more
-        </button>
+          {PAGE_SIZE_OPTIONS.filter((n) => n < dates.length).map((n) => (
+            <option key={n} value={String(n)}>
+              Show {n}
+            </option>
+          ))}
+          <option value="all">All ({dates.length})</option>
+        </select>
       )}
     </>
   );
@@ -302,20 +317,14 @@ function DateList({
 
 // Internal component for non-execution-services
 function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
-  // Default startDate = today − 30 days. The landing query auto-fires on mount, and a
-  // full-history (2018→now, ~103 months) scan is the heaviest thing the manifest builder
-  // runs — fine in prod (parallel process pool + a <500ms rollup fast-path when a fresh
-  // rollup blob exists), but on a macOS dev host the pool can't fork (BrokenProcessPool →
-  // thread-pool fallback) AND beta mode always takes the on-demand compute path (no rollup).
-  // Measured on-demand all-asset-group cost climbs super-linearly with the window: 30d ~12s,
-  // 60d ~21s, 90d >90s (recent dates carry far more instruments). 30 days keeps the auto-fire
-  // snappy (~12s); operators widen via the 90d/1y/All quick-range buttons when they accept the
-  // wait. (operator-reported "data status page is so damn slow", 2026-06-13.)
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
-  });
+  // Default startDate = 2018-01-01 (operator-specified canonical start of full history).
+  // A full-history (2018→now) scan is the heaviest thing the manifest builder runs — fine in
+  // prod (parallel process pool + a <500ms rollup fast-path when a fresh rollup blob exists),
+  // but on a macOS dev host the pool can't fork (BrokenProcessPool → thread-pool fallback) AND
+  // beta mode always takes the on-demand compute path (no rollup). Prior default was today−30d
+  // (~12s), but operator instruction (2026-06-14) requires 2018-01-01 as the canonical default
+  // so the shards-weighted could-exist ratio reflects the full UAC-declared universe.
+  const [startDate, setStartDate] = useState("2018-01-01");
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -818,6 +827,28 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     // already closes over manifestFilter via its useCallback deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifestFilter]);
+
+  // Re-fetch when the venue / folder / data-type selection changes. These
+  // filters are threaded into the request (turbo mode `venue`/`folder`/
+  // `data_type` params — see fetchData above) but the request itself only
+  // fires from the manifest-mode effect, the cache-clear, and the manual
+  // "Check Status" button. Without this trigger, toggling a venue chip
+  // updates `selectedVenues` state but never re-narrows the scan, so the
+  // selection appears to do nothing. We guard it so it only fires AFTER the
+  // first manual load (data/turboData already populated) and never while a
+  // request is in flight — mirrors the manifest-mode effect above.
+  useEffect(() => {
+    // Only re-fetch once the operator has already loaded results once.
+    if (!data && !turboData) return;
+    if (loading) return;
+    if (!startDate || !endDate) return;
+    void fetchData(startDate, endDate);
+    // We depend on the selection arrays; fetchData closes over them via its
+    // useCallback deps. data/turboData/loading are read as a fire-guard only
+    // (we don't want to re-fetch when those identities change), so they are
+    // intentionally excluded from the dep list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVenues, selectedFolders, selectedDataTypes]);
 
   // Clear data status cache only (doesn't affect deployment state cache)
   const handleClearDataStatusCache = useCallback(async () => {
@@ -3261,14 +3292,33 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       </CardDescription>
                     </div>
                     <div className="text-right">
+                      {/* CAPTURED = could-exist cells that actually have data (the strict
+                          "do we have the data" metric). Falls back to the legacy
+                          overall_completion_pct (same value) until the backend field deploys. */}
                       <div
                         className="text-3xl font-mono font-bold"
                         style={{
-                          color: getCompletionColor(turboData.overall_completion_pct),
+                          color: getCompletionColor(
+                            turboData.overall_capture_coverage_pct ?? turboData.overall_completion_pct,
+                          ),
                         }}
+                        title="Captured coverage — fraction of could-exist cells (genesis/launch-clipped) that actually have data."
                       >
-                        {turboData.overall_completion_pct.toFixed(1)}%
+                        {(turboData.overall_capture_coverage_pct ?? turboData.overall_completion_pct).toFixed(1)}%
+                        <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">captured</span>
                       </div>
+                      {/* ATTEMPTED = could-exist cells we have an HONEST answer for (data OR
+                          confirmed-empty). empty_confirmed counts as covered here — this is the
+                          "are we missing anything we should have" number. */}
+                      {turboData.overall_attempt_coverage_pct != null && (
+                        <div
+                          className="text-sm font-mono text-[var(--color-text-muted)]"
+                          title="Attempt coverage — could-exist cells we have an honest answer for (captured OR confirmed-empty). Empty confirmations count as covered."
+                        >
+                          {turboData.overall_attempt_coverage_pct.toFixed(1)}%
+                          <span className="ml-1 text-xs font-normal">attempted</span>
+                        </div>
+                      )}
                       <div className="text-xs text-[var(--color-text-muted)]">
                         {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
                         {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards
@@ -4115,9 +4165,13 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                             (acc, [, dt]) => acc + (dt.dates_blocked_on_raw ?? 0),
                                             0,
                                           );
+                                          // OTHER is a legitimate catch-all bucket for PREDICTION CQG axis — never
+                                          // treat it as out-of-scope even if the backend marks its inner
+                                          // data_types as out_of_scope (it IS in scope by design).
                                           const allOutOfScope =
                                             dtEntries.length > 0 &&
-                                            dtEntries.every(([, dt]) => dt.out_of_scope === true);
+                                            dtEntries.every(([, dt]) => dt.out_of_scope === true) &&
+                                            !(isPredictionCqgAxis(catData) && name === "OTHER");
                                           const hasBlockedOnRaw = blockedOnRawTotal > 0;
 
                                           return (
@@ -4134,7 +4188,14 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                 )}
                                               >
                                                 <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/venue:rotate-90" />
-                                                <span className="text-xs font-mono truncate min-w-0" title={name}>
+                                                <span
+                                                  className="text-xs font-mono truncate min-w-0"
+                                                  title={
+                                                    isPredictionCqgAxis(catData) && name === "OTHER"
+                                                      ? "Markets not yet mapped to a curated canonical question group — review event stream + promote recurring patterns to first-class groups."
+                                                      : name
+                                                  }
+                                                >
                                                   {name}
                                                 </span>
                                                 {subData.status === "bonus" && (
@@ -4881,155 +4942,164 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                   </div>
                                                 )}
 
-                                                {/* Data types / Markets breakdown — expandable with date lists */}
-                                                {hasDataTypes && !hasInstrumentTypes && (
-                                                  <div className="space-y-0.5 pt-1">
-                                                    <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
-                                                      {catName === "PREDICTION" ? "Markets" : "Data Types"}
-                                                    </span>
-                                                    {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
-                                                      const dtFoundList: string[] =
-                                                        ((dtData as unknown as Record<string, unknown>)
-                                                          .dates_found_list as string[]) ?? [];
-                                                      const dtMissingList: string[] =
-                                                        ((dtData as unknown as Record<string, unknown>)
-                                                          .missing_dates as string[]) ?? [];
-                                                      const hasDates =
-                                                        dtFoundList.length > 0 || dtMissingList.length > 0;
-                                                      return (
-                                                        <details key={dtName} className="group/dt">
-                                                          <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                            <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
-                                                            <span
-                                                              className="text-[10px] font-mono truncate min-w-0"
-                                                              style={{
-                                                                color: getCompletionColor(dtData.completion_pct),
-                                                              }}
-                                                            >
-                                                              {dtName}
-                                                            </span>
-                                                            <div className="flex-1" />
-                                                            <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                              {dtData.dates_found}/{dtData.dates_expected}
-                                                            </span>
-                                                            <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
-                                                              <div
-                                                                className="h-full"
+                                                {/* Data types / Markets breakdown — expandable with date lists.
+                                                    Gated with `!hasHonestDataTypes` so it does NOT double-render
+                                                    alongside the MTDS honest-coverage panel above (which is keyed by the
+                                                    same MARKET-DATA data types). PREDICTION is EXEMPT: this block is its
+                                                    primary "Markets"/CQG drilldown (not an MTDS duplicate), so it must
+                                                    always render even when honest_data_types is present (regression:
+                                                    prediction_v9_breakdown smoke). Non-MTDS services lack the honest
+                                                    panel, so the legacy per-day drill block still renders. */}
+                                                {hasDataTypes &&
+                                                  !hasInstrumentTypes &&
+                                                  (!hasHonestDataTypes || catName === "PREDICTION") && (
+                                                    <div className="space-y-0.5 pt-1">
+                                                      <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
+                                                        {catName === "PREDICTION" ? "Markets" : "Data Types"}
+                                                      </span>
+                                                      {Object.entries(subData.data_types!).map(([dtName, dtData]) => {
+                                                        const dtFoundList: string[] =
+                                                          ((dtData as unknown as Record<string, unknown>)
+                                                            .dates_found_list as string[]) ?? [];
+                                                        const dtMissingList: string[] =
+                                                          ((dtData as unknown as Record<string, unknown>)
+                                                            .missing_dates as string[]) ?? [];
+                                                        const hasDates =
+                                                          dtFoundList.length > 0 || dtMissingList.length > 0;
+                                                        return (
+                                                          <details key={dtName} className="group/dt">
+                                                            <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                              <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/dt:rotate-90" />
+                                                              <span
+                                                                className="text-[10px] font-mono truncate min-w-0"
                                                                 style={{
-                                                                  width: `${dtData.completion_pct}%`,
-                                                                  backgroundColor: getCompletionColor(
-                                                                    dtData.completion_pct,
-                                                                  ),
+                                                                  color: getCompletionColor(dtData.completion_pct),
                                                                 }}
-                                                              />
-                                                            </div>
-                                                            <span
-                                                              className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
-                                                              style={{
-                                                                color: getCompletionColor(dtData.completion_pct),
-                                                              }}
-                                                            >
-                                                              {formatPct(dtData.completion_pct)}%
-                                                            </span>
-                                                            <button
-                                                              type="button"
-                                                              className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
-                                                              title={`View schema for ${name} / ${dtName}`}
-                                                              onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                setSchemaModal({
-                                                                  service: serviceName,
-                                                                  asset_group: catName,
-                                                                  venue: name,
-                                                                  instrument_type: "",
-                                                                  data_type: dtName,
-                                                                });
-                                                              }}
-                                                            >
-                                                              schema
-                                                            </button>
-                                                          </summary>
-                                                          {hasDates && (
-                                                            <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
-                                                              <div className="flex gap-3">
-                                                                {dtFoundList.length > 0 && (
-                                                                  <details>
-                                                                    <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
-                                                                      {dtData.dates_found} available — click a day to
-                                                                      drill down
-                                                                    </summary>
-                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                      <DateList
-                                                                        dates={dtFoundList}
-                                                                        btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
-                                                                        testIdPrefix={`cefi-date-found-${name}-${dtName}`}
-                                                                        onClickDate={(date) => {
-                                                                          const itGuess =
-                                                                            name.toUpperCase() === "POLYMARKET"
-                                                                              ? "OTHER"
-                                                                              : "AUTO";
-                                                                          openShardDetail({
-                                                                            service: serviceName,
-                                                                            asset_group: catName,
-                                                                            venue: name,
-                                                                            day: date,
-                                                                            instrument_type: itGuess,
-                                                                            data_type: dtName,
-                                                                          });
-                                                                        }}
-                                                                        downloadUrl={(date) =>
-                                                                          buildShardDownloadUrl({
-                                                                            service: serviceName,
-                                                                            asset_group: catName,
-                                                                            venue: name,
-                                                                            date,
-                                                                            data_type: dtName,
-                                                                          })
-                                                                        }
-                                                                        downloadTitle={(date) =>
-                                                                          `Download ${dtName} CSV for ${name} on ${date}`
-                                                                        }
-                                                                      />
-                                                                    </div>
-                                                                  </details>
-                                                                )}
-                                                                {dtMissingList.length > 0 && (
-                                                                  <details>
-                                                                    <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
-                                                                      {dtMissingList.length} missing
-                                                                    </summary>
-                                                                    <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
-                                                                      <DateList
-                                                                        dates={dtMissingList}
-                                                                        btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
-                                                                        testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
-                                                                        onClickDate={(date) => {
-                                                                          const itGuess =
-                                                                            name.toUpperCase() === "POLYMARKET"
-                                                                              ? "OTHER"
-                                                                              : "AUTO";
-                                                                          openShardDetail({
-                                                                            service: serviceName,
-                                                                            asset_group: catName,
-                                                                            venue: name,
-                                                                            day: date,
-                                                                            instrument_type: itGuess,
-                                                                            data_type: dtName,
-                                                                          });
-                                                                        }}
-                                                                      />
-                                                                    </div>
-                                                                  </details>
-                                                                )}
+                                                              >
+                                                                {dtName}
+                                                              </span>
+                                                              <div className="flex-1" />
+                                                              <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                {dtData.dates_found}/{dtData.dates_expected}
+                                                              </span>
+                                                              <div className="w-12 h-1 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden shrink-0">
+                                                                <div
+                                                                  className="h-full"
+                                                                  style={{
+                                                                    width: `${dtData.completion_pct}%`,
+                                                                    backgroundColor: getCompletionColor(
+                                                                      dtData.completion_pct,
+                                                                    ),
+                                                                  }}
+                                                                />
                                                               </div>
-                                                            </div>
-                                                          )}
-                                                        </details>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                )}
+                                                              <span
+                                                                className="text-[9px] font-mono font-medium w-8 text-right shrink-0"
+                                                                style={{
+                                                                  color: getCompletionColor(dtData.completion_pct),
+                                                                }}
+                                                              >
+                                                                {formatPct(dtData.completion_pct)}%
+                                                              </span>
+                                                              <button
+                                                                type="button"
+                                                                className="text-[8px] text-[var(--color-accent-cyan)] hover:underline shrink-0"
+                                                                title={`View schema for ${name} / ${dtName}`}
+                                                                onClick={(e) => {
+                                                                  e.preventDefault();
+                                                                  e.stopPropagation();
+                                                                  setSchemaModal({
+                                                                    service: serviceName,
+                                                                    asset_group: catName,
+                                                                    venue: name,
+                                                                    instrument_type: "",
+                                                                    data_type: dtName,
+                                                                  });
+                                                                }}
+                                                              >
+                                                                schema
+                                                              </button>
+                                                            </summary>
+                                                            {hasDates && (
+                                                              <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                <div className="flex gap-3">
+                                                                  {dtFoundList.length > 0 && (
+                                                                    <details>
+                                                                      <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                        {dtData.dates_found} available — click a day to
+                                                                        drill down
+                                                                      </summary>
+                                                                      <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                        <DateList
+                                                                          dates={dtFoundList}
+                                                                          btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                          testIdPrefix={`cefi-date-found-${name}-${dtName}`}
+                                                                          onClickDate={(date) => {
+                                                                            const itGuess =
+                                                                              name.toUpperCase() === "POLYMARKET"
+                                                                                ? "OTHER"
+                                                                                : "AUTO";
+                                                                            openShardDetail({
+                                                                              service: serviceName,
+                                                                              asset_group: catName,
+                                                                              venue: name,
+                                                                              day: date,
+                                                                              instrument_type: itGuess,
+                                                                              data_type: dtName,
+                                                                            });
+                                                                          }}
+                                                                          downloadUrl={(date) =>
+                                                                            buildShardDownloadUrl({
+                                                                              service: serviceName,
+                                                                              asset_group: catName,
+                                                                              venue: name,
+                                                                              date,
+                                                                              data_type: dtName,
+                                                                            })
+                                                                          }
+                                                                          downloadTitle={(date) =>
+                                                                            `Download ${dtName} CSV for ${name} on ${date}`
+                                                                          }
+                                                                        />
+                                                                      </div>
+                                                                    </details>
+                                                                  )}
+                                                                  {dtMissingList.length > 0 && (
+                                                                    <details>
+                                                                      <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                        {dtMissingList.length} missing
+                                                                      </summary>
+                                                                      <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                        <DateList
+                                                                          dates={dtMissingList}
+                                                                          btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                          testIdPrefix={`cefi-date-missing-${name}-${dtName}`}
+                                                                          onClickDate={(date) => {
+                                                                            const itGuess =
+                                                                              name.toUpperCase() === "POLYMARKET"
+                                                                                ? "OTHER"
+                                                                                : "AUTO";
+                                                                            openShardDetail({
+                                                                              service: serviceName,
+                                                                              asset_group: catName,
+                                                                              venue: name,
+                                                                              day: date,
+                                                                              instrument_type: itGuess,
+                                                                              data_type: dtName,
+                                                                            });
+                                                                          }}
+                                                                        />
+                                                                      </div>
+                                                                    </details>
+                                                                  )}
+                                                                </div>
+                                                              </div>
+                                                            )}
+                                                          </details>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
 
                                                 {/* Prediction v9 — per-market cluster drilldown.
                                             Shown for PREDICTION asset groups using the

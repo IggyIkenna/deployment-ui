@@ -209,6 +209,7 @@ function _mkVenue(dates_expected: number, captured: number, empty: number, faile
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
+      out_of_window: 0,
     },
     counts: {
       captured,
@@ -216,6 +217,7 @@ function _mkVenue(dates_expected: number, captured: number, empty: number, faile
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - attempted),
+      out_of_window: 0,
     },
     // Phase 4 P1: honest_coverage = (captured + empty) / (captured + empty + failed + pending)
     coverage: (() => {
@@ -294,6 +296,7 @@ function _mkCategory(
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
+      out_of_window: 0,
     },
     counts: {
       captured,
@@ -301,6 +304,7 @@ function _mkCategory(
       attempted_failed: failed,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, dates_expected - (captured + empty + failed)),
+      out_of_window: 0,
     },
     coverage: (() => {
       const num = captured + empty;
@@ -418,6 +422,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
+      out_of_window: 0,
     },
     counts: {
       captured: totalFound,
@@ -425,6 +430,7 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - totalFound),
+      out_of_window: 0,
     },
     coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
     venue_weighted: true,
@@ -483,6 +489,25 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       KXINFL_24JAN: 3200,
       KXGDP_24Q1: 2800,
     }),
+    // OTHER catch-all bucket — markets not yet mapped to a curated canonical
+    // question group. Its inner `data_types` are all `out_of_scope: true`, but
+    // the bucket IS in scope by design: the DataStatusTab `allOutOfScope` guard
+    // MUST exempt (isPredictionCqgAxis && name === "OTHER") so no out-of-scope
+    // badge/grayscale appears, and the row name span carries the operator
+    // catch-all tooltip. Regression: prediction_v9_breakdown smoke.
+    OTHER: {
+      ...mkCqgEntry(12, 15, "polymarket_clob", {
+        "0xother123abc456def789abc456def789abc456de": 200,
+      }),
+      data_types: {
+        prediction_canonical_question_group: {
+          out_of_scope: true,
+          dates_found: 12,
+          dates_expected: 15,
+          completion_pct: 80.0,
+        },
+      },
+    },
   };
 
   const totalFound = Object.values(dataTypesDict).reduce((s, v) => s + v.dates_found, 0);
@@ -511,6 +536,7 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+      out_of_window: 0,
     },
     counts: {
       captured: totalFound,
@@ -518,6 +544,7 @@ function _mkPredictionByQuestionGroup(): ReturnType<typeof _mkCategory> {
       attempted_failed: 0,
       expected_unattempted_known_empty: 0,
       expected_unattempted_pending_fetch: Math.max(0, totalExpected - attempted),
+      out_of_window: 0,
     },
     coverage: Math.round((totalFound / Math.max(1, totalExpected)) * 1e6) / 1e6,
     missing_dates: [],
@@ -1058,6 +1085,7 @@ interface MockRepoCiPr {
   failed_check: boolean;
   v2_present: boolean;
   stuck_class: string | null;
+  blocking_checks?: { name: string; state: string; description: string }[];
 }
 
 function mockRepoCiPr(
@@ -1080,6 +1108,18 @@ function mockRepoCiPr(
     failed_check: stuckClass === "failing_check",
     v2_present: stuckClass === null || stuckClass === "failing_check" || stuckClass === "automerge_stuck",
     stuck_class: stuckClass,
+    // A failing-check PR carries the human reason (the AWS-CodeBuild PR-approval gate that
+    // stranded two drain PRs invisibly on 2026-06-15).
+    blocking_checks:
+      stuckClass === "failing_check"
+        ? [
+            {
+              name: `AWS CodeBuild ap-northeast-1 (${repo})`,
+              state: "failure",
+              description: "Pull request approval required for starting a build",
+            },
+          ]
+        : undefined,
   };
 }
 
@@ -1641,6 +1681,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       zones: ["asia-northeast1-a", "asia-northeast1-b", "asia-northeast1-c"],
     });
   }
+  if (path === "/api/config/shard-axis-matrix") {
+    return json({
+      shard_axes: {
+        "market-tick-data-service": {
+          prediction: ["venue", "canonical_question_group", "data_type"],
+        },
+      },
+      display_axes: { "market-tick-data-service": { prediction: [] } },
+      primary_axis: { "market-tick-data-service": { prediction: "venue" } },
+      breakdown_axes: {
+        "market-tick-data-service": {
+          prediction: ["canonical_question_group", "data_type"],
+        },
+      },
+    });
+  }
 
   // Venues
   if (path.startsWith("/api/venues")) {
@@ -1817,6 +1873,118 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Data status (standalone)
+  // Hierarchical shard-atom drilldown — GET /api/data-status/drilldown/{service}/{ag}.
+  // Mounted (inside a collapsed <details>) for every asset-group card, so it
+  // ALWAYS fetches on the data-status tab. Returns a valid DrilldownResponse with
+  // ONE captured leaf whose `provenance` rows carry the M5b `transport` + M8
+  // `cadence` observability axes — this is the fixture the cadence-badge
+  // regression drives in mock mode. Without this handler the broad
+  // `/api/data-status` catch-all below returns a tree-less object → the
+  // component crashes on `topLevel.tree.length` (pre-existing mock gap).
+  // MUST precede the broad catch-all.
+  if (path.match(/^\/api\/data-status\/drilldown\/[^/]+\/[^/]+/)) {
+    return json({
+      service: "market-tick-data-service",
+      asset_group: "cefi",
+      axes: ["venue", "data_type", "date"],
+      tree: [
+        {
+          axis: "date",
+          value: "2026-06-01",
+          captured: 1,
+          empty_confirmed: 0,
+          attempted_failed: 0,
+          expected_unattempted: 0,
+          total: 1,
+          completion_pct: 100,
+          row_key: { venue: "BINANCE-FUTURES", data_type: "funding_rate", date: "2026-06-01" },
+          is_leaf: true,
+          children: [],
+          provenance: [
+            {
+              pipeline_mode: "batch_binance",
+              source: "binance",
+              transport: "rest",
+              cadence: "one_off_backfill",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+            {
+              pipeline_mode: "live_binance",
+              source: "binance",
+              transport: "websocket",
+              cadence: "continuous_live",
+              captured: 1,
+              empty_confirmed: 0,
+              attempted_failed: 0,
+              expected_unattempted: 0,
+            },
+          ],
+        },
+      ],
+      totals: {
+        captured: 1,
+        empty_confirmed: 0,
+        attempted_failed: 0,
+        expected_unattempted: 0,
+        total: 1,
+        completion_pct: 100,
+      },
+      filtered_by: {},
+      total_top_axis_children: 1,
+      child_offset: 0,
+      child_limit: 200,
+      mock: true,
+    });
+  }
+
+  // Coverage summary (auto-fetched on mount for MANIFEST_MODE_SERVICES) — drives
+  // the per-asset-group "Asset Groups" card + the BreakdownsAccordion (per-axis
+  // selectors from the UAC SHARD_AXIS_MATRIX SSOT). The PREDICTION entry carries
+  // a `canonical_question_group` breakdown so the accordion renders the cqg axis
+  // (regression: prediction_v9_breakdown smoke). MUST precede the broad
+  // `/api/data-status` catch-all below so it isn't shadowed.
+  if (path.startsWith("/api/data-status/coverage-summary")) {
+    const cqgBreakdown = {
+      "crypto-price-prediction": 280,
+      "election-outcome": 95,
+      "sports-result": 410,
+      "kalshi-economic-event": 60,
+      OTHER: 12,
+    };
+    return json({
+      service: "market-tick-data-service",
+      asset_groups: {
+        PREDICTION: {
+          total_shards: 857,
+          total_instrument_rows: 110_300,
+          total_instruments: 12,
+          unique_dates: 31,
+          unique_venues: 5,
+          sub_dimension_label: "question groups",
+          group_axis: "canonical_question_group",
+          date_range: { start: "2025-03-01", end: "2025-03-31" },
+          latest_day: "2025-03-31",
+          latest_day_instruments: { "crypto-price-prediction": 14200, "election-outcome": 5500 },
+          latest_day_total: 19700,
+          breakdowns: { canonical_question_group: cqgBreakdown, data_type: {} },
+        },
+      },
+      totals: {
+        shards: 857,
+        instrument_rows: 110_300,
+        dates_across_asset_groups: 31,
+        latest_day_instruments: 19700,
+        unique_instruments: 12,
+      },
+      totals_source: "rollup",
+      served_from: "mock",
+      mock: true,
+    });
+  }
+
   if (path.match(/^\/api\/data-status/)) {
     return json(MOCK_DATA_STATUS);
   }
@@ -2159,6 +2327,60 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       deployment_id: path.split("/")[3],
       status: "healthy",
       checks: [],
+    });
+  }
+
+  // Data status honest-coverage (per-date manifest-capture + shards-weighted could-exist)
+  if (path.startsWith("/api/data-status/honest-coverage")) {
+    const mkGroup = (
+      captured: number,
+      empty_confirmed: number,
+      attempted_failed: number,
+      expected_unattempted_known_empty: number,
+      expected_unattempted_pending_fetch: number,
+      out_of_window: number,
+      shards_found: number,
+      shards_expected: number,
+    ) => {
+      const total =
+        captured +
+        empty_confirmed +
+        attempted_failed +
+        expected_unattempted_known_empty +
+        expected_unattempted_pending_fetch;
+      const coverage_pct =
+        total > 0 ? ((captured + empty_confirmed + expected_unattempted_known_empty) / total) * 100 : 0;
+      const completion_pct_shards_weighted = shards_expected > 0 ? (shards_found / shards_expected) * 100 : 0;
+      return {
+        captured,
+        empty_confirmed,
+        attempted_failed,
+        expected_unattempted_known_empty,
+        expected_unattempted_pending_fetch,
+        out_of_window,
+        total,
+        coverage_pct,
+        completion_pct_shards_weighted,
+        completion_pct_dates: completion_pct_shards_weighted * 0.98,
+        completion_pct_attempt_blended: (coverage_pct + completion_pct_shards_weighted) / 2,
+        shards_found,
+        shards_expected,
+      };
+    };
+    const today = new Date().toISOString().split("T")[0];
+    return json({
+      generated_at: new Date().toISOString(),
+      date: today,
+      by_asset_group: {
+        // defi: ~27% could-exist (full UAC universe), ~97% manifest-capture
+        defi: mkGroup(2700, 200, 40, 100, 50, 6000, 2700, 10000),
+        cefi: mkGroup(9500, 200, 50, 100, 150, 1500, 9500, 11000),
+        tradfi: mkGroup(4800, 100, 20, 50, 30, 800, 4800, 5500),
+        sports: mkGroup(1200, 50, 10, 20, 20, 300, 1200, 1800),
+        prediction: mkGroup(600, 30, 5, 10, 10, 200, 600, 1000),
+      },
+      by_venue: {},
+      by_venue_data_type: {},
     });
   }
 

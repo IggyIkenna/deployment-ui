@@ -273,23 +273,40 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
         {stuckPrs.map((pr) => (
           <div
             key={`${pr.repo}#${pr.number}`}
-            className="flex items-center gap-2 text-sm"
+            className="flex flex-col gap-0.5"
             data-testid={`stuck-pr-${pr.repo}-${pr.number}`}
           >
-            {pr.stuck_class && (
-              <Chip tone={stuckClassTone(pr.stuck_class)} testId={`stuck-class-${pr.stuck_class}`}>
-                {STUCK_CLASS_LABELS[pr.stuck_class]}
-              </Chip>
-            )}
-            <span className="font-mono text-[var(--color-text-primary)]">
-              {pr.repo}#{pr.number}
-            </span>
-            <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
-            <span className="text-[var(--color-text-muted)]">{formatAge(pr.age_min)}</span>
-            {pr.url && (
-              <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
-                <ExternalLink className="h-3 w-3" />
-              </a>
+            <div className="flex items-center gap-2 text-sm">
+              {pr.stuck_class && (
+                <Chip tone={stuckClassTone(pr.stuck_class)} testId={`stuck-class-${pr.stuck_class}`}>
+                  {STUCK_CLASS_LABELS[pr.stuck_class]}
+                </Chip>
+              )}
+              <span className="font-mono text-[var(--color-text-primary)]">
+                {pr.repo}#{pr.number}
+              </span>
+              <span className="text-[var(--color-text-muted)]">→ {pr.base}</span>
+              <span className="text-[var(--color-text-muted)]">{formatAge(pr.age_min)}</span>
+              {pr.url && (
+                <a href={pr.url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+            {/* The actual blocking required check(s) + reason — so the operator sees WHY a PR is
+              stuck (e.g. "AWS CodeBuild ✗ — PR approval required") without leaving the dashboard. */}
+            {pr.blocking_checks && pr.blocking_checks.length > 0 && (
+              <div className="flex flex-col gap-0.5 pl-1" data-testid={`stuck-pr-blockers-${pr.repo}-${pr.number}`}>
+                {pr.blocking_checks.map((c, i) => (
+                  <span key={i} className="text-[11px]" data-testid={`stuck-pr-blocker-${pr.repo}-${pr.number}`}>
+                    <span className={c.state === "pending" ? "text-amber-400" : "text-red-400"}>
+                      {c.state === "pending" ? "⏳ " : "✗ "}
+                      {c.name}
+                    </span>
+                    {c.description ? <span className="text-[var(--color-text-muted)]"> — {c.description}</span> : null}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         ))}
@@ -659,7 +676,14 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   const main = branchHead("main");
   const stagingPr = detail.open_prs.find((pr) => pr.base === "staging") ?? null;
   const mainPr = detail.open_prs.find((pr) => pr.base === "main") ?? null;
-  const mainDelta = detail.deltas.find((d) => d.base === "main") ?? null;
+  // Each promotion hop's net delta, leading with the honest files_changed (deltaLabel renders
+  // "in sync (squash skew)" when files_changed==0 despite ahead_by>0) — L294,
+  // promotion_queue_conflict_wall_pileup_2026_06_17 § Class D. NB the LDR→main leg MUST pin
+  // head==="live-defi-rollout": both the staging→main and LDR→main legs carry base==="main", so a
+  // bare `.find(d => d.base === "main")` returned the staging→main leg (the prior ambiguous bug).
+  const ldrStaging = detail.deltas.find((d) => d.base === "staging" && d.head === "live-defi-rollout") ?? null;
+  const stagingMain = detail.deltas.find((d) => d.base === "main" && d.head === "staging") ?? null;
+  const mainDelta = detail.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout") ?? null;
   const sit = detail.sit;
   const img = detail.image;
 
@@ -704,9 +728,26 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
       <PipelineStage label="image" tone={imageTone} testId="pipeline-stage-image">
         {img.last_build_status ?? "—"}
       </PipelineStage>
-      {mainDelta && (mainDelta.files_changed > 0 || mainDelta.ahead_by > 0) && (
-        <span className="ml-2 text-[10px] text-[var(--color-text-muted)] shrink-0" data-testid="pipeline-main-delta">
-          {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+      {(ldrStaging || stagingMain || mainDelta) && (
+        <span
+          className="ml-2 flex shrink-0 flex-wrap items-center gap-x-2 text-[10px] text-[var(--color-text-muted)]"
+          data-testid="pipeline-deltas"
+        >
+          {ldrStaging && (
+            <span data-testid="delta-ldr-staging">
+              LDR→stg: {deltaLabel(ldrStaging.files_changed, ldrStaging.ahead_by)}
+            </span>
+          )}
+          {stagingMain && (
+            <span data-testid="delta-staging-main">
+              stg→main: {deltaLabel(stagingMain.files_changed, stagingMain.ahead_by)}
+            </span>
+          )}
+          {mainDelta && (
+            <span data-testid="delta-ldr-main">
+              LDR→main: {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+            </span>
+          )}
         </span>
       )}
       {jammed.map((j) => (

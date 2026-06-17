@@ -673,6 +673,12 @@ export interface DrilldownProvenance {
   pipeline_mode: string;
   source: string;
   transport: string;
+  /** M8 observability axis — operational cadence / deployment topology
+   * (one_off_backfill / t1_daily / scheduled_recurring / continuous_live /
+   * recovery_replay). ORTHOGONAL to pipeline_mode; threaded through the
+   * deployment-api data-status union like ``transport``. Blank on manifests
+   * predating the cadence column. */
+  cadence?: string;
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
@@ -1060,6 +1066,8 @@ export interface TurboSubDimension {
     // Phase 4 P1: all 5 fields exposed (expected_unattempted split)
     expected_unattempted_known_empty?: number;
     expected_unattempted_pending_fetch?: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // Phase 4 P1: canonical alias for capture_status_counts (all 5 fields always present)
   counts?: {
@@ -1068,6 +1076,8 @@ export interface TurboSubDimension {
     attempted_failed: number;
     expected_unattempted_known_empty: number;
     expected_unattempted_pending_fetch: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // Phase 4 P1: honest_coverage float (0–1) pre-computed by API; never re-derive client-side
   coverage?: number;
@@ -1248,6 +1258,8 @@ export interface TurboAssetGroupStatus {
     attempted_failed: number;
     expected_unattempted_known_empty?: number;
     expected_unattempted_pending_fetch?: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   counts?: {
     captured: number;
@@ -1255,6 +1267,8 @@ export interface TurboAssetGroupStatus {
     attempted_failed: number;
     expected_unattempted_known_empty: number;
     expected_unattempted_pending_fetch: number;
+    // OOW bucket: never-collectable cells excluded from denominator (pre-genesis / delisted / etc.)
+    out_of_window?: number;
   };
   // honest_coverage float (0–1); use instead of recomputing from counts client-side
   coverage?: number;
@@ -1281,6 +1295,15 @@ export interface TurboAssetGroupStatus {
   venue_dates_expected?: number;
   overall_shards_found?: number;
   overall_shards_expected?: number;
+  /**
+   * Shards-weighted could-exist ratio for this asset group category.
+   * The operator-canonical metric exposed via /manifest drilldown.
+   */
+  completion_pct_shards_weighted?: number;
+  /** Date-axis could-exist coverage. */
+  completion_pct_dates?: number;
+  /** Blended attempt-weighted could-exist coverage. */
+  completion_pct_attempt_blended?: number;
   // Sub-dimensions (venue, data_type, feature_group, folder depending on service)
   venues?: { [name: string]: TurboSubDimension };
   data_types?: { [name: string]: TurboSubDimension };
@@ -1305,6 +1328,12 @@ export interface TurboDataStatusResponse {
   first_day_of_month_only?: boolean; // True if only checking first day of each month (TARDIS free tier)
   sub_dimension?: string | null; // 'venue' | 'data_type' | 'feature_group' | 'feature_family' | null
   overall_completion_pct: number;
+  // Explicit capture-vs-attempt split (R7, 2026-06-15) — the headline shows these
+  // labeled instead of the ambiguous `overall_completion_pct`. capture = captured /
+  // could-exist; attempt = (captured + empty_confirmed + failed) / could-exist (empty
+  // confirmations count as covered). Optional until the backend field deploys.
+  overall_capture_coverage_pct?: number;
+  overall_attempt_coverage_pct?: number;
   overall_dates_found: number; // venue-weighted total
   overall_dates_expected: number; // venue-weighted expected
   // Category-level totals for reference (not venue-weighted)
@@ -3159,16 +3188,55 @@ export interface HonestCoverageStatusCounts {
   captured: number;
   empty_confirmed: number;
   attempted_failed: number;
-  expected_unattempted_known_empty: number;
-  expected_unattempted_pending_fetch: number;
-  total: number;
   /**
-   * Honest coverage: (captured + empty_confirmed + expected_unattempted_known_empty)
-   *   / (captured + empty_confirmed + expected_unattempted_known_empty + attempted_failed + expected_unattempted_pending_fetch)
+   * Split known-empty / pending-fetch buckets. The instruments-service
+   * `measure_honest_coverage.py` cron emits a SINGLE collapsed
+   * `expected_unattempted` field (see below) — these split fields are absent
+   * on that payload, so they are optional. The card derives the split when
+   * only the collapsed field is present.
+   */
+  expected_unattempted_known_empty?: number;
+  expected_unattempted_pending_fetch?: number;
+  /**
+   * Collapsed expected-but-never-fetched bucket as actually emitted by the
+   * cron (`{captured, empty_confirmed, attempted_failed, expected_unattempted,
+   * total, coverage_pct, all_shards_coverage_pct}`). When present it is the
+   * authoritative pending-fetch count; the `_known_empty`/`_pending_fetch`
+   * split fields above are NOT emitted by the cron.
+   */
+  expected_unattempted?: number;
+  total: number;
+  /** Never-collectable cells excluded from the denominator (pre-genesis / delisted / etc.). */
+  out_of_window?: number;
+  /**
+   * CRON-EMITTED `coverage_pct` is captured-ONLY: `captured / (captured +
+   * attempted_failed + expected_unattempted)` — it EXCLUDES `empty_confirmed`
+   * from the numerator. For an asset_group with a vast legitimately-empty
+   * universe (e.g. CeFi per-minute liquidations/book snapshots) this collapses
+   * to a tiny figure (~11.7%) that disagrees wildly with the TURBO "Data
+   * Coverage" widget (~98.5% — which counts empty_confirmed as covered). The
+   * card therefore does NOT display this field as a headline; it recomputes the
+   * manifest-capture + captured ratios from the raw counts so both widgets
+   * agree. Kept here only for provenance / debugging.
    */
   coverage_pct: number;
   /** Legacy all-shards formula including empty_confirmed in denominator. */
   all_shards_coverage_pct?: number;
+  /**
+   * Shards-weighted could-exist ratio: captured / full UAC-declared universe (shards_expected).
+   * This is the OPERATOR-CHOSEN canonical metric — "coverage (of could-exist)".
+   * Typically much lower than coverage_pct (~27% vs ~97%) because it counts uncollected
+   * shards from the full declared universe, not just the attempted subset.
+   */
+  completion_pct_shards_weighted?: number;
+  /** Date-axis could-exist coverage (captured_dates / could_exist_dates). */
+  completion_pct_dates?: number;
+  /** Blended attempt-weighted could-exist coverage. */
+  completion_pct_attempt_blended?: number;
+  /** Total shards found (captured) across the UAC universe. */
+  shards_found?: number;
+  /** Total shards expected across the full UAC-declared universe. */
+  shards_expected?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
@@ -3250,9 +3318,15 @@ export interface VenueYearCoverageResponse {
   asset_groups_failed: string[];
 }
 
-export async function getVenueYearCoverage(assetGroups: string[]): Promise<VenueYearCoverageResponse> {
+export type CoverageScope = "could_exist" | "mvp" | "all";
+
+export async function getVenueYearCoverage(
+  assetGroups: string[],
+  scope: CoverageScope = "could_exist",
+): Promise<VenueYearCoverageResponse> {
   const params = new URLSearchParams();
   params.set("asset_groups", assetGroups.join(","));
+  params.set("scope", scope);
   return fetchJson<VenueYearCoverageResponse>(`/data-status/venue-year-coverage?${params.toString()}`);
 }
 
@@ -3285,6 +3359,12 @@ export interface RepoCiCommit {
   v2_conclusion: string | null;
 }
 
+export interface RepoCiBlockingCheck {
+  name: string; // the required check / status context, e.g. "AWS CodeBuild ap-northeast-1 (deployment-service)"
+  state: string; // failure | error | pending
+  description: string; // GitHub's reason string, e.g. "Pull request approval required for starting a build"
+}
+
 export interface RepoCiPr {
   repo: string;
   number: number;
@@ -3298,6 +3378,9 @@ export interface RepoCiPr {
   failed_check?: boolean;
   v2_present?: boolean;
   stuck_class?: StuckClass | null;
+  // Non-success required checks blocking the merge (classic status contexts like AWS
+  // CodeBuild) — the on-screen "why is this stuck" so the operator doesn't have to dig.
+  blocking_checks?: RepoCiBlockingCheck[];
 }
 
 export interface RepoCiSitState {

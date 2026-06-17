@@ -56,6 +56,17 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("drain-stalled-summary")).toContainText("execution-service");
   });
 
+  test("a stuck PR shows the BLOCKING required check + reason on the triage row", async ({ page }) => {
+    // Regression for the 2026-06-15 escalation: a drain PR blocked on a failing AWS CodeBuild
+    // required check read as a clean "draining" row — the operator had to dig to find why. The
+    // stuck-panel now surfaces the blocking check name + GitHub's reason string inline.
+    await page.goto("/repos");
+    const blockers = page.getByTestId("stuck-pr-blockers-execution-service-89");
+    await expect(blockers).toBeVisible();
+    await expect(blockers).toContainText("AWS CodeBuild");
+    await expect(blockers).toContainText("Pull request approval required for starting a build");
+  });
+
   test("overview table populates rows with SHA columns + chips", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");
@@ -230,5 +241,22 @@ test.describe("Repos CI page", () => {
       "https://github.com/IggyIkenna/execution-service",
     );
     await expect(page.getByTestId("repo-detail-fleet-link")).toHaveAttribute("href", "/fleet");
+  });
+
+  // L294 (promotion_queue_conflict_wall_pileup_2026_06_17 § Class D): the detail pipeline strip
+  // surfaces ALL THREE promotion hops (LDR→staging, staging→main, LDR→main), each leading with the
+  // honest net file-delta via deltaLabel ("in sync (squash skew)" when files_changed==0 despite
+  // ahead_by>0) — not just LDR→main, and not the prior ambiguous `find(base==="main")` that returned
+  // the staging→main leg for the LDR→main slot. Mock seeds 3/1/4 files for the three legs.
+  test("repo detail pipeline strip shows per-hop content deltas (L294)", async ({ page }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("unified-trading-library");
+    await expect(page.getByTestId("repo-detail")).toBeVisible();
+    const deltas = page.getByTestId("pipeline-deltas");
+    await expect(deltas).toBeVisible();
+    await expect(page.getByTestId("delta-ldr-staging")).toContainText("3 files ahead");
+    await expect(page.getByTestId("delta-staging-main")).toContainText("1 file ahead");
+    // The LDR→main leg MUST be the main←LDR delta (4 files), NOT the ambiguous staging→main (1 file).
+    await expect(page.getByTestId("delta-ldr-main")).toContainText("4 files ahead");
   });
 });
