@@ -242,4 +242,21 @@ test.describe("Repos CI page", () => {
     );
     await expect(page.getByTestId("repo-detail-fleet-link")).toHaveAttribute("href", "/fleet");
   });
+
+  // L294 (promotion_queue_conflict_wall_pileup_2026_06_17 § Class D): the detail pipeline strip
+  // surfaces ALL THREE promotion hops (LDR→staging, staging→main, LDR→main), each leading with the
+  // honest net file-delta via deltaLabel ("in sync (squash skew)" when files_changed==0 despite
+  // ahead_by>0) — not just LDR→main, and not the prior ambiguous `find(base==="main")` that returned
+  // the staging→main leg for the LDR→main slot. Mock seeds 3/1/4 files for the three legs.
+  test("repo detail pipeline strip shows per-hop content deltas (L294)", async ({ page }) => {
+    await page.goto("/repos");
+    await page.getByTestId("repo-dropdown").selectOption("unified-trading-library");
+    await expect(page.getByTestId("repo-detail")).toBeVisible();
+    const deltas = page.getByTestId("pipeline-deltas");
+    await expect(deltas).toBeVisible();
+    await expect(page.getByTestId("delta-ldr-staging")).toContainText("3 files ahead");
+    await expect(page.getByTestId("delta-staging-main")).toContainText("1 file ahead");
+    // The LDR→main leg MUST be the main←LDR delta (4 files), NOT the ambiguous staging→main (1 file).
+    await expect(page.getByTestId("delta-ldr-main")).toContainText("4 files ahead");
+  });
 });
