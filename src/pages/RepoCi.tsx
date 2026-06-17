@@ -676,7 +676,14 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   const main = branchHead("main");
   const stagingPr = detail.open_prs.find((pr) => pr.base === "staging") ?? null;
   const mainPr = detail.open_prs.find((pr) => pr.base === "main") ?? null;
-  const mainDelta = detail.deltas.find((d) => d.base === "main") ?? null;
+  // Each promotion hop's net delta, leading with the honest files_changed (deltaLabel renders
+  // "in sync (squash skew)" when files_changed==0 despite ahead_by>0) — L294,
+  // promotion_queue_conflict_wall_pileup_2026_06_17 § Class D. NB the LDR→main leg MUST pin
+  // head==="live-defi-rollout": both the staging→main and LDR→main legs carry base==="main", so a
+  // bare `.find(d => d.base === "main")` returned the staging→main leg (the prior ambiguous bug).
+  const ldrStaging = detail.deltas.find((d) => d.base === "staging" && d.head === "live-defi-rollout") ?? null;
+  const stagingMain = detail.deltas.find((d) => d.base === "main" && d.head === "staging") ?? null;
+  const mainDelta = detail.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout") ?? null;
   const sit = detail.sit;
   const img = detail.image;
 
@@ -721,9 +728,26 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
       <PipelineStage label="image" tone={imageTone} testId="pipeline-stage-image">
         {img.last_build_status ?? "—"}
       </PipelineStage>
-      {mainDelta && (mainDelta.files_changed > 0 || mainDelta.ahead_by > 0) && (
-        <span className="ml-2 text-[10px] text-[var(--color-text-muted)] shrink-0" data-testid="pipeline-main-delta">
-          {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+      {(ldrStaging || stagingMain || mainDelta) && (
+        <span
+          className="ml-2 flex shrink-0 flex-wrap items-center gap-x-2 text-[10px] text-[var(--color-text-muted)]"
+          data-testid="pipeline-deltas"
+        >
+          {ldrStaging && (
+            <span data-testid="delta-ldr-staging">
+              LDR→stg: {deltaLabel(ldrStaging.files_changed, ldrStaging.ahead_by)}
+            </span>
+          )}
+          {stagingMain && (
+            <span data-testid="delta-staging-main">
+              stg→main: {deltaLabel(stagingMain.files_changed, stagingMain.ahead_by)}
+            </span>
+          )}
+          {mainDelta && (
+            <span data-testid="delta-ldr-main">
+              LDR→main: {deltaLabel(mainDelta.files_changed, mainDelta.ahead_by)}
+            </span>
+          )}
         </span>
       )}
       {jammed.map((j) => (
