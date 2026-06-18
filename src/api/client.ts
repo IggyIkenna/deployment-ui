@@ -3534,12 +3534,20 @@ export interface RepoCiDetail {
   last_green?: Record<string, RepoCiLastGreen | null>;
 }
 
-export async function getRepoCiOverview(): Promise<RepoCiOverview> {
-  return fetchJson<RepoCiOverview>("/repo-ci/overview");
+/** Cloud whose build status the repo-CI Image column reads (the GCP/AWS toggle). Under Option B a
+ * single backend serves both clouds via this query param (?provider=) — no per-cloud base-URL swap. */
+export type RepoCiProvider = "gcp" | "aws";
+
+function repoCiProviderQuery(provider?: RepoCiProvider): string {
+  return provider ? `?provider=${provider}` : "";
 }
 
-export async function getRepoCiDetail(repo: string): Promise<RepoCiDetail> {
-  return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail`);
+export async function getRepoCiOverview(provider?: RepoCiProvider): Promise<RepoCiOverview> {
+  return fetchJson<RepoCiOverview>(`/repo-ci/overview${repoCiProviderQuery(provider)}`);
+}
+
+export async function getRepoCiDetail(repo: string, provider?: RepoCiProvider): Promise<RepoCiDetail> {
+  return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail${repoCiProviderQuery(provider)}`);
 }
 
 export interface RepoCiAlertEntry {

@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useCloudProvider } from "../contexts/CloudProviderContext";
 import { AlertCircle, ExternalLink, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   getRepoCiDetail,
@@ -762,12 +763,14 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
 export function RepoDetailPanel({ repo }: { repo: string }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Image signal follows the GCP/AWS toggle (Option B ?provider=), refetching on switch.
+  const { target } = useCloudProvider();
 
   useEffect(() => {
     let cancelled = false;
     setDetail(null);
     setError(null);
-    getRepoCiDetail(repo)
+    getRepoCiDetail(repo, target)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -777,7 +780,7 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
     return () => {
       cancelled = true;
     };
-  }, [repo]);
+  }, [repo, target]);
 
   if (error)
     return (
@@ -1007,15 +1010,18 @@ export function RepoCiContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  // Option B: the GCP/AWS toggle drives ?provider= on the repo-CI fetch (one backend serves both
+  // clouds), NOT a base-URL swap — so the Image column reflects the selected cloud's build status.
+  const { target } = useCloudProvider();
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    getRepoCiOverview()
+    getRepoCiOverview(target)
       .then(setOverview)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [target]);
 
   useEffect(() => {
     load();
