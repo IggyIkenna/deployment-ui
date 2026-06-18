@@ -236,6 +236,7 @@ export function Header() {
           {/* Cloud Provider Toggle */}
           <div className="flex items-center rounded-lg border border-[var(--color-border-default)] overflow-hidden">
             <button
+              data-testid="cloud-toggle-gcp"
               onClick={() => handleCloudSwitch("gcp")}
               disabled={switching}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -248,6 +249,7 @@ export function Header() {
               GCP
             </button>
             <button
+              data-testid="cloud-toggle-aws"
               onClick={() => handleCloudSwitch("aws")}
               disabled={switching}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${

@@ -1503,6 +1503,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     .replace(/\?.*$/, "")
     .replace("/api/v1/", "/api/");
 
+  // Test observability (mirrors __mockErrors): when a spec opts in by seeding window.__mockRequests,
+  // record the RAW request URL (query string intact) so playwright can assert query params — e.g. the
+  // repo-CI GCP/AWS ?provider= toggle — without a network round-trip the in-process mock never makes.
+  const reqLog = (window as typeof window & { __mockRequests?: string[] }).__mockRequests;
+  if (reqLog) reqLog.push(url);
+
   // Test-injected error overrides — set window.__mockErrors before page.goto()
   // to simulate backend failures without Playwright route mocks.
   const testErrors = (window as typeof window & { __mockErrors?: Array<{ pattern: string; status: number }> })

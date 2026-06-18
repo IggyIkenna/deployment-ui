@@ -259,4 +259,43 @@ test.describe("Repos CI page", () => {
     // The LDR→main leg MUST be the main←LDR delta (4 files), NOT the ambiguous staging→main (1 file).
     await expect(page.getByTestId("delta-ldr-main")).toContainText("4 files ahead");
   });
+
+  test("GCP/AWS toggle drives the repo-CI fetch via ?provider= (Option B, not a base-URL swap)", async ({ page }) => {
+    // Regression for the deployed no-op: the toggle MUST append ?provider=<cloud> to the repo-CI
+    // overview fetch so the SINGLE backend serves both clouds' build status (it used to switch the
+    // base URL, a no-op in the bundled Cloud Run build → AWS silently re-showed GCP data).
+    // SSOT: plans/active/issues/deployment_dashboard_image_status_and_multicloud_toggle_2026_06_17.md.
+    await page.addInitScript(() => {
+      (window as Window & { __mockRequests?: string[] }).__mockRequests = [];
+    });
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+
+    // Switch to AWS → the overview refetch carries ?provider=aws.
+    await page.getByTestId("cloud-toggle-aws").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          ((window as Window & { __mockRequests?: string[] }).__mockRequests ?? []).some(
+            (u) => u.includes("/api/repo-ci/overview") && u.includes("provider=aws"),
+          ),
+        ),
+      )
+      .toBe(true);
+
+    // Switch back to GCP → a fresh fetch carries ?provider=gcp (reset the log so this is meaningful).
+    await page.evaluate(() => {
+      (window as Window & { __mockRequests?: string[] }).__mockRequests = [];
+    });
+    await page.getByTestId("cloud-toggle-gcp").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          ((window as Window & { __mockRequests?: string[] }).__mockRequests ?? []).some(
+            (u) => u.includes("/api/repo-ci/overview") && u.includes("provider=gcp"),
+          ),
+        ),
+      )
+      .toBe(true);
+  });
 });
