@@ -1,12 +1,23 @@
 /**
  * Smoke + regression: Alerts page — Slack-alert lifecycle traceability
  * (operator requirement 2026-06-10: every alert traceable; current + previous state).
+ * Regression guard added 2026-06-19: /alerts page MUST consume GET /api/alerts (unified
+ * ledger endpoint), not the old /api/repo-ci/alerts. Plan: deployment_ui_monitoring_pane_2026_06_19.md
+ *
  * Plan: ci_dashboard_deployment_ui_2026_06_10.md (alert-history mirror v1).
  */
 
 import { expect, test } from "@playwright/test";
 
 test.describe("Alerts page", () => {
+  test("alerts page consumes GET /api/alerts (unified endpoint): source badge shows UNIFIED", async ({ page }) => {
+    // The mock for /api/alerts returns source:"unified"; /api/repo-ci/alerts returns source:"mock".
+    // If this component reverts to calling the old endpoint the badge will show MOCK, not UNIFIED.
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-source-badge")).toBeVisible();
+    await expect(page.getByTestId("alerts-source-badge")).toContainText("UNIFIED");
+  });
+
   test("nav routes to /alerts which renders as a home-shell tab", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("nav-alerts").click();

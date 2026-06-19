@@ -1594,6 +1594,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/repo-ci/alerts") {
     return json(mockRepoCiAlerts());
   }
+  // Unified alert ledger — superset of /api/repo-ci/alerts; source="unified" distinguishes
+  // it so the Playwright regression test can verify the page consumes this endpoint.
+  // Plan: deployment_ui_monitoring_pane_2026_06_19.md
+  if (path === "/api/alerts") {
+    return json({ ...mockRepoCiAlerts(), source: "unified" });
+  }
   if (path === "/api/repo-ci/overview") {
     return json(mockRepoCiOverview());
   }

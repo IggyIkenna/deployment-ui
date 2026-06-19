@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, ExternalLink, RefreshCw } from "lucide-react";
-import { getRepoCiAlerts, type RepoCiAlertEntry, type RepoCiAlerts } from "../api/client";
+import { getAlerts, type RepoCiAlertEntry, type RepoCiAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -47,7 +47,7 @@ export function AlertsContent() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    getRepoCiAlerts()
+    getAlerts()
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
