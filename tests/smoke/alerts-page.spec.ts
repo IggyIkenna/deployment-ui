@@ -2,6 +2,7 @@
  * Smoke + regression: Alerts page — Slack-alert lifecycle traceability
  * (operator requirement 2026-06-10: every alert traceable; current + previous state).
  * Plan: ci_dashboard_deployment_ui_2026_06_10.md (alert-history mirror v1).
+ * Updated 2026-06-19: page now consumes /api/alerts (unified ledger) not /api/repo-ci/alerts.
  */
 
 import { expect, test } from "@playwright/test";
@@ -22,6 +23,20 @@ test.describe("Alerts page", () => {
     await page.getByTestId("landing-alerts-tab-trigger").click();
     await expect(page).toHaveURL(/\/alerts$/);
     await expect(page.getByTestId("alerts-page")).toBeVisible();
+  });
+
+  test("page calls the unified /api/alerts endpoint (not /api/repo-ci/alerts)", async ({ page }) => {
+    // Regression guard: ensures the page reads from the unified alert ledger.
+    const requests: string[] = [];
+    page.on("request", (req) => requests.push(req.url()));
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-page")).toBeVisible();
+    // Wait a tick for the fetch to fire.
+    await page.waitForTimeout(500);
+    const hasUnified = requests.some((u) => u.includes("/api/alerts") && !u.includes("/repo-ci/alerts"));
+    expect(hasUnified, "page must call /api/alerts, not /api/repo-ci/alerts").toBe(true);
+    const hasLegacy = requests.some((u) => u.includes("/api/repo-ci/alerts"));
+    expect(hasLegacy, "page must NOT call /api/repo-ci/alerts").toBe(false);
   });
 
   test("lifecycle stream shows previous -> current state pair (traceability)", async ({ page }) => {

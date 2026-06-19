@@ -3619,6 +3619,10 @@ export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
   return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
 }
 
+export async function getAlerts(): Promise<RepoCiAlerts> {
+  return fetchJson<RepoCiAlerts>("/alerts");
+}
+
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
 
 export interface FleetGitRepoHealth {
