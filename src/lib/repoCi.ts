@@ -100,14 +100,36 @@ function shortBranch(branch: string): string {
   return branch === "live-defi-rollout" ? "LDR" : branch;
 }
 
+/** quality-gates-v2 conclusions that mean a branch is RED (not success / in-progress / skipped). */
+const BAD_CONCLUSIONS = new Set(["failure", "timed_out", "cancelled", "startup_failure", "action_required"]);
+
 /** Which branches' quality-gates-v2 is currently red (`failure`/`timed_out`/`cancelled`/`startup_failure`),
  * in promotion order LDR → staging → main. Lets the chip show WHICH branch is failing rather than a bare
  * "FAILING" — distinguishes "main red, LDR recovered (draining)" from "LDR actively broken". */
 export function failingBranches(row: RepoCiOverviewRow): string[] {
   const order = ["live-defi-rollout", "staging", "main"];
-  const bad = new Set(["failure", "timed_out", "cancelled", "startup_failure", "action_required"]);
   if (!row.branch_ci) return [];
-  return order.filter((b) => bad.has((row.branch_ci?.[b] ?? "").toLowerCase())).map(shortBranch);
+  return order.filter((b) => BAD_CONCLUSIONS.has((row.branch_ci?.[b] ?? "").toLowerCase())).map(shortBranch);
+}
+
+/** Per-branch CI colour for the LDR/staging/main SHA cells — replaces the standalone CI-status column
+ * (operator review 2026-06-19). GREEN when that branch's last quality-gates-v2 concluded success, RED
+ * when it failed, GRAY when the branch is absent or the conclusion is unknown/skipped.
+ *
+ * `branch_ci` is live-fetched only for the FAILING repos (GitHub-API budget bound); a non-FAILING repo's
+ * branches all last-passed, so an absent `branch_ci` on a non-FAILING repo ⟹ green. A branch that is
+ * merely BEHIND (stale) is still GREEN here — staleness is shown by the last-green + LDR→main-delta/lag
+ * columns, not by this pass/fail colour. */
+export function branchTone(row: RepoCiOverviewRow, branch: string, sha: string | null): ChipTone {
+  if (!sha) return "gray"; // branch does not exist for this repo
+  const conclusion = row.branch_ci?.[branch];
+  if (conclusion) {
+    const c = conclusion.toLowerCase();
+    if (c === "success") return "green";
+    return BAD_CONCLUSIONS.has(c) ? "red" : "gray";
+  }
+  // No live per-branch conclusion: only FAILING repos are fetched, so absence ⟹ not failing.
+  return row.ci_status === "FAILING" ? "gray" : "green";
 }
 
 /** "FAILING (main)" / "FAILING (LDR, staging)" when branch_ci pins the red branch(es); else bare ci_status. */

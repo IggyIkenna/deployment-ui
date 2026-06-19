@@ -67,14 +67,13 @@ test.describe("Repos CI page", () => {
     await expect(blockers).toContainText("Pull request approval required for starting a build");
   });
 
-  test("overview table populates rows with SHA columns + chips", async ({ page }) => {
+  test("overview table populates rows with SHA columns", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");
     await expect(table).toBeVisible();
     await expect(page.getByTestId("repo-row-unified-trading-library")).toBeVisible();
     // Branch short-SHAs render (mock fixtures use abc12* heads).
     await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("abc1234");
-    await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("MAIN_GREEN");
   });
 
   test("overview shows the last-green-main column (green as of <sha>), distinct from a red head", async ({ page }) => {
@@ -94,15 +93,40 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("lag-execution-service")).toContainText("lag");
   });
 
-  test("CI status chip annotates WHICH branch is failing (branch_ci)", async ({ page }) => {
+  test("per-branch SHA cells are colour-coded (replaces the standalone CI-status column)", async ({ page }) => {
+    // Regression for the 2026-06-19 operator review: the standalone `CI status` lifecycle column
+    // conflated promotion-progress with branch-failure; it is replaced by a green/red colour on each
+    // LDR/staging/main SHA cell (per-branch last-v2 conclusion), exposed via data-tone.
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
-    // execution-service is FAILING with main red → chip reads "FAILING (main)" (recovering shape).
-    await expect(page.getByTestId("repo-row-execution-service")).toContainText("FAILING (main)");
-    // strategy-service is STAGING_GREEN with LDR red → chip reads "STAGING_GREEN (LDR)" (actively broken).
-    await expect(page.getByTestId("repo-row-strategy-service")).toContainText("STAGING_GREEN (LDR)");
-    // a clean repo shows the bare status, no branch suffix.
-    await expect(page.getByTestId("repo-row-unified-trading-library")).not.toContainText("(");
+    // The standalone CI-status column is gone.
+    await expect(page.getByRole("columnheader", { name: "CI status" })).toHaveCount(0);
+    // execution-service is FAILING with main red → the main SHA cell is red.
+    await expect(page.getByTestId("branch-main-execution-service")).toHaveAttribute("data-tone", "red");
+    // strategy-service is STAGING_GREEN with LDR red → the LDR SHA cell is red.
+    await expect(page.getByTestId("branch-ldr-strategy-service")).toHaveAttribute("data-tone", "red");
+    // a clean (MAIN_GREEN) repo's branches are all green.
+    await expect(page.getByTestId("branch-ldr-unified-trading-library")).toHaveAttribute("data-tone", "green");
+    await expect(page.getByTestId("branch-main-unified-trading-library")).toHaveAttribute("data-tone", "green");
+  });
+
+  test("branch-colour legend opens on click and explains green/red/gray", async ({ page }) => {
+    // Regression for the 2026-06-19 operator request: a click-to-open legend documents what the
+    // per-branch SHA colours mean (replacing the self-describing CI-status text column).
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // Collapsed by default (conditionally rendered → absent from the DOM).
+    await expect(page.getByTestId("branch-legend")).toHaveCount(0);
+    // Click the help toggle → legend opens and explains each colour.
+    await page.getByTestId("branch-legend-toggle").click();
+    const legend = page.getByTestId("branch-legend");
+    await expect(legend).toBeVisible();
+    await expect(legend).toContainText("last v2 run passed");
+    await expect(legend).toContainText("last v2 run failed");
+    await expect(legend).toContainText("branch absent or status unknown");
+    // Clicking outside (the transparent overlay) closes it.
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("branch-legend")).toHaveCount(0);
   });
 
   test("repo dropdown drill-down renders SHA history and PR cards", async ({ page }) => {
