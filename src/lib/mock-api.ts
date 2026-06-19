@@ -1133,6 +1133,11 @@ function mockRepoCiRow(
   tier: string = "service",
   blockedBy: { name: string; tier: string; ci_status: string }[] = [],
   blocking: string[] = [],
+  opts: {
+    deltas?: { base: string; head: string; ahead_by: number; behind_by: number; files_changed: number }[];
+    lagMin?: number | null;
+    drainStalled?: boolean;
+  } = {},
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
   // STAGING_GREEN → LDR red (actively-broken shape); else all green. Mirrors the deployment-api mock.
@@ -1152,7 +1157,7 @@ function mockRepoCiRow(
       { branch: "staging", sha: "abc1200567", committed_at: "2026-06-10T07:30:00Z" },
       { branch: "main", sha: "abc1100567", committed_at: "2026-06-10T06:00:00Z" },
     ],
-    deltas: [
+    deltas: opts.deltas ?? [
       { base: "staging", head: "live-defi-rollout", ahead_by: 2, behind_by: 0, files_changed: 3 },
       { base: "main", head: "staging", ahead_by: 1, behind_by: 0, files_changed: 1 },
       { base: "main", head: "live-defi-rollout", ahead_by: 3, behind_by: 0, files_changed: 4 },
@@ -1187,10 +1192,10 @@ function mockRepoCiRow(
         : { sha: "abc1100567", at: "2026-06-10T06:00:00Z" },
     // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
     // sit longer (drain stuck). >60min so the lag-chip renders red.
-    main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
+    main_lag_age_min: opts.lagMin === undefined ? (ciStatus === "FAILING" ? 185 : 95) : opts.lagMin,
     // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
     // stale/failing drain leg); healthy repos are draining so not stalled.
-    drain_stalled: ciStatus === "FAILING",
+    drain_stalled: opts.drainStalled ?? ciStatus === "FAILING",
     // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
     tier,
     blocked_by: blockedBy,
@@ -1214,6 +1219,16 @@ function mockRepoCiOverview() {
       ["market-tick-data-service", "strategy-service"],
     ),
     mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false, "1"),
+    // The healthy in-sync reference — content fully promoted to main (all hops 0 files, no lag), so
+    // classifyStall = none → no hop pills, "—" stall reason. Proves the dashboard doesn't false-flag.
+    mockRepoCiRow("client-reporting-api", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "staging", ahead_by: 0, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+      ],
+      lagMin: null,
+    }),
     mockRepoCiRow(
       "market-tick-data-service",
       "service",
@@ -1254,6 +1269,20 @@ function mockRepoCiOverview() {
       [UAC_DEP],
     ),
     mockRepoCiRow("greeks-service", "service", "STAGING_GREEN", [], true, true),
+    // agent-orchestrator class — the staging→main PROMOTER STALL. LDR→staging is fully drained
+    // (files 0), but staging is 144 files / 326 commits ahead of main with NO open PR, while
+    // ci_status reads MAIN_GREEN — the "status lies" case the dep-order card cannot catch (only the
+    // git-delta lag chip does). Exercises classifyStall=staging-to-main + ciStatusStale + the
+    // HopPills / StallReasonChip render path.
+    mockRepoCiRow("agent-orchestrator", "tool", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 96, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "staging", ahead_by: 326, behind_by: 2, files_changed: 144 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 420, behind_by: 0, files_changed: 71 },
+      ],
+      lagMin: 12180,
+      drainStalled: false,
+    }),
   ];
   const stuckPrs = rows.flatMap((row) => row.open_prs.filter((pr) => pr.stuck_class));
   const stuckInSit = rows.filter((row) => row.sit.stuck_in_sit).map((row) => row.repo);

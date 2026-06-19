@@ -34,6 +34,7 @@ import {
   buildSourceLabel,
   buildTimeLabel,
   ciStatusTone,
+  classifyStall,
   deltaLabel,
   formatAge,
   githubChecksUrl,
@@ -47,6 +48,7 @@ import {
   STUCK_CLASS_LABELS,
   stuckClassTone,
   type ChipTone,
+  type StallReason,
 } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -84,6 +86,96 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
       className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium border ${TONE_CLASSES[tone]}`}
     >
       {children}
+    </span>
+  );
+}
+
+/** Per-hop file deltas for a lagging row — WHICH promotion hop holds the content: LDR→staging then
+ * staging→main, each green ✓ when drained (0 files) or red "Nf" when content is stuck on it. The
+ * row-level mirror of the detail panel's pipeline; renders only when the row has real lag, so the
+ * eye is drawn to the stuck leg (e.g. AO: LDR→stg ✓, stg→main 144f). */
+function HopPills({ row }: { row: RepoCiOverviewRow }) {
+  const hop = (base: string, head: string): number =>
+    row.deltas.find((d) => d.base === base && d.head === head)?.files_changed ?? 0;
+  const pill = (label: string, files: number, testId: string) => (
+    <span
+      data-testid={testId}
+      className={`inline-flex items-center gap-0.5 ${files > 0 ? TONE_TEXT.red : TONE_TEXT.green}`}
+    >
+      {label} {files > 0 ? `${files}f` : "✓"}
+    </span>
+  );
+  return (
+    <span className="inline-flex flex-col items-start gap-0.5 text-[11px]" data-testid={`stall-hops-${row.repo}`}>
+      {pill("LDR→stg", hop("staging", "live-defi-rollout"), `hop-ldr-staging-${row.repo}`)}
+      {pill("stg→main", hop("main", "staging"), `hop-staging-main-${row.repo}`)}
+    </span>
+  );
+}
+
+/** The one-glance WHY for a lagging row — the classified promotion stall. Renders only for the
+ * not-otherwise-surfaced classes (staging→main promoter not firing / LDR→staging drain behind /
+ * a jammed PR); dep-order is carried by the existing blocked-by chip and drain-stalled by its own.
+ * Severity tracks the lag age (red past the 60-min monitor threshold, else yellow) so a fresh
+ * staging→main gap reads as "promoting" while AO's 8-day stall reads red. */
+function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: StallReason }) {
+  const lagTone: ChipTone = (row.main_lag_age_min ?? 0) > 60 ? "red" : "yellow";
+  if (reason.kind === "staging-to-main") {
+    const detail = reason.ciStatusStale ? `status stale (${row.ci_status})` : "no promotion PR";
+    return (
+      <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
+        staging→main not promoting · {detail}
+      </Chip>
+    );
+  }
+  if (reason.kind === "ldr-to-staging") {
+    return (
+      <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
+        LDR→staging drain behind
+      </Chip>
+    );
+  }
+  if (reason.kind === "pr-stuck" && reason.stuckClass) {
+    return (
+      <Chip tone={stuckClassTone(reason.stuckClass)} testId={`stall-reason-${row.repo}`}>
+        PR #{reason.pr}: {STUCK_CLASS_LABELS[reason.stuckClass]}
+      </Chip>
+    );
+  }
+  return null;
+}
+
+/** The "Stall reason" column cell — the single home for every promotion WHY: this repo is a root
+ * blocker (holds others) / is itself held by a dep (dep-order) / its drain leg is broken / the
+ * classified hop stall (staging→main not promoting · LDR→staging drain behind · a jammed PR).
+ * "—" when the row is clean. */
+function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallReason }) {
+  const blocking = row.blocking ?? [];
+  const blockedBy = row.blocked_by ?? [];
+  const hasHopReason =
+    !row.drain_stalled &&
+    (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
+  if (blocking.length === 0 && blockedBy.length === 0 && !row.drain_stalled && !hasHopReason) {
+    return <span className="text-[var(--color-text-muted)]">—</span>;
+  }
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      {blocking.length > 0 && (
+        <Chip tone="red" testId={`root-blocker-${row.repo}`}>
+          root blocker · {blocking.length} waiting
+        </Chip>
+      )}
+      {blockedBy.length > 0 && (
+        <Chip tone="yellow" testId={`blocked-by-${row.repo}`}>
+          blocked-by: {blockedBy.map((dep) => `${dep.name} (tier ${dep.tier})`).join(", ")}
+        </Chip>
+      )}
+      {row.drain_stalled && (
+        <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
+          drain stalled
+        </Chip>
+      )}
+      {hasHopReason && <StallReasonChip row={row} reason={stall} />}
     </span>
   );
 }
@@ -801,9 +893,35 @@ function OverviewTable({
             align="right"
             help={
               <>
-                How far LDR leads main: files-ahead (the honest signal — “in sync” when it's only squash-skew) +
-                commits, plus the promotion-lag chip (red &gt;60min), drain-stalled, and the dep-order root-blocker /
-                blocked-by chips.
+                How far LDR leads main overall: files-ahead (the honest signal — “in sync” when it's only squash-skew) +
+                commits, plus the promotion-lag chip (red &gt;60min — the age of the oldest LDR commit not yet on main).
+                WHERE and WHY that lag sits are split into the next two columns.
+              </>
+            }
+          />
+          <Th
+            id="hops"
+            label="Promotion hops"
+            help={
+              <>
+                WHICH promotion hop holds the content: LDR→staging then staging→main. <b>✓</b> = that hop is drained (0
+                files); <b>Nf</b> (red) = N files stuck on it. The drained-then-stuck pattern (LDR→stg ✓ · stg→main
+                144f) localizes an 8-day lag to the staging→main hop instead of one opaque number.
+              </>
+            }
+          />
+          <Th
+            id="reason"
+            label="Stall reason"
+            help={
+              <>
+                WHY the promotion is stuck — one of: <b>dep-order</b> (held behind a dependency not yet on main — the
+                blocked-by chip); <b>staging→main not promoting</b> (staging is ahead of main with no PR — the promoter
+                isn't firing; <b>status stale</b> means ci_status reads on-main, e.g. MAIN_GREEN, while git says it
+                isn't — the agent-orchestrator class, invisible to every status-based view);{" "}
+                <b>LDR→staging drain behind</b> (the Tier-C drain hasn't carried LDR to staging); <b>PR #N</b> (a
+                promotion PR exists but is jammed — conflict / failing / [skip ci]); <b>root blocker</b> (this repo
+                isn't on main and is holding others); <b>drain stalled</b> (content ahead + a dead drain leg).
               </>
             }
           />
@@ -848,6 +966,7 @@ function OverviewTable({
           const bySha = new Map(row.branches.map((b) => [b.branch, b.sha]));
           const ldrMain = row.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout");
           const stuckCount = row.open_prs.filter((pr) => pr.stuck_class).length;
+          const stall = classifyStall(row);
           return (
             <tr
               key={row.repo}
@@ -896,7 +1015,7 @@ function OverviewTable({
                   <span className="text-[var(--color-text-muted)]">—</span>
                 )}
               </td>
-              <td className="py-1.5 text-[var(--color-text-secondary)]">
+              <td className="py-1.5 text-[var(--color-text-secondary)] align-top">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
                   {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
@@ -905,25 +1024,21 @@ function OverviewTable({
                       {formatAge(row.main_lag_age_min)} lag
                     </Chip>
                   )}
-                  {/* promotion-drain follow-up: content ahead + a stale/failing drain leg (bug-#11). */}
-                  {row.drain_stalled && (
-                    <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
-                      drain stalled
-                    </Chip>
-                  )}
-                  {/* dep-order (operator 2026-06-19): this repo is the ROOT blocker holding others… */}
-                  {row.blocking && row.blocking.length > 0 && (
-                    <Chip tone="red" testId={`root-blocker-${row.repo}`}>
-                      root blocker · {row.blocking.length} waiting
-                    </Chip>
-                  )}
-                  {/* …or this repo is itself HELD waiting on a dep to reach main. */}
-                  {row.blocked_by && row.blocked_by.length > 0 && (
-                    <Chip tone="yellow" testId={`blocked-by-${row.repo}`}>
-                      blocked-by: {row.blocked_by.map((d) => `${d.name} (tier ${d.tier})`).join(", ")}
-                    </Chip>
-                  )}
                 </span>
+              </td>
+              {/* Promotion hops (operator 2026-06-19) — WHICH hop holds the content, so an 8d lag is
+                  localizable at a glance: LDR→staging drained (✓) vs staging→main stuck (Nf). */}
+              <td className="py-1.5 align-top" data-testid={`hops-cell-${row.repo}`}>
+                {stall.kind === "none" ? (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                ) : (
+                  <HopPills row={row} />
+                )}
+              </td>
+              {/* Stall reason — the single WHY: dep-order / staging→main promoter not firing /
+                  LDR→staging drain behind / a jammed PR / this repo itself a root blocker. */}
+              <td className="py-1.5 align-top" data-testid={`reason-cell-${row.repo}`}>
+                <StallReasonCell row={row} stall={stall} />
               </td>
               <td className="py-1.5">
                 {row.sit.stuck_in_sit ? (

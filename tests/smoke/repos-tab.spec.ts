@@ -383,9 +383,31 @@ test.describe("Repos CI page", () => {
     await page.getByTestId("col-help-image-toggle").click();
     await expect(page.getByTestId("col-help-image")).toContainText("build status");
     await page.mouse.click(5, 5);
-    // The delta column documents the dep-order chips it now carries.
-    await page.getByTestId("col-help-delta-toggle").click();
-    await expect(page.getByTestId("col-help-delta")).toContainText("blocked-by");
+    // The new per-hop + stall-reason columns document the promotion-stall taxonomy (the delta column
+    // is now just the headline distance + lag; WHERE/WHY moved to these two dedicated columns).
+    await page.getByTestId("col-help-hops-toggle").click();
+    await expect(page.getByTestId("col-help-hops")).toContainText("staging→main");
+    await page.mouse.click(5, 5);
+    await page.getByTestId("col-help-reason-toggle").click();
+    await expect(page.getByTestId("col-help-reason")).toContainText("blocked-by");
+    await expect(page.getByTestId("col-help-reason")).toContainText("status stale");
+  });
+
+  test("per-hop + stall-reason columns localize a staging→main promoter stall (the AO class)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // agent-orchestrator fixture: LDR→staging fully drained, staging 144 files ahead of main, no PR,
+    // ci_status MAIN_GREEN. The per-hop column localizes the stuck leg…
+    await expect(page.getByTestId("hop-ldr-staging-agent-orchestrator")).toContainText("✓");
+    await expect(page.getByTestId("hop-staging-main-agent-orchestrator")).toContainText("144f");
+    // …and the stall-reason column names WHY: the promoter isn't firing + the status is lying.
+    const reason = page.getByTestId("stall-reason-agent-orchestrator");
+    await expect(reason).toContainText("staging→main not promoting");
+    await expect(reason).toContainText("status stale");
+    // A genuinely-in-sync repo (client-reporting-api fixture: all hops 0 files) shows no hop pills +
+    // a dash reason — proves the dashboard doesn't false-flag a fully-promoted repo.
+    await expect(page.getByTestId("hops-cell-client-reporting-api")).not.toContainText("stg→main");
+    await expect(page.getByTestId("reason-cell-client-reporting-api")).toContainText("—");
   });
 
   test("sort control reorders the overview (A–Z + dependency tier)", async ({ page }) => {
@@ -396,9 +418,9 @@ test.describe("Repos CI page", () => {
         "repo-row-",
         "",
       );
-    // A–Z: alphabetical first row (execution-service leads the mock fleet).
+    // A–Z: alphabetical first row (agent-orchestrator leads the mock fleet).
     await page.getByTestId("repo-sort-alpha").click();
-    expect(await firstRepo()).toBe("execution-service");
+    expect(await firstRepo()).toBe("agent-orchestrator");
     // Tier: the tier-0 dep (unified-api-contracts) sorts to the top of the layer stack.
     await page.getByTestId("repo-sort-tier").click();
     expect(await firstRepo()).toBe("unified-api-contracts");
