@@ -371,6 +371,23 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("card-help-blocked")).toContainText("failure");
   });
 
+  test("every table column carries a ? help popover explaining what it represents", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // A left-side column.
+    await page.getByTestId("col-help-ldr-toggle").click();
+    await expect(page.getByTestId("col-help-ldr")).toContainText("integration trunk");
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("col-help-ldr")).toHaveCount(0);
+    // A right-edge column (popover drops inward).
+    await page.getByTestId("col-help-image-toggle").click();
+    await expect(page.getByTestId("col-help-image")).toContainText("build status");
+    await page.mouse.click(5, 5);
+    // The delta column documents the dep-order chips it now carries.
+    await page.getByTestId("col-help-delta-toggle").click();
+    await expect(page.getByTestId("col-help-delta")).toContainText("blocked-by");
+  });
+
   test("sort control reorders the overview (A–Z + dependency tier)", async ({ page }) => {
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();

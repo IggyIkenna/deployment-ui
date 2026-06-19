@@ -144,6 +144,33 @@ function CardHelp({ id, title, children }: { id: string; title: string; children
   );
 }
 
+/** A table column header carrying a click-to-open `?` help (operator request 2026-06-19 — every
+ * column explains what it represents). `align="right"` for right-edge columns so the popover drops
+ * inward, not off the table. */
+function Th({
+  id,
+  label,
+  align,
+  help,
+}: {
+  id: string;
+  label: string;
+  align?: "left" | "right";
+  help: React.ReactNode;
+}) {
+  return (
+    <th className="text-left py-1.5 font-medium">
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <HelpPopover label={`What is the ${label} column?`} testId={`col-help-${id}`} align={align}>
+          <p className="mb-1 font-medium text-[var(--color-text-primary)]">{label}</p>
+          {help}
+        </HelpPopover>
+      </span>
+    </th>
+  );
+}
+
 /** A short-SHA that deep-links to its GitHub commit page (operator click-through rule:
  * GitHub-authoritative atoms link to GitHub). Renders a plain dash when no SHA. When `tone`
  * is supplied (the LDR/staging/main overview cells) the SHA carries a per-branch CI colour —
@@ -721,15 +748,99 @@ function OverviewTable({
     <table className="w-full text-sm" aria-label="Repo CI overview" data-testid="repo-ci-table">
       <thead>
         <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)]">
-          <th className="text-left py-1.5 font-medium">Repo</th>
-          <th className="text-left py-1.5 font-medium">LDR</th>
-          <th className="text-left py-1.5 font-medium">staging</th>
-          <th className="text-left py-1.5 font-medium">main</th>
-          <th className="text-left py-1.5 font-medium">last green (main)</th>
-          <th className="text-left py-1.5 font-medium">LDR→main delta</th>
-          <th className="text-left py-1.5 font-medium">SIT</th>
-          <th className="text-left py-1.5 font-medium">PRs</th>
-          <th className="text-left py-1.5 font-medium">Image</th>
+          <Th
+            id="repo"
+            label="Repo"
+            help={<>The repository. Click a row to drill into its branch SHA history, open PRs, SIT state and image.</>}
+          />
+          <Th
+            id="ldr"
+            label="LDR"
+            help={
+              <>
+                <span className="font-mono">live-defi-rollout</span> HEAD — the integration trunk where finished work
+                lands first. The dot/colour is that branch's last <span className="font-mono">quality-gates-v2</span>{" "}
+                (green = passed · red = failed). Click the SHA → its GitHub commit.
+              </>
+            }
+          />
+          <Th
+            id="staging"
+            label="staging"
+            help={
+              <>
+                <span className="font-mono">staging</span> HEAD — the promotion gate between LDR and main (the checks
+                run here; nothing builds or deploys). Colour = last v2. SHA → commit.
+              </>
+            }
+          />
+          <Th
+            id="main"
+            label="main"
+            help={
+              <>
+                <span className="font-mono">main</span> HEAD — the deployed projection; container images build on push
+                here. Colour = last v2. A green-but-behind main reads green here plus a lag chip in “LDR→main delta”.
+              </>
+            }
+          />
+          <Th
+            id="last-green"
+            label="last green (main)"
+            help={
+              <>
+                The most-recent <span className="font-mono">main</span> SHA whose <span className="font-mono">v2</span>{" "}
+                passed, and when — distinct from the main HEAD (which may be red/pending). Answers “what's the last good
+                main”.
+              </>
+            }
+          />
+          <Th
+            id="delta"
+            label="LDR→main delta"
+            align="right"
+            help={
+              <>
+                How far LDR leads main: files-ahead (the honest signal — “in sync” when it's only squash-skew) +
+                commits, plus the promotion-lag chip (red &gt;60min), drain-stalled, and the dep-order root-blocker /
+                blocked-by chips.
+              </>
+            }
+          />
+          <Th
+            id="sit"
+            label="SIT"
+            align="right"
+            help={
+              <>
+                System-integration-test state for the breaking-change cascade (fires only on a breaking public-surface
+                change): <span className="font-medium">stuck</span> · <span className="font-medium">pending</span> · —
+                (idle — the common case).
+              </>
+            }
+          />
+          <Th
+            id="prs"
+            label="PRs"
+            align="right"
+            help={
+              <>
+                Open PRs into a promotion base + how many are stuck. Red = ≥1 stuck; the “Stuck — triage queue” card
+                lists them with the blocking check.
+              </>
+            }
+          />
+          <Th
+            id="image"
+            label="Image"
+            align="right"
+            help={
+              <>
+                Latest container-image deploy signal: build status (→ log) + the built commit SHA (→ GitHub) + time.
+                “stale” = main HEAD ≠ last successful build sha; “unknown” = honest-absent.
+              </>
+            }
+          />
         </tr>
       </thead>
       <tbody>
