@@ -3684,4 +3684,77 @@ export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
   return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
+// ── Fleet Infra-VM Health ────────────────────────────────────────────────────
+
+export interface WatchdogKill {
+  slot_id: number;
+  last_kill_at: string;
+}
+
+export interface WatchdogHealth {
+  enabled: boolean;
+  interval_seconds: number;
+  kills_today: number;
+  daily_cap: number;
+  dormant: boolean;
+  kills_date: string;
+  recent_kills: WatchdogKill[];
+  flapping: boolean;
+  slots_killed_last_hour: number;
+}
+
+export interface VmAlert {
+  severity: "info" | "warn" | "crit";
+  kind: string;
+  detail: string;
+}
+
+export interface VmSummary {
+  vm_id: string;
+  fqdn: string;
+  role: "epic" | "planning" | "unknown";
+  label: string | null;
+  master_plans: string[];
+  slots_total: number;
+  slots_working: number;
+  slots_idle: number;
+  slots_stale: number;
+  slots_paused: number;
+  slots_blocked: number;
+  backlog_total: number;
+  backlog_queued: number;
+  backlog_done: number;
+  backlog_dispatched: number;
+  primary_account_id: string | null;
+  primary_account_pct: number | null;
+  last_activity_at: string | null;
+  alerts: VmAlert[];
+  watchdog: WatchdogHealth | null;
+}
+
+export interface VmEntry {
+  id: string;
+  label: string | null;
+  url: string;
+  stale: boolean;
+  last_heartbeat_seconds_ago: number | null;
+  error: string | null;
+  summary: VmSummary | null;
+}
+
+export interface FleetInfraData {
+  vms: VmEntry[];
+}
+
+export interface FleetInfraHealthProxy {
+  available: boolean;
+  reason: string;
+  orchestrator_url: string;
+  data: FleetInfraData | null;
+}
+
+export async function getFleetInfraHealth(): Promise<FleetInfraHealthProxy> {
+  return fetchJson<FleetInfraHealthProxy>("/repo-ci/fleet-infra-health");
+}
+
 export { ApiError };
