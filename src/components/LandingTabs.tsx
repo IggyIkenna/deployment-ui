@@ -13,21 +13,23 @@
 
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BellRing, GitBranch, LayoutGrid, Server, Trophy } from "lucide-react";
+import { Activity, BellRing, GitBranch, LayoutGrid, Server, Trophy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ServicesOverviewTab } from "./ServicesOverviewTab";
 import { EpicsPlansContent } from "../pages/EpicsPlans";
 import { RepoCiContent } from "../pages/RepoCi";
 import { AlertsContent } from "../pages/Alerts";
 import { FleetGitContent } from "../pages/FleetGit";
+import { FleetInfraContent } from "../pages/FleetInfra";
 
-type LandingTab = "overview" | "epics" | "repos" | "alerts" | "fleet";
+type LandingTab = "overview" | "epics" | "repos" | "alerts" | "fleet" | "infra";
 
 function tabForPath(pathname: string): LandingTab {
   if (pathname === "/repos") return "repos";
   if (pathname === "/alerts") return "alerts";
   if (pathname === "/fleet") return "fleet";
   if (pathname === "/epics") return "epics";
+  if (pathname === "/infra") return "infra";
   return "overview";
 }
 
@@ -51,6 +53,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
       alerts: "/alerts",
       fleet: "/fleet",
       epics: "/epics",
+      infra: "/infra",
     };
     const target = routeFor[value] ?? "/";
     if (location.pathname !== target) navigate(target);
@@ -58,7 +61,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
-      <TabsList variant="pill" className="grid w-full grid-cols-5 mb-6">
+      <TabsList variant="pill" className="grid w-full grid-cols-6 mb-6">
         <TabsTrigger value="overview" className="gap-2">
           <LayoutGrid className="h-4 w-4" />
           Overview
@@ -79,6 +82,10 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
           <Server className="h-4 w-4" />
           Fleet Git
         </TabsTrigger>
+        <TabsTrigger value="infra" className="gap-2" data-testid="landing-fleet-infra-tab-trigger">
+          <Activity className="h-4 w-4" />
+          Fleet Infra
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
         <ServicesOverviewTab onSelectService={onSelectService} />
@@ -94,6 +101,9 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
       </TabsContent>
       <TabsContent value="fleet" data-testid="landing-fleet-git-tab">
         <FleetGitContent />
+      </TabsContent>
+      <TabsContent value="infra" data-testid="landing-fleet-infra-tab">
+        <FleetInfraContent />
       </TabsContent>
     </Tabs>
   );

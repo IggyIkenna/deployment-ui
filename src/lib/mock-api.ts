@@ -1200,6 +1200,17 @@ function mockRepoCiRow(
     tier,
     blocked_by: blockedBy,
     blocking,
+    // Codebase-health metrics (2026-06-19): coverage%, QG fail reason, oversized-file counts.
+    // FAILING repos: lower coverage + a qg_red_reason; healthy repos: high coverage, clean.
+    codebase_health:
+      repoType === "tool"
+        ? null
+        : {
+            coverage_pct: ciStatus === "FAILING" ? 58 : ciStatus === "STAGING_GREEN" ? 74 : 87,
+            qg_red_reason: ciStatus === "FAILING" ? "basedpyright" : ciStatus === "STAGING_GREEN" ? "pytest" : null,
+            large_file_count: ciStatus === "FAILING" ? 2 : 0,
+            warn_file_count: ciStatus === "FAILING" ? 3 : ciStatus === "STAGING_GREEN" ? 1 : 0,
+          },
   };
 }
 
