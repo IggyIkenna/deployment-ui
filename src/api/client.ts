@@ -3445,6 +3445,14 @@ export interface RepoCiOverviewRow {
    * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
    * on LDR with a dead drain). */
   drain_stalled?: boolean;
+  /** Dependency layer from the manifest (e.g. "0"/"1"/"service") — the promotion tier. */
+  tier?: string;
+  /** Deps NOT yet on main that hold THIS repo's staging→main promotion (dep-order). Empty/absent
+   * = clear. Non-empty ⟺ this repo is HELD waiting for a dependency to reach main. */
+  blocked_by?: RepoCiDepBlocker[];
+  /** Repos held because THIS repo isn't on main yet (inverse of blocked_by). Non-empty ⟺ this repo
+   * is a promotion blocker for others. */
+  blocking?: string[];
 }
 
 export interface RepoCiLastGreen {
@@ -3468,6 +3476,33 @@ export interface RepoCiPromotionBlocked {
   escalated?: boolean;
 }
 
+/** A dependency not yet on main that holds a repo's staging→main promotion (dep-order). */
+export interface RepoCiDepBlocker {
+  name: string;
+  tier: string;
+  ci_status: string;
+}
+
+/** A not-on-main repo holding ≥1 other repo from main — the cause of the dep-order hold. */
+export interface RepoCiRootBlocker {
+  repo: string;
+  tier: string;
+  ci_status: string;
+  /** how many repos are held waiting on this one. */
+  blocking_count: number;
+  /** this repo's own staging-ahead-of-main file delta (the content stuck below main). */
+  main_files_behind: number;
+}
+
+/** Aggregate for the "Promotion held — dependency order" card + the stalled banner — dep-order
+ * HOLDS (a clean wait), distinct from promotion_blocked (failure-quarantine). */
+export interface RepoCiPromotionHeld {
+  /** repos currently held by dependency-order (waiting on a dep to reach main). */
+  held_repos: string[];
+  /** the not-on-main repos causing the holds, lowest tier (most foundational) first. */
+  root_blockers: RepoCiRootBlocker[];
+}
+
 export interface RepoCiOverview {
   generated_at: string;
   source: string;
@@ -3485,6 +3520,10 @@ export interface RepoCiOverview {
   /** Semver-agent standing health (G2) — last bump run + pending-bump count + breaker-armed flag.
    * Null when the semver-agent run can't be fetched. */
   semver_health?: RepoCiSemverHealth | null;
+  /** Dependency-order promotion HOLDS (a clean wait), distinct from promotion_blocked
+   * (failure-quarantine). Drives the "Promotion held — dependency order" card + the stalled
+   * banner. Null/absent when not computed. */
+  promotion_held?: RepoCiPromotionHeld | null;
 }
 
 export interface RepoCiSemverHealth {

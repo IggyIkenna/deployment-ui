@@ -24,6 +24,7 @@ import {
   type RepoCiPromoteRun,
   type RepoCiPromotionBlocked,
   type RepoCiPromotionDrain,
+  type RepoCiPromotionHeld,
   type RepoCiSemverHealth,
   type RepoCiSitLastRun,
   type RepoCiSitState,
@@ -87,6 +88,62 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
   );
 }
 
+/** Click-to-open `?` help popover — a small info button that reveals explanatory text, closing on
+ * an outside click (transparent overlay; no ref/effect). Reused by every top card so any element
+ * can carry a "what is this?" (operator request 2026-06-19). `align` flips the drop side so a
+ * right-edge card's popover doesn't run off-screen. */
+function HelpPopover({
+  label,
+  testId,
+  align = "left",
+  children,
+}: {
+  label: string;
+  testId?: string;
+  align?: "left" | "right";
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex font-normal">
+      <button
+        type="button"
+        data-testid={testId ? `${testId}-toggle` : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        aria-label={label}
+        aria-expanded={open}
+        className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            data-testid={testId}
+            className={`absolute ${align === "right" ? "right-0" : "left-0"} top-6 z-20 w-72 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-3 text-left text-[11px] leading-relaxed text-[var(--color-text-secondary)] shadow-lg`}
+          >
+            {children}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
+/** The `?` help shown inside a card title — a one-glance "what is this card + what does it say". */
+function CardHelp({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <HelpPopover label={`What is ${title}?`} testId={`card-help-${id}`}>
+      <p className="mb-1 font-medium text-[var(--color-text-primary)]">{title}</p>
+      {children}
+    </HelpPopover>
+  );
+}
+
 /** A short-SHA that deep-links to its GitHub commit page (operator click-through rule:
  * GitHub-authoritative atoms link to GitHub). Renders a plain dash when no SHA. When `tone`
  * is supplied (the LDR/staging/main overview cells) the SHA carries a per-branch CI colour —
@@ -123,6 +180,12 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           Breaking cascade / SIT
+          <CardHelp id="sit" title="Breaking cascade / SIT">
+            The <span className="font-medium">breaking-change</span> promotion path — the counterpart to "Promotion
+            drain". SIT fires only when a breaking public-surface change crosses into staging (most promotions are
+            non-breaking, so it's usually idle). Shows the last cascade run's result + age and its per-job steps (QG,
+            Slack-notify, escalate, persist-event).
+          </CardHelp>
           {run && (
             <Chip tone={run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue"}>
               {run.conclusion ?? run.status}
@@ -191,7 +254,14 @@ function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | und
   return (
     <Card data-testid="semver-health-panel">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Semver-agent health</CardTitle>
+        <CardTitle className="text-sm flex items-center gap-2">
+          Semver-agent health
+          <CardHelp id="semver" title="Semver-agent health">
+            The version-stamper's <span className="font-medium">circuit breaker</span>. The semver-agent stamps a
+            version on each staging promotion; if too many bumps stack up (≥3/hr or consecutive) the breaker ARMS and
+            pages. Shows the last bump run, the pending-bump count, breaker state, and which repos are pending.
+          </CardHelp>
+        </CardTitle>
         <p className="text-xs text-[var(--color-text-muted)]">Last bump · pending bumps · circuit-breaker</p>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -255,7 +325,14 @@ function PromotionDrainPanel({
   return (
     <Card data-testid="promotion-drain-panel">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Promotion drain</CardTitle>
+        <CardTitle className="text-sm flex items-center gap-2">
+          Promotion drain
+          <CardHelp id="drain" title="Promotion drain">
+            The <span className="font-medium">routine, non-breaking</span> promotion path. PM-central bots auto-merge
+            content up every 15 min — LDR→staging and LDR→main. Shows each leg's last result + age, plus any repo whose
+            drain is <span className="font-medium">stalled</span> (real content ahead but a stale/failing leg).
+          </CardHelp>
+        </CardTitle>
         <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -292,6 +369,11 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
           <AlertCircle className="h-4 w-4 text-amber-400" />
           Stuck — triage queue
           <Chip tone={empty ? "green" : "red"}>{stuckPrs.length + stuckInSit.length}</Chip>
+          <CardHelp id="stuck" title="Stuck — triage queue">
+            PRs that need a <span className="font-medium">human/worker</span> — genuinely stuck on a merge conflict, a
+            failing required check, or a <span className="font-mono">[skip ci]</span> jam — plus repos stuck mid-SIT.
+            The count is how many need attention; each row shows the blocking check + GitHub's reason.
+          </CardHelp>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5">
@@ -450,6 +532,11 @@ function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] 
           <ShieldAlert className="h-4 w-4 text-red-400" />
           Promotion blocked — staging→main
           <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
+          <CardHelp id="blocked" title="Promotion blocked — staging→main">
+            Repos <span className="font-medium">parked by repeated FAILURE</span> — quarantined after consecutive
+            staging→main failures. A failure-park signal. This is <span className="font-medium">not</span> a clean
+            dependency-order wait — for that, see the "Promotion held — dependency order" card.
+          </CardHelp>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5">
@@ -468,6 +555,54 @@ function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] 
             )}
           </div>
         ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Promotion held — dependency order (operator 2026-06-19): repos WAITING (not failing) for a
+ * dependency to reach main. The staging→main gate promotes a repo only once all its deps are on
+ * main, so a low-tier dep lagging (e.g. unified-api-contracts at STAGING_GREEN) holds everything
+ * above it. The clean-HOLD counterpart to the failure-park "Promotion blocked" panel. */
+function PromotionHeldPanel({ held }: { held: RepoCiPromotionHeld | null | undefined }) {
+  const rootBlockers = held?.root_blockers ?? [];
+  const heldRepos = held?.held_repos ?? [];
+  const empty = heldRepos.length === 0;
+  return (
+    <Card data-testid="promotion-held-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <GitBranch className="h-4 w-4 text-amber-400" />
+          Promotion held — dependency order
+          <Chip tone={empty ? "green" : "yellow"}>{heldRepos.length}</Chip>
+          <CardHelp id="held" title="Promotion held — dependency order">
+            Repos <span className="font-medium">WAITING</span> (not failing) for a dependency to reach main. The
+            staging→main gate promotes a repo only once all its deps are on main, so a low-tier dep lagging holds
+            everything above it. Shows the root dep blocking the fleet + who's held — the clean-wait counterpart to
+            "Promotion blocked" (failure-park).
+          </CardHelp>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {empty && (
+          <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-held-empty">
+            Nothing held — every repo's deps are on main.
+          </p>
+        )}
+        {rootBlockers.map((b) => (
+          <div key={b.repo} className="flex items-center gap-2 text-sm" data-testid={`promotion-held-root-${b.repo}`}>
+            <Chip tone="red">blocking {b.blocking_count}</Chip>
+            <span className="font-mono text-[var(--color-text-primary)]">{b.repo}</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              tier {b.tier} · {b.ci_status} · main {b.main_files_behind} behind
+            </span>
+          </div>
+        ))}
+        {!empty && (
+          <p className="pt-0.5 text-[11px] text-[var(--color-text-muted)]" data-testid="promotion-held-repos">
+            Held: <span className="font-mono">{heldRepos.join(", ")}</span>
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -525,16 +660,63 @@ function BranchLegend() {
   );
 }
 
+type SortMode = "severity" | "alpha" | "tier";
+
+/** Tier rank for the "tier" sort — numeric manifest tiers (0,1,3 …) sort by value (most
+ * foundational dependency first); unknown/categorical tiers sort last. */
+function tierRank(tier: string | undefined): number {
+  if (tier == null || tier === "") return 999;
+  const n = Number(tier);
+  return Number.isNaN(n) ? 500 : n;
+}
+
+/** Segmented sort control for the overview table (operator 2026-06-19): severity (default,
+ * worst-first) / alphabetical / dependency-tier (shows the layer stack, root at top). */
+function SortControl({ mode, onChange }: { mode: SortMode; onChange: (m: SortMode) => void }) {
+  const opts: { id: SortMode; label: string }[] = [
+    { id: "severity", label: "severity" },
+    { id: "alpha", label: "A–Z" },
+    { id: "tier", label: "tier" },
+  ];
+  return (
+    <div className="inline-flex items-center gap-1 text-[11px]" data-testid="repo-sort-control">
+      <span className="text-[var(--color-text-muted)]">sort:</span>
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          data-testid={`repo-sort-${o.id}`}
+          aria-pressed={mode === o.id}
+          onClick={() => onChange(o.id)}
+          className={`rounded border px-1.5 py-0.5 ${
+            mode === o.id
+              ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
+              : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function OverviewTable({
   rows,
   selected,
   onSelect,
+  sortMode,
 }: {
   rows: RepoCiOverviewRow[];
   selected: string | null;
   onSelect: (repo: string) => void;
+  sortMode: SortMode;
 }) {
-  const sorted = [...rows].sort((a, b) => rowSeverity(b) - rowSeverity(a) || a.repo.localeCompare(b.repo));
+  const sorted = [...rows].sort((a, b) => {
+    if (sortMode === "alpha") return a.repo.localeCompare(b.repo);
+    if (sortMode === "tier") return tierRank(a.tier) - tierRank(b.tier) || a.repo.localeCompare(b.repo);
+    return rowSeverity(b) - rowSeverity(a) || a.repo.localeCompare(b.repo);
+  });
   return (
     <table className="w-full text-sm" aria-label="Repo CI overview" data-testid="repo-ci-table">
       <thead>
@@ -616,6 +798,18 @@ function OverviewTable({
                   {row.drain_stalled && (
                     <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
                       drain stalled
+                    </Chip>
+                  )}
+                  {/* dep-order (operator 2026-06-19): this repo is the ROOT blocker holding others… */}
+                  {row.blocking && row.blocking.length > 0 && (
+                    <Chip tone="red" testId={`root-blocker-${row.repo}`}>
+                      root blocker · {row.blocking.length} waiting
+                    </Chip>
+                  )}
+                  {/* …or this repo is itself HELD waiting on a dep to reach main. */}
+                  {row.blocked_by && row.blocked_by.length > 0 && (
+                    <Chip tone="yellow" testId={`blocked-by-${row.repo}`}>
+                      blocked-by: {row.blocked_by.map((d) => `${d.name} (tier ${d.tier})`).join(", ")}
                     </Chip>
                   )}
                 </span>
@@ -1096,6 +1290,7 @@ export function RepoCiContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("severity");
   // Option B: the GCP/AWS toggle drives ?provider= on the repo-CI fetch (one backend serves both
   // clouds), NOT a base-URL swap — so the Image column reflects the selected cloud's build status.
   const { target } = useCloudProvider();
@@ -1161,6 +1356,28 @@ export function RepoCiContent() {
       )}
       {overview && (
         <>
+          {/* Promotion-stalled banner — the one-glance "here's WHY the fleet isn't reaching main":
+              a dependency-order HOLD (a clean wait), not a failure. Only renders when something is held. */}
+          {overview.promotion_held && overview.promotion_held.root_blockers.length > 0 && (
+            <div
+              data-testid="promotion-stalled-banner"
+              className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+            >
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <span className="text-amber-300">
+                <span className="font-medium">Promotion stalled</span> — {overview.promotion_held.held_repos.length}{" "}
+                repo{overview.promotion_held.held_repos.length === 1 ? "" : "s"} held behind{" "}
+                {overview.promotion_held.root_blockers.map((b, i) => (
+                  <span key={b.repo}>
+                    <span className="font-mono">{b.repo}</span> (tier {b.tier}, main {b.main_files_behind} file
+                    {b.main_files_behind === 1 ? "" : "s"} behind)
+                    {i < overview.promotion_held!.root_blockers.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+                . Branch CI is green — this is a dependency-order wait, not a failure.
+              </span>
+            </div>
+          )}
           {overview.errors && overview.errors.length > 0 && (
             <div
               className="p-3 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm"
@@ -1186,6 +1403,7 @@ export function RepoCiContent() {
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
             <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
+            <PromotionHeldPanel held={overview.promotion_held} />
             <SemverHealthPanel health={overview.semver_health} />
           </div>
           {selectedRepo ? (
@@ -1199,11 +1417,17 @@ export function RepoCiContent() {
             <CardContent className="pt-4">
               {/* Legend lives in non-scrolling space so its popover is not clipped by the
                   table's horizontal scroll container below. */}
-              <div className="flex items-center justify-end pb-2">
+              <div className="flex items-center justify-between pb-2">
+                <SortControl mode={sortMode} onChange={setSortMode} />
                 <BranchLegend />
               </div>
               <div className="overflow-x-auto">
-                <OverviewTable rows={overview.repos} selected={selectedRepo} onSelect={setSelectedRepo} />
+                <OverviewTable
+                  rows={overview.repos}
+                  selected={selectedRepo}
+                  onSelect={setSelectedRepo}
+                  sortMode={sortMode}
+                />
               </div>
             </CardContent>
           </Card>
