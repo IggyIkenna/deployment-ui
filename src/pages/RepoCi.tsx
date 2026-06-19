@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCloudProvider } from "../contexts/CloudProviderContext";
-import { AlertCircle, ExternalLink, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
+import { AlertCircle, ExternalLink, GitBranch, HelpCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   getRepoCiDetail,
   getRepoCiOverview,
@@ -29,9 +29,9 @@ import {
   type RepoCiSitState,
 } from "../api/client";
 import {
+  branchTone,
   buildSourceLabel,
   buildTimeLabel,
-  ciStatusLabel,
   ciStatusTone,
   deltaLabel,
   formatAge,
@@ -59,6 +59,23 @@ const TONE_CLASSES: Record<ChipTone, string> = {
   blue: "bg-cyan-500/15 text-cyan-400 border-cyan-500/40",
 };
 
+// Solid status-dot + tinted text for the per-branch SHA cells (operator review 2026-06-19 —
+// the per-branch colour replaces the standalone CI-status column).
+const TONE_DOT: Record<ChipTone, string> = {
+  green: "bg-emerald-400",
+  yellow: "bg-amber-400",
+  red: "bg-red-400",
+  gray: "bg-zinc-500",
+  blue: "bg-cyan-400",
+};
+const TONE_TEXT: Record<ChipTone, string> = {
+  green: "text-emerald-400",
+  yellow: "text-amber-400",
+  red: "text-red-400",
+  gray: "text-zinc-400",
+  blue: "text-cyan-400",
+};
+
 function Chip({ tone, children, testId }: { tone: ChipTone; children: React.ReactNode; testId?: string }) {
   return (
     <span
@@ -71,18 +88,30 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
 }
 
 /** A short-SHA that deep-links to its GitHub commit page (operator click-through rule:
- * GitHub-authoritative atoms link to GitHub). Renders a plain dash when no SHA. */
-function ShaLink({ repo, sha }: { repo: string; sha: string | null }) {
+ * GitHub-authoritative atoms link to GitHub). Renders a plain dash when no SHA. When `tone`
+ * is supplied (the LDR/staging/main overview cells) the SHA carries a per-branch CI colour —
+ * a solid status dot + tinted text — so branch pass/fail reads at a glance, replacing the
+ * standalone CI-status column. `data-tone` exposes the colour for tests. */
+function ShaLink({ repo, sha, tone, testId }: { repo: string; sha: string | null; tone?: ChipTone; testId?: string }) {
   const url = githubCommitUrl(repo, sha);
-  if (!url) return <span>—</span>;
+  if (!url)
+    return (
+      <span data-testid={testId} data-tone={tone ?? "gray"} className="text-[var(--color-text-muted)]">
+        —
+      </span>
+    );
+  const textClass = tone ? TONE_TEXT[tone] : "text-[var(--color-text-secondary)]";
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="hover:underline text-[var(--color-text-secondary)]"
+      data-testid={testId}
+      data-tone={tone ?? ""}
+      className={`inline-flex items-center gap-1 hover:underline ${textClass}`}
     >
+      {tone && <span className={`inline-block h-1.5 w-1.5 rounded-full ${TONE_DOT[tone]}`} aria-hidden="true" />}
       {shortSha(sha)}
     </a>
   );
@@ -444,6 +473,58 @@ function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] 
   );
 }
 
+/** Click-to-open legend for the per-branch SHA-cell colours (operator request 2026-06-19).
+ * A `?`/HelpCircle toggle that explains what green/red/gray mean on the LDR/staging/main cells.
+ * The full-screen transparent overlay closes it on an outside click (no ref/effect needed). */
+function BranchLegend() {
+  const [open, setOpen] = useState(false);
+  const dotRow = (tone: ChipTone, label: string, body: string) => (
+    <li className="flex items-start gap-2">
+      <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${TONE_DOT[tone]}`} aria-hidden="true" />
+      <span>
+        <span className={TONE_TEXT[tone]}>{label}</span> — {body}
+      </span>
+    </li>
+  );
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        data-testid="branch-legend-toggle"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Branch colour legend"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+        Legend
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            data-testid="branch-legend"
+            className="absolute right-0 top-6 z-20 w-72 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-3 text-[11px] shadow-lg"
+          >
+            <p className="mb-2 font-medium text-[var(--color-text-primary)]">
+              LDR / staging / main SHA colour = that branch's last <span className="font-mono">quality-gates-v2</span>
+            </p>
+            <ul className="space-y-1.5">
+              {dotRow("green", "green", "last v2 run passed")}
+              {dotRow("red", "red", "last v2 run failed")}
+              {dotRow("gray", "gray", "branch absent or status unknown")}
+            </ul>
+            <p className="mt-2 text-[var(--color-text-muted)]">
+              A branch that is merely behind (stale) is still green — staleness shows in “last green (main)” + the
+              “LDR→main delta” lag chip, not in this pass/fail colour.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OverviewTable({
   rows,
   selected,
@@ -459,7 +540,6 @@ function OverviewTable({
       <thead>
         <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)]">
           <th className="text-left py-1.5 font-medium">Repo</th>
-          <th className="text-left py-1.5 font-medium">CI status</th>
           <th className="text-left py-1.5 font-medium">LDR</th>
           <th className="text-left py-1.5 font-medium">staging</th>
           <th className="text-left py-1.5 font-medium">main</th>
@@ -485,25 +565,31 @@ function OverviewTable({
               }`}
             >
               <td className="py-1.5 font-mono text-[var(--color-text-primary)]">{row.repo}</td>
-              <td className="py-1.5">
-                {/* CI "feature green" chip click-throughs to the GitHub checks of the LDR head. */}
-                <a
-                  href={githubChecksUrl(row.repo, bySha.get("live-defi-rollout") ?? null)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Chip tone={ciStatusTone(row.ci_status)}>{ciStatusLabel(row)}</Chip>
-                </a>
+              {/* Per-branch CI colour on each SHA cell (operator review 2026-06-19) — replaces the
+                  standalone CI-status column: green = that branch's last v2 passed, red = failed. */}
+              <td className="py-1.5 font-mono">
+                <ShaLink
+                  repo={row.repo}
+                  sha={bySha.get("live-defi-rollout") ?? null}
+                  tone={branchTone(row, "live-defi-rollout", bySha.get("live-defi-rollout") ?? null)}
+                  testId={`branch-ldr-${row.repo}`}
+                />
               </td>
               <td className="py-1.5 font-mono">
-                <ShaLink repo={row.repo} sha={bySha.get("live-defi-rollout") ?? null} />
+                <ShaLink
+                  repo={row.repo}
+                  sha={bySha.get("staging") ?? null}
+                  tone={branchTone(row, "staging", bySha.get("staging") ?? null)}
+                  testId={`branch-staging-${row.repo}`}
+                />
               </td>
               <td className="py-1.5 font-mono">
-                <ShaLink repo={row.repo} sha={bySha.get("staging") ?? null} />
-              </td>
-              <td className="py-1.5 font-mono">
-                <ShaLink repo={row.repo} sha={bySha.get("main") ?? null} />
+                <ShaLink
+                  repo={row.repo}
+                  sha={bySha.get("main") ?? null}
+                  tone={branchTone(row, "main", bySha.get("main") ?? null)}
+                  testId={`branch-main-${row.repo}`}
+                />
               </td>
               {/* N2: the last GREEN main sha + age ("green as of <sha> · <age>") — distinct from the
                   main head above, which may be red/pending. */}
@@ -1110,8 +1196,15 @@ export function RepoCiContent() {
             </Card>
           ) : null}
           <Card>
-            <CardContent className="pt-4 overflow-x-auto">
-              <OverviewTable rows={overview.repos} selected={selectedRepo} onSelect={setSelectedRepo} />
+            <CardContent className="pt-4">
+              {/* Legend lives in non-scrolling space so its popover is not clipped by the
+                  table's horizontal scroll container below. */}
+              <div className="flex items-center justify-end pb-2">
+                <BranchLegend />
+              </div>
+              <div className="overflow-x-auto">
+                <OverviewTable rows={overview.repos} selected={selectedRepo} onSelect={setSelectedRepo} />
+              </div>
             </CardContent>
           </Card>
         </>

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow, RepoCiPr } from "../api/client";
 import {
+  branchTone,
   buildSourceLabel,
   buildTimeLabel,
   ciStatusLabel,
@@ -186,6 +187,33 @@ describe("failingBranches / ciStatusLabel (branch-aware CI chip)", () => {
         row({ ci_status: "MAIN_GREEN", branch_ci: { "live-defi-rollout": "success", staging: null, main: "success" } }),
       ),
     ).toBe("MAIN_GREEN");
+  });
+});
+
+describe("branchTone (per-branch SHA-cell colour — replaces the CI-status column)", () => {
+  it("maps a branch's live conclusion: success→green, failure/timed_out→red, skipped→gray", () => {
+    const r = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "success", staging: "skipped", main: "failure" },
+    });
+    expect(branchTone(r, "live-defi-rollout", "abc1234")).toBe("green");
+    expect(branchTone(r, "main", "def5678")).toBe("red");
+    expect(branchTone(r, "staging", "aaa1111")).toBe("gray"); // skipped → unknown, not green
+    expect(branchTone(row({ ci_status: "FAILING", branch_ci: { main: "timed_out" } }), "main", "x")).toBe("red");
+  });
+
+  it("a missing branch (no SHA) is gray regardless of status", () => {
+    expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "staging", null)).toBe("gray");
+  });
+
+  it("non-FAILING repo with no live branch_ci ⟹ green (its branches all last-passed)", () => {
+    // branch_ci is live-fetched only for FAILING repos; absence on a green repo ⟹ green.
+    expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "main", "abc1100")).toBe("green");
+    expect(branchTone(row({ ci_status: "STAGING_GREEN" }), "live-defi-rollout", "ldr0001")).toBe("green");
+  });
+
+  it("FAILING repo with no branch_ci for a branch ⟹ gray (unknown, not assumed green)", () => {
+    expect(branchTone(row({ ci_status: "FAILING" }), "main", "abc1234")).toBe("gray");
   });
 });
 
