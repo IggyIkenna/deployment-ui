@@ -3,7 +3,14 @@
  * Plan: ci_dashboard_deployment_ui_2026_06_10.md Phase 2 — unit-tested chip/label logic.
  */
 
-import type { RepoCiOverviewRow, RepoCiPr, RepoCiPromotionBlocked, RepoCiSitJob, StuckClass } from "../api/client";
+import type {
+  RepoCiBranchDelta,
+  RepoCiOverviewRow,
+  RepoCiPr,
+  RepoCiPromotionBlocked,
+  RepoCiSitJob,
+  StuckClass,
+} from "../api/client";
 
 export type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
 
@@ -149,6 +156,80 @@ export function rowSeverity(row: RepoCiOverviewRow): number {
   if (hasGenuineStuck || row.sit.stuck_in_sit) return 2;
   if (row.open_prs.some((pr) => pr.stuck_class) || row.deltas.some((d) => d.files_changed > 0)) return 1;
   return 0;
+}
+
+/** The promotion hop a repo's lag is stuck on + why — the row-level answer to "8d lag, but WHERE and
+ * WHY". Derived purely from the deltas + open PRs + ci_status the overview already returns (no extra
+ * fetch). The five classes the dashboard distinguishes:
+ *   - `none`            — no real content behind main (in sync, or ahead-by-commits-only squash skew).
+ *   - `dep-order`       — STAGE 1.8 holds it: a dependency isn't on main yet (`blocked_by` non-empty).
+ *   - `pr-stuck`        — a promotion PR exists but is genuinely jammed (conflict / failing / [skip ci]).
+ *   - `ldr-to-staging`  — the Tier-C drain is behind: real content sits on LDR not yet on staging.
+ *   - `staging-to-main` — staging is ahead of main with NO promotion PR (the promoter isn't firing).
+ *                         `ciStatusStale` flags the dangerous sub-case where ci_status reads on-main
+ *                         (MAIN_GREEN / SIT_VALIDATED) yet git says main is N files behind staging —
+ *                         the agent-orchestrator class, invisible to every status-based surface and
+ *                         caught only by the git-delta lag chip.
+ * Single source for the row stall-reason chip + the delta-column `?` taxonomy. */
+export type StallKind = "none" | "dep-order" | "pr-stuck" | "ldr-to-staging" | "staging-to-main";
+
+export interface StallReason {
+  kind: StallKind;
+  /** files on the stuck hop (staging→main for staging-to-main, LDR→staging for ldr-to-staging). */
+  files: number;
+  /** dep-order: the blocking dependency names (mirror of `blocked_by`). */
+  blockers: string[];
+  /** pr-stuck: the jammed PR number + its stuck-class. */
+  pr?: number;
+  stuckClass?: StuckClass;
+  /** staging-to-main: ci_status reads on-main but the content isn't — the "status lies" case. */
+  ciStatusStale?: boolean;
+}
+
+/** ci_status values that read as "on main" — STAGE 1.8's on-main set; a repo here that is nonetheless
+ * staging-ahead-of-main is the masked-stall (status-stale) case. */
+const ON_MAIN_CI_STATUSES = new Set(["MAIN_GREEN", "SIT_VALIDATED"]);
+
+function findDelta(row: RepoCiOverviewRow, base: string, head: string): RepoCiBranchDelta | undefined {
+  return row.deltas.find((d) => d.base === base && d.head === head);
+}
+
+export function classifyStall(row: RepoCiOverviewRow): StallReason {
+  const ldrMain = findDelta(row, "main", "live-defi-rollout");
+  const stagingMain = findDelta(row, "main", "staging");
+  const ldrStaging = findDelta(row, "staging", "live-defi-rollout");
+  const mainFiles = ldrMain?.files_changed ?? 0;
+  const stagingMainFiles = stagingMain?.files_changed ?? 0;
+  const ldrStagingFiles = ldrStaging?.files_changed ?? 0;
+  // No real content behind main → no stall (in sync, or ahead-by-commits-only squash skew).
+  if (mainFiles === 0) return { kind: "none", files: 0, blockers: [] };
+  // Dep-order: STAGE 1.8 holds it behind a dependency that isn't on main yet.
+  if (row.blocked_by && row.blocked_by.length > 0) {
+    return { kind: "dep-order", files: stagingMainFiles, blockers: row.blocked_by.map((d) => d.name) };
+  }
+  // A promotion PR exists but is genuinely jammed (not a self-healing drain).
+  const stuck = row.open_prs.find((pr) => pr.stuck_class && !isDrainingClass(pr.stuck_class));
+  if (stuck) {
+    return {
+      kind: "pr-stuck",
+      files: stagingMainFiles,
+      blockers: [],
+      pr: stuck.number,
+      stuckClass: stuck.stuck_class ?? undefined,
+    };
+  }
+  // Real content on LDR not yet on staging → the Tier-C drain is behind.
+  if (ldrStagingFiles > 0) {
+    return { kind: "ldr-to-staging", files: ldrStagingFiles, blockers: [] };
+  }
+  // staging == LDR by content, but staging is ahead of main with no PR → the staging→main promoter
+  // isn't firing. ciStatusStale ⟺ ci_status reads on-main while git says it isn't (the AO class).
+  return {
+    kind: "staging-to-main",
+    files: stagingMainFiles || mainFiles,
+    blockers: [],
+    ciStatusStale: ON_MAIN_CI_STATUSES.has(row.ci_status),
+  };
 }
 
 /** Tone for a promotion-blocked entry — a quarantined repo is parked out of staging→main
