@@ -322,4 +322,68 @@ test.describe("Repos CI page", () => {
       )
       .toBe(true);
   });
+
+  // ── dep-order promotion HOLD surface (operator review 2026-06-19) ──────────────────────────
+  test("Promotion-held card + stalled banner surface the dependency-order hold", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    // The stalled banner — one-glance WHY: a dep-order wait, NOT a failure.
+    const banner = page.getByTestId("promotion-stalled-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("Promotion stalled");
+    await expect(banner).toContainText("unified-api-contracts");
+    await expect(banner).toContainText("dependency-order wait, not a failure");
+    // The 6th card (sibling to "Promotion blocked"): root blocker + held repos.
+    const card = page.getByTestId("promotion-held-panel");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("Promotion held — dependency order");
+    await expect(page.getByTestId("promotion-held-root-unified-api-contracts")).toContainText("blocking 2");
+    await expect(page.getByTestId("promotion-held-repos")).toContainText("strategy-service");
+  });
+
+  test("row badges flag the root blocker + point each held repo at its cause", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // The tier-0 dep is the ROOT blocker (2 repos waiting).
+    await expect(page.getByTestId("root-blocker-unified-api-contracts")).toContainText("root blocker · 2 waiting");
+    // Each held repo points at its cause + its tier.
+    await expect(page.getByTestId("blocked-by-strategy-service")).toContainText("unified-api-contracts (tier 0)");
+    await expect(page.getByTestId("blocked-by-market-tick-data-service")).toContainText("unified-api-contracts");
+    // A repo already on main carries neither badge.
+    await expect(page.getByTestId("root-blocker-unified-trading-library")).toHaveCount(0);
+    await expect(page.getByTestId("blocked-by-unified-trading-library")).toHaveCount(0);
+  });
+
+  test("every card carries a ? help popover explaining what it is", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    // The new dep-order card's help.
+    await page.getByTestId("card-help-held-toggle").click();
+    await expect(page.getByTestId("card-help-held")).toContainText("WAITING");
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("card-help-held")).toHaveCount(0);
+    // An existing card's help (routine drain).
+    await page.getByTestId("card-help-drain-toggle").click();
+    await expect(page.getByTestId("card-help-drain")).toContainText("every 15 min");
+    await page.mouse.click(5, 5);
+    // The failure-park vs dep-hold distinction is documented on the "blocked" card.
+    await page.getByTestId("card-help-blocked-toggle").click();
+    await expect(page.getByTestId("card-help-blocked")).toContainText("failure");
+  });
+
+  test("sort control reorders the overview (A–Z + dependency tier)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    const firstRepo = async () =>
+      (await page.getByTestId("repo-ci-table").locator("tbody tr").first().getAttribute("data-testid"))?.replace(
+        "repo-row-",
+        "",
+      );
+    // A–Z: alphabetical first row (execution-service leads the mock fleet).
+    await page.getByTestId("repo-sort-alpha").click();
+    expect(await firstRepo()).toBe("execution-service");
+    // Tier: the tier-0 dep (unified-api-contracts) sorts to the top of the layer stack.
+    await page.getByTestId("repo-sort-tier").click();
+    expect(await firstRepo()).toBe("unified-api-contracts");
+  });
 });

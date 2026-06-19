@@ -1130,6 +1130,9 @@ function mockRepoCiRow(
   prs: MockRepoCiPr[],
   sitPending: boolean,
   sitStuck: boolean,
+  tier: string = "service",
+  blockedBy: { name: string; tier: string; ci_status: string }[] = [],
+  blocking: string[] = [],
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
   // STAGING_GREEN → LDR red (actively-broken shape); else all green. Mirrors the deployment-api mock.
@@ -1188,12 +1191,29 @@ function mockRepoCiRow(
     // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
     // stale/failing drain leg); healthy repos are draining so not stalled.
     drain_stalled: ciStatus === "FAILING",
+    // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
+    tier,
+    blocked_by: blockedBy,
+    blocking,
   };
 }
 
 function mockRepoCiOverview() {
+  const UAC_DEP = { name: "unified-api-contracts", tier: "0", ci_status: "STAGING_GREEN" };
   const rows = [
-    mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false),
+    // tier-0 contracts lib STUCK at STAGING_GREEN — the dep-order ROOT blocker holding the fleet.
+    mockRepoCiRow(
+      "unified-api-contracts",
+      "library",
+      "STAGING_GREEN",
+      [],
+      false,
+      false,
+      "0",
+      [],
+      ["market-tick-data-service", "strategy-service"],
+    ),
+    mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false, "1"),
     mockRepoCiRow(
       "market-tick-data-service",
       "service",
@@ -1201,6 +1221,8 @@ function mockRepoCiOverview() {
       [mockRepoCiPr("market-tick-data-service", 41, "main", "conflicting", "dirty")],
       false,
       false,
+      "service",
+      [UAC_DEP],
     ),
     mockRepoCiRow(
       "instruments-service",
@@ -1228,6 +1250,8 @@ function mockRepoCiOverview() {
       [mockRepoCiPr("strategy-service", 52, "main", "automerge_stuck", "blocked")],
       false,
       false,
+      "service",
+      [UAC_DEP],
     ),
     mockRepoCiRow("greeks-service", "service", "STAGING_GREEN", [], true, true),
   ];
@@ -1293,6 +1317,20 @@ function mockRepoCiOverview() {
       pending_bump_repos: ["execution-service", "mtds", "alerting-service"],
       breaker_armed: true,
       breaker_threshold: 3,
+    },
+    // Dep-order HOLDS (operator 2026-06-19) — distinct from promotion_blocked (failure-quarantine):
+    // a tier-0 dep (unified-api-contracts) at STAGING_GREEN holds 2 service repos from main.
+    promotion_held: {
+      held_repos: ["market-tick-data-service", "strategy-service"],
+      root_blockers: [
+        {
+          repo: "unified-api-contracts",
+          tier: "0",
+          ci_status: "STAGING_GREEN",
+          blocking_count: 2,
+          main_files_behind: 35,
+        },
+      ],
     },
   };
 }
