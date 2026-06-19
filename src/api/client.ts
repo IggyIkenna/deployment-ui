@@ -3453,6 +3453,19 @@ export interface RepoCiOverviewRow {
   /** Repos held because THIS repo isn't on main yet (inverse of blocked_by). Non-empty ⟺ this repo
    * is a promotion blocker for others. */
   blocking?: string[];
+  /** Codebase-health metrics derived from the most-recent QG run on the repo's main branch.
+   * Absent for tool repos or when CI hasn't emitted the data yet. */
+  codebase_health?: {
+    /** Test-coverage % from the last green QG run (0–100). Null = not yet reported. */
+    coverage_pct: number | null;
+    /** Label of the first QG step that failed — e.g. "pytest", "basedpyright", "ruff", "bandit".
+     * Null = QG passed (or hasn't run). */
+    qg_red_reason: string | null;
+    /** Files whose line-count ≥ 900 (hard limit). */
+    large_file_count: number | null;
+    /** Files in the 700–899 warn zone. */
+    warn_file_count: number | null;
+  } | null;
 }
 
 export interface RepoCiLastGreen {

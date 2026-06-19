@@ -769,8 +769,8 @@ function BranchLegend() {
               {dotRow("gray", "gray", "branch absent or status unknown")}
             </ul>
             <p className="mt-2 text-[var(--color-text-muted)]">
-              A branch that is merely behind (stale) is still green — staleness shows in “last green (main)” + the
-              “LDR→main delta” lag chip, not in this pass/fail colour.
+              A branch that is merely behind (stale) is still green — staleness shows in "last green (main)" + the
+              "LDR→main delta" lag chip, not in this pass/fail colour.
             </p>
           </div>
         </>
@@ -872,7 +872,7 @@ function OverviewTable({
             help={
               <>
                 <span className="font-mono">main</span> HEAD — the deployed projection; container images build on push
-                here. Colour = last v2. A green-but-behind main reads green here plus a lag chip in “LDR→main delta”.
+                here. Colour = last v2. A green-but-behind main reads green here plus a lag chip in "LDR→main delta".
               </>
             }
           />
@@ -882,8 +882,8 @@ function OverviewTable({
             help={
               <>
                 The most-recent <span className="font-mono">main</span> SHA whose <span className="font-mono">v2</span>{" "}
-                passed, and when — distinct from the main HEAD (which may be red/pending). Answers “what's the last good
-                main”.
+                passed, and when — distinct from the main HEAD (which may be red/pending). Answers "what's the last good
+                main".
               </>
             }
           />
@@ -893,7 +893,7 @@ function OverviewTable({
             align="right"
             help={
               <>
-                How far LDR leads main overall: files-ahead (the honest signal — “in sync” when it's only squash-skew) +
+                How far LDR leads main overall: files-ahead (the honest signal — "in sync" when it's only squash-skew) +
                 commits, plus the promotion-lag chip (red &gt;60min — the age of the oldest LDR commit not yet on main).
                 WHERE and WHY that lag sits are split into the next two columns.
               </>
@@ -943,7 +943,7 @@ function OverviewTable({
             align="right"
             help={
               <>
-                Open PRs into a promotion base + how many are stuck. Red = ≥1 stuck; the “Stuck — triage queue” card
+                Open PRs into a promotion base + how many are stuck. Red = ≥1 stuck; the "Stuck — triage queue" card
                 lists them with the blocking check.
               </>
             }
@@ -955,7 +955,43 @@ function OverviewTable({
             help={
               <>
                 Latest container-image deploy signal: build status (→ log) + the built commit SHA (→ GitHub) + time.
-                “stale” = main HEAD ≠ last successful build sha; “unknown” = honest-absent.
+                "stale" = main HEAD ≠ last successful build sha; "unknown" = honest-absent.
+              </>
+            }
+          />
+          <Th
+            id="coverage"
+            label="Cov%"
+            align="right"
+            help={
+              <>
+                Test-coverage % from the most-recent <span className="font-mono">quality-gates.sh</span> run on{" "}
+                <span className="font-mono">main</span>. Red &lt;70 (below the workspace floor); yellow 70–79; green
+                ≥80. Absent for tool repos or when CI hasn't emitted the metric yet.
+              </>
+            }
+          />
+          <Th
+            id="qg-reason"
+            label="QG reason"
+            align="right"
+            help={
+              <>
+                The first <span className="font-mono">quality-gates.sh</span> step that failed on the last run — e.g.{" "}
+                <span className="font-mono">pytest</span> / <span className="font-mono">basedpyright</span> /{" "}
+                <span className="font-mono">ruff</span> / <span className="font-mono">bandit</span>. Blank when QG
+                passed.
+              </>
+            }
+          />
+          <Th
+            id="file-debt"
+            label="File debt"
+            align="right"
+            help={
+              <>
+                Files exceeding the 900-line hard limit (red) or in the 700–899 warn zone (yellow). Zero is normal;
+                non-zero signals tech-debt that blocks future refactors.
               </>
             }
           />
@@ -1060,6 +1096,48 @@ function OverviewTable({
               </td>
               <td className="py-1.5">
                 <ImageCell image={row.image} repo={row.repo} />
+              </td>
+              {/* Codebase-health columns (2026-06-19): coverage%, QG fail reason, file-size debt. */}
+              <td className="py-1.5 text-right" data-testid={`cov-${row.repo}`}>
+                {row.codebase_health?.coverage_pct != null ? (
+                  <Chip
+                    tone={
+                      row.codebase_health.coverage_pct < 70
+                        ? "red"
+                        : row.codebase_health.coverage_pct < 80
+                          ? "yellow"
+                          : "green"
+                    }
+                  >
+                    {row.codebase_health.coverage_pct}%
+                  </Chip>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
+              <td className="py-1.5 text-right" data-testid={`qg-reason-${row.repo}`}>
+                {row.codebase_health?.qg_red_reason ? (
+                  <Chip tone="red">
+                    <span className="font-mono">{row.codebase_health.qg_red_reason}</span>
+                  </Chip>
+                ) : row.codebase_health != null ? (
+                  <Chip tone="green">✓</Chip>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
+              <td className="py-1.5 text-right" data-testid={`file-debt-${row.repo}`}>
+                {row.codebase_health != null ? (
+                  (row.codebase_health.large_file_count ?? 0) > 0 ? (
+                    <Chip tone="red">{row.codebase_health.large_file_count} &gt;900L</Chip>
+                  ) : (row.codebase_health.warn_file_count ?? 0) > 0 ? (
+                    <Chip tone="yellow">{row.codebase_health.warn_file_count} &gt;700L</Chip>
+                  ) : (
+                    <Chip tone="green">✓</Chip>
+                  )
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
               </td>
             </tr>
           );
