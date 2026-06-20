@@ -3697,4 +3697,87 @@ export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
   return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
+// VM Census — vm_zombie_watchdog.py running/expected/zombie/OOM surface
+// Served by deployment-api GET /api/fleet/vm-census (INFRA P1 — backend pending)
+export type VmLifecycleClass = "EPHEMERAL_BATCH" | "EPHEMERAL_EXPERIMENT" | "SCHEDULED_RECURRING" | "LONG_LIVED_LIVE";
+export type VmRunStatus = "RUNNING" | "STOPPING" | "STOPPED" | "TERMINATED";
+
+export interface VmCensusEntry {
+  name: string;
+  prefix: string;
+  lifecycle_class: VmLifecycleClass;
+  status: VmRunStatus;
+  zombie: boolean;
+  oom: boolean;
+  age_min: number | null;
+  zone: string;
+}
+
+export interface VmCensusResponse {
+  generated_at: string;
+  running: number;
+  expected: number;
+  zombie: number;
+  oom: number;
+  stopped: number;
+  vms: VmCensusEntry[];
+}
+
+// Infra VM Health — AO /api/fleet/summary proxy
+// Served by deployment-api GET /api/fleet/infra-vm-health (INFRA P1 — backend pending)
+export interface InfraVmAlert {
+  severity: "info" | "warn" | "crit";
+  kind: string;
+  detail: string;
+}
+
+export interface InfraVmWatchdog {
+  enabled: boolean;
+  kills_today: number;
+  daily_cap: number;
+  dormant: boolean;
+  flapping: boolean;
+}
+
+export interface InfraVmSummary {
+  vm_id: string;
+  role: "epic" | "planning" | "unknown";
+  label: string | null;
+  slots_total: number;
+  slots_working: number;
+  slots_idle: number;
+  slots_stale: number;
+  slots_paused: number;
+  slots_blocked: number;
+  backlog_total: number;
+  backlog_queued: number;
+  alerts: InfraVmAlert[];
+  watchdog: InfraVmWatchdog | null;
+}
+
+export interface InfraVmSlot {
+  id: string;
+  label: string;
+  url: string;
+  available: boolean;
+  error: string | null;
+  stale: boolean;
+  last_heartbeat_seconds_ago: number | null;
+  summary: InfraVmSummary | null;
+}
+
+export interface InfraVmHealthResponse {
+  available: boolean;
+  orchestrator_url: string;
+  vms: InfraVmSlot[];
+}
+
+export async function getVmCensus(): Promise<VmCensusResponse> {
+  return fetchJson<VmCensusResponse>("/fleet/vm-census");
+}
+
+export async function getInfraVmHealth(): Promise<InfraVmHealthResponse> {
+  return fetchJson<InfraVmHealthResponse>("/fleet/infra-vm-health");
+}
+
 export { ApiError };
