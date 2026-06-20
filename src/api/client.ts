@@ -3697,4 +3697,94 @@ export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
   return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
+// ---------------------------------------------------------------------------
+// Fleet infrastructure VM health + census
+// Mirrors deployment-api routes/fleet_infra.py + _repo_ci_types.py.
+// ---------------------------------------------------------------------------
+
+export interface VmAlert {
+  severity: string; // "info" | "warn" | "crit"
+  kind: string;
+  detail: string;
+}
+
+export interface InfraVmSummary {
+  vm_id: string;
+  fqdn: string;
+  role: "epic" | "planning" | "unknown";
+  label: string | null;
+  master_plans: string[];
+  slots_total: number;
+  slots_working: number;
+  slots_idle: number;
+  slots_stale: number;
+  slots_paused: number;
+  slots_blocked: number;
+  backlog_total: number;
+  backlog_queued: number;
+  primary_account_id: string | null;
+  primary_account_pct: number | null;
+  last_activity_at: string | null;
+  alerts: VmAlert[];
+  watchdog: {
+    enabled: boolean;
+    kills_today: number;
+    daily_cap: number;
+    dormant: boolean;
+    flapping: boolean;
+  } | null;
+}
+
+export interface InfraVmEntry {
+  id: string;
+  label: string;
+  url: string;
+  summary: InfraVmSummary | null;
+  error: string | null;
+  stale: boolean;
+  last_heartbeat_seconds_ago: number | null;
+}
+
+export interface InfraVmHealthProxy {
+  available: boolean;
+  reason: string;
+  orchestrator_url: string;
+  data: { vms: InfraVmEntry[] } | null;
+}
+
+export interface VmCensusEntry {
+  vm_id: string;
+  label: string;
+  url: string;
+  stale: boolean;
+  last_heartbeat_seconds_ago: number | null;
+  error: string | null;
+  slots_total: number;
+  slots_working: number;
+  primary_account_pct: number | null;
+  oom_class: boolean;
+  role: string;
+  alerts: VmAlert[];
+}
+
+export interface VmCensus {
+  available: boolean;
+  reason: string;
+  orchestrator_url: string;
+  vms_running: number;
+  vms_stale: number;
+  vms_error: number;
+  vms_oom_class: number;
+  vms_total: number;
+  vms: VmCensusEntry[];
+}
+
+export async function getFleetInfraVmHealth(): Promise<InfraVmHealthProxy> {
+  return fetchJson<InfraVmHealthProxy>("/fleet/infra-vm-health");
+}
+
+export async function getVmCensus(): Promise<VmCensus> {
+  return fetchJson<VmCensus>("/fleet/vm-census");
+}
+
 export { ApiError };

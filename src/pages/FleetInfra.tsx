@@ -2,18 +2,26 @@
  * Fleet Infra — single-glance tile for the 5 key fleet/infra health signals:
  *   N VMs running · central-VM up · consolidator fresh · fleet-git clean · CI green
  *
- * Each tile is a clickable status card that deep-links to the relevant detail view.
- * Data derives from existing getFleetGitHealth() + getRepoCiOverview() endpoints; no
- * new API routes required. Consolidator freshness has no dedicated API yet (shows
- * "unavailable" with a gray chip until a future endpoint lands).
+ * Below the tiles: VM census panel (running/stale/OOM breakdown) with per-VM
+ * deep-links to the AO dashboard (chip click-throughs).
  *
- * Plan: deployment_ui_monitoring_pane_2026_06_19.md — [UI] P2 (6th LandingTab).
+ * Plan: deployment_ui_monitoring_pane_2026_06_19.md — [UI] P2 + [UI] P1.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, CheckCircle2, ExternalLink, RefreshCw, XCircle } from "lucide-react";
-import { getFleetGitHealth, getRepoCiOverview, type FleetGitHealthProxy, type RepoCiOverview } from "../api/client";
+import { Activity, CheckCircle2, ExternalLink, RefreshCw, Server, XCircle } from "lucide-react";
+import {
+  getFleetGitHealth,
+  getFleetInfraVmHealth,
+  getRepoCiOverview,
+  getVmCensus,
+  type FleetGitHealthProxy,
+  type InfraVmHealthProxy,
+  type RepoCiOverview,
+  type VmCensus,
+  type VmCensusEntry,
+} from "../api/client";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
@@ -46,6 +54,7 @@ interface StatusTile {
 function buildTiles(
   proxy: FleetGitHealthProxy | null,
   overview: RepoCiOverview | null,
+  infraVm: InfraVmHealthProxy | null,
   orchestratorUrl: string,
 ): StatusTile[] {
   const gitData = proxy?.data ?? null;
@@ -71,25 +80,53 @@ function buildTiles(
           href: "/fleet",
         };
 
-  // Central-VM up — proxy.available true means the orchestrator responded
-  const centralVmUp: StatusTile =
-    proxy != null
-      ? {
-          id: "central-vm",
-          title: "Central VM",
-          value: proxy.available ? "UP" : "DOWN",
-          detail: proxy.available ? "Orchestrator responding" : proxy.reason,
-          tone: proxy.available ? "green" : "red",
-          href: proxy.orchestrator_url || orchestratorUrl,
-          external: true,
-        }
-      : {
-          id: "central-vm",
-          title: "Central VM",
-          value: "—",
-          detail: "Loading…",
-          tone: "gray",
-        };
+  // Central-VM up — enhanced with slot counts from infra-vm-health data
+  const centralVmUp: StatusTile = (() => {
+    if (infraVm == null) {
+      return {
+        id: "central-vm",
+        title: "Central VM",
+        value: "—",
+        detail: "Loading…",
+        tone: "gray" as TileTone,
+        href: orchestratorUrl,
+        external: true,
+      };
+    }
+    const firstVm = infraVm.data?.vms?.[0] ?? null;
+    const vmSummary = firstVm?.summary ?? null;
+    if (!infraVm.available || firstVm == null) {
+      return {
+        id: "central-vm",
+        title: "Central VM",
+        value: "DOWN",
+        detail: infraVm.reason || "Orchestrator unreachable",
+        tone: "red" as TileTone,
+        href: infraVm.orchestrator_url || orchestratorUrl,
+        external: true,
+      };
+    }
+    const oomClass = (vmSummary?.primary_account_pct ?? 0) >= 95;
+    const slotsWorking = vmSummary?.slots_working ?? 0;
+    const slotsTotal = vmSummary?.slots_total ?? 0;
+    const pct = vmSummary?.primary_account_pct;
+    const detail = [
+      `${slotsWorking}/${slotsTotal} slots working`,
+      pct != null ? `acct ${pct}%` : null,
+      oomClass ? "⚠ OOM" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      id: "central-vm",
+      title: "Central VM",
+      value: oomClass ? "OOM" : "UP",
+      detail,
+      tone: oomClass ? ("red" as TileTone) : ("green" as TileTone),
+      href: infraVm.orchestrator_url || orchestratorUrl,
+      external: true,
+    };
+  })();
 
   // Consolidator fresh — no dedicated API yet; always gray/unavailable
   const consolidatorFresh: StatusTile = {
@@ -171,10 +208,125 @@ function TileCard({ tile, onNavigate }: { tile: StatusTile; onNavigate: (tile: S
   );
 }
 
+/** Badge chip for VM status in the census panel. */
+function StatusChip({ label, tone }: { label: string; tone: TileTone }) {
+  const cls: Record<TileTone, string> = {
+    green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    yellow: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    red: "bg-red-500/15 text-red-400 border-red-500/30",
+    gray: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+  };
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${cls[tone]}`}>
+      {label}
+    </span>
+  );
+}
+
+function VmCensusRow({ vm, aoUrl }: { vm: VmCensusEntry; aoUrl: string }) {
+  const tone: TileTone = vm.oom_class ? "red" : vm.stale ? "yellow" : vm.error ? "red" : "green";
+  const status = vm.oom_class ? "OOM" : vm.error ? "ERR" : vm.stale ? "STALE" : "UP";
+  const hb =
+    vm.last_heartbeat_seconds_ago != null
+      ? vm.last_heartbeat_seconds_ago < 60
+        ? `${vm.last_heartbeat_seconds_ago}s ago`
+        : `${Math.round(vm.last_heartbeat_seconds_ago / 60)}m ago`
+      : null;
+
+  return (
+    <div
+      data-testid={`census-vm-${vm.vm_id}`}
+      className="flex items-center justify-between gap-4 rounded border border-zinc-700/50 bg-zinc-800/30 px-3 py-2 text-sm"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <Server className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+        <span className="font-medium text-zinc-200 truncate">{vm.label || vm.vm_id}</span>
+        <StatusChip label={status} tone={tone} />
+        {vm.oom_class && <StatusChip label="OOM" tone="red" />}
+      </div>
+      <div className="flex items-center gap-3 shrink-0 text-zinc-400">
+        <span className="text-xs tabular-nums">
+          {vm.slots_working}/{vm.slots_total} slots
+        </span>
+        {vm.primary_account_pct != null && (
+          <span className={`text-xs tabular-nums ${vm.primary_account_pct >= 80 ? "text-amber-400" : ""}`}>
+            acct {vm.primary_account_pct}%
+          </span>
+        )}
+        {hb && <span className="text-xs text-zinc-500">{hb}</span>}
+        {/* AO chip click-through */}
+        <a
+          data-testid={`census-vm-ao-link-${vm.vm_id}`}
+          href={aoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 rounded border border-zinc-600/50 bg-zinc-700/40 px-1.5 py-0.5 text-xs text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 transition-colors"
+        >
+          AO <ExternalLink className="h-2.5 w-2.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function VmCensusPanel({ census }: { census: VmCensus }) {
+  const aoUrl = census.orchestrator_url || "https://agent-orchestrator.odum-research.com";
+
+  return (
+    <div data-testid="vm-census-panel" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-zinc-300">VM Census</h3>
+        {/* AO dashboard chip click-through */}
+        <a
+          data-testid="census-ao-dashboard-link"
+          href={aoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded border border-zinc-600/50 bg-zinc-700/40 px-2 py-1 text-xs text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 transition-colors"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Open AO Dashboard
+        </a>
+      </div>
+
+      {!census.available ? (
+        <div className="flex items-center gap-2 rounded border border-zinc-700/50 bg-zinc-800/30 px-3 py-2 text-xs text-zinc-400">
+          <XCircle className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          {census.reason || "Fleet census unavailable"}
+        </div>
+      ) : (
+        <>
+          {/* Census summary chips */}
+          <div className="flex flex-wrap gap-2" data-testid="census-summary-chips">
+            <StatusChip label={`${census.vms_running} running`} tone={census.vms_running > 0 ? "green" : "gray"} />
+            {census.vms_stale > 0 && <StatusChip label={`${census.vms_stale} stale`} tone="yellow" />}
+            {census.vms_error > 0 && <StatusChip label={`${census.vms_error} error`} tone="red" />}
+            {census.vms_oom_class > 0 && <StatusChip label={`${census.vms_oom_class} OOM-class`} tone="red" />}
+            <StatusChip label={`${census.vms_total} total`} tone="gray" />
+          </div>
+
+          {/* Per-VM rows */}
+          <div className="space-y-1.5">
+            {census.vms.map((vm) => (
+              <VmCensusRow key={vm.vm_id} vm={vm} aoUrl={vm.url || aoUrl} />
+            ))}
+            {census.vms.length === 0 && (
+              <div className="text-xs text-zinc-500 py-1">No VMs registered in the fleet.</div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function FleetInfraContent() {
   const navigate = useNavigate();
   const [proxy, setProxy] = useState<FleetGitHealthProxy | null>(null);
   const [overview, setOverview] = useState<RepoCiOverview | null>(null);
+  const [infraVm, setInfraVm] = useState<InfraVmHealthProxy | null>(null);
+  const [census, setCensus] = useState<VmCensus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -182,9 +334,16 @@ export function FleetInfraContent() {
     setLoading(true);
     setError(null);
     try {
-      const [p, o] = await Promise.all([getFleetGitHealth(), getRepoCiOverview()]);
+      const [p, o, iv, c] = await Promise.all([
+        getFleetGitHealth(),
+        getRepoCiOverview(),
+        getFleetInfraVmHealth(),
+        getVmCensus(),
+      ]);
       setProxy(p);
       setOverview(o);
+      setInfraVm(iv);
+      setCensus(c);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -196,8 +355,9 @@ export function FleetInfraContent() {
     void load();
   }, [load]);
 
-  const orchestratorUrl = proxy?.orchestrator_url ?? "https://agent-orchestrator.odum-research.com";
-  const tiles = buildTiles(proxy, overview, orchestratorUrl);
+  const orchestratorUrl =
+    infraVm?.orchestrator_url ?? proxy?.orchestrator_url ?? "https://agent-orchestrator.odum-research.com";
+  const tiles = buildTiles(proxy, overview, infraVm, orchestratorUrl);
 
   function handleNavigate(tile: StatusTile) {
     if (!tile.href) return;
@@ -240,7 +400,10 @@ export function FleetInfraContent() {
         ))}
       </div>
 
-      {!loading && !error && proxy?.available && (
+      {/* VM Census Panel — running/stale/OOM breakdown with AO chip click-throughs */}
+      {census != null && <VmCensusPanel census={census} />}
+
+      {!loading && !error && (proxy?.available ?? false) && (
         <div className="flex items-center gap-1.5 text-xs text-zinc-500">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           Orchestrator reachable — data as of last fetch

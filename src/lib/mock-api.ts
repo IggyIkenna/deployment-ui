@@ -1470,6 +1470,79 @@ function mockFleetGitHealth() {
   };
 }
 
+const _ORCHESTRATOR_URL = "https://api.agent-orchestrator.odum-research.com";
+
+function mockInfraVmHealth() {
+  return {
+    available: true,
+    reason: "",
+    orchestrator_url: _ORCHESTRATOR_URL,
+    data: {
+      vms: [
+        {
+          id: "planning",
+          label: "Central / Orchestrator VM",
+          url: _ORCHESTRATOR_URL,
+          summary: {
+            vm_id: "planning",
+            fqdn: "api.agent-orchestrator.odum-research.com",
+            role: "planning",
+            label: "Central Orchestrator",
+            master_plans: ["master_to_live_defi_2026_05_23.md"],
+            slots_total: 8,
+            slots_working: 3,
+            slots_idle: 4,
+            slots_stale: 1,
+            slots_paused: 0,
+            slots_blocked: 0,
+            backlog_total: 14,
+            backlog_queued: 5,
+            backlog_done: 7,
+            backlog_dispatched: 2,
+            primary_account_id: "account-0",
+            primary_account_pct: 42,
+            last_activity_at: new Date().toISOString(),
+            alerts: [],
+            watchdog: { enabled: true, kills_today: 2, daily_cap: 20, dormant: false, flapping: false },
+          },
+          error: null,
+          stale: false,
+          last_heartbeat_seconds_ago: 45,
+        },
+      ],
+    },
+  };
+}
+
+function mockVmCensus() {
+  return {
+    available: true,
+    reason: "",
+    orchestrator_url: _ORCHESTRATOR_URL,
+    vms_running: 1,
+    vms_stale: 0,
+    vms_error: 0,
+    vms_oom_class: 0,
+    vms_total: 1,
+    vms: [
+      {
+        vm_id: "planning",
+        label: "Central / Orchestrator VM",
+        url: _ORCHESTRATOR_URL,
+        stale: false,
+        last_heartbeat_seconds_ago: 45,
+        error: null,
+        slots_total: 8,
+        slots_working: 3,
+        primary_account_pct: 42,
+        oom_class: false,
+        role: "planning",
+        alerts: [],
+      },
+    ],
+  };
+}
+
 function mockRepoCiDetail(repo: string) {
   const overview = mockRepoCiOverview();
   const row = overview.repos.find((r) => r.repo === repo) ?? overview.repos[0];
@@ -1610,6 +1683,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path === "/api/repo-ci/fleet-git-health") {
     return json(mockFleetGitHealth());
+  }
+  if (path === "/api/fleet/infra-vm-health") {
+    return json(mockInfraVmHealth());
+  }
+  if (path === "/api/fleet/vm-census") {
+    return json(mockVmCensus());
   }
   // GitHub rate-budget tracker — the whole fleet shares ONE PAT (5000/hr REST).
   // Mock seeds a healthy REST pool + a low GraphQL pool so the tracker's
