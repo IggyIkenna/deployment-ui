@@ -1,26 +1,51 @@
 /**
- * Alerts — full Slack-alert traceability (operator requirement 2026-06-10).
+ * Alerts — unified alert traceability across all alert classes (operator requirement 2026-06-10).
  *
- * Every alert that goes through Slack is persisted to the cicd-events ledger; this page
- * shows (1) lifecycle STREAMS per (repo, workflow) — the CURRENT state vs the PREVIOUS
+ * Consumes GET /api/alerts (unified ledger) rather than /api/repo-ci/alerts (CI/CD-only).
+ * Current `kind` values: "alert" | "event" (CI/CD). When INFRA P1 lands
+ * (alert_quality_overhaul_2026_06_18.md) non-CI kinds appear automatically:
+ * "vm_down" | "consolidator_down" | "git_health" | "worker_liveness" | "data_pipeline".
+ *
+ * Shows (1) lifecycle STREAMS per (repo, workflow) — the CURRENT state vs the PREVIOUS
  * state, worst-first — and (2) the raw alert timeline with severity + run links. The
  * answer to "how did this reach alerting point and where is it now" without scrollback.
  *
- * Plan: ci_dashboard_deployment_ui_2026_06_10.md (alert-history mirror, v1).
+ * Plan: deployment_ui_monitoring_pane_2026_06_19.md (unified ledger UI P1).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, ExternalLink, RefreshCw } from "lucide-react";
-import { getRepoCiAlerts, type RepoCiAlertEntry, type RepoCiAlerts } from "../api/client";
+import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-function severityTone(entry: RepoCiAlertEntry): string {
+function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
     return "bg-red-500/15 text-red-400 border-red-500/40";
   if (entry.severity === "WARNING") return "bg-amber-500/15 text-amber-400 border-amber-500/40";
   return "bg-emerald-500/15 text-emerald-400 border-emerald-500/40";
+}
+
+/** Map the `kind` discriminator to a compact human label for the domain badge. */
+function kindLabel(kind: string): string {
+  switch (kind) {
+    case "alert":
+    case "event":
+      return "CI";
+    case "vm_down":
+      return "VM";
+    case "consolidator_down":
+      return "CONS";
+    case "git_health":
+      return "GIT";
+    case "worker_liveness":
+      return "WRKR";
+    case "data_pipeline":
+      return "DATA";
+    default:
+      return kind.toUpperCase().slice(0, 5);
+  }
 }
 
 function ageMin(ts: string): number | null {
@@ -28,7 +53,7 @@ function ageMin(ts: string): number | null {
   return Number.isNaN(parsed) ? null : Math.floor((Date.now() - parsed) / 60000);
 }
 
-function EntryChip({ entry, testId }: { entry: RepoCiAlertEntry; testId?: string }) {
+function EntryChip({ entry, testId }: { entry: UnifiedAlertEntry; testId?: string }) {
   return (
     <span
       data-testid={testId}
@@ -39,15 +64,27 @@ function EntryChip({ entry, testId }: { entry: RepoCiAlertEntry; testId?: string
   );
 }
 
+function DomainChip({ kind }: { kind: string }) {
+  return (
+    <span
+      data-testid="alert-domain-chip"
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-mono font-medium bg-slate-500/15 text-slate-400 border border-slate-500/40"
+      title={`kind: ${kind}`}
+    >
+      {kindLabel(kind)}
+    </span>
+  );
+}
+
 export function AlertsContent() {
-  const [data, setData] = useState<RepoCiAlerts | null>(null);
+  const [data, setData] = useState<UnifiedAlerts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    getRepoCiAlerts()
+    getUnifiedAlerts()
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
@@ -63,12 +100,12 @@ export function AlertsContent() {
     <div className="space-y-4" data-testid="alerts-page">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-          <BellRing className="h-5 w-5 text-amber-400" /> Alerts — lifecycle traceability
+          <BellRing className="h-5 w-5 text-amber-400" /> Alerts — unified traceability
           {data && (
             <span
               data-testid="alerts-source-badge"
               className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium border ${
-                data.source === "live"
+                data.source === "live" || data.source === "mock"
                   ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
                   : "bg-amber-500/15 text-amber-400 border-amber-500/40"
               }`}
@@ -103,6 +140,7 @@ export function AlertsContent() {
                   className="flex items-center gap-2 text-sm flex-wrap"
                   data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
                 >
+                  <DomainChip kind={stream.current.kind} />
                   <span className="font-mono text-[var(--color-text-primary)]">
                     {stream.repo} / {stream.workflow_name}
                   </span>
@@ -137,6 +175,7 @@ export function AlertsContent() {
                   className="flex items-start gap-2 text-sm"
                   data-testid={`alert-entry-${index}`}
                 >
+                  <DomainChip kind={alert.kind} />
                   <EntryChip entry={alert} />
                   <span className="font-mono text-[var(--color-text-secondary)] shrink-0">
                     {alert.timestamp.slice(11, 16)}
