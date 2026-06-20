@@ -1605,6 +1605,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/repo-ci/alerts") {
     return json(mockRepoCiAlerts());
   }
+  // Unified alert ledger — all classes (INFRA P1 will extend with non-CI kinds).
+  if (path === "/api/alerts") {
+    return json(mockRepoCiAlerts());
+  }
   if (path === "/api/repo-ci/overview") {
     return json(mockRepoCiOverview());
   }

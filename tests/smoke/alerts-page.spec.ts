@@ -1,7 +1,12 @@
 /**
- * Smoke + regression: Alerts page — Slack-alert lifecycle traceability
- * (operator requirement 2026-06-10: every alert traceable; current + previous state).
- * Plan: ci_dashboard_deployment_ui_2026_06_10.md (alert-history mirror v1).
+ * Smoke + regression: Alerts page — unified alert lifecycle traceability.
+ *
+ * The /alerts page now consumes GET /api/alerts (unified ledger, all alert classes)
+ * rather than the CI-only /api/repo-ci/alerts. INFRA P1 (alert_quality_overhaul_2026_06_18.md)
+ * will add non-CI alert kinds; this spec covers the CI subset (current mock data) + the
+ * domain chip and unified-endpoint wiring.
+ *
+ * Plan: deployment_ui_monitoring_pane_2026_06_19.md (unified ledger UI P1).
  */
 
 import { expect, test } from "@playwright/test";
@@ -40,5 +45,30 @@ test.describe("Alerts page", () => {
     const firstEntry = page.getByTestId("alert-entry-0");
     await expect(firstEntry).toContainText("quality-gates-v2 FAILED on main");
     await expect(firstEntry.locator("a")).toHaveAttribute("href", /actions\/runs/);
+  });
+
+  test("unified endpoint: domain chip appears on every stream and timeline entry", async ({ page }) => {
+    await page.goto("/alerts");
+    // Every stream row must have a domain chip.
+    const streamChips = page.getByTestId("alert-streams").locator('[data-testid="alert-domain-chip"]');
+    await expect(streamChips.first()).toBeVisible();
+    // CI alerts are labelled "CI" by the kindLabel() helper.
+    await expect(streamChips.first()).toContainText("CI");
+    // Timeline entries also carry domain chips.
+    const timelineChip = page.getByTestId("alert-entry-0").getByTestId("alert-domain-chip");
+    await expect(timelineChip).toBeVisible();
+    await expect(timelineChip).toContainText("CI");
+  });
+
+  test("unified endpoint: source badge shown after load", async ({ page }) => {
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-source-badge")).toBeVisible();
+    // Mock mode returns source="mock" which maps to the green badge.
+    await expect(page.getByTestId("alerts-source-badge")).toContainText("MOCK");
+  });
+
+  test("page heading reflects unified traceability (not CI-only)", async ({ page }) => {
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-page").locator("h1")).toContainText("unified traceability");
   });
 });

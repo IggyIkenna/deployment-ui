@@ -3632,6 +3632,20 @@ export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
   return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
 }
 
+// --- Unified alert ledger — GET /api/alerts (all alert classes, not just CI/CD) ------
+// Shape matches RepoCiAlerts; `kind` is the alert class discriminator.
+// Currently: "alert" | "event" (CI/CD only). INFRA P1 adds non-CI kinds:
+// "vm_down" | "consolidator_down" | "git_health" | "worker_liveness" | "data_pipeline".
+// Consumed by the /alerts page (deployment_ui_monitoring_pane_2026_06_19.md).
+
+export type UnifiedAlertEntry = RepoCiAlertEntry;
+export type UnifiedAlertStream = RepoCiAlertStream;
+export type UnifiedAlerts = RepoCiAlerts;
+
+export async function getUnifiedAlerts(): Promise<UnifiedAlerts> {
+  return fetchJson<UnifiedAlerts>("/alerts");
+}
+
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
 
 export interface FleetGitRepoHealth {
