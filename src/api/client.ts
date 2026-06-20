@@ -3632,6 +3632,32 @@ export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
   return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
 }
 
+// --- Unified alert ledger (superset of /repo-ci/alerts — all alert domains) ---
+
+export interface UnifiedAlertEntry extends RepoCiAlertEntry {
+  /** Alert class: "ci" | "vm" | "consolidator" | "git-health" | "worker-liveness" | "data-pipeline" */
+  domain: string;
+}
+
+export interface UnifiedAlertStream {
+  repo: string;
+  workflow_name: string;
+  current: UnifiedAlertEntry;
+  previous: UnifiedAlertEntry | null;
+  count: number;
+}
+
+export interface UnifiedAlerts {
+  generated_at: string;
+  source: string;
+  alerts: UnifiedAlertEntry[];
+  streams: UnifiedAlertStream[];
+}
+
+export async function getAlerts(): Promise<UnifiedAlerts> {
+  return fetchJson<UnifiedAlerts>("/alerts");
+}
+
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
 
 export interface FleetGitRepoHealth {
