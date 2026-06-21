@@ -67,14 +67,13 @@ test.describe("Repos CI page", () => {
     await expect(blockers).toContainText("Pull request approval required for starting a build");
   });
 
-  test("overview table populates rows with SHA columns + chips", async ({ page }) => {
+  test("overview table populates rows with SHA columns", async ({ page }) => {
     await page.goto("/repos");
     const table = page.getByTestId("repo-ci-table");
     await expect(table).toBeVisible();
     await expect(page.getByTestId("repo-row-unified-trading-library")).toBeVisible();
     // Branch short-SHAs render (mock fixtures use abc12* heads).
     await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("abc1234");
-    await expect(page.getByTestId("repo-row-unified-trading-library")).toContainText("MAIN_GREEN");
   });
 
   test("overview shows the last-green-main column (green as of <sha>), distinct from a red head", async ({ page }) => {
@@ -94,15 +93,40 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("lag-execution-service")).toContainText("lag");
   });
 
-  test("CI status chip annotates WHICH branch is failing (branch_ci)", async ({ page }) => {
+  test("per-branch SHA cells are colour-coded (replaces the standalone CI-status column)", async ({ page }) => {
+    // Regression for the 2026-06-19 operator review: the standalone `CI status` lifecycle column
+    // conflated promotion-progress with branch-failure; it is replaced by a green/red colour on each
+    // LDR/staging/main SHA cell (per-branch last-v2 conclusion), exposed via data-tone.
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
-    // execution-service is FAILING with main red → chip reads "FAILING (main)" (recovering shape).
-    await expect(page.getByTestId("repo-row-execution-service")).toContainText("FAILING (main)");
-    // strategy-service is STAGING_GREEN with LDR red → chip reads "STAGING_GREEN (LDR)" (actively broken).
-    await expect(page.getByTestId("repo-row-strategy-service")).toContainText("STAGING_GREEN (LDR)");
-    // a clean repo shows the bare status, no branch suffix.
-    await expect(page.getByTestId("repo-row-unified-trading-library")).not.toContainText("(");
+    // The standalone CI-status column is gone.
+    await expect(page.getByRole("columnheader", { name: "CI status" })).toHaveCount(0);
+    // execution-service is FAILING with main red → the main SHA cell is red.
+    await expect(page.getByTestId("branch-main-execution-service")).toHaveAttribute("data-tone", "red");
+    // strategy-service is STAGING_GREEN with LDR red → the LDR SHA cell is red.
+    await expect(page.getByTestId("branch-ldr-strategy-service")).toHaveAttribute("data-tone", "red");
+    // a clean (MAIN_GREEN) repo's branches are all green.
+    await expect(page.getByTestId("branch-ldr-unified-trading-library")).toHaveAttribute("data-tone", "green");
+    await expect(page.getByTestId("branch-main-unified-trading-library")).toHaveAttribute("data-tone", "green");
+  });
+
+  test("branch-colour legend opens on click and explains green/red/gray", async ({ page }) => {
+    // Regression for the 2026-06-19 operator request: a click-to-open legend documents what the
+    // per-branch SHA colours mean (replacing the self-describing CI-status text column).
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // Collapsed by default (conditionally rendered → absent from the DOM).
+    await expect(page.getByTestId("branch-legend")).toHaveCount(0);
+    // Click the help toggle → legend opens and explains each colour.
+    await page.getByTestId("branch-legend-toggle").click();
+    const legend = page.getByTestId("branch-legend");
+    await expect(legend).toBeVisible();
+    await expect(legend).toContainText("last v2 run passed");
+    await expect(legend).toContainText("last v2 run failed");
+    await expect(legend).toContainText("branch absent or status unknown");
+    // Clicking outside (the transparent overlay) closes it.
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("branch-legend")).toHaveCount(0);
   });
 
   test("repo dropdown drill-down renders SHA history and PR cards", async ({ page }) => {
@@ -258,5 +282,147 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("delta-staging-main")).toContainText("1 file ahead");
     // The LDR→main leg MUST be the main←LDR delta (4 files), NOT the ambiguous staging→main (1 file).
     await expect(page.getByTestId("delta-ldr-main")).toContainText("4 files ahead");
+  });
+
+  test("GCP/AWS toggle drives the repo-CI fetch via ?provider= (Option B, not a base-URL swap)", async ({ page }) => {
+    // Regression for the deployed no-op: the toggle MUST append ?provider=<cloud> to the repo-CI
+    // overview fetch so the SINGLE backend serves both clouds' build status (it used to switch the
+    // base URL, a no-op in the bundled Cloud Run build → AWS silently re-showed GCP data).
+    // SSOT: plans/active/issues/deployment_dashboard_image_status_and_multicloud_toggle_2026_06_17.md.
+    await page.addInitScript(() => {
+      (window as Window & { __mockRequests?: string[] }).__mockRequests = [];
+    });
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+
+    // Switch to AWS → the overview refetch carries ?provider=aws.
+    await page.getByTestId("cloud-toggle-aws").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          ((window as Window & { __mockRequests?: string[] }).__mockRequests ?? []).some(
+            (u) => u.includes("/api/repo-ci/overview") && u.includes("provider=aws"),
+          ),
+        ),
+      )
+      .toBe(true);
+
+    // Switch back to GCP → a fresh fetch carries ?provider=gcp (reset the log so this is meaningful).
+    await page.evaluate(() => {
+      (window as Window & { __mockRequests?: string[] }).__mockRequests = [];
+    });
+    await page.getByTestId("cloud-toggle-gcp").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          ((window as Window & { __mockRequests?: string[] }).__mockRequests ?? []).some(
+            (u) => u.includes("/api/repo-ci/overview") && u.includes("provider=gcp"),
+          ),
+        ),
+      )
+      .toBe(true);
+  });
+
+  // ── dep-order promotion HOLD surface (operator review 2026-06-19) ──────────────────────────
+  test("Promotion-held card + stalled banner surface the dependency-order hold", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    // The stalled banner — one-glance WHY: a dep-order wait, NOT a failure.
+    const banner = page.getByTestId("promotion-stalled-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("Promotion stalled");
+    await expect(banner).toContainText("unified-api-contracts");
+    await expect(banner).toContainText("dependency-order wait, not a failure");
+    // The 6th card (sibling to "Promotion blocked"): root blocker + held repos.
+    const card = page.getByTestId("promotion-held-panel");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("Promotion held — dependency order");
+    await expect(page.getByTestId("promotion-held-root-unified-api-contracts")).toContainText("blocking 2");
+    await expect(page.getByTestId("promotion-held-repos")).toContainText("strategy-service");
+  });
+
+  test("row badges flag the root blocker + point each held repo at its cause", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // The tier-0 dep is the ROOT blocker (2 repos waiting).
+    await expect(page.getByTestId("root-blocker-unified-api-contracts")).toContainText("root blocker · 2 waiting");
+    // Each held repo points at its cause + its tier.
+    await expect(page.getByTestId("blocked-by-strategy-service")).toContainText("unified-api-contracts (tier 0)");
+    await expect(page.getByTestId("blocked-by-market-tick-data-service")).toContainText("unified-api-contracts");
+    // A repo already on main carries neither badge.
+    await expect(page.getByTestId("root-blocker-unified-trading-library")).toHaveCount(0);
+    await expect(page.getByTestId("blocked-by-unified-trading-library")).toHaveCount(0);
+  });
+
+  test("every card carries a ? help popover explaining what it is", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-page")).toBeVisible();
+    // The new dep-order card's help.
+    await page.getByTestId("card-help-held-toggle").click();
+    await expect(page.getByTestId("card-help-held")).toContainText("WAITING");
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("card-help-held")).toHaveCount(0);
+    // An existing card's help (routine drain).
+    await page.getByTestId("card-help-drain-toggle").click();
+    await expect(page.getByTestId("card-help-drain")).toContainText("every 15 min");
+    await page.mouse.click(5, 5);
+    // The failure-park vs dep-hold distinction is documented on the "blocked" card.
+    await page.getByTestId("card-help-blocked-toggle").click();
+    await expect(page.getByTestId("card-help-blocked")).toContainText("failure");
+  });
+
+  test("every table column carries a ? help popover explaining what it represents", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // A left-side column.
+    await page.getByTestId("col-help-ldr-toggle").click();
+    await expect(page.getByTestId("col-help-ldr")).toContainText("integration trunk");
+    await page.mouse.click(5, 5);
+    await expect(page.getByTestId("col-help-ldr")).toHaveCount(0);
+    // A right-edge column (popover drops inward).
+    await page.getByTestId("col-help-image-toggle").click();
+    await expect(page.getByTestId("col-help-image")).toContainText("build status");
+    await page.mouse.click(5, 5);
+    // The new per-hop + stall-reason columns document the promotion-stall taxonomy (the delta column
+    // is now just the headline distance + lag; WHERE/WHY moved to these two dedicated columns).
+    await page.getByTestId("col-help-hops-toggle").click();
+    await expect(page.getByTestId("col-help-hops")).toContainText("staging→main");
+    await page.mouse.click(5, 5);
+    await page.getByTestId("col-help-reason-toggle").click();
+    await expect(page.getByTestId("col-help-reason")).toContainText("blocked-by");
+    await expect(page.getByTestId("col-help-reason")).toContainText("status stale");
+  });
+
+  test("per-hop + stall-reason columns localize a staging→main promoter stall (the AO class)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // agent-orchestrator fixture: LDR→staging fully drained, staging 144 files ahead of main, no PR,
+    // ci_status MAIN_GREEN. The per-hop column localizes the stuck leg…
+    await expect(page.getByTestId("hop-ldr-staging-agent-orchestrator")).toContainText("✓");
+    await expect(page.getByTestId("hop-staging-main-agent-orchestrator")).toContainText("144f");
+    // …and the stall-reason column names WHY: the promoter isn't firing + the status is lying.
+    const reason = page.getByTestId("stall-reason-agent-orchestrator");
+    await expect(reason).toContainText("staging→main not promoting");
+    await expect(reason).toContainText("status stale");
+    // A genuinely-in-sync repo (client-reporting-api fixture: all hops 0 files) shows no hop pills +
+    // a dash reason — proves the dashboard doesn't false-flag a fully-promoted repo.
+    await expect(page.getByTestId("hops-cell-client-reporting-api")).not.toContainText("stg→main");
+    await expect(page.getByTestId("reason-cell-client-reporting-api")).toContainText("—");
+  });
+
+  test("sort control reorders the overview (A–Z + dependency tier)", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    const firstRepo = async () =>
+      (await page.getByTestId("repo-ci-table").locator("tbody tr").first().getAttribute("data-testid"))?.replace(
+        "repo-row-",
+        "",
+      );
+    // A–Z: alphabetical first row (agent-orchestrator leads the mock fleet).
+    await page.getByTestId("repo-sort-alpha").click();
+    expect(await firstRepo()).toBe("agent-orchestrator");
+    // Tier: the tier-0 dep (unified-api-contracts) sorts to the top of the layer stack.
+    await page.getByTestId("repo-sort-tier").click();
+    expect(await firstRepo()).toBe("unified-api-contracts");
   });
 });

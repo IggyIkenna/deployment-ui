@@ -3445,6 +3445,27 @@ export interface RepoCiOverviewRow {
    * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
    * on LDR with a dead drain). */
   drain_stalled?: boolean;
+  /** Dependency layer from the manifest (e.g. "0"/"1"/"service") — the promotion tier. */
+  tier?: string;
+  /** Deps NOT yet on main that hold THIS repo's staging→main promotion (dep-order). Empty/absent
+   * = clear. Non-empty ⟺ this repo is HELD waiting for a dependency to reach main. */
+  blocked_by?: RepoCiDepBlocker[];
+  /** Repos held because THIS repo isn't on main yet (inverse of blocked_by). Non-empty ⟺ this repo
+   * is a promotion blocker for others. */
+  blocking?: string[];
+  /** Codebase-health metrics derived from the most-recent QG run on the repo's main branch.
+   * Absent for tool repos or when CI hasn't emitted the data yet. */
+  codebase_health?: {
+    /** Test-coverage % from the last green QG run (0–100). Null = not yet reported. */
+    coverage_pct: number | null;
+    /** Label of the first QG step that failed — e.g. "pytest", "basedpyright", "ruff", "bandit".
+     * Null = QG passed (or hasn't run). */
+    qg_red_reason: string | null;
+    /** Files whose line-count ≥ 900 (hard limit). */
+    large_file_count: number | null;
+    /** Files in the 700–899 warn zone. */
+    warn_file_count: number | null;
+  } | null;
 }
 
 export interface RepoCiLastGreen {
@@ -3468,6 +3489,33 @@ export interface RepoCiPromotionBlocked {
   escalated?: boolean;
 }
 
+/** A dependency not yet on main that holds a repo's staging→main promotion (dep-order). */
+export interface RepoCiDepBlocker {
+  name: string;
+  tier: string;
+  ci_status: string;
+}
+
+/** A not-on-main repo holding ≥1 other repo from main — the cause of the dep-order hold. */
+export interface RepoCiRootBlocker {
+  repo: string;
+  tier: string;
+  ci_status: string;
+  /** how many repos are held waiting on this one. */
+  blocking_count: number;
+  /** this repo's own staging-ahead-of-main file delta (the content stuck below main). */
+  main_files_behind: number;
+}
+
+/** Aggregate for the "Promotion held — dependency order" card + the stalled banner — dep-order
+ * HOLDS (a clean wait), distinct from promotion_blocked (failure-quarantine). */
+export interface RepoCiPromotionHeld {
+  /** repos currently held by dependency-order (waiting on a dep to reach main). */
+  held_repos: string[];
+  /** the not-on-main repos causing the holds, lowest tier (most foundational) first. */
+  root_blockers: RepoCiRootBlocker[];
+}
+
 export interface RepoCiOverview {
   generated_at: string;
   source: string;
@@ -3485,6 +3533,10 @@ export interface RepoCiOverview {
   /** Semver-agent standing health (G2) — last bump run + pending-bump count + breaker-armed flag.
    * Null when the semver-agent run can't be fetched. */
   semver_health?: RepoCiSemverHealth | null;
+  /** Dependency-order promotion HOLDS (a clean wait), distinct from promotion_blocked
+   * (failure-quarantine). Drives the "Promotion held — dependency order" card + the stalled
+   * banner. Null/absent when not computed. */
+  promotion_held?: RepoCiPromotionHeld | null;
 }
 
 export interface RepoCiSemverHealth {
@@ -3534,12 +3586,20 @@ export interface RepoCiDetail {
   last_green?: Record<string, RepoCiLastGreen | null>;
 }
 
-export async function getRepoCiOverview(): Promise<RepoCiOverview> {
-  return fetchJson<RepoCiOverview>("/repo-ci/overview");
+/** Cloud whose build status the repo-CI Image column reads (the GCP/AWS toggle). Under Option B a
+ * single backend serves both clouds via this query param (?provider=) — no per-cloud base-URL swap. */
+export type RepoCiProvider = "gcp" | "aws";
+
+function repoCiProviderQuery(provider?: RepoCiProvider): string {
+  return provider ? `?provider=${provider}` : "";
 }
 
-export async function getRepoCiDetail(repo: string): Promise<RepoCiDetail> {
-  return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail`);
+export async function getRepoCiOverview(provider?: RepoCiProvider): Promise<RepoCiOverview> {
+  return fetchJson<RepoCiOverview>(`/repo-ci/overview${repoCiProviderQuery(provider)}`);
+}
+
+export async function getRepoCiDetail(repo: string, provider?: RepoCiProvider): Promise<RepoCiDetail> {
+  return fetchJson<RepoCiDetail>(`/repo-ci/${repo}/detail${repoCiProviderQuery(provider)}`);
 }
 
 export interface RepoCiAlertEntry {
@@ -3570,6 +3630,20 @@ export interface RepoCiAlerts {
 
 export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {
   return fetchJson<RepoCiAlerts>("/repo-ci/alerts");
+}
+
+// --- Unified alert ledger — GET /api/alerts (all alert classes, not just CI/CD) ------
+// Shape matches RepoCiAlerts; `kind` is the alert class discriminator.
+// Currently: "alert" | "event" (CI/CD only). INFRA P1 adds non-CI kinds:
+// "vm_down" | "consolidator_down" | "git_health" | "worker_liveness" | "data_pipeline".
+// Consumed by the /alerts page (deployment_ui_monitoring_pane_2026_06_19.md).
+
+export type UnifiedAlertEntry = RepoCiAlertEntry;
+export type UnifiedAlertStream = RepoCiAlertStream;
+export type UnifiedAlerts = RepoCiAlerts;
+
+export async function getUnifiedAlerts(): Promise<UnifiedAlerts> {
+  return fetchJson<UnifiedAlerts>("/alerts");
 }
 
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
@@ -3635,6 +3709,89 @@ export interface FleetGitHealthProxy {
 
 export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
   return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
+}
+
+// VM Census — vm_zombie_watchdog.py running/expected/zombie/OOM surface
+// Served by deployment-api GET /api/fleet/vm-census (INFRA P1 — backend pending)
+export type VmLifecycleClass = "EPHEMERAL_BATCH" | "EPHEMERAL_EXPERIMENT" | "SCHEDULED_RECURRING" | "LONG_LIVED_LIVE";
+export type VmRunStatus = "RUNNING" | "STOPPING" | "STOPPED" | "TERMINATED";
+
+export interface VmCensusEntry {
+  name: string;
+  prefix: string;
+  lifecycle_class: VmLifecycleClass;
+  status: VmRunStatus;
+  zombie: boolean;
+  oom: boolean;
+  age_min: number | null;
+  zone: string;
+}
+
+export interface VmCensusResponse {
+  generated_at: string;
+  running: number;
+  expected: number;
+  zombie: number;
+  oom: number;
+  stopped: number;
+  vms: VmCensusEntry[];
+}
+
+// Infra VM Health — AO /api/fleet/summary proxy
+// Served by deployment-api GET /api/fleet/infra-vm-health (INFRA P1 — backend pending)
+export interface InfraVmAlert {
+  severity: "info" | "warn" | "crit";
+  kind: string;
+  detail: string;
+}
+
+export interface InfraVmWatchdog {
+  enabled: boolean;
+  kills_today: number;
+  daily_cap: number;
+  dormant: boolean;
+  flapping: boolean;
+}
+
+export interface InfraVmSummary {
+  vm_id: string;
+  role: "epic" | "planning" | "unknown";
+  label: string | null;
+  slots_total: number;
+  slots_working: number;
+  slots_idle: number;
+  slots_stale: number;
+  slots_paused: number;
+  slots_blocked: number;
+  backlog_total: number;
+  backlog_queued: number;
+  alerts: InfraVmAlert[];
+  watchdog: InfraVmWatchdog | null;
+}
+
+export interface InfraVmSlot {
+  id: string;
+  label: string;
+  url: string;
+  available: boolean;
+  error: string | null;
+  stale: boolean;
+  last_heartbeat_seconds_ago: number | null;
+  summary: InfraVmSummary | null;
+}
+
+export interface InfraVmHealthResponse {
+  available: boolean;
+  orchestrator_url: string;
+  vms: InfraVmSlot[];
+}
+
+export async function getVmCensus(): Promise<VmCensusResponse> {
+  return fetchJson<VmCensusResponse>("/fleet/vm-census");
+}
+
+export async function getInfraVmHealth(): Promise<InfraVmHealthResponse> {
+  return fetchJson<InfraVmHealthResponse>("/fleet/infra-vm-health");
 }
 
 export { ApiError };

@@ -3,10 +3,12 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCiOverviewRow, RepoCiPr } from "../api/client";
 import {
+  branchTone,
   buildSourceLabel,
   buildTimeLabel,
   ciStatusLabel,
   ciStatusTone,
+  classifyStall,
   deltaLabel,
   failingBranches,
   formatAge,
@@ -189,6 +191,33 @@ describe("failingBranches / ciStatusLabel (branch-aware CI chip)", () => {
   });
 });
 
+describe("branchTone (per-branch SHA-cell colour — replaces the CI-status column)", () => {
+  it("maps a branch's live conclusion: success→green, failure/timed_out→red, skipped→gray", () => {
+    const r = row({
+      ci_status: "FAILING",
+      branch_ci: { "live-defi-rollout": "success", staging: "skipped", main: "failure" },
+    });
+    expect(branchTone(r, "live-defi-rollout", "abc1234")).toBe("green");
+    expect(branchTone(r, "main", "def5678")).toBe("red");
+    expect(branchTone(r, "staging", "aaa1111")).toBe("gray"); // skipped → unknown, not green
+    expect(branchTone(row({ ci_status: "FAILING", branch_ci: { main: "timed_out" } }), "main", "x")).toBe("red");
+  });
+
+  it("a missing branch (no SHA) is gray regardless of status", () => {
+    expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "staging", null)).toBe("gray");
+  });
+
+  it("non-FAILING repo with no live branch_ci ⟹ green (its branches all last-passed)", () => {
+    // branch_ci is live-fetched only for FAILING repos; absence on a green repo ⟹ green.
+    expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "main", "abc1100")).toBe("green");
+    expect(branchTone(row({ ci_status: "STAGING_GREEN" }), "live-defi-rollout", "ldr0001")).toBe("green");
+  });
+
+  it("FAILING repo with no branch_ci for a branch ⟹ gray (unknown, not assumed green)", () => {
+    expect(branchTone(row({ ci_status: "FAILING" }), "main", "abc1234")).toBe("gray");
+  });
+});
+
 describe("rowSeverity", () => {
   it("FAILING > stuck > content delta > clean", () => {
     expect(rowSeverity(row({ ci_status: "FAILING" }))).toBe(3);
@@ -256,5 +285,73 @@ describe("github deep-links (operator click-through rule)", () => {
     expect(githubBranchUrl("mtds", "live-defi-rollout")).toBe(
       "https://github.com/IggyIkenna/mtds/tree/live-defi-rollout",
     );
+  });
+});
+
+describe("classifyStall (per-repo promotion-stall classifier)", () => {
+  const d = (base: string, head: string, files: number, ahead = files) => ({
+    base,
+    head,
+    ahead_by: ahead,
+    behind_by: 0,
+    files_changed: files,
+  });
+  it("no real content behind main → none (in sync, or ahead-by-commits-only squash skew)", () => {
+    expect(classifyStall(row({ deltas: [d("main", "live-defi-rollout", 0, 3)] })).kind).toBe("none");
+  });
+  it("staging ahead of main, LDR==staging, no PR, status on-main → staging-to-main + ciStatusStale (the AO class)", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "MAIN_GREEN",
+        deltas: [
+          d("staging", "live-defi-rollout", 0, 96),
+          d("main", "staging", 144, 326),
+          d("main", "live-defi-rollout", 71, 420),
+        ],
+      }),
+    );
+    expect(r.kind).toBe("staging-to-main");
+    expect(r.files).toBe(144);
+    expect(r.ciStatusStale).toBe(true);
+  });
+  it("real content on LDR not yet on staging → ldr-to-staging", () => {
+    const r = classifyStall(
+      row({
+        deltas: [d("staging", "live-defi-rollout", 3), d("main", "staging", 1), d("main", "live-defi-rollout", 4)],
+      }),
+    );
+    expect(r.kind).toBe("ldr-to-staging");
+    expect(r.files).toBe(3);
+  });
+  it("blocked_by non-empty → dep-order carrying the blocker names", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "STAGING_GREEN",
+        deltas: [d("main", "live-defi-rollout", 5), d("main", "staging", 5)],
+        blocked_by: [{ name: "unified-api-contracts", tier: "0", ci_status: "STAGING_GREEN" }],
+      }),
+    );
+    expect(r.kind).toBe("dep-order");
+    expect(r.blockers).toEqual(["unified-api-contracts"]);
+  });
+  it("a genuinely-jammed PR → pr-stuck (draining classes do NOT count as stuck)", () => {
+    const r = classifyStall(
+      row({
+        deltas: [d("main", "live-defi-rollout", 4), d("main", "staging", 2)],
+        open_prs: [{ repo: "r", number: 41, stuck_class: "conflicting" }],
+      }),
+    );
+    expect(r.kind).toBe("pr-stuck");
+    expect(r.pr).toBe(41);
+  });
+  it("a draining (auto-merge armed) PR is not pr-stuck — falls through to the hop classification", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "MAIN_GREEN",
+        deltas: [d("staging", "live-defi-rollout", 0), d("main", "staging", 10), d("main", "live-defi-rollout", 10)],
+        open_prs: [{ repo: "r", number: 9, stuck_class: "automerge_stuck" }],
+      }),
+    );
+    expect(r.kind).toBe("staging-to-main");
   });
 });

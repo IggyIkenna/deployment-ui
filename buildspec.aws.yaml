@@ -1,62 +1,21 @@
-# CodeBuild buildspec template — Unified Trading System UI Repos
+# AWS CodeBuild — deployment-ui (dispatch only; NO standalone image)
 #
-# UI variant: Node.js 20, npm ci, typecheck, lint, test in pre_build; docker build, push in build/post_build.
+# deployment-ui has NO standalone container image on either cloud. Its SPA is bundled INTO the
+# deployment-api image: deployment-api's build clones deployment-ui into ./ui and its Dockerfile
+# Stage 0 builds the SPA into ./ui/dist. So a deployment-ui change reaches AWS by rebuilding
+# deployment-api.
 #
-# Placeholders: deployment-ui, unified-trading-system.
-# Registry image: {{REGISTRY_URI}}/unified-trading-system/deployment-ui
+# This mirrors GCP's `deployment-ui-main-deploy` trigger, whose only step is
+# `gcloud builds triggers run deployment-api-main-deploy` — i.e. it dispatches the deployment-api
+# build rather than building deployment-ui itself.
+#
+# Requires codebuild:StartBuild on the deployment-api project (granted to unified-trading-codebuild-role).
 
 version: 0.2
 
-env:
-  variables:
-    SERVICE_NAME: "deployment-ui"
-    REGISTRY_REPO: "unified-trading-system"
-    IMAGE_TAG: "latest"
-  # AWS_ACCOUNT_ID, AWS_DEFAULT_REGION available in CodeBuild
-
 phases:
-  install:
-    runtime-versions:
-      nodejs: "20"
-    commands:
-      - echo "Installing Docker..."
-      - yum install -y docker || true
-      - service docker start || true
-
-  pre_build:
-    commands:
-      - echo "Installing dependencies..."
-      - npm ci --prefer-offline 2>/dev/null || npm ci
-      - echo "--- Typecheck ---"
-      - npm run typecheck 2>/dev/null || npm run type-check
-      - echo "--- Lint ---"
-      - npm run lint
-      - echo "--- Unit tests ---"
-      - npm test
-      - echo "Quality gates passed"
-      - echo "Logging in to ECR..."
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin
-        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - aws ecr describe-repositories --repository-names $REGISTRY_REPO --region $AWS_DEFAULT_REGION 2>/dev/null || aws
-        ecr create-repository --repository-name $REGISTRY_REPO --region $AWS_DEFAULT_REGION
-      - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REGISTRY_REPO/$SERVICE_NAME"
-
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -f Dockerfile -t $IMAGE_URI:$IMAGE_TAG -t $IMAGE_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION .
-
-  post_build:
-    commands:
-      - echo "Pushing image..."
-      - docker push $IMAGE_URI:$IMAGE_TAG
-      - docker push $IMAGE_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
-      - echo "Build complete"
-
-artifacts:
-  files:
-    - "**/*"
-
-cache:
-  paths:
-    - "node_modules/**/*"
+      - echo "deployment-ui ships inside the deployment-api image — dispatching a deployment-api build"
+      - aws codebuild start-build --project-name deployment-api --source-version main --region "$AWS_DEFAULT_REGION" --query 'build.id' --output text
+      - echo "Dispatched deployment-api build (the deployment-ui SPA is rebundled there)."

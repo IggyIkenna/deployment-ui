@@ -1130,6 +1130,14 @@ function mockRepoCiRow(
   prs: MockRepoCiPr[],
   sitPending: boolean,
   sitStuck: boolean,
+  tier: string = "service",
+  blockedBy: { name: string; tier: string; ci_status: string }[] = [],
+  blocking: string[] = [],
+  opts: {
+    deltas?: { base: string; head: string; ahead_by: number; behind_by: number; files_changed: number }[];
+    lagMin?: number | null;
+    drainStalled?: boolean;
+  } = {},
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
   // STAGING_GREEN → LDR red (actively-broken shape); else all green. Mirrors the deployment-api mock.
@@ -1149,7 +1157,7 @@ function mockRepoCiRow(
       { branch: "staging", sha: "abc1200567", committed_at: "2026-06-10T07:30:00Z" },
       { branch: "main", sha: "abc1100567", committed_at: "2026-06-10T06:00:00Z" },
     ],
-    deltas: [
+    deltas: opts.deltas ?? [
       { base: "staging", head: "live-defi-rollout", ahead_by: 2, behind_by: 0, files_changed: 3 },
       { base: "main", head: "staging", ahead_by: 1, behind_by: 0, files_changed: 1 },
       { base: "main", head: "live-defi-rollout", ahead_by: 3, behind_by: 0, files_changed: 4 },
@@ -1184,16 +1192,54 @@ function mockRepoCiRow(
         : { sha: "abc1100567", at: "2026-06-10T06:00:00Z" },
     // G6: every mock row is LDR-ahead-of-main (delta ahead_by=3) so it has a lag; FAILING repos
     // sit longer (drain stuck). >60min so the lag-chip renders red.
-    main_lag_age_min: ciStatus === "FAILING" ? 185 : 95,
+    main_lag_age_min: opts.lagMin === undefined ? (ciStatus === "FAILING" ? 185 : 95) : opts.lagMin,
     // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
     // stale/failing drain leg); healthy repos are draining so not stalled.
-    drain_stalled: ciStatus === "FAILING",
+    drain_stalled: opts.drainStalled ?? ciStatus === "FAILING",
+    // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
+    tier,
+    blocked_by: blockedBy,
+    blocking,
+    // Codebase-health metrics (2026-06-19): coverage%, QG fail reason, oversized-file counts.
+    // FAILING repos: lower coverage + a qg_red_reason; healthy repos: high coverage, clean.
+    codebase_health:
+      repoType === "tool"
+        ? null
+        : {
+            coverage_pct: ciStatus === "FAILING" ? 58 : ciStatus === "STAGING_GREEN" ? 74 : 87,
+            qg_red_reason: ciStatus === "FAILING" ? "basedpyright" : ciStatus === "STAGING_GREEN" ? "pytest" : null,
+            large_file_count: ciStatus === "FAILING" ? 2 : 0,
+            warn_file_count: ciStatus === "FAILING" ? 3 : ciStatus === "STAGING_GREEN" ? 1 : 0,
+          },
   };
 }
 
 function mockRepoCiOverview() {
+  const UAC_DEP = { name: "unified-api-contracts", tier: "0", ci_status: "STAGING_GREEN" };
   const rows = [
-    mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false),
+    // tier-0 contracts lib STUCK at STAGING_GREEN — the dep-order ROOT blocker holding the fleet.
+    mockRepoCiRow(
+      "unified-api-contracts",
+      "library",
+      "STAGING_GREEN",
+      [],
+      false,
+      false,
+      "0",
+      [],
+      ["market-tick-data-service", "strategy-service"],
+    ),
+    mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false, "1"),
+    // The healthy in-sync reference — content fully promoted to main (all hops 0 files, no lag), so
+    // classifyStall = none → no hop pills, "—" stall reason. Proves the dashboard doesn't false-flag.
+    mockRepoCiRow("client-reporting-api", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "staging", ahead_by: 0, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+      ],
+      lagMin: null,
+    }),
     mockRepoCiRow(
       "market-tick-data-service",
       "service",
@@ -1201,6 +1247,8 @@ function mockRepoCiOverview() {
       [mockRepoCiPr("market-tick-data-service", 41, "main", "conflicting", "dirty")],
       false,
       false,
+      "service",
+      [UAC_DEP],
     ),
     mockRepoCiRow(
       "instruments-service",
@@ -1228,8 +1276,24 @@ function mockRepoCiOverview() {
       [mockRepoCiPr("strategy-service", 52, "main", "automerge_stuck", "blocked")],
       false,
       false,
+      "service",
+      [UAC_DEP],
     ),
     mockRepoCiRow("greeks-service", "service", "STAGING_GREEN", [], true, true),
+    // agent-orchestrator class — the staging→main PROMOTER STALL. LDR→staging is fully drained
+    // (files 0), but staging is 144 files / 326 commits ahead of main with NO open PR, while
+    // ci_status reads MAIN_GREEN — the "status lies" case the dep-order card cannot catch (only the
+    // git-delta lag chip does). Exercises classifyStall=staging-to-main + ciStatusStale + the
+    // HopPills / StallReasonChip render path.
+    mockRepoCiRow("agent-orchestrator", "tool", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 96, behind_by: 0, files_changed: 0 },
+        { base: "main", head: "staging", ahead_by: 326, behind_by: 2, files_changed: 144 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 420, behind_by: 0, files_changed: 71 },
+      ],
+      lagMin: 12180,
+      drainStalled: false,
+    }),
   ];
   const stuckPrs = rows.flatMap((row) => row.open_prs.filter((pr) => pr.stuck_class));
   const stuckInSit = rows.filter((row) => row.sit.stuck_in_sit).map((row) => row.repo);
@@ -1293,6 +1357,20 @@ function mockRepoCiOverview() {
       pending_bump_repos: ["execution-service", "mtds", "alerting-service"],
       breaker_armed: true,
       breaker_threshold: 3,
+    },
+    // Dep-order HOLDS (operator 2026-06-19) — distinct from promotion_blocked (failure-quarantine):
+    // a tier-0 dep (unified-api-contracts) at STAGING_GREEN holds 2 service repos from main.
+    promotion_held: {
+      held_repos: ["market-tick-data-service", "strategy-service"],
+      root_blockers: [
+        {
+          repo: "unified-api-contracts",
+          tier: "0",
+          ci_status: "STAGING_GREEN",
+          blocking_count: 2,
+          main_files_behind: 35,
+        },
+      ],
     },
   };
 }
@@ -1503,6 +1581,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     .replace(/\?.*$/, "")
     .replace("/api/v1/", "/api/");
 
+  // Test observability (mirrors __mockErrors): when a spec opts in by seeding window.__mockRequests,
+  // record the RAW request URL (query string intact) so playwright can assert query params — e.g. the
+  // repo-CI GCP/AWS ?provider= toggle — without a network round-trip the in-process mock never makes.
+  const reqLog = (window as typeof window & { __mockRequests?: string[] }).__mockRequests;
+  if (reqLog) reqLog.push(url);
+
   // Test-injected error overrides — set window.__mockErrors before page.goto()
   // to simulate backend failures without Playwright route mocks.
   const testErrors = (window as typeof window & { __mockErrors?: Array<{ pattern: string; status: number }> })
@@ -1519,6 +1603,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // every stuck class + stuck-in-SIT + the live SIT-run panel, pinned by the
   // playwright regression spec tests/e2e/repos-stuck-panel.spec.ts)
   if (path === "/api/repo-ci/alerts") {
+    return json(mockRepoCiAlerts());
+  }
+  // Unified alert ledger — all classes (INFRA P1 will extend with non-CI kinds).
+  if (path === "/api/alerts") {
     return json(mockRepoCiAlerts());
   }
   if (path === "/api/repo-ci/overview") {
@@ -2873,7 +2961,143 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     ]);
   }
 
+  // Fleet VM census (vm_zombie_watchdog.py running/expected/zombie/OOM)
+  if (path === "/api/fleet/vm-census") {
+    return json(mockVmCensus());
+  }
+  // Fleet infra-VM health (AO /api/fleet/summary proxy)
+  if (path === "/api/fleet/infra-vm-health") {
+    return json(mockInfraVmHealth());
+  }
+
   return json({ error: "Mock: no handler", path }, 404);
+}
+
+// VM Census — mirrors deployment-api /api/fleet/vm-census (wraps vm_zombie_watchdog.py)
+// Seeds: 2 RUNNING (1 long-lived central, 1 scheduled) · 3 expected · 0 zombie ·
+// 1 OOM-terminated (the vm-0 class that was invisible — now explicitly surfaced).
+function mockVmCensus() {
+  return {
+    generated_at: new Date().toISOString(),
+    running: 2,
+    expected: 3,
+    zombie: 0,
+    oom: 1,
+    stopped: 1,
+    vms: [
+      {
+        name: "agent-orchestrator-vm-1",
+        prefix: "agent-orchestrator",
+        lifecycle_class: "LONG_LIVED_LIVE",
+        status: "RUNNING",
+        zombie: false,
+        oom: false,
+        age_min: 5760,
+        zone: "asia-northeast1-c",
+      },
+      {
+        name: "vm-manifest-consolidator-20260619",
+        prefix: "vm-manifest-consolidator",
+        lifecycle_class: "SCHEDULED_RECURRING",
+        status: "RUNNING",
+        zombie: false,
+        oom: false,
+        age_min: 35,
+        zone: "asia-northeast1-c",
+      },
+      {
+        name: "vm-defi-backfill-20260618-001",
+        prefix: "vm-defi-backfill",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        status: "TERMINATED",
+        zombie: false,
+        oom: true,
+        age_min: null,
+        zone: "asia-northeast1-c",
+      },
+      {
+        name: "vm-defi-backfill-20260618-002",
+        prefix: "vm-defi-backfill",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        status: "STOPPED",
+        zombie: false,
+        oom: false,
+        age_min: null,
+        zone: "asia-northeast1-c",
+      },
+    ],
+  };
+}
+
+// Infra VM Health — mirrors deployment-api /api/fleet/infra-vm-health (proxies AO /api/fleet/summary)
+// Seeds: central planning VM (healthy) + human-planning VM (1 stale slot alert).
+function mockInfraVmHealth() {
+  return {
+    available: true,
+    orchestrator_url: "https://agent-orchestrator.odum-research.com",
+    vms: [
+      {
+        id: "planning",
+        label: "Central / Orchestrator VM",
+        url: "https://api.agent-orchestrator.odum-research.com",
+        available: true,
+        error: null,
+        stale: false,
+        last_heartbeat_seconds_ago: 42,
+        summary: {
+          vm_id: "i-0c9b283b31d6b5ca7",
+          role: "planning",
+          label: "Central / Orchestrator VM",
+          slots_total: 8,
+          slots_working: 3,
+          slots_idle: 4,
+          slots_stale: 1,
+          slots_paused: 0,
+          slots_blocked: 0,
+          backlog_total: 12,
+          backlog_queued: 4,
+          alerts: [
+            {
+              severity: "warn",
+              kind: "slot_stale",
+              detail: "slot-7 has no heartbeat for >25 min",
+            },
+          ],
+          watchdog: {
+            enabled: true,
+            kills_today: 2,
+            daily_cap: 20,
+            dormant: false,
+            flapping: false,
+          },
+        },
+      },
+      {
+        id: "human-planning",
+        label: "Human Planning VM",
+        url: "",
+        available: true,
+        error: null,
+        stale: false,
+        last_heartbeat_seconds_ago: 180,
+        summary: {
+          vm_id: "i-0dd9812a96cdda5dc",
+          role: "planning",
+          label: "Human Planning VM",
+          slots_total: 4,
+          slots_working: 1,
+          slots_idle: 3,
+          slots_stale: 0,
+          slots_paused: 0,
+          slots_blocked: 0,
+          backlog_total: 0,
+          backlog_queued: 0,
+          alerts: [],
+          watchdog: null,
+        },
+      },
+    ],
+  };
 }
 
 function _mockVmDeployment(deploymentId: string, status: string) {
