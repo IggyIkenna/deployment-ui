@@ -135,7 +135,8 @@ export function branchTone(row: RepoCiOverviewRow, branch: string, sha: string |
     if (c === "success") return "green";
     return BAD_CONCLUSIONS.has(c) ? "red" : "gray";
   }
-  // No live per-branch conclusion: only FAILING repos are fetched, so absence ⟹ not failing.
+  // Fallback for degraded-fetch: branch_ci is populated for all repos (MAIN_GREEN synthetic,
+  // others live); absence here means a fetch failure, not a green repo. Non-FAILING = green.
   return row.ci_status === "FAILING" ? "gray" : "green";
 }
 
