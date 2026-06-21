@@ -207,8 +207,22 @@ describe("branchTone (per-branch SHA-cell colour — replaces the CI-status colu
     expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "staging", null)).toBe("gray");
   });
 
-  it("non-FAILING repo with no live branch_ci ⟹ green (its branches all last-passed)", () => {
-    // branch_ci is live-fetched only for FAILING repos; absence on a green repo ⟹ green.
+  it("MAIN_GREEN repo with explicit branch_ci (synthetic success from the API) ⟹ green for all branches", () => {
+    // After the deployment-api fix, branch_ci is populated for ALL repos: MAIN_GREEN repos receive
+    // { "live-defi-rollout": "success", staging: "success", main: "success" } synthetically (no
+    // extra API calls). All three branches must resolve to green via the explicit conclusion path.
+    const r = row({
+      ci_status: "MAIN_GREEN",
+      branch_ci: { "live-defi-rollout": "success", staging: "success", main: "success" },
+    });
+    expect(branchTone(r, "live-defi-rollout", "abc1234")).toBe("green");
+    expect(branchTone(r, "staging", "abc1200")).toBe("green");
+    expect(branchTone(r, "main", "abc1100")).toBe("green");
+  });
+
+  it("non-FAILING repo with no live branch_ci (degraded fetch) ⟹ green fallback", () => {
+    // branch_ci is populated for all repos (MAIN_GREEN synthetic, others live); absence here
+    // means a fetch failure. Non-FAILING repo defaults to green on the fallback path.
     expect(branchTone(row({ ci_status: "MAIN_GREEN" }), "main", "abc1100")).toBe("green");
     expect(branchTone(row({ ci_status: "STAGING_GREEN" }), "live-defi-rollout", "ldr0001")).toBe("green");
   });
