@@ -1061,7 +1061,11 @@ function OverviewTable({
               </td>
               <td className="py-1.5 text-[var(--color-text-secondary)] align-top">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
+                  {/* LDR→main commit count = the real squash-free count (main_unpromoted_commits)
+                      when there's content drift; ahead_by only for the in-sync squash-skew case. */}
+                  <span>
+                    {ldrMain ? deltaLabel(ldrMain.files_changed, row.main_unpromoted_commits ?? ldrMain.ahead_by) : "—"}
+                  </span>
                   {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
                   {typeof row.main_lag_age_min === "number" && (
                     <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
