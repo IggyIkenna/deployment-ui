@@ -46,6 +46,8 @@ import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
 import { DailyCosts } from "./pages/DailyCosts";
+import { Deployments } from "./pages/Deployments";
+import { DeploymentDetail } from "./pages/DeploymentDetail";
 import { RepoDetailPanel } from "./pages/RepoCi";
 import { LandingTabs } from "./components/LandingTabs";
 import { VmDetail } from "./pages/VmDetail";
@@ -143,6 +145,8 @@ function App() {
                 <Routes>
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
+                  <Route path="/deployments" element={<Deployments />} />
+                  <Route path="/deployments/:name" element={<DeploymentDetail />} />
                   <Route path="/chaos" element={<Chaos />} />
                   <Route path="/ops/live-deployments" element={<LiveDeployments />} />
                   <Route path="/ops/costs" element={<DailyCosts />} />
