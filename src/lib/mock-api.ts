@@ -1070,6 +1070,141 @@ function json<T>(data: T, status = 200): Response {
   });
 }
 
+// ---- Deployment observability inventory mock data (keep in lockstep with
+// deployment-api deployments_inventory.py — DeploymentItem shape). Covers every
+// umbrella (live/batch/paper/experiment) × cloud (GCP/AWS) × kind (VM / Cloud Run
+// job), incl. a failed exit-137 (OOM) row so the failed badge + exit highlight render. ----
+
+interface MockDeploymentItem {
+  name: string;
+  kind: "VM" | "CLOUD_RUN_JOB";
+  umbrella: "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT";
+  cloud: "GCP" | "AWS";
+  service: string;
+  asset_group: string;
+  status: string;
+  last_run_at: string | null;
+  exit_code: number | null;
+  heartbeat_age_seconds: number | null;
+  captured_progress: number | null;
+  run_log_uri: string | null;
+}
+
+const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
+  {
+    name: "defi-live-capture-1",
+    kind: "VM",
+    umbrella: "LIVE",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: "2026-06-22T08:30:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 42,
+    captured_progress: 18234,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-live-capture-1/run.log",
+  },
+  {
+    name: "cefi-live-trading-1",
+    kind: "VM",
+    umbrella: "LIVE",
+    cloud: "AWS",
+    service: "execution-service",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: "2026-06-22T08:29:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 900,
+    captured_progress: null,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/cefi-live-trading-1/run.log",
+  },
+  {
+    name: "cefi-backfill-20260620",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "cefi",
+    status: "succeeded",
+    last_run_at: "2026-06-20T22:14:00Z",
+    exit_code: 0,
+    heartbeat_age_seconds: null,
+    captured_progress: 412000,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/cefi-backfill-20260620/run.log",
+  },
+  {
+    name: "sports-backfill-20260621",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "sports",
+    status: "failed",
+    last_run_at: "2026-06-21T03:11:00Z",
+    exit_code: 137,
+    heartbeat_age_seconds: null,
+    captured_progress: 0,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/sports-backfill-20260621/run.log",
+  },
+  {
+    name: "manifest-consolidator",
+    kind: "CLOUD_RUN_JOB",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "all",
+    status: "succeeded",
+    last_run_at: "2026-06-22T08:00:00Z",
+    exit_code: 0,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+  },
+  {
+    name: "exp-ml-018f4-20260619",
+    kind: "VM",
+    umbrella: "EXPERIMENT",
+    cloud: "GCP",
+    service: "ml-service",
+    asset_group: "defi",
+    status: "succeeded",
+    last_run_at: "2026-06-19T14:00:00Z",
+    exit_code: 0,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/exp-ml-018f4-20260619/run.log",
+  },
+  {
+    name: "defi-paper-trading-1",
+    kind: "VM",
+    umbrella: "PAPER",
+    cloud: "GCP",
+    service: "strategy-service",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: "2026-06-22T08:25:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 120,
+    captured_progress: null,
+    run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-paper-trading-1/run.log",
+  },
+  {
+    name: "funding-ensemble-paper-week",
+    kind: "CLOUD_RUN_JOB",
+    umbrella: "PAPER",
+    cloud: "GCP",
+    service: "strategy-service",
+    asset_group: "cefi",
+    status: "stale",
+    last_run_at: "2026-06-21T06:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+  },
+];
+
 // ---- Repo-CI dashboard mock data (keep in lockstep with deployment-api repo_ci.py) ----
 
 interface MockRepoCiPr {
@@ -1851,6 +1986,55 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       },
       201,
     );
+  }
+  // Deployment observability — unified inventory + per-umbrella summary (Phase 2 of
+  // deployment_observability_parity_live_batch_paper_2026_06_22.md). These MUST precede
+  // the single-segment `/api/deployments/[^/]+$` handler below (which would otherwise
+  // swallow `/api/deployments/inventory`). Mirrors deployment-api@5df5f01 shapes.
+  if (path === "/api/deployments/inventory") {
+    const reqUrl = new URL(url, "http://x");
+    const umbrella = (reqUrl.searchParams.get("umbrella") ?? "").toUpperCase();
+    const cloud = (reqUrl.searchParams.get("cloud") ?? "").toUpperCase();
+    const status = reqUrl.searchParams.get("status") ?? "";
+    const assetGroup = reqUrl.searchParams.get("asset_group") ?? "";
+    let items = MOCK_DEPLOYMENT_INVENTORY;
+    if (umbrella) {
+      // EXPERIMENT folds under BATCH — a BATCH query returns experiment targets too.
+      const keep = umbrella === "BATCH" ? ["BATCH", "EXPERIMENT"] : [umbrella];
+      items = items.filter((i) => keep.includes(i.umbrella));
+    }
+    if (cloud) items = items.filter((i) => i.cloud === cloud);
+    if (status) items = items.filter((i) => i.status === status);
+    if (assetGroup) items = items.filter((i) => i.asset_group === assetGroup);
+    return json({
+      items,
+      total: items.length,
+      vm_count: items.filter((i) => i.kind === "VM").length,
+      cloud_run_job_count: items.filter((i) => i.kind === "CLOUD_RUN_JOB").length,
+    });
+  }
+  {
+    const summaryMatch = path.match(/^\/api\/deployments\/umbrella\/([^/]+)\/summary$/);
+    if (summaryMatch) {
+      const umbrella = summaryMatch[1].toUpperCase();
+      const keep = umbrella === "BATCH" ? ["BATCH", "EXPERIMENT"] : [umbrella];
+      const scoped = MOCK_DEPLOYMENT_INVENTORY.filter((i) => keep.includes(i.umbrella));
+      const counts: Record<string, number> = {};
+      for (const i of scoped) counts[i.status] = (counts[i.status] ?? 0) + 1;
+      const failures = scoped
+        .filter((i) => i.status === "failed")
+        .sort((a, b) => (b.last_run_at ?? "").localeCompare(a.last_run_at ?? ""));
+      const lastFailure = failures[0]
+        ? { name: failures[0].name, exit_code: failures[0].exit_code, last_run_at: failures[0].last_run_at }
+        : null;
+      return json({
+        umbrella,
+        total: scoped.length,
+        counts_by_status: counts,
+        stale_count: counts["stale"] ?? 0,
+        last_failure: lastFailure,
+      });
+    }
   }
   if (path === "/api/deployments") {
     const deps = getStressDeployments();

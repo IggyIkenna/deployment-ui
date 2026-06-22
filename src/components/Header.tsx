@@ -58,6 +58,7 @@ export function Header() {
 
   const NAV_LINKS = [
     { to: "/vm-deployments", label: "VM Deployments" },
+    { to: "/deployments", label: "Deployments" },
     { to: "/chaos", label: "Chaos" },
     { to: "/ops/live-deployments", label: "Live Ops" },
     { to: "/ops/costs", label: "Costs" },
@@ -145,6 +146,13 @@ export function Header() {
             className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
           >
             VM Deployments
+          </Link>
+          <Link
+            to="/deployments"
+            data-testid="nav-deployments"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
+          >
+            Deployments
           </Link>
           <Link
             to="/chaos"

@@ -552,3 +552,81 @@ export async function fetchVenueTardisWindows(): Promise<VenueTardisWindowsRespo
   const response = await fetch(`${DEPLOYMENT_API}/api/data-status/venue-tardis-windows`);
   return handleResponse<VenueTardisWindowsResponse>(response);
 }
+
+// -------------------------------------------------------------------------
+// Deployment observability — unified inventory of every VM + Cloud Run job,
+// classified under a live/batch/paper umbrella × cloud (GCP/AWS). Mirrors the
+// /repos CI surface for deployments. Backend: deployment-api@5df5f01
+//   GET /api/deployments/inventory?umbrella=&cloud=&service=&asset_group=&status=
+//   GET /api/deployments/umbrella/{umbrella}/summary
+// Plan: deployment_observability_parity_live_batch_paper_2026_06_22.md Phase 2.
+// -------------------------------------------------------------------------
+
+export type DeploymentUmbrella = "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT";
+export type DeploymentKind = "VM" | "CLOUD_RUN_JOB";
+export type DeploymentCloud = "GCP" | "AWS";
+/** Status taxonomy mirrored from the inventory route — color-coded like RepoCi. */
+export type DeploymentStatus = "succeeded" | "failed" | "running" | "stale" | "unknown" | string;
+
+export interface DeploymentItem {
+  name: string;
+  kind: DeploymentKind;
+  umbrella: DeploymentUmbrella;
+  cloud: DeploymentCloud;
+  service: string;
+  asset_group: string;
+  status: DeploymentStatus;
+  last_run_at: string | null;
+  exit_code: number | null;
+  heartbeat_age_seconds: number | null;
+  captured_progress: number | null;
+  run_log_uri: string | null;
+}
+
+export interface DeploymentInventoryResponse {
+  items: DeploymentItem[];
+  total: number;
+  vm_count: number;
+  cloud_run_job_count: number;
+}
+
+export interface UmbrellaLastFailure {
+  name: string;
+  exit_code: number | null;
+  last_run_at: string | null;
+}
+
+export interface UmbrellaSummaryResponse {
+  umbrella: DeploymentUmbrella;
+  total: number;
+  counts_by_status: Record<string, number>;
+  stale_count: number;
+  last_failure: UmbrellaLastFailure | null;
+}
+
+export interface DeploymentInventoryFilters {
+  umbrella?: DeploymentUmbrella;
+  cloud?: DeploymentCloud;
+  service?: string;
+  asset_group?: string;
+  status?: string;
+}
+
+export async function getDeploymentInventory(
+  filters: DeploymentInventoryFilters = {},
+): Promise<DeploymentInventoryResponse> {
+  const params = new URLSearchParams();
+  if (filters.umbrella) params.set("umbrella", filters.umbrella);
+  if (filters.cloud) params.set("cloud", filters.cloud);
+  if (filters.service) params.set("service", filters.service);
+  if (filters.asset_group) params.set("asset_group", filters.asset_group);
+  if (filters.status) params.set("status", filters.status);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/inventory${qs}`);
+  return handleResponse<DeploymentInventoryResponse>(response);
+}
+
+export async function getUmbrellaSummary(umbrella: DeploymentUmbrella): Promise<UmbrellaSummaryResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/umbrella/${encodeURIComponent(umbrella)}/summary`);
+  return handleResponse<UmbrellaSummaryResponse>(response);
+}
