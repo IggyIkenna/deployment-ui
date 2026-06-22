@@ -3435,6 +3435,10 @@ export interface RepoCiOverviewRow {
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** Dual-cloud image status (side-by-side, no provider toggle) — per-cloud build signal. Null/absent
+   * when that cloud's build API isn't reachable. `image` is the active provider's (deployed_version). */
+  image_gcp?: RepoCiImageSignal | null;
+  image_aws?: RepoCiImageSignal | null;
   /** N2: most-recent GREEN main sha + time ("green as of <sha> · <age>"), distinct from the head
    * (which may be red/pending). Null when no successful v2 run is known for the repo's main. */
   last_green_main?: RepoCiLastGreen | null;
