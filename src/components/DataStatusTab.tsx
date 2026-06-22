@@ -209,6 +209,8 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
       {entries.length > MAX_VISIBLE && (
         <input
           type="text"
+          name="venue-search"
+          aria-label="Search venues"
           placeholder="Search venues..."
           value={search}
           onChange={(e) => {
@@ -1831,6 +1833,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             <CardContent>
               <div className="relative">
                 <Input
+                  id="symbol-search"
+                  name="symbol-search"
+                  aria-label="Symbol search"
                   type="text"
                   value={symbolSearchQuery}
                   onChange={(e) => {
@@ -1948,8 +1953,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">Start Date</Label>
+                  <Label
+                    htmlFor="data-status-start-date"
+                    className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block"
+                  >
+                    Start Date
+                  </Label>
                   <Input
+                    id="data-status-start-date"
+                    name="startDate"
                     type="date"
                     value={startDate}
                     onChange={(e) => {
@@ -1987,8 +1999,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">End Date</Label>
+                  <Label
+                    htmlFor="data-status-end-date"
+                    className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block"
+                  >
+                    End Date
+                  </Label>
                   <Input
+                    id="data-status-end-date"
+                    name="endDate"
                     type="date"
                     value={endDate}
                     onChange={(e) => {
@@ -2017,6 +2036,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                     {requireFreshness && (
                       <>
                         <Input
+                          id="data-status-freshness"
+                          name="freshnessDate"
+                          aria-label="Require freshness — updated since"
                           type="datetime-local"
                           step="1"
                           value={freshnessDate}
