@@ -128,7 +128,11 @@ function App() {
         <CloudProviderProvider>
           <NotificationProvider>
             <RequireAuth>
-              <div className="min-h-screen bg-[var(--color-bg-primary)]">
+              {/* overflow-x-clip: the responsive layout always fits the viewport, so a
+                  document-level horizontal scrollbar is never wanted — clipping it stops the
+                  transient horizontal-scrollbar flicker on every background refresh (the data
+                  table scrolls inside its own overflow-x-auto wrapper). operator 2026-06-22. */}
+              <div className="min-h-screen overflow-x-clip bg-[var(--color-bg-primary)]">
                 <MockModeBanner />
                 <Header />
                 <ServiceUrlSync
@@ -152,7 +156,14 @@ function App() {
                   <Route
                     path="*"
                     element={
-                      <main className="mx-auto px-4 lg:px-6 py-4 max-w-[1920px]">
+                      /* Full-width shell — adapt to the monitor, no fixed max-w cap.
+                         The old max-w-[1920px] centered the content and wasted the right
+                         third of a wide (≥2560px) monitor (operator 2026-06-22). The 12-col
+                         grid + per-tab tables fill the space; cards stay readable via their
+                         own md/xl column grids. Horizontal gutter is `app-shell-gutter` (a
+                         plain CSS class) NOT Tailwind `px-*` — the unlayered `* { padding: 0 }`
+                         reset outranks Tailwind v4's layered utilities, so `px-*` is dead here. */
+                      <main className="w-full app-shell-gutter py-4">
                         <div className="grid grid-cols-12 gap-4 lg:gap-6">
                           <div className="col-span-12 lg:col-span-3 xl:col-span-2 2xl:col-span-2">
                             <ServiceList
