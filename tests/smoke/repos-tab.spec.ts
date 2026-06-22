@@ -452,4 +452,48 @@ test.describe("Repos CI page", () => {
       .evaluate((el) => getComputedStyle(el).borderRightWidth);
     expect(parseFloat(borderRight)).toBeGreaterThan(0);
   });
+
+  test("shell gutter + no horizontal scrollbar + no whole-panel focus ring (operator 2026-06-22)", async ({ page }) => {
+    // Three readability regressions reported after the full-width change:
+    //  (2) a horizontal scrollbar flickered on every background refresh;
+    //  (3) a cyan focus ring flashed around the WHOLE Repos-CI panel during refresh;
+    //  (4) content was jammed to the right edge (Tailwind px-* is dead under the
+    //      unlayered `* { padding: 0 }` reset, so the gutter is the .app-shell-gutter class).
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+
+    // (4) Real right/left gutter on a wide monitor (.app-shell-gutter → 20px from lg up).
+    const padRight = await page
+      .locator("main")
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).paddingRight));
+    expect(padRight).toBeGreaterThanOrEqual(15);
+
+    // (3) The tab panel no longer carries a whole-panel focus ring class.
+    const panelRing = await page
+      .getByTestId("landing-repos-ci-tab")
+      .evaluate((el) => el.className.includes("focus-visible:ring"));
+    expect(panelRing).toBe(false);
+
+    // (2) No document-level horizontal scrollbar — sample across a refresh re-render.
+    await page.getByTestId("repo-ci-refresh").click();
+    let maxOverflow = 0;
+    for (let i = 0; i < 8; i++) {
+      const o = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      maxOverflow = Math.max(maxOverflow, o);
+      await page.waitForTimeout(40);
+    }
+    expect(maxOverflow).toBeLessThanOrEqual(0);
+
+    // (4b) Smaller screens get the tighter 5px gutter (responsive).
+    await page.setViewportSize({ width: 640, height: 900 });
+    await page.waitForTimeout(50);
+    const smallPad = await page
+      .locator("main")
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).paddingRight));
+    expect(smallPad).toBeGreaterThan(0);
+    expect(smallPad).toBeLessThan(15);
+  });
 });

@@ -118,6 +118,23 @@ html {
   outline-offset: 2px;
 }
 
+/* Shell horizontal gutter (operator 2026-06-22). Tailwind's `px-*` is DEAD on the
+ * shell `<main>` because the unlayered `* { padding: 0 }` reset above outranks
+ * Tailwind v4's layered utilities — so the gutter is an explicit unlayered rule
+ * (class specificity beats the universal reset). 5px on small screens, 20px from
+ * the lg breakpoint up, so wide monitors get a real right/left margin instead of
+ * content jammed to the edge. */
+.app-shell-gutter {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+@media (min-width: 1024px) {
+  .app-shell-gutter {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
 code,
 pre,
 .mono {
