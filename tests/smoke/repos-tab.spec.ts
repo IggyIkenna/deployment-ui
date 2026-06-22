@@ -425,4 +425,31 @@ test.describe("Repos CI page", () => {
     await page.getByTestId("repo-sort-tier").click();
     expect(await firstRepo()).toBe("unified-api-contracts");
   });
+
+  test("full-width shell + per-column dividers on a wide monitor (operator 2026-06-22)", async ({ page }) => {
+    // Regression for two readability fixes:
+    //  (1) the shell adapts to screen width — the old <main> max-w-[1920px] cap centered the
+    //      content and wasted the right third of a ≥2560px monitor;
+    //  (2) the 14-column repo table carries vertical dividers so columns are distinct.
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+
+    // (1) Full-width: <main> fills the wide viewport. Under the old 1920 cap this would be
+    // ≤1920 on a 2560 screen — assert it well exceeds that so the cap cannot silently return.
+    const mainWidth = await page
+      .locator("main")
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().width);
+    expect(mainWidth).toBeGreaterThan(2200);
+
+    // (2) Dividers: a middle header cell (not first/last) carries a right border so the
+    // columns read apart. Reverting the table className drops this to 0px.
+    const borderRight = await page
+      .getByTestId("repo-ci-table")
+      .locator("thead th")
+      .nth(1)
+      .evaluate((el) => getComputedStyle(el).borderRightWidth);
+    expect(parseFloat(borderRight)).toBeGreaterThan(0);
+  });
 });

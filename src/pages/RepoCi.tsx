@@ -837,7 +837,15 @@ function OverviewTable({
     return rowSeverity(b) - rowSeverity(a) || a.repo.localeCompare(b.repo);
   });
   return (
-    <table className="w-full text-sm" aria-label="Repo CI overview" data-testid="repo-ci-table">
+    <table
+      // Per-column vertical dividers + horizontal padding so the 14 columns read apart
+      // (operator 2026-06-22 — "very little distinction between columns"). border-r on every
+      // cell except the last draws the divider; px-3 gives breathing room (first/last cells
+      // stay flush to the card edge). Colour reuses the existing /40·/15 border tokens.
+      className="w-full text-sm [&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-1 [&_td:first-child]:pl-1 [&_th:last-child]:pr-1 [&_td:last-child]:pr-1 [&_th:not(:last-child)]:border-r [&_td:not(:last-child)]:border-r [&_th]:border-[var(--color-border-default)]/40 [&_td]:border-[var(--color-border-default)]/15"
+      aria-label="Repo CI overview"
+      data-testid="repo-ci-table"
+    >
       <thead>
         <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)]">
           <Th
