@@ -1009,7 +1009,7 @@ function OverviewTable({
         </tr>
       </thead>
       <tbody>
-        {sorted.map((row) => {
+        {sorted.map((row, rowIndex) => {
           const bySha = new Map(row.branches.map((b) => [b.branch, b.sha]));
           const ldrMain = row.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout");
           const stuckCount = row.open_prs.filter((pr) => pr.stuck_class).length;
@@ -1020,7 +1020,7 @@ function OverviewTable({
               data-testid={`repo-row-${row.repo}`}
               onClick={() => onSelect(row.repo)}
               className={`border-b border-[var(--color-border-default)]/40 cursor-pointer hover:bg-[var(--color-bg-secondary)] ${
-                selected === row.repo ? "bg-[var(--color-bg-secondary)]" : ""
+                selected === row.repo ? "bg-[var(--color-bg-secondary)]" : rowIndex % 2 === 1 ? "bg-white/[0.04]" : ""
               }`}
             >
               <td className="py-1.5 font-mono text-[var(--color-text-primary)]">{row.repo}</td>
