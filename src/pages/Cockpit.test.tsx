@@ -54,6 +54,14 @@ describe("Cockpit", () => {
     }
   });
 
+  it("Health landing lists the Consoles & tools links (folded surfaces are reachable)", () => {
+    renderAt("/cockpit");
+    expect(screen.getByTestId("cockpit-consoles")).toBeTruthy();
+    for (const id of ["vm-deployments", "live-ops", "chaos", "safety-ops", "ml", "strategy", "exec-bt"]) {
+      expect(screen.getByTestId(`cockpit-console-${id}`)).toBeTruthy();
+    }
+  });
+
   it("honours the ?tab= query param for deep-linking", () => {
     renderAt("/cockpit?tab=fleet");
     expect(screen.getByTestId("cockpit-fleet")).toBeTruthy();

@@ -12,9 +12,9 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Alerts page", () => {
-  test("nav routes to /alerts which renders as a home-shell tab", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-alerts").click();
+  test("cockpit Alerts tile routes to /alerts which renders as a home-shell tab", async ({ page }) => {
+    await page.goto("/cockpit");
+    await page.getByTestId("cockpit-tile-alerts").click();
     await expect(page).toHaveURL(/\/alerts$/);
     await expect(page.getByTestId("landing-alerts-tab")).toBeVisible();
     await expect(page.getByTestId("alerts-page")).toBeVisible();
