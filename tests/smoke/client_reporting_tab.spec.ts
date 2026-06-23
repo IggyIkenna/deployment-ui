@@ -243,7 +243,7 @@ test.describe("ClientReportingTab", () => {
   });
 
   test("client-reporting-api shows Client Reporting tab", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("client reporting api").first().click();
@@ -252,7 +252,7 @@ test.describe("ClientReportingTab", () => {
   });
 
   test("Client Reporting tab renders the root container", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("client reporting api").first().click();
@@ -262,7 +262,7 @@ test.describe("ClientReportingTab", () => {
   });
 
   test("Client Reporting tab shows NAV and PnL section headings", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("client reporting api").first().click();
@@ -288,7 +288,7 @@ test.describe("ClientReportingTab", () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();

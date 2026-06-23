@@ -63,8 +63,10 @@ export function Header() {
   return (
     <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
       <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30">
+        {/* The logo IS the way home — the cockpit is the default page, so there is no
+            separate "Cockpit" nav button. Plan 0.7. */}
+        <Link to="/cockpit" data-testid="nav-cockpit" className="flex items-center gap-3 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30 group-hover:border-[var(--color-accent-cyan)]">
             <Server className="h-5 w-5 text-[var(--color-accent-cyan)]" />
           </div>
           <div>
@@ -73,7 +75,7 @@ export function Header() {
             </h1>
             <p className="text-xs text-[var(--color-text-tertiary)] font-mono">deployment monitoring & orchestration</p>
           </div>
-        </div>
+        </Link>
 
         {/* Hamburger — mobile only */}
         <button
@@ -132,17 +134,8 @@ export function Header() {
               </Badge>
             );
           })()}
-          {/* Cockpit — the single entry to all deployment/health surfaces. The former
-              per-page nav links (Deployments, VM Deployments, Chaos, Live Ops, Repos CI,
-              Alerts, Safety Ops, ML, Strategy, Exec BT) moved INTO the cockpit (tabs +
-              Consoles section) so the top bar stays utility-only. Plan 0.7. */}
-          <Link
-            to="/cockpit"
-            data-testid="nav-cockpit"
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--color-accent-cyan)]/40 text-[var(--color-accent-cyan)] hover:border-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/10"
-          >
-            Cockpit
-          </Link>
+          {/* No page-nav here — the logo links to the cockpit (the default page), which
+              hosts every surface. Top bar is utility-only below. Plan 0.7. */}
           {/* Env tier badge — read-only, computed from hostname. NEVER a toggle. */}
           <div className="relative">
             <button

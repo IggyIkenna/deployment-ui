@@ -47,7 +47,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
   const handleTabChange = (next: string) => {
     const value = next as LandingTab;
     setTab(value);
-    // Mirror URL-synced tabs onto their routes; Overview/Epics share `/`.
+    // Mirror URL-synced tabs onto their routes; Overview lives at `/home` (cockpit owns `/`).
     const routeFor: Partial<Record<LandingTab, string>> = {
       repos: "/repos",
       alerts: "/alerts",
@@ -55,7 +55,7 @@ export function LandingTabs({ onSelectService }: { onSelectService: (service: st
       epics: "/epics",
       infra: "/infra",
     };
-    const target = routeFor[value] ?? "/";
+    const target = routeFor[value] ?? "/home";
     if (location.pathname !== target) navigate(target);
   };
 

@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Fleet Git-Health tab", () => {
   test("nav tab routes to /fleet and renders the proxied fleet data", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.getByTestId("landing-fleet-git-tab-trigger").click();
     await expect(page).toHaveURL(/\/fleet$/);
     await expect(page.getByTestId("fleet-git-page")).toBeVisible();

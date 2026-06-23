@@ -27,9 +27,7 @@ const MOCK_HEALTH = {
 async function mockCommon(page: Page) {
   await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
   await page.route("**/api/services", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/deployments**", (route) =>
-    route.fulfill({ json: { deployments: [] } }),
-  );
+  await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
   await page.route("**/api/monitor/**", (route) =>
     route.fulfill({
       json: {
@@ -71,9 +69,7 @@ async function mockCommon(page: Page) {
     }),
   );
   await page.route("**/api/clients/**", (route) => route.fulfill({ json: {} }));
-  await page.route("**/api/kill-switch/**", (route) =>
-    route.fulfill({ json: { is_active: false, triggers: [] } }),
-  );
+  await page.route("**/api/kill-switch/**", (route) => route.fulfill({ json: { is_active: false, triggers: [] } }));
   await page.route("**/api/risk/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/vm/**", (route) => route.fulfill({ json: { vms: [] } }));
   await page.route("**/api/infra/**", (route) => route.fulfill({ json: {} }));
@@ -97,14 +93,14 @@ test.describe("Mobile — iPhone SE (375×667)", () => {
 
   test("home page loads without crash", async ({ page }) => {
     await mockCommon(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).toBeVisible();
   });
 
   test("hamburger menu is visible and opens nav", async ({ page }) => {
     await mockCommon(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     const hamburger = page.getByRole("button", { name: /menu|hamburger|navigation/i });
     if (await hamburger.isVisible()) {
@@ -116,7 +112,7 @@ test.describe("Mobile — iPhone SE (375×667)", () => {
 
   test("home page has no horizontal overflow", async ({ page }) => {
     await mockCommon(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await noHorizontalOverflow(page);
   });
@@ -153,14 +149,14 @@ test.describe("Mobile — iPhone Pro (414×896)", () => {
 
   test("home page loads without crash", async ({ page }) => {
     await mockCommon(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).toBeVisible();
   });
 
   test("home page has no horizontal overflow", async ({ page }) => {
     await mockCommon(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await noHorizontalOverflow(page);
   });

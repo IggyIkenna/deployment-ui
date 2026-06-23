@@ -23,9 +23,7 @@ vi.mock("../../../src/contexts/CloudProviderContext", () => ({
     apiBaseUrl: "/api",
     switching: false,
   }),
-  CloudProviderProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+  CloudProviderProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Header uses react-router <Link>; wrap all renders in a MemoryRouter to

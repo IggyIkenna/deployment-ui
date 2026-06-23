@@ -11,21 +11,19 @@ test.beforeEach(async ({ page }) => {
     },
   );
 
-  (page as any).__runtimeErrors = errors;
+  (page as unknown as { __runtimeErrors: string[] }).__runtimeErrors = errors;
 });
 
 test("route / renders without ErrorBoundary crash", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Something went wrong")).not.toBeVisible();
-  await expect(
-    page.getByText(/Unknown Error|TypeError|Cannot read/i),
-  ).not.toBeVisible();
+  await expect(page.getByText(/Unknown Error|TypeError|Cannot read/i)).not.toBeVisible();
 
   const root = page.locator("#root");
   await expect(root).not.toBeEmpty();
 
-  const errors = (page as any).__runtimeErrors as string[];
+  const errors = (page as unknown as { __runtimeErrors: string[] }).__runtimeErrors;
   expect(errors).toEqual([]);
 });

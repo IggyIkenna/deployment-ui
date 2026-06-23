@@ -86,7 +86,7 @@ async function mockCoverageError(page: Page) {
 }
 
 async function navigateToVenueCoverage(page: Page) {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   // Select market-tick-data-service
@@ -110,7 +110,7 @@ test.describe("VenueCoverageTable", () => {
   test("venue coverage tab trigger visible for market-tick-data-service", async ({ page }) => {
     await mockBase(page);
     await mockCoverageOk(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Select market-tick-data-service if service list is visible
@@ -152,7 +152,7 @@ test.describe("VenueCoverageTable", () => {
   test("shows error alert when API fails", async ({ page }) => {
     await mockBase(page);
     // Navigate to service page first, then set the error flag before clicking tab
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     const serviceItem = page.locator('[data-testid="service-item-market-tick-data-service"]');
     if (await serviceItem.isVisible()) {

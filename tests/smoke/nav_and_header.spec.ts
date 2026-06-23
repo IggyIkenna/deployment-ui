@@ -42,7 +42,7 @@ async function mockBase(page: Page) {
 test.describe("Header — env-tier badge", () => {
   test("shows DEV badge on localhost (green text)", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // The badge renders the uppercase tier from resolveEnvTier()
@@ -53,7 +53,7 @@ test.describe("Header — env-tier badge", () => {
 
   test("DEV badge has green color class", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const badge = page.getByRole("button", { name: /Environment: dev/i });
@@ -62,7 +62,7 @@ test.describe("Header — env-tier badge", () => {
 
   test("clicking env badge opens tooltip with env/api/cloud rows", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const badge = page.getByRole("button", { name: /Environment: dev/i });
@@ -77,7 +77,7 @@ test.describe("Header — env-tier badge", () => {
 
   test("tooltip shows 'dev' as env value", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const badge = page.getByRole("button", { name: /Environment: dev/i });
@@ -91,7 +91,7 @@ test.describe("Header — env-tier badge", () => {
 
   test("tooltip shows localhost in api URL", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const badge = page.getByRole("button", { name: /Environment: dev/i });
@@ -102,7 +102,7 @@ test.describe("Header — env-tier badge", () => {
 
   test("tooltip dismisses on blur", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const badge = page.getByRole("button", { name: /Environment: dev/i });
@@ -123,7 +123,7 @@ test.describe("Header — mobile hamburger menu", () => {
 
   test("hamburger button visible on narrow viewport", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-testid="mobile-menu-btn"]')).toBeVisible();
@@ -131,7 +131,7 @@ test.describe("Header — mobile hamburger menu", () => {
 
   test("clicking hamburger opens mobile nav", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.locator('[data-testid="mobile-menu-btn"]').click();
@@ -140,7 +140,7 @@ test.describe("Header — mobile hamburger menu", () => {
 
   test("mobile nav contains the Cockpit link (top bar is utility-only)", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.locator('[data-testid="mobile-menu-btn"]').click();
@@ -149,7 +149,7 @@ test.describe("Header — mobile hamburger menu", () => {
 
   test("clicking a mobile nav link closes the menu", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.locator('[data-testid="mobile-menu-btn"]').click();

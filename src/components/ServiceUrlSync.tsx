@@ -19,7 +19,9 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-const LANDING_PATHS = new Set(["/", "/epics", "/repos", "/alerts", "/fleet"]);
+// `/home` is the per-service home shell (cockpit is the default `/`); the others are
+// LandingTabs sub-routes. All clear the service selection.
+const LANDING_PATHS = new Set(["/home", "/epics", "/repos", "/alerts", "/fleet"]);
 
 interface ServiceUrlSyncProps {
   selectedService: string | null;
