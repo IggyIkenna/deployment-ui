@@ -138,13 +138,13 @@ test.describe("Header — mobile hamburger menu", () => {
     await expect(page.locator('[data-testid="mobile-nav"]')).toBeVisible();
   });
 
-  test("mobile nav contains VM Deployments link", async ({ page }) => {
+  test("mobile nav contains the Cockpit link (top bar is utility-only)", async ({ page }) => {
     await mockBase(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     await page.locator('[data-testid="mobile-menu-btn"]').click();
-    await expect(page.getByRole("link", { name: /VM Deployments/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Cockpit/i })).toBeVisible();
   });
 
   test("clicking a mobile nav link closes the menu", async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe("Header — mobile hamburger menu", () => {
     await page.locator('[data-testid="mobile-menu-btn"]').click();
     await expect(page.locator('[data-testid="mobile-nav"]')).toBeVisible();
 
-    await page.getByRole("link", { name: /VM Deployments/i }).click();
+    await page.getByRole("link", { name: /Cockpit/i }).click();
     await page.waitForLoadState("networkidle");
     await expect(page.locator('[data-testid="mobile-nav"]')).not.toBeVisible();
   });
@@ -163,46 +163,26 @@ test.describe("Header — mobile hamburger menu", () => {
 
 // ── Nav link routing ────────────────────────────────────────────────────
 
-test.describe("Header — nav link routing", () => {
-  test("ML link navigates to /research/ml-experiments", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+// The former top-bar links (ML/Strategy/Exec-BT/Live-Ops) moved into the cockpit's
+// Consoles section (top bar is utility-only now). These verify the cockpit routes to them.
+test.describe("Cockpit consoles — route to the folded surfaces", () => {
+  const CONSOLES = [
+    { id: "ml", url: /\/research\/ml-experiments/ },
+    { id: "strategy", url: /\/research\/strategy-backtests/ },
+    { id: "exec-bt", url: /\/research\/execution-backtests/ },
+    { id: "live-ops", url: /\/ops\/live-deployments/ },
+  ];
+  for (const c of CONSOLES) {
+    test(`cockpit console "${c.id}" routes correctly`, async ({ page }) => {
+      await mockBase(page);
+      await page.goto("/cockpit");
+      await page.waitForLoadState("networkidle");
 
-    await page.getByRole("link", { name: /^ML$/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/\/research\/ml-experiments/);
-  });
-
-  test("Strategy link navigates to /research/strategy-backtests", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.getByRole("link", { name: /^Strategy$/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/\/research\/strategy-backtests/);
-  });
-
-  test("Exec BT link navigates to /research/execution-backtests", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.getByRole("link", { name: /Exec BT/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/\/research\/execution-backtests/);
-  });
-
-  test("Live Ops link navigates to /ops/live-deployments", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.getByRole("link", { name: /Live Ops/i }).click();
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/\/ops\/live-deployments/);
-  });
+      await page.getByTestId(`cockpit-console-${c.id}`).click();
+      await page.waitForLoadState("networkidle");
+      await expect(page).toHaveURL(c.url);
+    });
+  }
 });
 
 // ── Per-page no-crash smoke ───────────────────────────────────────────────

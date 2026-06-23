@@ -6,9 +6,8 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Repos CI page", () => {
-  test("nav entry routes to /repos and the page renders all panels", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-repos-ci").click();
+  test("the /repos page renders all panels", async ({ page }) => {
+    await page.goto("/repos");
     await expect(page).toHaveURL(/\/repos$/);
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     await expect(page.getByTestId("promotion-drain-panel")).toBeVisible();

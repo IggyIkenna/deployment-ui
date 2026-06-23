@@ -56,18 +56,9 @@ export function Header() {
     switchTarget(t);
   };
 
-  const NAV_LINKS = [
-    { to: "/cockpit", label: "Cockpit" },
-    { to: "/vm-deployments", label: "VM Deployments" },
-    { to: "/deployments", label: "Deployments" },
-    { to: "/chaos", label: "Chaos" },
-    { to: "/ops/live-deployments", label: "Live Ops" },
-    { to: "/ops/costs", label: "Costs" },
-    { to: "/safety-ops", label: "Safety Ops" },
-    { to: "/research/ml-experiments", label: "ML" },
-    { to: "/research/strategy-backtests", label: "Strategy" },
-    { to: "/research/execution-backtests", label: "Exec BT" },
-  ] as const;
+  // Top bar is utility-only — the only nav entry is the Cockpit, which hosts every
+  // deployment/health surface as a tab + the Consoles section. Mobile mirrors it. Plan 0.7.
+  const NAV_LINKS = [{ to: "/cockpit", label: "Cockpit" }] as const;
 
   return (
     <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
@@ -141,76 +132,16 @@ export function Header() {
               </Badge>
             );
           })()}
-          {/* Admin nav */}
+          {/* Cockpit — the single entry to all deployment/health surfaces. The former
+              per-page nav links (Deployments, VM Deployments, Chaos, Live Ops, Repos CI,
+              Alerts, Safety Ops, ML, Strategy, Exec BT) moved INTO the cockpit (tabs +
+              Consoles section) so the top bar stays utility-only. Plan 0.7. */}
           <Link
             to="/cockpit"
             data-testid="nav-cockpit"
             className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--color-accent-cyan)]/40 text-[var(--color-accent-cyan)] hover:border-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/10"
           >
             Cockpit
-          </Link>
-          <Link
-            to="/vm-deployments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            VM Deployments
-          </Link>
-          <Link
-            to="/deployments"
-            data-testid="nav-deployments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Deployments
-          </Link>
-          <Link
-            to="/chaos"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Chaos
-          </Link>
-          <Link
-            to="/ops/live-deployments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Live Ops
-          </Link>
-          <Link
-            to="/repos"
-            data-testid="nav-repos-ci"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Repos CI
-          </Link>
-          <Link
-            to="/alerts"
-            data-testid="nav-alerts"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
-          >
-            Alerts
-          </Link>
-          <Link
-            to="/safety-ops"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-amber-500"
-          >
-            Safety Ops
-          </Link>
-          <Link
-            to="/research/ml-experiments"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            ML
-          </Link>
-          <Link
-            to="/research/strategy-backtests"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Strategy
-          </Link>
-          <Link
-            to="/research/execution-backtests"
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]"
-          >
-            Exec BT
           </Link>
           {/* Env tier badge — read-only, computed from hostname. NEVER a toggle. */}
           <div className="relative">

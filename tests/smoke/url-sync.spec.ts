@@ -23,8 +23,9 @@ test.describe("URL ↔ view sync", () => {
 
   test("landing paths clear the service selection (no URL/view desync)", async ({ page }) => {
     // The reported bug: URL said /repos while the screen showed a service view.
+    // Navigating to a landing path (/repos) must clear the service selection.
     await page.goto("/service/market-tick-data-service/deploy");
-    await page.getByTestId("nav-repos-ci").click();
+    await page.goto("/repos");
     await expect(page).toHaveURL(/\/repos$/);
     await expect(page.getByTestId("landing-repos-ci-tab")).toBeVisible();
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();

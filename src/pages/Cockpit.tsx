@@ -187,6 +187,19 @@ const HEALTH_TILES: Tile[] = [
   { id: "alerts", label: "Alerts", icon: AlertTriangle, status: "placeholder", metric: "open by class", to: "/alerts" },
 ];
 
+// Consoles & tools — entry points to the existing wired pages that are folding INTO
+// cockpit tabs (Phase 0.7). Linked here so they're reachable from the cockpit once the
+// duplicate top-nav links are removed; each becomes its own embedded tab next.
+const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; to: string }[] = [
+  { id: "vm-deployments", label: "VM Deployments", icon: Server, to: "/vm-deployments" },
+  { id: "live-ops", label: "Live Ops", icon: Radio, to: "/ops/live-deployments" },
+  { id: "chaos", label: "Chaos (resilience testing)", icon: AlertTriangle, to: "/chaos" },
+  { id: "safety-ops", label: "Safety Ops", icon: ShieldCheck, to: "/safety-ops" },
+  { id: "ml", label: "ML Experiments", icon: BarChart2, to: "/research/ml-experiments" },
+  { id: "strategy", label: "Strategy Backtests", icon: GitBranch, to: "/research/strategy-backtests" },
+  { id: "exec-bt", label: "Execution Backtests", icon: Boxes, to: "/research/execution-backtests" },
+];
+
 function HealthTab() {
   return (
     <div data-testid="cockpit-health">
@@ -216,6 +229,28 @@ function HealthTab() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-6" data-testid="cockpit-consoles">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+          Consoles & tools <span className="font-normal normal-case">— folding into cockpit tabs (Phase 0.7)</span>
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+          {CONSOLES.map((c) => {
+            const Icon = c.icon;
+            return (
+              <Link
+                key={c.id}
+                to={c.to}
+                data-testid={`cockpit-console-${c.id}`}
+                className="flex items-center gap-2 rounded-lg border border-[var(--color-border-default)] px-3 py-2 text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-accent-cyan)]/50 hover:text-[var(--color-text-primary)]"
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-cyan)]" />
+                <span className="truncate">{c.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

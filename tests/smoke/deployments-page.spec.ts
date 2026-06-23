@@ -11,9 +11,8 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Deployments observability page", () => {
-  test("nav entry routes to /deployments and the umbrella tabs + a target row render", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-deployments").click();
+  test("the /deployments page renders the umbrella tabs + a target row", async ({ page }) => {
+    await page.goto("/deployments");
     await expect(page).toHaveURL(/\/deployments$/);
     await expect(page.getByTestId("deployments-page")).toBeVisible();
     await expect(page.getByTestId("umbrella-tab-LIVE")).toBeVisible();
