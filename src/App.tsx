@@ -45,6 +45,7 @@ import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
+import { Cockpit } from "./pages/Cockpit";
 import { DailyCosts } from "./pages/DailyCosts";
 import { Deployments } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
@@ -143,6 +144,7 @@ function App() {
                   onUrlService={handleUrlService}
                 />
                 <Routes>
+                  <Route path="/cockpit" element={<Cockpit />} />
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/deployments" element={<Deployments />} />
