@@ -69,13 +69,26 @@ const MOCK_PREVIEW_TARBALL = {
 async function setupMocks(page: Page) {
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
   await page.route("**/api/services", (route) =>
     route.fulfill({
-      json: [{ name: SERVICE, description: SERVICE, dimensions: [], docker_image: "gcr.io/p/svc:latest", cloud_run_job_name: SERVICE }],
+      json: [
+        {
+          name: SERVICE,
+          description: SERVICE,
+          dimensions: [],
+          docker_image: "gcr.io/p/svc:latest",
+          cloud_run_job_name: SERVICE,
+        },
+      ],
     }),
   );
 
@@ -87,13 +100,9 @@ async function setupMocks(page: Page) {
     route.fulfill({ json: [{ service: SERVICE, asset_group: ASSET_GROUP }] }),
   );
 
-  await page.route("**/api/data-status/drilldown/**", (route) =>
-    route.fulfill({ json: MOCK_DRILLDOWN }),
-  );
+  await page.route("**/api/data-status/drilldown/**", (route) => route.fulfill({ json: MOCK_DRILLDOWN }));
 
-  await page.route("**/api/config/region", (route) =>
-    route.fulfill({ json: { deployment_env: "development" } }),
-  );
+  await page.route("**/api/config/region", (route) => route.fulfill({ json: { deployment_env: "development" } }));
 
   await page.route("**/api/data-status/deploy-missing-preview", async (route) => {
     const body = JSON.parse((await route.request().postData()) ?? "{}") as Record<string, unknown>;
@@ -109,7 +118,7 @@ async function setupMocks(page: Page) {
 test("deploy-missing preview renders command with shard-key fields on leaf with captured=0", async ({ page }) => {
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByText(SERVICE, { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
@@ -133,7 +142,7 @@ test("deploy-missing preview renders command with shard-key fields on leaf with 
 test("tarball-from-local mode shows LOCAL-ONLY warning + && in command", async ({ page }) => {
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByText(SERVICE, { exact: true }).first().click();
   await page.waitForLoadState("networkidle");

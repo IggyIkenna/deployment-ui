@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("URL ↔ view sync", () => {
   test("selecting a service puts it in the URL; tab clicks update the URL", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.getByTestId("service-item-market-tick-data-service").click();
     await expect(page).toHaveURL(/\/service\/market-tick-data-service\/deploy$/);
     await page.getByRole("tab", { name: "Data Status" }).click();
@@ -23,8 +23,9 @@ test.describe("URL ↔ view sync", () => {
 
   test("landing paths clear the service selection (no URL/view desync)", async ({ page }) => {
     // The reported bug: URL said /repos while the screen showed a service view.
+    // Navigating to a landing path (/repos) must clear the service selection.
     await page.goto("/service/market-tick-data-service/deploy");
-    await page.getByTestId("nav-repos-ci").click();
+    await page.goto("/repos");
     await expect(page).toHaveURL(/\/repos$/);
     await expect(page.getByTestId("landing-repos-ci-tab")).toBeVisible();
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
@@ -35,7 +36,7 @@ test.describe("URL ↔ view sync", () => {
     await page.goto("/epics");
     await expect(page.getByRole("tab", { name: "Epics" })).toHaveAttribute("aria-selected", "true");
     // Then the click direction: tablist is stable once the trigger is attached + visible.
-    await page.goto("/");
+    await page.goto("/home");
     const epics = page.getByRole("tab", { name: "Epics" });
     await expect(epics).toBeVisible();
     await expect(page.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");

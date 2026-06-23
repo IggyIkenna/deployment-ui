@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
 test("debug body bg", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   const result = await page.evaluate(() => {
     const body = document.body;

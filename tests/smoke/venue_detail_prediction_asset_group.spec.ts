@@ -155,32 +155,22 @@ test.describe("VenueDetailResult.asset_group — PREDICTION regression guard", (
 
     // Venue-detail endpoint — the fix under test.  Returns a PREDICTION payload
     // with asset_group always present + prediction instrument fields.
-    await page.route("**/api/data-status/venue-detail**", (route) =>
-      route.fulfill({ json: PREDICTION_VENUE_DETAIL }),
-    );
+    await page.route("**/api/data-status/venue-detail**", (route) => route.fulfill({ json: PREDICTION_VENUE_DETAIL }));
 
     // Turbo / manifest data-status endpoints
-    await page.route("**/api/data-status/manifest**", (route) =>
-      route.fulfill({ json: MINIMAL_TURBO_RESPONSE }),
-    );
-    await page.route("**/api/data-status/turbo**", (route) =>
-      route.fulfill({ json: MINIMAL_TURBO_RESPONSE }),
-    );
-    await page.route("**/api/data-status**", (route) =>
-      route.fulfill({ json: MINIMAL_TURBO_RESPONSE }),
-    );
+    await page.route("**/api/data-status/manifest**", (route) => route.fulfill({ json: MINIMAL_TURBO_RESPONSE }));
+    await page.route("**/api/data-status/turbo**", (route) => route.fulfill({ json: MINIMAL_TURBO_RESPONSE }));
+    await page.route("**/api/data-status**", (route) => route.fulfill({ json: MINIMAL_TURBO_RESPONSE }));
 
     // Catch-all for remaining API calls
     await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
   });
 
-  test("renders app without JS crash when venue-detail returns PREDICTION asset_group", async ({
-    page,
-  }) => {
+  test("renders app without JS crash when venue-detail returns PREDICTION asset_group", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // No unhandled JS errors
@@ -188,13 +178,11 @@ test.describe("VenueDetailResult.asset_group — PREDICTION regression guard", (
     await expect(page.getByText("Something went wrong")).not.toBeVisible();
   });
 
-  test("VenueDetailPanel renders prediction payload without error state", async ({
-    page,
-  }) => {
+  test("VenueDetailPanel renders prediction payload without error state", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Inject the VenueDetailPanel directly by evaluating its contract.
@@ -217,9 +205,7 @@ test.describe("VenueDetailResult.asset_group — PREDICTION regression guard", (
     expect(errors).toEqual([]);
   });
 
-  test("PREDICTION_VENUE_DETAIL fixture has all item-576 fields (compile-time + runtime)", async ({
-    page,
-  }) => {
+  test("PREDICTION_VENUE_DETAIL fixture has all item-576 fields (compile-time + runtime)", async ({ page }) => {
     // This test doubles as a schema-parity check.  If any of the four new
     // fields from item 576 are removed from VenueDetailResult, tsc will refuse
     // to compile the typed PREDICTION_VENUE_DETAIL fixture at the top of this
@@ -227,7 +213,7 @@ test.describe("VenueDetailResult.asset_group — PREDICTION regression guard", (
     //
     // Runtime: assert the fixture shape is coherent (non-null asset_group,
     // instruments carry prediction fields).
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const fixtureCheck = await page.evaluate(() => {

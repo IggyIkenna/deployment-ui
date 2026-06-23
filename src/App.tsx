@@ -15,7 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { createDeployment } from "./api/client";
 import { RequireAuth } from "./auth/RequireAuth";
 import { CloudBuildsTab } from "./components/CloudBuildsTab";
@@ -45,6 +45,7 @@ import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
+import { Cockpit } from "./pages/Cockpit";
 import { DailyCosts } from "./pages/DailyCosts";
 import { Deployments } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
@@ -143,6 +144,12 @@ function App() {
                   onUrlService={handleUrlService}
                 />
                 <Routes>
+                  {/* Cockpit is the DEFAULT page of the deployment UI (operator 2026-06-23).
+                      The per-service home shell (ServiceList + deploy/monitor tabs) moved to
+                      /home; /repos, /alerts, /epics, /fleet still fall through to the `*`
+                      shell below, and /service/* deep-links are unchanged. */}
+                  <Route path="/" element={<Navigate to="/cockpit" replace />} />
+                  <Route path="/cockpit" element={<Cockpit />} />
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/deployments" element={<Deployments />} />

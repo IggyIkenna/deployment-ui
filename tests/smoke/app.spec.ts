@@ -293,7 +293,7 @@ test.describe("App Layout & Core UI", () => {
   });
 
   test("dark background — body background is not white", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const bgColor = await page.evaluate(() => {
@@ -307,21 +307,21 @@ test.describe("App Layout & Core UI", () => {
   });
 
   test("renders header with app title", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("Unified Trading Deployment")).toBeVisible();
   });
 
   test("renders API status badge", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("API", { exact: true })).toBeVisible();
   });
 
   test("renders 7 layer section headers in sidebar", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("L1: Root", { exact: true })).toBeVisible();
@@ -334,28 +334,28 @@ test.describe("App Layout & Core UI", () => {
   });
 
   test("renders Pipeline Services heading", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("Services", { exact: true })).toBeVisible();
   });
 
   test("renders instruments-service in sidebar", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("instruments", { exact: true })).toBeVisible();
   });
 
   test("renders execution-service in sidebar", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("execution", { exact: true })).toBeVisible();
   });
 
   test("sidebar service items are clickable buttons", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const svcButton = page.getByText("instruments").first();
@@ -369,7 +369,7 @@ test.describe("App Layout & Core UI", () => {
 test.describe("Service Selection & Navigation", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
   });
 
@@ -485,7 +485,7 @@ test.describe("Service Selection & Navigation", () => {
 test.describe("DeployForm — Batch Mode", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
@@ -549,7 +549,7 @@ test.describe("DeployForm — Batch Mode", () => {
 test.describe("DeployForm — Live Mode", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
@@ -573,7 +573,7 @@ test.describe("DeployForm — Live Mode", () => {
 test.describe("Deploy Button (Mocked)", () => {
   test("clicking deploy button with dry run triggers API call", async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -628,7 +628,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
 
   test("main page does not overflow viewport width at 1280px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -637,7 +637,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
 
   test("sidebar is visible and scrollable", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Pipeline Services sidebar should be visible
@@ -651,7 +651,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
   });
 
   test("all text is readable — check key headers are visible", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const elements = ["Services", "L1: Root", "Unified Trading Deployment"];
@@ -669,7 +669,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
 
   test("clicking service fills the right panel — no layout collapse", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -696,7 +696,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
 test.describe("Clear Cache Button", () => {
   test("Clear Cache button is clickable and shows feedback", async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Use the header's Clear Cache button specifically (there may be another in DataStatusTab)
@@ -719,7 +719,7 @@ test.describe("Mock Mode Banner", () => {
   test("mock mode banner is rendered with correct aria-label when in mock mode", async ({ page }) => {
     // playwright.config.ts sets VITE_MOCK_API=true in webServer.env.
     // When that env is active the banner will be present in the DOM.
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const banner = page.locator('[aria-label="Mock mode active"]');
@@ -731,7 +731,7 @@ test.describe("Mock Mode Banner", () => {
   });
 
   test("mock mode banner dismiss button hides the banner", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const banner = page.locator('[aria-label="Mock mode active"]');
@@ -745,7 +745,7 @@ test.describe("Mock Mode Banner", () => {
   });
 
   test("mock mode banner contains simulated data notice text", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const banner = page.locator('[aria-label="Mock mode active"]');
@@ -761,7 +761,7 @@ test.describe("Mock Mode Banner", () => {
 test.describe("Tab Rendering — Mock Mode Coverage", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApis(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");

@@ -17,13 +17,13 @@ import { test, expect } from "@playwright/test";
  */
 test.describe("scroll-root scrollbar-gutter stability", () => {
   test("the scroll root reserves a stable scrollbar gutter", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     const gutter = await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarGutter);
     expect(gutter).toBe("stable");
   });
 
   test("content width is invariant to the vertical scrollbar appearing", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
 
     // Measure the usable content width (viewport minus reserved gutter) with the
     // page forced SHORT (no scroll) and then TALL (scroll required). With a stable

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "./App";
 
@@ -57,6 +57,12 @@ vi.mock("./api/client", () => ({
 }));
 
 describe("App", () => {
+  // The cockpit is the default page (/ → /cockpit); the per-service home shell —
+  // ServiceList + deploy/monitor tabs, exercised below — now lives at /home.
+  beforeEach(() => {
+    window.history.pushState({}, "", "/home");
+  });
+
   it("renders Header and ServiceList", () => {
     render(<App />);
     expect(screen.getByText("Header")).toBeInTheDocument();

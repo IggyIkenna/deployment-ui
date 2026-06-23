@@ -6,9 +6,8 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Repos CI page", () => {
-  test("nav entry routes to /repos and the page renders all panels", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-repos-ci").click();
+  test("the /repos page renders all panels", async ({ page }) => {
+    await page.goto("/repos");
     await expect(page).toHaveURL(/\/repos$/);
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     await expect(page.getByTestId("promotion-drain-panel")).toBeVisible();
@@ -202,7 +201,7 @@ test.describe("Repos CI page", () => {
   test("Repos CI is a landing tab in the home shell, not a separate page", async ({ page }) => {
     // Regression: operator add 2026-06-10 — /repos must render as a sibling tab of
     // Overview/Epics inside the deployment-ui home shell, not a standalone full-page app.
-    await page.goto("/");
+    await page.goto("/home");
     // Sibling landing tabs prove this is the unified home shell, not a separate UI.
     await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Epics" })).toBeVisible();
@@ -213,8 +212,9 @@ test.describe("Repos CI page", () => {
     await expect(tab.getByTestId("repo-ci-page")).toBeVisible();
     await expect(tab.getByTestId("repo-ci-table")).toBeVisible();
     // Overview tab is still a reachable sibling — confirms tab integration, not a route swap.
+    // The home shell lives at /home now (the cockpit owns /).
     await page.getByRole("tab", { name: "Overview" }).click();
-    await expect(page).toHaveURL((url) => url.pathname === "/");
+    await expect(page).toHaveURL((url) => url.pathname === "/home");
   });
 
   test("deep-link to /repos opens the Repos CI landing tab in the home shell", async ({ page }) => {
@@ -226,7 +226,7 @@ test.describe("Repos CI page", () => {
   });
 
   test("per-service CI tab renders the same drill-down in service context", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     // Select a service from the home-view sidebar, then open its CI tab. The sidebar
     // item carries a stable testid (the overview table is not auto-fetched), so this
     // is robust under the mock API.

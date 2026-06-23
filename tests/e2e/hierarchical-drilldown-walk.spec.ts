@@ -53,14 +53,25 @@ function makeDrilldownResponse(service: string, assetGroup: string, totalTopAxis
 async function setupMocks(page: Page, pair: (typeof PAIRS)[0], totalTopAxisChildren = 1) {
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
   await page.route("**/api/services", (route) =>
     route.fulfill({
       json: [
-        { name: pair.service, description: pair.service, dimensions: [], docker_image: "gcr.io/p/svc:latest", cloud_run_job_name: pair.service },
+        {
+          name: pair.service,
+          description: pair.service,
+          dimensions: [],
+          docker_image: "gcr.io/p/svc:latest",
+          cloud_run_job_name: pair.service,
+        },
       ],
     }),
   );
@@ -69,9 +80,7 @@ async function setupMocks(page: Page, pair: (typeof PAIRS)[0], totalTopAxisChild
     route.fulfill({ json: { service: pair.service, dimensions: [], cli_args: {} } }),
   );
 
-  await page.route("**/api/data-status/drilldown-pairs", (route) =>
-    route.fulfill({ json: PAIRS }),
-  );
+  await page.route("**/api/data-status/drilldown-pairs", (route) => route.fulfill({ json: PAIRS }));
 
   await page.route("**/api/data-status/drilldown/**", (route) =>
     route.fulfill({ json: makeDrilldownResponse(pair.service, pair.asset_group, totalTopAxisChildren) }),
@@ -84,7 +93,7 @@ for (const pair of PAIRS) {
   test(`drilldown renders axes + totals for ${pair.service}/${pair.asset_group}`, async ({ page }) => {
     await setupMocks(page, pair, 1);
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText(pair.service, { exact: true }).first().click();
     await page.waitForLoadState("networkidle");
@@ -92,19 +101,25 @@ for (const pair of PAIRS) {
     await page.waitForLoadState("networkidle");
 
     // The drilldown renders axes from the mocked response.
-    await expect(page.getByText("venue")).toBeVisible({ timeout: 5000 }).catch(() => {
-      // Axis may be embedded in a collapsed panel; pass if page loaded without errors.
-    });
+    await expect(page.getByText("venue"))
+      .toBeVisible({ timeout: 5000 })
+      .catch(() => {
+        // Axis may be embedded in a collapsed panel; pass if page loaded without errors.
+      });
 
     // Totals row from GOLDEN response has captured=80.
-    await expect(page.getByText(/80|95\.2|BINANCE/)).toBeVisible({ timeout: 5000 }).catch(() => {});
+    await expect(page.getByText(/80|95\.2|BINANCE/))
+      .toBeVisible({ timeout: 5000 })
+      .catch(() => {});
   });
 
-  test(`Show-more button appears when total_top_axis_children > tree.length for ${pair.service}/${pair.asset_group}`, async ({ page }) => {
+  test(`Show-more button appears when total_top_axis_children > tree.length for ${pair.service}/${pair.asset_group}`, async ({
+    page,
+  }) => {
     // total_top_axis_children=5 > tree.length=1 → Show more button expected.
     await setupMocks(page, pair, 5);
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText(pair.service, { exact: true }).first().click();
     await page.waitForLoadState("networkidle");
@@ -112,9 +127,11 @@ for (const pair of PAIRS) {
     await page.waitForLoadState("networkidle");
 
     // "Show more" button should surface when there are more top-axis children than rendered.
-    await expect(page.getByText(/Show more/i)).toBeVisible({ timeout: 5000 }).catch(() => {
-      // If the HierarchicalShardDrilldown isn't auto-mounted for this asset_group in the
-      // DataStatusTab flow, the assertion is not applicable — skip gracefully.
-    });
+    await expect(page.getByText(/Show more/i))
+      .toBeVisible({ timeout: 5000 })
+      .catch(() => {
+        // If the HierarchicalShardDrilldown isn't auto-mounted for this asset_group in the
+        // DataStatusTab flow, the assertion is not applicable — skip gracefully.
+      });
   });
 }

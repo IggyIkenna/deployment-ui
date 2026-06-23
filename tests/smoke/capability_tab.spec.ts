@@ -167,7 +167,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Capability tab trigger is visible next to Data Status", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Select instruments-service
@@ -180,7 +180,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Capability tab renders Capability Matrix heading", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -192,7 +192,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Matrix view shows archetype × instrument_type grid", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -207,7 +207,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Gaps & Orphans panel shows gap type counts from manifest", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -238,7 +238,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Sources view renders data source table", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -261,7 +261,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("node/edge count shown in header matches manifest", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -274,7 +274,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -296,7 +296,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Verdicts archetype drill-down shows blocked reasons", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();
@@ -321,7 +321,7 @@ test.describe("CapabilityTab", () => {
   });
 
   test("Gaps panel dead-end cross-link navigates to Data Status", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("instruments").first().click();

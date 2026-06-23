@@ -94,7 +94,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("History tab is visible in service detail view", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await page.getByText("instruments", { exact: true }).first().click();
@@ -104,7 +104,7 @@ test("History tab is visible in service detail view", async ({ page }) => {
 });
 
 test("History tab renders deployment rows without crashing", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await page.getByText("instruments", { exact: true }).first().click();
@@ -120,7 +120,7 @@ test("History tab renders deployment rows without crashing", async ({ page }) =>
 });
 
 test("History tab shows Completed and Running badges", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await page.getByText("instruments", { exact: true }).first().click();
@@ -134,14 +134,14 @@ test("History tab shows Completed and Running badges", async ({ page }) => {
 });
 
 test("History tab is absent when no service selected (overview mode)", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByRole("tab", { name: /History/i })).not.toBeVisible();
 });
 
 test("switching to History tab does not show ErrorBoundary crash", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await page.getByText("instruments", { exact: true }).first().click();

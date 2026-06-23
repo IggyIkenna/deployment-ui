@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 
 test("nav tab routes to /infra and renders infra tile grid", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.getByTestId("landing-fleet-infra-tab-trigger").click();
   await expect(page).toHaveURL(/\/infra$/);
   await expect(page.getByTestId("fleet-infra-page")).toBeVisible();

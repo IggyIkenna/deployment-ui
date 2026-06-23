@@ -307,7 +307,7 @@ async function mockDeploymentApiRoutes(page: Page) {
 // ── Helper: navigate to Treasury tab ──────────────────────────────────────────
 
 async function navigateToTreasuryTab(page: Page) {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   // Select the deployment-api service
@@ -326,7 +326,7 @@ test.describe("TreasuryTab smoke", () => {
   });
 
   test("deployment-api service shows Treasury tab trigger", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("deployment api").first().click();

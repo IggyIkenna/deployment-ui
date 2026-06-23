@@ -130,10 +130,13 @@ describe("Header", () => {
     await waitFor(() => expect(screen.getByText("GCS API")).toBeTruthy());
   });
 
-  it("renders the admin nav links", () => {
+  it("renders a utility-only top bar — the only nav entry is the Cockpit", () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     renderHeader();
-    expect(screen.getByText("VM Deployments")).toBeTruthy();
-    expect(screen.getByText("Chaos")).toBeTruthy();
+    // The single nav entry: everything else folded into the cockpit (Plan 0.7).
+    expect(screen.getByTestId("nav-cockpit")).toBeTruthy();
+    // The former per-page links are gone from the top bar.
+    expect(screen.queryByText("VM Deployments")).toBeNull();
+    expect(screen.queryByText("Chaos")).toBeNull();
   });
 });

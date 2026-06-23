@@ -81,7 +81,7 @@ async function setupRoutes(page: Page) {
 test.describe("data-status coverage labels regression", () => {
   test("HonestCoverageCard: headline is manifest-capture, NOT the captured-only coverage_pct", async ({ page }) => {
     await setupRoutes(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Navigate to data-status tab for market-tick-data-service
@@ -120,7 +120,7 @@ test.describe("data-status coverage labels regression", () => {
 
   test("HonestCoverageCard: out-of-window label present in legend", async ({ page }) => {
     await setupRoutes(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // The legend "outside window — not a gap" must appear somewhere on the page
@@ -133,7 +133,7 @@ test.describe("data-status coverage labels regression", () => {
 
   test("data-status default start date is 2018-01-01", async ({ page }) => {
     await setupRoutes(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Navigate into a service's data-status view

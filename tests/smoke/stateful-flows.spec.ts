@@ -299,7 +299,7 @@ test.describe("Flow 1: Deploy -> History -> Details", () => {
       }
     });
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Step 1: Select service
@@ -365,7 +365,7 @@ test.describe("Flow 2: Tab navigation sequence", () => {
       }
     });
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
@@ -418,7 +418,7 @@ test.describe("Flow 3: Cloud provider switching", () => {
       }),
     );
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");

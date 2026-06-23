@@ -65,7 +65,7 @@ async function mockRepoRoutes(page: Page) {
 
 async function navigateToReposCi(page: Page) {
   // The Repos-CI page is the "Repos CI" LandingTabs tab (URL-synced to /repos).
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByTestId("landing-repos-ci-tab-trigger").click();
   await expect(page.getByTestId("repo-ci-page")).toBeVisible();
