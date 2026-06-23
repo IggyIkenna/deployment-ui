@@ -1,9 +1,9 @@
 /**
  * Unit test for the Cockpit page (scaffold stage).
  *
- * Asserts the page renders its header, the Overview tile grid (every monitoring
- * domain present), and all 7 tab triggers — guarding the IA before per-pane data
- * wiring. No API mocks needed (placeholders make no calls).
+ * Asserts the page renders its header, the Health landing tile grid (every
+ * monitoring domain present), all 7 tab triggers, and ?tab= deep-linking —
+ * guarding the IA before per-pane data wiring. No API mocks needed (placeholders).
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,6 +19,8 @@ function renderAt(path: string) {
   );
 }
 
+const TAB_IDS = ["health", "deploy", "live", "batch", "paper", "fleet", "consolidators"];
+
 describe("Cockpit", () => {
   it("renders the page shell + title", () => {
     renderAt("/cockpit");
@@ -28,22 +30,22 @@ describe("Cockpit", () => {
 
   it("renders all 7 tab triggers", () => {
     renderAt("/cockpit");
-    for (const id of ["overview", "live", "batch", "paper", "fleet", "consolidators", "health"]) {
+    for (const id of TAB_IDS) {
       expect(screen.getByTestId(`cockpit-tab-${id}`)).toBeTruthy();
     }
   });
 
-  it("Overview is the default tab and shows the full monitoring tile grid", () => {
+  it("Health is the default tab and shows the full monitoring tile grid", () => {
     renderAt("/cockpit");
-    expect(screen.getByTestId("cockpit-overview")).toBeTruthy();
+    expect(screen.getByTestId("cockpit-health")).toBeTruthy();
     for (const id of [
       "live",
       "batch",
       "paper",
       "fleet",
       "consolidators",
+      "coverage",
       "ci",
-      "orchestrator",
       "github",
       "billing",
       "alerts",
@@ -56,5 +58,13 @@ describe("Cockpit", () => {
     renderAt("/cockpit?tab=fleet");
     expect(screen.getByTestId("cockpit-fleet")).toBeTruthy();
     expect(screen.getByTestId("cockpit-fleet-card-unknown")).toBeTruthy();
+  });
+
+  it("Deploy tab exposes the batch/live/paper deploy entry points", () => {
+    renderAt("/cockpit?tab=deploy");
+    expect(screen.getByTestId("cockpit-deploy")).toBeTruthy();
+    for (const id of ["batch", "live", "paper"]) {
+      expect(screen.getByTestId(`cockpit-deploy-${id}`)).toBeTruthy();
+    }
   });
 });
