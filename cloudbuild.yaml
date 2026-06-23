@@ -71,10 +71,15 @@ steps:
 
   - name: "gcr.io/cloud-builders/docker"
     id: "build"
+    env: ["DOCKER_BUILDKIT=1"]
     args:
       - "build"
       - "-f"
       - "Dockerfile"
+      - "--build-arg"
+      - "BUILDKIT_INLINE_CACHE=1"
+      - "--cache-from"
+      - "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:latest"
       - "-t"
       - "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:$SHORT_SHA"
       - "-t"
