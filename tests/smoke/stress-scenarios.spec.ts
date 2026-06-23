@@ -167,9 +167,7 @@ async function mockStressApis(page: Page, scenario: string) {
       json: { service: "instruments-service", start_dates: {} },
     }),
   );
-  await page.route("**/api/venues**", (route) =>
-    route.fulfill({ json: { categories: {}, venues: [] } }),
-  );
+  await page.route("**/api/venues**", (route) => route.fulfill({ json: { categories: {}, venues: [] } }));
   await page.route("**/api/services/*/dependencies", (route) =>
     route.fulfill({ json: { upstream: [], downstream: [] } }),
   );
@@ -182,12 +180,8 @@ async function mockStressApis(page: Page, scenario: string) {
       },
     }),
   );
-  await page.route("**/cloud-builds/**", (route) =>
-    route.fulfill({ json: { triggers: [], builds: [] } }),
-  );
-  await page.route("**/api/services/overview", (route) =>
-    route.fulfill({ json: { services: [], count: 0 } }),
-  );
+  await page.route("**/cloud-builds/**", (route) => route.fulfill({ json: { triggers: [], builds: [] } }));
+  await page.route("**/api/services/overview", (route) => route.fulfill({ json: { services: [], count: 0 } }));
   await page.route("**/api/services/*/data-status**", (route) =>
     route.fulfill({
       json: {
@@ -198,9 +192,7 @@ async function mockStressApis(page: Page, scenario: string) {
       },
     }),
   );
-  await page.route("**/api/cache/clear", (route) =>
-    route.fulfill({ json: { cleared: true } }),
-  );
+  await page.route("**/api/cache/clear", (route) => route.fulfill({ json: { cleared: true } }));
   await page.route("**/api/deployments/*/quota**", (route) =>
     route.fulfill({
       json: {
@@ -214,11 +206,9 @@ async function mockStressApis(page: Page, scenario: string) {
 
 for (const scenario of STRESS_SCENARIOS) {
   test.describe(`Stress: ${scenario}`, () => {
-    test(`loads main page without crash under ${scenario}`, async ({
-      page,
-    }) => {
+    test(`loads main page without crash under ${scenario}`, async ({ page }) => {
       await mockStressApis(page, scenario);
-      await page.goto("/");
+      await page.goto("/home");
       await page.waitForLoadState("networkidle");
 
       // Page should not be blank
@@ -227,16 +217,12 @@ for (const scenario of STRESS_SCENARIOS) {
       expect(bodyText!.length).toBeGreaterThan(10);
 
       // No uncaught exceptions
-      await expect(
-        page.getByText(
-          /Unknown Error|Uncaught TypeError|Cannot read properties/i,
-        ),
-      ).not.toBeVisible();
+      await expect(page.getByText(/Unknown Error|Uncaught TypeError|Cannot read properties/i)).not.toBeVisible();
     });
 
     test(`UI remains interactive under ${scenario}`, async ({ page }) => {
       await mockStressApis(page, scenario);
-      await page.goto("/");
+      await page.goto("/home");
       await page.waitForLoadState("networkidle");
 
       // Try clicking first visible button to verify interactivity
@@ -244,9 +230,7 @@ for (const scenario of STRESS_SCENARIOS) {
       if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
         await button.click();
         // Should not crash
-        await expect(
-          page.getByText(/Unknown Error|Uncaught TypeError/i),
-        ).not.toBeVisible();
+        await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
       }
     });
   });

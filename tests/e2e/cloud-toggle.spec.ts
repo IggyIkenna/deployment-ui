@@ -19,13 +19,26 @@ import { expect, Page, test } from "@playwright/test";
 async function setupMocks(page: Page) {
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
   await page.route("**/api/services", (route) =>
     route.fulfill({
-      json: [{ name: "instruments-service", description: "Instruments", dimensions: [], docker_image: "gcr.io/p/svc:latest", cloud_run_job_name: "instruments-service" }],
+      json: [
+        {
+          name: "instruments-service",
+          description: "Instruments",
+          dimensions: [],
+          docker_image: "gcr.io/p/svc:latest",
+          cloud_run_job_name: "instruments-service",
+        },
+      ],
     }),
   );
 
@@ -34,9 +47,7 @@ async function setupMocks(page: Page) {
   );
 
   // clearCache endpoint called by Header when switching providers.
-  await page.route("**/api/turbo/clear", (route) =>
-    route.fulfill({ json: { status: "ok" } }),
-  );
+  await page.route("**/api/turbo/clear", (route) => route.fulfill({ json: { status: "ok" } }));
 
   await page.route("**/api/**", (route) => route.fulfill({ status: 404, json: {} }));
 }
@@ -47,7 +58,7 @@ test("clicking AWS toggle does not crash the page", async ({ page }) => {
 
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   // The Header renders GCP and AWS toggle buttons.
@@ -67,7 +78,7 @@ test("clicking AWS toggle does not crash the page", async ({ page }) => {
 test("GCP button is visible in header on initial load", async ({ page }) => {
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByRole("button", { name: "GCP" })).toBeVisible({ timeout: 5000 });
@@ -80,7 +91,7 @@ test("switching to AWS then back to GCP does not crash", async ({ page }) => {
 
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
 
   const awsBtn = page.getByRole("button", { name: "AWS" });

@@ -21,14 +21,10 @@ async function mockBase(page: Page) {
   await page.route("**/api/monitor/**", (route) =>
     route.fulfill({ json: { jobs: [], total: 0, queried_at: new Date().toISOString(), cloud: "gcp", env: "dev" } }),
   );
-  await page.route("**/api/safety-ops/**", (route) =>
-    route.fulfill({ json: {} }),
-  );
+  await page.route("**/api/safety-ops/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/dart/**", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/ops/**", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/deployments**", (route) =>
-    route.fulfill({ json: { deployments: [] } }),
-  );
+  await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
 }
 
 // ── Nav link ─────────────────────────────────────────────────────────────────
@@ -36,7 +32,7 @@ async function mockBase(page: Page) {
 test.describe("Safety Ops — nav link", () => {
   test("Safety Ops link visible in desktop header", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     const link = page.getByRole("link", { name: /Safety Ops/i }).first();
@@ -45,10 +41,13 @@ test.describe("Safety Ops — nav link", () => {
 
   test("Safety Ops link navigates to /safety-ops", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    await page.getByRole("link", { name: /Safety Ops/i }).first().click();
+    await page
+      .getByRole("link", { name: /Safety Ops/i })
+      .first()
+      .click();
     await page.waitForLoadState("networkidle");
     await expect(page).toHaveURL(/\/safety-ops/);
   });
@@ -56,14 +55,12 @@ test.describe("Safety Ops — nav link", () => {
   test("Safety Ops appears in mobile nav", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await mockBase(page);
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     await page.locator('[data-testid="mobile-menu-btn"]').click();
     await expect(page.locator('[data-testid="mobile-nav"]')).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /Safety Ops/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /Safety Ops/i })).toBeVisible();
   });
 });
 
@@ -75,9 +72,7 @@ test.describe("Safety Ops — page render", () => {
     await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.getByText(/Unknown Error|Uncaught TypeError/i),
-    ).not.toBeVisible();
+    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
   test("heading visible", async ({ page }) => {
@@ -85,12 +80,8 @@ test.describe("Safety Ops — page render", () => {
     await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.locator('[data-testid="safety-ops-heading"]'),
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-testid="safety-ops-heading"]'),
-    ).toContainText("Safety Ops");
+    await expect(page.locator('[data-testid="safety-ops-heading"]')).toBeVisible();
+    await expect(page.locator('[data-testid="safety-ops-heading"]')).toContainText("Safety Ops");
   });
 });
 
@@ -103,9 +94,7 @@ test.describe("Safety Ops — three panels", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-testid="layer0-panel"]')).toBeVisible();
-    await expect(page.locator('[data-testid="layer0-panel"]')).toContainText(
-      "Layer-0 Actions",
-    );
+    await expect(page.locator('[data-testid="layer0-panel"]')).toContainText("Layer-0 Actions");
   });
 
   test("LLM audit verdicts panel visible", async ({ page }) => {
@@ -113,12 +102,8 @@ test.describe("Safety Ops — three panels", () => {
     await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.locator('[data-testid="llm-verdicts-panel"]'),
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-testid="llm-verdicts-panel"]'),
-    ).toContainText("LLM Audit Verdicts");
+    await expect(page.locator('[data-testid="llm-verdicts-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="llm-verdicts-panel"]')).toContainText("LLM Audit Verdicts");
   });
 
   test("audit-ack queue panel visible", async ({ page }) => {
@@ -126,12 +111,8 @@ test.describe("Safety Ops — three panels", () => {
     await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.locator('[data-testid="audit-ack-queue-panel"]'),
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-testid="audit-ack-queue-panel"]'),
-    ).toContainText("Audit-Ack Queue");
+    await expect(page.locator('[data-testid="audit-ack-queue-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="audit-ack-queue-panel"]')).toContainText("Audit-Ack Queue");
   });
 
   test("layer0 actions include cancel_open_orders button", async ({ page }) => {
@@ -139,9 +120,7 @@ test.describe("Safety Ops — three panels", () => {
     await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.locator('[data-testid="layer0-action-cancel_open_orders"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="layer0-action-cancel_open_orders"]')).toBeVisible();
   });
 
   test("op-ack and audit-ack buttons visible in queue", async ({ page }) => {
@@ -150,8 +129,6 @@ test.describe("Safety Ops — three panels", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-testid="op-ack-button"]').first()).toBeVisible();
-    await expect(
-      page.locator('[data-testid="audit-ack-button"]').first(),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="audit-ack-button"]').first()).toBeVisible();
   });
 });

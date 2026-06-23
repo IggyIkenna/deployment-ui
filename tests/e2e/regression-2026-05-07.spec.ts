@@ -28,9 +28,9 @@ const VENUE_LEVEL_NODE = {
   attempted_failed: 5,
   total: 5,
   completion_pct: 0,
-  row_key: { venue: "CME" },  // partial — no date or data_type
+  row_key: { venue: "CME" }, // partial — no date or data_type
   children: [],
-  is_leaf: false,             // is NOT a leaf; no ↻ deploy should render
+  is_leaf: false, // is NOT a leaf; no ↻ deploy should render
 };
 
 // Leaf node with full shard-key — missing (captured=0) + hasFullShardKey=true → ↻ deploy renders.
@@ -95,7 +95,8 @@ const PREVIEW_RESPONSE = {
   row_key: DATE_LEAF_NODE.row_key,
   shard_key: "venue=CME/data_type=futures_ohlcv/instrument_type=futures/date=2026-05-01",
   launcher_script: "deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh",
-  command: "bash deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh --shard-key venue=CME/data_type=futures_ohlcv/instrument_type=futures/date=2026-05-01",
+  command:
+    "bash deployment-service/scripts/vm/launch-tradfi-backfill-vm.sh --shard-key venue=CME/data_type=futures_ohlcv/instrument_type=futures/date=2026-05-01",
   notes: [],
   mode: "preview" as const,
   warnings: [],
@@ -104,13 +105,26 @@ const PREVIEW_RESPONSE = {
 async function setupBase(page: Page, drilldownResponse: object) {
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
   await page.route("**/api/services", (route) =>
     route.fulfill({
-      json: [{ name: SERVICE, description: SERVICE, dimensions: [], docker_image: "gcr.io/p/svc:latest", cloud_run_job_name: SERVICE }],
+      json: [
+        {
+          name: SERVICE,
+          description: SERVICE,
+          dimensions: [],
+          docker_image: "gcr.io/p/svc:latest",
+          cloud_run_job_name: SERVICE,
+        },
+      ],
     }),
   );
 
@@ -122,23 +136,17 @@ async function setupBase(page: Page, drilldownResponse: object) {
     route.fulfill({ json: [{ service: SERVICE, asset_group: "tradfi" }] }),
   );
 
-  await page.route("**/api/data-status/drilldown/**", (route) =>
-    route.fulfill({ json: drilldownResponse }),
-  );
+  await page.route("**/api/data-status/drilldown/**", (route) => route.fulfill({ json: drilldownResponse }));
 
-  await page.route("**/api/config/region", (route) =>
-    route.fulfill({ json: { deployment_env: "development" } }),
-  );
+  await page.route("**/api/config/region", (route) => route.fulfill({ json: { deployment_env: "development" } }));
 
-  await page.route("**/api/data-status/deploy-missing-preview", (route) =>
-    route.fulfill({ json: PREVIEW_RESPONSE }),
-  );
+  await page.route("**/api/data-status/deploy-missing-preview", (route) => route.fulfill({ json: PREVIEW_RESPONSE }));
 
   await page.route("**/api/**", (route) => route.fulfill({ status: 404, json: {} }));
 }
 
 async function navigateToDataStatus(page: Page) {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByText(SERVICE, { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
@@ -167,7 +175,9 @@ test("venue-level node (partial shard-key) does NOT render ↻ deploy button", a
   await navigateToDataStatus(page);
 
   // Confirm the CME venue node is visible.
-  await expect(page.getByText("CME").first()).toBeVisible({ timeout: 8000 }).catch(() => {});
+  await expect(page.getByText("CME").first())
+    .toBeVisible({ timeout: 8000 })
+    .catch(() => {});
 
   // The ↻ deploy button must NOT be present — partial row_key returns 400.
   await expect(page.getByText("↻ deploy")).not.toBeVisible({ timeout: 3000 });

@@ -53,7 +53,12 @@ async function setupMocks(page: Page) {
 
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
@@ -82,9 +87,7 @@ async function setupMocks(page: Page) {
 
   await page.route("**/api/data-status/drilldown-pairs", (route) =>
     route.fulfill({
-      json: MOCK_SERVICES.map((s) =>
-        s.asset_groups.map((ag) => ({ service: s.name, asset_group: ag })),
-      ).flat(),
+      json: MOCK_SERVICES.map((s) => s.asset_groups.map((ag) => ({ service: s.name, asset_group: ag }))).flat(),
     }),
   );
 
@@ -109,7 +112,7 @@ for (const svc of MOCK_SERVICES) {
     page.on("pageerror", (err) => errors.push(err.message));
     const { statusLog } = await setupMocks(page);
 
-    await page.goto("/");
+    await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
     // Click the service in the sidebar.
@@ -121,9 +124,11 @@ for (const svc of MOCK_SERVICES) {
     await page.waitForLoadState("networkidle");
 
     // The tab content should be visible.
-    await expect(page.locator('[data-state="active"]').filter({ hasText: /Data Status/ })).not.toBeEmpty().catch(() => {
-      // Tab may render content directly without wrapping in a labeled region.
-    });
+    await expect(page.locator('[data-state="active"]').filter({ hasText: /Data Status/ }))
+      .not.toBeEmpty()
+      .catch(() => {
+        // Tab may render content directly without wrapping in a labeled region.
+      });
 
     // No JavaScript runtime errors.
     expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);

@@ -286,7 +286,7 @@ function DeployTab() {
               <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
                 <p>{u.hint}</p>
                 <Link
-                  to="/"
+                  to="/home"
                   className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-accent-cyan)]"
                 >
                   <Rocket className="h-3.5 w-3.5" /> Open deploy console →

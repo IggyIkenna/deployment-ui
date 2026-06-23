@@ -23,7 +23,7 @@ test.describe("Alerts page", () => {
   });
 
   test("alerts tab trigger sits beside Overview/Epics/Repos CI (single pane)", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/home");
     await page.getByTestId("landing-alerts-tab-trigger").click();
     await expect(page).toHaveURL(/\/alerts$/);
     await expect(page.getByTestId("alerts-page")).toBeVisible();

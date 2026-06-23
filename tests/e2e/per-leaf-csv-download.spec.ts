@@ -48,13 +48,26 @@ const MOCK_DRILLDOWN = {
 async function setupMocks(page: Page) {
   await page.route("**/api/health", (route) =>
     route.fulfill({
-      json: { status: "ok", version: "1.0.0-test", config_dir: "/config", gcs_fuse: { active: true, reason: "mounted" } },
+      json: {
+        status: "ok",
+        version: "1.0.0-test",
+        config_dir: "/config",
+        gcs_fuse: { active: true, reason: "mounted" },
+      },
     }),
   );
 
   await page.route("**/api/services", (route) =>
     route.fulfill({
-      json: [{ name: SERVICE, description: SERVICE, dimensions: [], docker_image: "gcr.io/p/svc:latest", cloud_run_job_name: SERVICE }],
+      json: [
+        {
+          name: SERVICE,
+          description: SERVICE,
+          dimensions: [],
+          docker_image: "gcr.io/p/svc:latest",
+          cloud_run_job_name: SERVICE,
+        },
+      ],
     }),
   );
 
@@ -66,9 +79,7 @@ async function setupMocks(page: Page) {
     route.fulfill({ json: [{ service: SERVICE, asset_group: ASSET_GROUP }] }),
   );
 
-  await page.route("**/api/data-status/drilldown/**", (route) =>
-    route.fulfill({ json: MOCK_DRILLDOWN }),
-  );
+  await page.route("**/api/data-status/drilldown/**", (route) => route.fulfill({ json: MOCK_DRILLDOWN }));
 
   await page.route("**/api/data-status/download-shard-csv**", (route) =>
     route.fulfill({
@@ -84,7 +95,7 @@ async function setupMocks(page: Page) {
 test("↓ csv link is visible on captured leaf row", async ({ page }) => {
   await setupMocks(page);
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByText(SERVICE, { exact: true }).first().click();
   await page.waitForLoadState("networkidle");
@@ -108,7 +119,7 @@ test("↓ csv request returns text/csv content type with at least one data row",
     }
   });
 
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForLoadState("networkidle");
   await page.getByText(SERVICE, { exact: true }).first().click();
   await page.waitForLoadState("networkidle");

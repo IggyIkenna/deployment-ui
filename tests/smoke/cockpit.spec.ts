@@ -36,6 +36,14 @@ async function mockBase(page: Page) {
 const TAB_IDS = ["health", "deploy", "live", "batch", "paper", "fleet", "consolidators"] as const;
 
 test.describe("Cockpit — scaffold IA", () => {
+  test("/ redirects to /cockpit (cockpit is the default page)", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveURL(/\/cockpit/);
+    await expect(page.getByTestId("cockpit-page")).toBeVisible();
+  });
+
   test("renders the page with all 7 tabs", async ({ page }) => {
     await mockBase(page);
     await page.goto("/cockpit");
