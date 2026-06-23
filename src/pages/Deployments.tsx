@@ -178,34 +178,125 @@ function UmbrellaSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse |
   );
 }
 
-function DeploymentRow({ item }: { item: DeploymentItem }) {
+/** Feed-health read for LIVE: a recent heartbeat reads green, stale amber, absent gray. */
+function feedHealthLabel(seconds: number | null): { label: string; tone: ChipTone } {
+  if (seconds == null) return { label: "—", tone: "gray" };
+  if (seconds < 90) return { label: "live", tone: "green" };
+  if (seconds < 600) return { label: "lagging", tone: "yellow" };
+  return { label: "stale", tone: "red" };
+}
+
+/** The column header set for each dynamics preset. */
+const PRESET_HEADERS: Record<DynamicsPreset, string[]> = {
+  live: ["Target", "Cloud", "Service", "Status", "Uptime", "Heartbeat", "Feed health"],
+  batch: ["Target", "Cloud", "Asset group", "Status", "Progress", "Coverage %", "Exit"],
+  paper: ["Strategy", "Cloud", "Service", "Status", "Recon drift", "Determinism ε", "Last run"],
+  default: ["Target", "Cloud", "Service", "Asset group", "Status", "Last run", "Exit", "Progress"],
+};
+
+function TargetCell({ item }: { item: DeploymentItem }) {
+  return (
+    <td className="py-1.5">
+      <Link
+        to={`/deployments/${encodeURIComponent(item.name)}`}
+        data-testid={`deployment-link-${item.name}`}
+        className="inline-flex items-center gap-1.5 font-mono text-[var(--color-text-primary)] hover:underline"
+      >
+        <KindIcon kind={item.kind} />
+        {item.name}
+      </Link>
+    </td>
+  );
+}
+
+function StatusCell({ item }: { item: DeploymentItem }) {
   const hb = heartbeatLabel(item.heartbeat_age_seconds);
   return (
-    <tr
-      data-testid={`deployment-row-${item.name}`}
-      className="border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]"
-    >
-      <td className="py-1.5">
-        <Link
-          to={`/deployments/${encodeURIComponent(item.name)}`}
-          data-testid={`deployment-link-${item.name}`}
-          className="inline-flex items-center gap-1.5 font-mono text-[var(--color-text-primary)] hover:underline"
-        >
-          <KindIcon kind={item.kind} />
-          {item.name}
-        </Link>
-      </td>
+    <td className="py-1.5">
+      <Chip tone={statusTone(item.status)} testId={`status-${item.name}`}>
+        {item.status}
+      </Chip>
+      {hb && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">hb {hb}</span>}
+    </td>
+  );
+}
+
+function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: DynamicsPreset }) {
+  const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
+  if (preset === "live") {
+    const feed = feedHealthLabel(item.heartbeat_age_seconds);
+    return (
+      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+        <TargetCell item={item} />
+        <td className="py-1.5">
+          <CloudBadge cloud={item.cloud} />
+        </td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
+        <StatusCell item={item} />
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
+          {lastRunLabel(item.last_run_at)}
+        </td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
+          {heartbeatLabel(item.heartbeat_age_seconds) ?? "—"}
+        </td>
+        <td className="py-1.5">
+          <Chip tone={feed.tone} testId={`feed-health-${item.name}`}>
+            {feed.label}
+          </Chip>
+        </td>
+      </tr>
+    );
+  }
+  if (preset === "batch") {
+    const coverage = item.captured_progress != null ? `${item.captured_progress}%` : "—";
+    return (
+      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+        <TargetCell item={item} />
+        <td className="py-1.5">
+          <CloudBadge cloud={item.cloud} />
+        </td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
+        <StatusCell item={item} />
+        <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
+          {item.captured_progress != null ? `${item.captured_progress}` : "—"}
+        </td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{coverage}</td>
+        <td className="py-1.5">
+          <ExitCodeCell exitCode={item.exit_code} />
+        </td>
+      </tr>
+    );
+  }
+  if (preset === "paper") {
+    // Paper recon-drift / determinism-ε are reconciliation outputs not yet on the inventory
+    // item (Phase 2 of the citadel recon plan emits them); surface "—" until wired, so the
+    // column shape is correct without faking a value.
+    return (
+      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+        <TargetCell item={item} />
+        <td className="py-1.5">
+          <CloudBadge cloud={item.cloud} />
+        </td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
+        <StatusCell item={item} />
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-muted)]">—</td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-muted)]">—</td>
+        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
+          {lastRunLabel(item.last_run_at)}
+        </td>
+      </tr>
+    );
+  }
+  // default — the full matrix shape (standalone /deployments page).
+  return (
+    <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+      <TargetCell item={item} />
       <td className="py-1.5">
         <CloudBadge cloud={item.cloud} />
       </td>
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
-      <td className="py-1.5">
-        <Chip tone={statusTone(item.status)} testId={`status-${item.name}`}>
-          {item.status}
-        </Chip>
-        {hb && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">hb {hb}</span>}
-      </td>
+      <StatusCell item={item} />
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{lastRunLabel(item.last_run_at)}</td>
       <td className="py-1.5">
         <ExitCodeCell exitCode={item.exit_code} />
@@ -217,7 +308,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
   );
 }
 
-function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
+function DeploymentMatrix({ items, preset }: { items: DeploymentItem[]; preset: DynamicsPreset }) {
   if (items.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-muted)] py-3" data-testid="deployment-matrix-empty">
@@ -225,24 +316,25 @@ function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
       </p>
     );
   }
+  const headers = PRESET_HEADERS[preset];
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid="deployment-matrix">
         <thead>
           <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)] text-left">
-            <th className="py-1.5 font-medium">Target</th>
-            <th className="py-1.5 font-medium">Cloud</th>
-            <th className="py-1.5 font-medium">Service</th>
-            <th className="py-1.5 font-medium">Asset group</th>
-            <th className="py-1.5 font-medium">Status</th>
-            <th className="py-1.5 font-medium">Last run</th>
-            <th className="py-1.5 font-medium">Exit</th>
-            <th className="py-1.5 font-medium text-right">Progress</th>
+            {headers.map((h, i) => (
+              <th
+                key={h}
+                className={`py-1.5 font-medium${i === headers.length - 1 && preset === "default" ? " text-right" : ""}`}
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
-            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} />
+            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} preset={preset} />
           ))}
         </tbody>
       </table>
@@ -283,25 +375,65 @@ function FilterSelect({
   );
 }
 
-export function Deployments() {
-  const [searchParams, setSearchParams] = useSearchParams();
+/** Per-umbrella column preset — the operator wants live/batch/paper to read as their
+ * DISTINCT dynamics, not one matrix shape (plan Phase 2). One inventory source, three
+ * presets: LIVE → uptime/heartbeat/feed-health; BATCH → progress/coverage/exit-code;
+ * PAPER → recon-drift/determinism-ε/last-recon. */
+export type DynamicsPreset = "live" | "batch" | "paper" | "default";
 
-  // URL is the source of truth for the umbrella tab + filters (deep-linkable from an alert).
+/**
+ * DeploymentsContent — the chrome-less inventory surface (no `<main>`, no page `<h1>`)
+ * so it can render standalone (the /deployments page wraps it) OR embedded inside a
+ * cockpit tab. When `fixedUmbrella` is set the umbrella is driven by the PROP (a cockpit
+ * Live/Batch/Paper tab owns it) and the cloud/status/asset_group filters live in LOCAL
+ * state — it does NOT touch `?umbrella=`/`?tab=` so it can't collide with the cockpit's
+ * `?tab=` ownership. Without `fixedUmbrella` it is the full URL-param-backed standalone
+ * page (alert deep-links `/deployments?umbrella=batch&cloud=gcp&status=failed`).
+ */
+export function DeploymentsContent({
+  fixedUmbrella,
+  preset,
+}: {
+  fixedUmbrella?: UmbrellaTab;
+  preset?: DynamicsPreset;
+} = {}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const embedded = fixedUmbrella != null;
+
+  // Embedded filters live in local state (no URL writes) to avoid colliding with the
+  // cockpit's `?tab=` ownership; standalone reads/writes the URL for alert deep-links.
+  const [localCloud, setLocalCloud] = useState("");
+  const [localStatus, setLocalStatus] = useState("");
+  const [localAssetGroup, setLocalAssetGroup] = useState("");
+
+  // URL is the source of truth for the umbrella tab + filters (deep-linkable from an alert)
+  // ONLY when standalone; embedded uses the prop + local state.
   const umbrellaParam = (searchParams.get("umbrella") ?? "live").toUpperCase();
-  const activeTab: UmbrellaTab = ["LIVE", "BATCH", "PAPER"].includes(umbrellaParam)
-    ? (umbrellaParam as UmbrellaTab)
-    : "LIVE";
-  const cloudFilter = searchParams.get("cloud")?.toUpperCase() ?? "";
-  const statusFilter = searchParams.get("status") ?? "";
-  const assetGroupFilter = searchParams.get("asset_group") ?? "";
+  const activeTab: UmbrellaTab = embedded
+    ? fixedUmbrella
+    : ["LIVE", "BATCH", "PAPER"].includes(umbrellaParam)
+      ? (umbrellaParam as UmbrellaTab)
+      : "LIVE";
+  const cloudFilter = embedded ? localCloud : (searchParams.get("cloud")?.toUpperCase() ?? "");
+  const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "");
+  const assetGroupFilter = embedded ? localAssetGroup : (searchParams.get("asset_group") ?? "");
 
   const [items, setItems] = useState<DeploymentItem[]>([]);
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The active dynamics column preset — explicit prop, else derived from the umbrella.
+  const activePreset: DynamicsPreset = preset ?? (embedded ? (activeTab.toLowerCase() as DynamicsPreset) : "default");
+
   const setParam = useCallback(
     (key: string, value: string) => {
+      if (embedded) {
+        if (key === "cloud") setLocalCloud(value);
+        else if (key === "status") setLocalStatus(value);
+        else if (key === "asset_group") setLocalAssetGroup(value);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -312,7 +444,7 @@ export function Deployments() {
         { replace: true },
       );
     },
-    [setSearchParams],
+    [embedded, setSearchParams],
   );
 
   const load = useCallback(() => {
@@ -356,14 +488,20 @@ export function Deployments() {
   }, [items, assetGroupFilter]);
 
   return (
-    <main className="w-full app-shell-gutter py-4" data-testid="deployments-page">
+    <div className="w-full" data-testid="deployments-page">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-          Deployments
+        {embedded ? (
           <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-            live / batch / paper — every VM + Cloud Run job
+            {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
           </span>
-        </h1>
+        ) : (
+          <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+            Deployments
+            <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+              live / batch / paper — every VM + Cloud Run job
+            </span>
+          </h1>
+        )}
         <button
           onClick={load}
           disabled={loading}
@@ -375,25 +513,28 @@ export function Deployments() {
         </button>
       </div>
 
-      {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). */}
-      <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
-        {UMBRELLA_TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            data-testid={`umbrella-tab-${t.id}`}
-            aria-pressed={activeTab === t.id}
-            onClick={() => setParam("umbrella", t.id.toLowerCase())}
-            className={`rounded border px-3 py-1.5 text-sm ${
-              activeTab === t.id
-                ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
-                : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
+          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
+      {!embedded && (
+        <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
+          {UMBRELLA_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              data-testid={`umbrella-tab-${t.id}`}
+              aria-pressed={activeTab === t.id}
+              onClick={() => setParam("umbrella", t.id.toLowerCase())}
+              className={`rounded border px-3 py-1.5 text-sm ${
+                activeTab === t.id
+                  ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
+                  : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -455,9 +596,22 @@ export function Deployments() {
               <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
             </p>
           )}
-          {!error && <DeploymentMatrix items={items} />}
+          {!error && <DeploymentMatrix items={items} preset={activePreset} />}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * Deployments — the standalone /repos-grade observability page. A thin `<main>` shell
+ * around the chrome-less {@link DeploymentsContent} (URL-param-backed umbrella tabs +
+ * filters for alert deep-links). The cockpit embeds DeploymentsContent directly per tab.
+ */
+export function Deployments() {
+  return (
+    <main className="w-full app-shell-gutter py-4">
+      <DeploymentsContent />
     </main>
   );
 }

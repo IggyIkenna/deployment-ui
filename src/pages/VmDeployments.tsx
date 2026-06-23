@@ -108,7 +108,14 @@ function logUriToConsoleUrl(logUri: string): string | null {
   return `https://console.cloud.google.com/storage/browser/_details/${bucket}/${path}`;
 }
 
-export function VmDeployments() {
+/**
+ * VmDeploymentsContent — the chrome-less VM census (active + archive tables + venue
+ * panels). Rendered standalone by {@link VmDeployments} (its own page) OR embedded in
+ * the cockpit Fleet tab. No router hooks here so embedding can't collide with the
+ * cockpit's `?tab=` ownership. `compact` hides the venue-config panels (only the
+ * active/archive census matters in the Fleet tab).
+ */
+export function VmDeploymentsContent({ compact = false }: { compact?: boolean } = {}) {
   const [active, setActive] = useState<VmDeploymentEntry[]>([]);
   const [recent, setRecent] = useState<VmDeploymentEntry[]>([]);
   const [days, setDays] = useState(7);
@@ -391,7 +398,7 @@ export function VmDeployments() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6" data-testid="vm-deployments-content">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-base font-semibold text-[var(--color-text-primary)]">VM Deployments</h1>
@@ -447,12 +454,28 @@ export function VmDeployments() {
 
       {error && <div className="text-[var(--color-error)] text-sm py-2">Error: {error}</div>}
 
-      <VenueCredentialsPanel />
-      <VenueDateRangePanel />
-      <VenueRelaunchEstimatePanel />
-      <VenueTardisWindowsPanel />
+      {!compact && (
+        <>
+          <VenueCredentialsPanel />
+          <VenueDateRangePanel />
+          <VenueRelaunchEstimatePanel />
+          <VenueTardisWindowsPanel />
+        </>
+      )}
       {renderTable(active, "Active", active.length)}
       {renderArchiveTable(recent, `Recent (${days}d)`, recent.length)}
+    </div>
+  );
+}
+
+/**
+ * VmDeployments — the standalone /vm-deployments page: a `<main>`-grade `<div>` shell
+ * (the original `p-6` page padding) around {@link VmDeploymentsContent}.
+ */
+export function VmDeployments() {
+  return (
+    <div className="p-6">
+      <VmDeploymentsContent />
     </div>
   );
 }

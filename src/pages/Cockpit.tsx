@@ -42,6 +42,13 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { DeploymentsContent } from "./Deployments";
+import { VmDeploymentsContent } from "./VmDeployments";
+import { RepoCiContent } from "./RepoCi";
+import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
+import { ChaosContent } from "./Chaos";
+import { SafetyOpsContent } from "./SafetyOps";
+import { LaunchTab } from "../components/cockpit/LaunchTab";
 
 // ---------------------------------------------------------------------------
 // Shared status vocabulary — mirrors the Deployments page chip tones so the
@@ -301,53 +308,6 @@ function DeployTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Dynamics panes — Live / Batch / Paper each get their distinct columns. The
-// existing /deployments inventory is the data source (Phase 2 swaps these
-// placeholder rows for it); the COLUMNS differ per umbrella by design. The "Logs"
-// + "Redeploy" per-row affordances attach when the real rows land.
-// ---------------------------------------------------------------------------
-
-function PlaceholderTable({ columns, note }: { columns: string[]; note: { endpoint: string; phase: string } }) {
-  return (
-    <div>
-      <PlaceholderNote endpoint={note.endpoint} phase={note.phase} />
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border-default)] text-left text-xs text-[var(--color-text-tertiary)]">
-                {columns.map((c) => (
-                  <th key={c} className="px-4 py-2 font-medium whitespace-nowrap">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[0, 1, 2].map((r) => (
-                <tr key={r} className="border-b border-[var(--color-border-default)]/50">
-                  {columns.map((c) => (
-                    <td key={c} className="px-4 py-3 text-[var(--color-text-muted)]">
-                      <span className="inline-block h-3 w-16 rounded bg-[var(--color-bg-tertiary)]" />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-const DYNAMICS_COLUMNS: Record<"live" | "batch" | "paper", string[]> = {
-  live: ["Service", "Cloud", "Status", "Uptime", "Heartbeat age", "Feed health", "Logs"],
-  batch: ["VM / Job", "Cloud", "Status", "Progress", "Coverage %", "Exit code", "Logs"],
-  paper: ["Strategy", "Cloud", "Status", "Recon drift", "Determinism ε", "Last recon", "Logs"],
-};
-
-// ---------------------------------------------------------------------------
 // Fleet reconciliation — "every VM accounted for" across GCP+AWS, INCLUDING the
 // agent-orchestrator control-plane VMs (a Purpose column distinguishes trading vs
 // dev-automation). UNKNOWN (running but unregistered) and EXPECTED-MISSING
@@ -393,10 +353,10 @@ function FleetTab() {
           </Card>
         ))}
       </div>
-      <PlaceholderTable
-        columns={["Instance / Job", "Cloud", "Purpose", "Prefix", "Classified umbrella", "Registry match", "Status"]}
-        note={{ endpoint: "GET /api/fleet/reconciliation", phase: "Phase 4" }}
-      />
+      {/* The real VM census (active + recent archive) — the every-VM-accounted-for table.
+          The cross-cloud reconciliation alarm rows (UNKNOWN / EXPECTED-MISSING) wire to
+          GET /api/fleet/reconciliation in Phase 4; the census below is REAL today. */}
+      <VmDeploymentsContent compact />
     </div>
   );
 }
@@ -446,6 +406,11 @@ const COCKPIT_TABS = [
   { id: "paper", label: "Paper", icon: Layers },
   { id: "fleet", label: "Fleet", icon: Server },
   { id: "consolidators", label: "Consolidators", icon: Database },
+  { id: "ci", label: "CI", icon: GitBranch },
+  { id: "alerts", label: "Alerts & Logs", icon: AlertTriangle },
+  { id: "launch", label: "Launch", icon: Rocket },
+  { id: "chaos", label: "Chaos", icon: AlertTriangle },
+  { id: "safety", label: "Safety Ops", icon: ShieldCheck },
 ] as const;
 
 type CockpitTabId = (typeof COCKPIT_TABS)[number]["id"];
@@ -481,7 +446,7 @@ export function Cockpit() {
       </div>
 
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList variant="pill" className="grid w-full grid-cols-4 lg:grid-cols-7 mb-6">
+        <TabsList variant="pill" className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 mb-6">
           {COCKPIT_TABS.map((t) => {
             const Icon = t.icon;
             return (
@@ -500,28 +465,50 @@ export function Cockpit() {
           <DeployTab />
         </TabsContent>
         <TabsContent value="live">
-          <PlaceholderTable
-            columns={DYNAMICS_COLUMNS.live}
-            note={{ endpoint: "GET /api/deployments/inventory?umbrella=LIVE", phase: "Phase 2" }}
-          />
+          <div data-testid="cockpit-live">
+            <DeploymentsContent fixedUmbrella="LIVE" />
+          </div>
         </TabsContent>
         <TabsContent value="batch">
-          <PlaceholderTable
-            columns={DYNAMICS_COLUMNS.batch}
-            note={{ endpoint: "GET /api/deployments/inventory?umbrella=BATCH", phase: "Phase 2" }}
-          />
+          <div data-testid="cockpit-batch">
+            <DeploymentsContent fixedUmbrella="BATCH" />
+          </div>
         </TabsContent>
         <TabsContent value="paper">
-          <PlaceholderTable
-            columns={DYNAMICS_COLUMNS.paper}
-            note={{ endpoint: "GET /api/deployments/inventory?umbrella=PAPER", phase: "Phase 2" }}
-          />
+          <div data-testid="cockpit-paper">
+            <DeploymentsContent fixedUmbrella="PAPER" />
+          </div>
         </TabsContent>
         <TabsContent value="fleet">
           <FleetTab />
         </TabsContent>
         <TabsContent value="consolidators">
           <ConsolidatorsTab />
+        </TabsContent>
+        <TabsContent value="ci">
+          <div data-testid="cockpit-ci">
+            <RepoCiContent />
+          </div>
+        </TabsContent>
+        <TabsContent value="alerts">
+          <div data-testid="cockpit-alerts">
+            <AlertsLogsTab />
+          </div>
+        </TabsContent>
+        <TabsContent value="launch">
+          <div data-testid="cockpit-launch">
+            <LaunchTab />
+          </div>
+        </TabsContent>
+        <TabsContent value="chaos">
+          <div data-testid="cockpit-chaos">
+            <ChaosContent />
+          </div>
+        </TabsContent>
+        <TabsContent value="safety">
+          <div data-testid="cockpit-safety">
+            <SafetyOpsContent />
+          </div>
         </TabsContent>
       </Tabs>
     </main>

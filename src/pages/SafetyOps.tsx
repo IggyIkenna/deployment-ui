@@ -22,10 +22,7 @@ export function SafetyOps() {
           <Shield className="h-5 w-5 text-amber-400" />
         </div>
         <div>
-          <h1
-            className="text-lg font-semibold text-[var(--color-text-primary)]"
-            data-testid="safety-ops-heading"
-          >
+          <h1 className="text-lg font-semibold text-[var(--color-text-primary)]" data-testid="safety-ops-heading">
             Safety Ops
           </h1>
           <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
@@ -38,9 +35,8 @@ export function SafetyOps() {
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-3">
         <ShieldAlert className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
         <p className="text-xs text-[var(--color-text-secondary)]">
-          <span className="font-medium text-amber-300">Execute actions</span> are
-          restricted to Ikenna / Harsh / founder. Read view (audit queue + verdicts)
-          is open to all authenticated operators.
+          <span className="font-medium text-amber-300">Execute actions</span> are restricted to Ikenna / Harsh /
+          founder. Read view (audit queue + verdicts) is open to all authenticated operators.
         </p>
       </div>
 
@@ -51,16 +47,14 @@ export function SafetyOps() {
           className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 space-y-3"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
-              Layer-0 Actions
-            </h2>
+            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Layer-0 Actions</h2>
             <span className="text-xs font-mono text-[var(--color-text-muted)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 rounded">
               typed-confirm required
             </span>
           </div>
           <p className="text-xs text-[var(--color-text-tertiary)]">
-            Each action requires a typed confirmation string before execution.
-            Every action flows through the Incident Gateway (full audit trail).
+            Each action requires a typed confirmation string before execution. Every action flows through the Incident
+            Gateway (full audit trail).
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {LAYER0_ACTIONS.map((action) => (
@@ -89,14 +83,12 @@ export function SafetyOps() {
           className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 space-y-3"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
-              LLM Audit Verdicts
-            </h2>
+            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">LLM Audit Verdicts</h2>
             <Activity className="h-4 w-4 text-[var(--color-text-muted)] animate-pulse" />
           </div>
           <p className="text-xs text-[var(--color-text-tertiary)]">
-            RecoveryAuditSignoff verdicts from the recovery-audit agent. DISPUTE
-            escalates to SEV0 + SAFE_MODE_ACTIVE regardless of APPROVED verdict.
+            RecoveryAuditSignoff verdicts from the recovery-audit agent. DISPUTE escalates to SEV0 + SAFE_MODE_ACTIVE
+            regardless of APPROVED verdict.
           </p>
           {/* Empty state skeleton */}
           <div className="space-y-2">
@@ -133,49 +125,31 @@ export function SafetyOps() {
         className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 space-y-3"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
-            Audit-Ack Queue
-          </h2>
+          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Audit-Ack Queue</h2>
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-[var(--color-text-muted)]" />
-            <span className="text-xs font-mono text-[var(--color-text-muted)]">
-              SLA: SEV0 5min · SEV1 2h · SEV2 6h
-            </span>
+            <span className="text-xs font-mono text-[var(--color-text-muted)]">SLA: SEV0 5min · SEV1 2h · SEV2 6h</span>
           </div>
         </div>
         <p className="text-xs text-[var(--color-text-tertiary)]">
-          Incidents awaiting human audit acknowledgement. Even APPROVED LLM verdict
-          requires human ack — auto-close is banned. Op-Ack = "investigating";
-          Audit-Ack = "reviewed + confirmed".
+          Incidents awaiting human audit acknowledgement. Even APPROVED LLM verdict requires human ack — auto-close is
+          banned. Op-Ack = "investigating"; Audit-Ack = "reviewed + confirmed".
         </p>
         {/* Table skeleton */}
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--color-border-default)]">
-                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">
-                  Incident Key
-                </th>
-                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">
-                  Severity
-                </th>
-                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">
-                  SLA Countdown
-                </th>
-                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">
-                  LLM Verdict
-                </th>
-                <th className="text-right py-2 text-[var(--color-text-muted)] font-medium">
-                  Actions
-                </th>
+                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">Incident Key</th>
+                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">Severity</th>
+                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">SLA Countdown</th>
+                <th className="text-left py-2 pr-4 text-[var(--color-text-muted)] font-medium">LLM Verdict</th>
+                <th className="text-right py-2 text-[var(--color-text-muted)] font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {[1, 2].map((i) => (
-                <tr
-                  key={i}
-                  className="border-b border-[var(--color-border-default)]/50"
-                >
+                <tr key={i} className="border-b border-[var(--color-border-default)]/50">
                   <td className="py-2 pr-4">
                     <div className="h-3 w-36 rounded bg-[var(--color-border-default)] animate-pulse" />
                   </td>
@@ -212,10 +186,16 @@ export function SafetyOps() {
           </table>
         </div>
         <p className="text-xs text-[var(--color-text-muted)] font-mono">
-          Live wiring: alerting-service GET /safety-ops/audit-ack-queue ·
-          POST /safety-ops/incidents/{"{key}"}/operational-ack|audit-ack
+          Live wiring: alerting-service GET /safety-ops/audit-ack-queue · POST /safety-ops/incidents/{"{key}"}
+          /operational-ack|audit-ack
         </p>
       </div>
     </div>
   );
 }
+
+/**
+ * Chrome-less alias for embedding inside the cockpit "Safety" tab. The page uses
+ * a `<div>` shell (no `<main>`), so it renders cleanly inside a cockpit TabsContent.
+ */
+export const SafetyOpsContent = SafetyOps;

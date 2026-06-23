@@ -33,7 +33,20 @@ async function mockBase(page: Page) {
   await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
 }
 
-const TAB_IDS = ["health", "deploy", "live", "batch", "paper", "fleet", "consolidators"] as const;
+const TAB_IDS = [
+  "health",
+  "deploy",
+  "live",
+  "batch",
+  "paper",
+  "fleet",
+  "consolidators",
+  "ci",
+  "alerts",
+  "launch",
+  "chaos",
+  "safety",
+] as const;
 
 test.describe("Cockpit — scaffold IA", () => {
   test("/ redirects to /cockpit (cockpit is the default page)", async ({ page }) => {
@@ -44,7 +57,7 @@ test.describe("Cockpit — scaffold IA", () => {
     await expect(page.getByTestId("cockpit-page")).toBeVisible();
   });
 
-  test("renders the page with all 7 tabs", async ({ page }) => {
+  test("renders the page with all 12 tabs", async ({ page }) => {
     await mockBase(page);
     await page.goto("/cockpit");
     await page.waitForLoadState("networkidle");
@@ -100,6 +113,96 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.waitForLoadState("networkidle");
     await page.getByTestId("nav-cockpit").click();
     await expect(page).toHaveURL(/\/cockpit/);
+    await expect(page.getByTestId("cockpit-page")).toBeVisible();
+  });
+});
+
+/**
+ * Regression: the Live / Batch / Paper / Fleet cockpit tabs are now an EMBEDDED APP
+ * (folded Deployments + VM Deployments inventory), not placeholder tables — they render
+ * the REAL inventory from the mock API (VITE_MOCK_API=true via the playwright webServer).
+ * Guards Phase 0.7 "Fold Deployments + VM Deployments + Live Ops". Note: NO page.route
+ * mock here — the dev mock-api serves /api/deployments/inventory + /vm-deployments so the
+ * folded components get real-shaped data (the cockpit owns ?tab=; the embedded umbrella is
+ * a prop, never ?umbrella=, so there is no query collision).
+ */
+test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
+  test("Live tab renders the folded Deployments inventory with a real live row", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-live")).toBeVisible();
+    // The folded DeploymentsContent renders chrome-less (no standalone <main>/umbrella tabs).
+    await expect(page.getByTestId("cockpit-live").getByTestId("umbrella-tabs")).toHaveCount(0);
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    // A real LIVE target row from the mock inventory + the LIVE-preset feed-health column.
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toBeVisible();
+  });
+
+  test("Batch tab renders the folded inventory with the failed/137 (OOM) row", async ({ page }) => {
+    await page.goto("/cockpit?tab=batch");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-batch")).toBeVisible();
+    const row = page.getByTestId("deployment-row-sports-backfill-20260621");
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("137 (OOM)");
+  });
+
+  test("Paper tab renders the folded inventory with a paper row", async ({ page }) => {
+    await page.goto("/cockpit?tab=paper");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-paper")).toBeVisible();
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+  });
+
+  test("Fleet tab renders the real VM census (every VM accounted for)", async ({ page }) => {
+    await page.goto("/cockpit?tab=fleet");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
+    // The reconciliation alarm cards stay (wire to /api/fleet/reconciliation in Phase 4) …
+    await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
+    // … plus the REAL active/archive VM census is folded in (chrome-less).
+    await expect(page.getByTestId("vm-deployments-content")).toBeVisible();
+  });
+});
+
+/**
+ * Regression: the CI / Alerts&Logs / Launch / Safety tabs are now EMBEDDED folds
+ * (RepoCiContent, AlertsContent + live log-tail, ML/Strategy/Exec sub-tabs,
+ * SafetyOpsContent) — not nav-away links. Asserts the static pane chrome renders
+ * (data may be loading in mock mode; the embed must not crash the cockpit).
+ * Guards Phase 0.7 "Fold Repos CI / Alerts / Launch / Safety Ops".
+ */
+test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", () => {
+  test("Alerts & Logs tab folds the alert ledger + a live log-tail with a target input", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/cockpit?tab=alerts");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-alerts-logs")).toBeVisible();
+    await expect(page.getByTestId("cockpit-logs-target")).toBeVisible();
+    await expect(page.getByTestId("cockpit-logs-empty")).toBeVisible();
+    // deep-link ?logs=<target> auto-opens the streaming panel (alert → logs flow)
+    await page.goto("/cockpit?tab=alerts&logs=strategy-live-csb-001");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-logs-empty")).toHaveCount(0);
+  });
+
+  test("Launch tab folds the ML / Strategy / Execution sub-tabs", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/cockpit?tab=launch");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-launch")).toBeVisible();
+    await expect(page.getByTestId("cockpit-launch-tab-strategy")).toBeVisible();
+    await page.getByTestId("cockpit-launch-tab-strategy").click();
+    await expect(page.getByTestId("cockpit-launch-tab-strategy")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Safety tab folds the SafetyOps console + CI tab folds RepoCi (no crash)", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/cockpit?tab=safety");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("safety-ops-heading")).toBeVisible();
+    await page.getByTestId("cockpit-tab-ci").click();
     await expect(page.getByTestId("cockpit-page")).toBeVisible();
   });
 });
