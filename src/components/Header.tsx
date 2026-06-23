@@ -137,7 +137,7 @@ export function Header() {
                 className="text-xs gap-1 border-green-500/40 text-green-300"
                 title={`Live data from ${health?.cloud_provider ?? "cloud"}`}
               >
-                <Database className="h-3 w-3" /> LIVE
+                <Database className="h-3 w-3" /> LIVE DATA
               </Badge>
             );
           })()}
