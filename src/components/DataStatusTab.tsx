@@ -4008,6 +4008,34 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                   </div>
                                 )}
 
+                                {/* Prediction 3-level hierarchical drill-down:
+                                    canonical_question_group → cadence → day.
+                                    Replaces the flat "Markets" data_type list for PREDICTION.
+                                    Per-shard parquet download and Deploy-Missing wired via
+                                    HierarchicalShardDrilldown leaf controls.
+                                    Matches the sports + tradfi hierarchical pattern. */}
+                                {isPredictionCqgAxis(catData) && (
+                                  <div
+                                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
+                                    data-testid="prediction-hierarchical-drilldown"
+                                  >
+                                    <details>
+                                      <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] uppercase tracking-wide font-medium">
+                                        Hierarchical drill-down (canonical_question_group → cadence → day)
+                                      </summary>
+                                      <div className="mt-2">
+                                        <HierarchicalShardDrilldown
+                                          service={serviceName}
+                                          assetGroup={catName.toLowerCase()}
+                                          startDate={startDate}
+                                          endDate={endDate}
+                                          initialDepth={1}
+                                        />
+                                      </div>
+                                    </details>
+                                  </div>
+                                )}
+
                                 {/* Feature group breakdown (v4) */}
                                 {catData.feature_groups && Object.keys(catData.feature_groups).length > 0 && (
                                   <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
