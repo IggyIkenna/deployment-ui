@@ -558,86 +558,89 @@ function StuckPanel({ stuckPrs, stuckInSit }: { stuckPrs: RepoCiPr[]; stuckInSit
  * the built COMMIT SHA (→ that commit on GitHub, "where this build came from") + build TIME.
  * Answers "why is the image this colour / what code built it / when / where's the log" — not a
  * bare status word. Honest-unknown stays "unknown" (no fabricated sha/time/link). */
-function ImageCell({ image, repo }: { image: RepoCiImageSignal; repo: string }) {
-  const chip =
-    image.image_stale === true ? (
-      <Chip tone="yellow">stale</Chip>
-    ) : image.last_build_status ? (
-      <Chip tone={image.last_build_status === "SUCCESS" ? "green" : "red"}>{image.last_build_status}</Chip>
-    ) : (
-      <Chip tone="gray">{image.deployed_version ?? "unknown"}</Chip>
-    );
-  const commitUrl = githubCommitUrl(repo, image.last_build_sha ?? null);
-  const title =
-    [
-      image.last_build_sha ? `built from ${image.last_build_sha}` : "",
-      image.last_build_time ? `at ${image.last_build_time}` : "",
-      image.deployed_version ? `deployed ${image.deployed_version}` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ") || undefined;
+/** SHA tone by build status (Option B — the colour carries the status, no status word): green =
+ * success, red = failed, amber = building/other, gray = stale or no build. */
+function buildShaTone(image: RepoCiImageSignal | null | undefined): string {
+  if (!image?.last_build_status || image.image_stale === true) return "text-[var(--color-text-muted)]";
+  if (image.last_build_status === "SUCCESS") return "text-emerald-400";
+  if (image.last_build_status === "FAILURE" || image.last_build_status === "FAILED") return "text-red-400";
+  return "text-amber-400";
+}
+
+/** One cloud's build line in the dual-cloud Image cell: cloud label + colour-coded build SHA (→ that
+ * commit on GitHub; hover = status · sha · time) + build datetime + log link. Shows "—" when that
+ * cloud has no build / isn't reachable (honest, never fabricated). */
+function CloudBuildLine({ cloud, image, repo }: { cloud: string; image?: RepoCiImageSignal | null; repo: string }) {
+  const sha = image?.last_build_sha ?? null;
+  const status = image?.image_stale ? "stale" : (image?.last_build_status ?? (image ? "no build" : "no access"));
+  const commitUrl = sha ? githubCommitUrl(repo, sha) : null;
+  const title = [`${cloud}: ${status}`, sha ?? "", image?.last_build_time ? `at ${image.last_build_time}` : ""]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div className="flex items-center gap-1.5" data-testid="image-cell" title={title}>
-      {image.last_build_log_url ? (
+    <div className="flex items-center gap-1.5" data-testid={`image-${cloud.toLowerCase()}`} title={title}>
+      <span className="w-7 shrink-0 text-[10px] font-semibold text-[var(--color-text-muted)]">{cloud}</span>
+      {sha ? (
+        <a
+          href={commitUrl ?? "#"}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`font-mono text-[11px] hover:underline ${buildShaTone(image)}`}
+          data-testid={`image-sha-${cloud.toLowerCase()}`}
+        >
+          {shortSha(sha)}
+        </a>
+      ) : (
+        <span
+          className="font-mono text-[11px] text-[var(--color-text-muted)]"
+          data-testid={`image-sha-${cloud.toLowerCase()}`}
+        >
+          —
+        </span>
+      )}
+      {image?.last_build_time && (
+        <span className="text-[10px] text-[var(--color-text-muted)]">· {buildTimeLabel(image.last_build_time)}</span>
+      )}
+      {image?.last_build_log_url && (
         <a
           href={image.last_build_log_url}
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 hover:underline"
-          data-testid="image-log-link"
+          className="inline-flex"
+          title={`${cloud} build log`}
         >
-          {chip}
           <ExternalLink className="h-3 w-3 text-[var(--color-text-muted)]" />
         </a>
-      ) : (
-        chip
       )}
-      {image.last_build_sha &&
-        (commitUrl ? (
-          <a
-            href={commitUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="font-mono text-[11px] text-[var(--color-text-secondary)] hover:underline"
-            data-testid="image-build-sha"
-            title="built commit → GitHub"
-          >
-            {shortSha(image.last_build_sha)}
-          </a>
-        ) : (
-          <span className="font-mono text-[11px] text-[var(--color-text-secondary)]" data-testid="image-build-sha">
-            {shortSha(image.last_build_sha)}
-          </span>
-        ))}
-      {image.last_build_time && (
-        <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="image-build-time">
-          {buildTimeLabel(image.last_build_time)}
+    </div>
+  );
+}
+
+/** Image column — GCP + AWS side-by-side (no provider toggle). deployed_version (shared) on top,
+ * then each cloud's build: SHA colour-coded by status + datetime + log link. SSOT: dual-cloud image
+ * status (operator 2026-06-22 — see both clouds at once instead of switching provider). */
+function ImageCell({
+  gcp,
+  aws,
+  deployedVersion,
+  repo,
+}: {
+  gcp?: RepoCiImageSignal | null;
+  aws?: RepoCiImageSignal | null;
+  deployedVersion?: string | null;
+  repo: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5" data-testid="image-cell">
+      {deployedVersion && (
+        <span className="text-[10px] text-[var(--color-text-muted)]" data-testid="image-deployed">
+          {deployedVersion}
         </span>
       )}
-      {/* When the latest build is RED, surface the last GREEN sha so the column doesn't hide
-          the last good image. Linked to that commit on GitHub. */}
-      {image.last_build_status &&
-        image.last_build_status !== "SUCCESS" &&
-        image.last_success_sha &&
-        (githubCommitUrl(repo, image.last_success_sha) ? (
-          <a
-            href={githubCommitUrl(repo, image.last_success_sha) ?? "#"}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="font-mono text-[11px] text-emerald-400 hover:underline"
-            data-testid="image-last-success"
-            title={`last successful build: ${image.last_success_sha}${image.last_success_time ? ` (${image.last_success_time})` : ""}`}
-          >
-            ✓ {shortSha(image.last_success_sha)}
-          </a>
-        ) : (
-          <span className="font-mono text-[11px] text-emerald-400" data-testid="image-last-success">
-            ✓ {shortSha(image.last_success_sha)}
-          </span>
-        ))}
+      <CloudBuildLine cloud="GCP" image={gcp} repo={repo} />
+      <CloudBuildLine cloud="AWS" image={aws} repo={repo} />
     </div>
   );
 }
@@ -1006,7 +1009,7 @@ function OverviewTable({
         </tr>
       </thead>
       <tbody>
-        {sorted.map((row) => {
+        {sorted.map((row, rowIndex) => {
           const bySha = new Map(row.branches.map((b) => [b.branch, b.sha]));
           const ldrMain = row.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout");
           const stuckCount = row.open_prs.filter((pr) => pr.stuck_class).length;
@@ -1017,7 +1020,7 @@ function OverviewTable({
               data-testid={`repo-row-${row.repo}`}
               onClick={() => onSelect(row.repo)}
               className={`border-b border-[var(--color-border-default)]/40 cursor-pointer hover:bg-[var(--color-bg-secondary)] ${
-                selected === row.repo ? "bg-[var(--color-bg-secondary)]" : ""
+                selected === row.repo ? "bg-[var(--color-bg-secondary)]" : rowIndex % 2 === 1 ? "bg-white/[0.04]" : ""
               }`}
             >
               <td className="py-1.5 font-mono text-[var(--color-text-primary)]">{row.repo}</td>
@@ -1061,7 +1064,11 @@ function OverviewTable({
               </td>
               <td className="py-1.5 text-[var(--color-text-secondary)] align-top">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  <span>{ldrMain ? deltaLabel(ldrMain.files_changed, ldrMain.ahead_by) : "—"}</span>
+                  {/* LDR→main commit count = the real squash-free count (main_unpromoted_commits)
+                      when there's content drift; ahead_by only for the in-sync squash-skew case. */}
+                  <span>
+                    {ldrMain ? deltaLabel(ldrMain.files_changed, row.main_unpromoted_commits ?? ldrMain.ahead_by) : "—"}
+                  </span>
                   {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
                   {typeof row.main_lag_age_min === "number" && (
                     <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
@@ -1103,7 +1110,12 @@ function OverviewTable({
                 )}
               </td>
               <td className="py-1.5">
-                <ImageCell image={row.image} repo={row.repo} />
+                <ImageCell
+                  gcp={row.image_gcp}
+                  aws={row.image_aws}
+                  deployedVersion={row.image.deployed_version}
+                  repo={row.repo}
+                />
               </td>
               {/* Codebase-health columns (2026-06-19): coverage%, QG fail reason, file-size debt. */}
               <td className="py-1.5 text-right" data-testid={`cov-${row.repo}`}>

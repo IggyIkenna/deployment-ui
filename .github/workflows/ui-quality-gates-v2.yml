@@ -76,12 +76,56 @@ jobs:
           set -o pipefail
           bash scripts/quality-gates.sh --no-fix 2>&1 | tee /tmp/qg_output.log
 
+      - name: Compute codebase-health metrics (best-effort, non-fatal)
+        id: codebase_health
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PYEOF' > .qg_codebase_health.json || echo '{}' > .qg_codebase_health.json
+          import json, os
+          _SKIP = {"node_modules", ".next", "build", "dist", ".git", ".venv"}
+          large = warn = 0
+          for root, dirs, files in os.walk("."):
+              dirs[:] = [d for d in dirs if d not in _SKIP]
+              for f in files:
+                  if not (f.endswith(".ts") or f.endswith(".tsx")):
+                      continue
+                  try:
+                      n = open(os.path.join(root, f), "rb").read().count(b"\n")
+                  except OSError:
+                      continue
+                  if n > 900:
+                      large += 1
+                  elif n >= 700:
+                      warn += 1
+          cov = None
+          cov_path = "coverage/coverage-summary.json"
+          if os.path.exists(cov_path):
+              try:
+                  data = json.load(open(cov_path, encoding="utf-8"))
+                  total = data.get("total", {})
+                  pct = (total.get("lines") or total.get("statements") or {}).get("pct")
+                  if pct is not None:
+                      cov = round(float(pct), 2)
+              except (OSError, ValueError, KeyError):
+                  pass
+          reason = "qg" if os.environ.get("JOB_STATUS") not in ("success", None, "") else None
+          print(json.dumps({"coverage_pct": cov, "qg_red_reason": reason, "large_file_count": large, "warn_file_count": warn}))
+          PYEOF
+          echo "codebase-health: $(cat .qg_codebase_health.json)"
+          CH_B64=$(base64 -w0 < .qg_codebase_health.json 2>/dev/null || base64 < .qg_codebase_health.json | tr -d '\n')
+          echo "ch_b64=${CH_B64}" >> "$GITHUB_OUTPUT"
+
       - name: Record CI status (branch-aware lifecycle)
         if: always()
         shell: bash
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           TRIGGER_BRANCH: ${{ github.head_ref || github.ref_name }}
+          CH_B64: ${{ steps.codebase_health.outputs.ch_b64 }}
         run: |
           [ -z "${GH_PAT}" ] && echo "GH_PAT not set — skipping ci-status-update" && exit 0
 
@@ -103,4 +147,4 @@ jobs:
             -H "Authorization: token ${GH_PAT}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY_OWNER}/unified-trading-pm/dispatches" \
-            -d "{\"event_type\": \"ci-status-update\", \"client_payload\": {\"repo\": \"${GITHUB_REPOSITORY#*/}\", \"status\": \"${STATUS}\", \"branch\": \"${TRIGGER_BRANCH}\", \"sha\": \"${GITHUB_SHA}\", \"failure_excerpt_b64\": \"${EXCERPT_B64}\"}}"
+            -d "{\"event_type\": \"ci-status-update\", \"client_payload\": {\"repo\": \"${GITHUB_REPOSITORY#*/}\", \"status\": \"${STATUS}\", \"branch\": \"${TRIGGER_BRANCH}\", \"sha\": \"${GITHUB_SHA}\", \"failure_excerpt_b64\": \"${EXCERPT_B64}\", \"codebase_health_b64\": \"${CH_B64:-}\"}}"

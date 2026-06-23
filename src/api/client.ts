@@ -3435,12 +3435,19 @@ export interface RepoCiOverviewRow {
   open_prs: RepoCiPr[];
   sit: RepoCiSitState;
   image: RepoCiImageSignal;
+  /** Dual-cloud image status (side-by-side, no provider toggle) — per-cloud build signal. Null/absent
+   * when that cloud's build API isn't reachable. `image` is the active provider's (deployed_version). */
+  image_gcp?: RepoCiImageSignal | null;
+  image_aws?: RepoCiImageSignal | null;
   /** N2: most-recent GREEN main sha + time ("green as of <sha> · <age>"), distinct from the head
    * (which may be red/pending). Null when no successful v2 run is known for the repo's main. */
   last_green_main?: RepoCiLastGreen | null;
-  /** G6: age (minutes) of the oldest LDR commit not yet on main — the promotion lag the
-   * promotion-lag-monitor pages on (>60min). Null when LDR is in sync with main (no lag). */
+  /** G6: age (minutes) of the oldest DIVERGED FILE's last LDR change — the true promotion lag
+   * (>60min pages). Files-based, not the commit graph. Null when LDR is in sync with main. */
   main_lag_age_min?: number | null;
+  /** Real (squash-free) count of commits carrying the LDR→main content delta — distinct
+   * last-setting commits of the diverged files. Null when in sync. Use this, NOT ahead_by. */
+  main_unpromoted_commits?: number | null;
   /** promotion-drain follow-up: true when this repo has real file-content ahead of staging/main
    * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
    * on LDR with a dead drain). */
