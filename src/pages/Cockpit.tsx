@@ -49,6 +49,7 @@ import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
+import { DeployConsole } from "../components/cockpit/DeployConsole";
 import {
   getHealthConsolidator,
   getHealthOverview,
@@ -431,8 +432,7 @@ function DeployTab() {
   ];
   return (
     <div data-testid="cockpit-deploy">
-      <PlaceholderNote endpoint="DeployForm (POST /api/deployments) — embedded service-picker" phase="Phase 2" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         {umbrellas.map((u) => {
           const Icon = u.icon;
           return (
@@ -443,19 +443,16 @@ function DeployTab() {
                   {u.label}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
+              <CardContent className="text-xs text-[var(--color-text-tertiary)]">
                 <p>{u.hint}</p>
-                <Link
-                  to="/home"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-accent-cyan)]"
-                >
-                  <Rocket className="h-3.5 w-3.5" /> Open deploy console →
-                </Link>
               </CardContent>
             </Card>
           );
         })}
       </div>
+      {/* The embedded deploy console: launch / rollback (DeployForm + BuildSelector) + build &
+          deployment history — REUSING the existing components (Phase 6). */}
+      <DeployConsole />
     </div>
   );
 }
