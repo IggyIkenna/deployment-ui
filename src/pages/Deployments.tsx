@@ -26,6 +26,7 @@ import {
   type UmbrellaSummaryResponse,
 } from "../api/deploymentApi";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { VmControls } from "../components/VmControls";
 
 // The umbrella tabs the operator sees — Experiment folds under Batch by default
 // (the plan's umbrella-model table). A target classified EXPERIMENT therefore shows
@@ -188,7 +189,7 @@ function feedHealthLabel(seconds: number | null): { label: string; tone: ChipTon
 
 /** The column header set for each dynamics preset. */
 const PRESET_HEADERS: Record<DynamicsPreset, string[]> = {
-  live: ["Target", "Cloud", "Service", "Status", "Uptime", "Heartbeat", "Feed health"],
+  live: ["Target", "Cloud", "Service", "Status", "Uptime", "Heartbeat", "Feed health", "Controls"],
   batch: ["Target", "Cloud", "Asset group", "Status", "Progress", "Coverage %", "Exit"],
   paper: ["Strategy", "Cloud", "Service", "Status", "Recon drift", "Determinism ε", "Last run"],
   default: ["Target", "Cloud", "Service", "Asset group", "Status", "Last run", "Exit", "Progress"],
@@ -243,6 +244,13 @@ function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: Dynamic
           <Chip tone={feed.tone} testId={`feed-health-${item.name}`}>
             {feed.label}
           </Chip>
+        </td>
+        <td className="py-1.5">
+          {item.kind === "VM" ? (
+            <VmControls vmName={item.name} status={item.status} />
+          ) : (
+            <span className="text-[10px] text-[var(--color-text-muted)]">—</span>
+          )}
         </td>
       </tr>
     );
