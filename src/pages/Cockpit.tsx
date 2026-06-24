@@ -43,6 +43,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DeploymentsContent } from "./Deployments";
+import { DeploymentDetail } from "./DeploymentDetail";
 import { VmDeploymentsContent } from "./VmDeployments";
 import { RepoCiContent } from "./RepoCi";
 import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
@@ -696,6 +697,24 @@ export function Cockpit() {
     [searchParams, setSearchParams],
   );
 
+  // In-cockpit drill-down: a Live/Batch/Paper row sets `?detail=<name>` (the cockpit owns
+  // `?tab`; `?detail` is an orthogonal param) → the per-target DeploymentDetail opens in a
+  // slide-over (chrome-less embed) instead of navigating away to /deployments/:name.
+  const detail = searchParams.get("detail");
+  const openDetail = useCallback(
+    (name: string) => {
+      const next = new URLSearchParams(searchParams);
+      next.set("detail", name);
+      setSearchParams(next, { replace: false });
+    },
+    [searchParams, setSearchParams],
+  );
+  const closeDetail = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("detail");
+    setSearchParams(next, { replace: false });
+  }, [searchParams, setSearchParams]);
+
   return (
     <main className="w-full app-shell-gutter py-4" data-testid="cockpit-page">
       <div className="mb-4 flex items-center gap-3">
@@ -731,17 +750,17 @@ export function Cockpit() {
         </TabsContent>
         <TabsContent value="live">
           <div data-testid="cockpit-live">
-            <DeploymentsContent fixedUmbrella="LIVE" />
+            <DeploymentsContent fixedUmbrella="LIVE" onDrill={openDetail} />
           </div>
         </TabsContent>
         <TabsContent value="batch">
           <div data-testid="cockpit-batch">
-            <DeploymentsContent fixedUmbrella="BATCH" />
+            <DeploymentsContent fixedUmbrella="BATCH" onDrill={openDetail} />
           </div>
         </TabsContent>
         <TabsContent value="paper">
           <div data-testid="cockpit-paper">
-            <DeploymentsContent fixedUmbrella="PAPER" />
+            <DeploymentsContent fixedUmbrella="PAPER" onDrill={openDetail} />
           </div>
         </TabsContent>
         <TabsContent value="fleet">
@@ -776,6 +795,37 @@ export function Cockpit() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* In-cockpit drill-down slide-over — a row's per-target detail (events + log tail)
+          opens here instead of navigating to /deployments/:name (Phase 0.5). */}
+      {detail ? (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/50"
+          data-testid="cockpit-detail-overlay"
+          onClick={closeDetail}
+        >
+          <div
+            className="h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--color-border-default)] bg-[var(--color-bg-primary)] p-4 shadow-xl"
+            data-testid="cockpit-detail-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+                Deployment detail
+              </span>
+              <button
+                type="button"
+                onClick={closeDetail}
+                data-testid="cockpit-detail-close"
+                className="rounded-md border border-[var(--color-border-default)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                Close ✕
+              </button>
+            </div>
+            <DeploymentDetail name={detail} embedded />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
