@@ -1789,6 +1789,89 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // Health rollup — the cockpit landing's "is everything OK?" tiles (Phase 1).
+  if (path === "/api/health/overview") {
+    return json({
+      generated_at: "2026-06-24T07:00:00+00:00",
+      overall: "degraded",
+      tiles: [
+        {
+          id: "fleet",
+          label: "Fleet VMs",
+          status: "ok",
+          value: "180 running, 0 zombie, 0 OOM, 12 stopped",
+          detail_href: "/api/fleet/vm-census",
+        },
+        {
+          id: "consolidator",
+          label: "Manifest Consolidator",
+          status: "degraded",
+          value: "DOWN for: cefi",
+          detail_href: "/api/health/consolidator",
+        },
+        {
+          id: "coverage",
+          label: "Data Coverage",
+          status: "ok",
+          value: "5 asset_groups tracked",
+          detail_href: "/api/data-status/coverage-summary",
+        },
+        {
+          id: "alerts",
+          label: "Open Alerts",
+          status: "ok",
+          value: "0 open (0 crit, 0 warn)",
+          detail_href: "/api/alerts",
+        },
+        {
+          id: "gh_budget",
+          label: "GitHub Budget",
+          status: "ok",
+          value: "4200/5000 REST core remaining",
+          detail_href: "/api/repos/gh-rate-limit",
+        },
+        {
+          id: "cost",
+          label: "Daily Cost",
+          status: "ok",
+          value: "$12.40 today (3 VMs)",
+          detail_href: "/api/costs/daily",
+        },
+      ],
+    });
+  }
+
+  // Manifest-consolidator drill-down — per-asset_group index freshness (Phase 1).
+  if (path === "/api/health/consolidator") {
+    const mkAg = (ag: string, status: string, age: number, fallback: boolean, detail: string) => ({
+      asset_group: ag,
+      bucket: `market-data-tick-${ag}-prd-mock`,
+      status,
+      index_age_seconds: age,
+      staleness_budget_seconds: 120,
+      per_vm_shard_fallback_active: fallback,
+      last_successful_run_at: "2026-06-24T06:55:00+00:00",
+      detail,
+    });
+    return json({
+      generated_at: "2026-06-24T07:00:00+00:00",
+      overall: "critical",
+      asset_groups: [
+        mkAg(
+          "cefi",
+          "critical",
+          2457,
+          true,
+          "index 2457s (> 120s budget) while per-VM shards exist — consolidator behind/DOWN",
+        ),
+        mkAg("defi", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
+        mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)"),
+        mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
+        mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)"),
+      ],
+    });
+  }
+
   // Services overview (must come before /api/services to avoid partial match)
   if (path === "/api/services/overview") {
     return json({

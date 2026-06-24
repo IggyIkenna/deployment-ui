@@ -24,7 +24,7 @@
  * Plan: unified_deployment_health_cockpit_2026_06_23.md (parent_epic observability_master).
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -49,6 +49,14 @@ import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
+import {
+  getHealthConsolidator,
+  getHealthOverview,
+  type HealthConsolidatorResponse,
+  type HealthOverviewResponse,
+  type HealthStatus,
+} from "../api/health";
+import { getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
 
 // ---------------------------------------------------------------------------
 // Shared status vocabulary — mirrors the Deployments page chip tones so the
@@ -207,13 +215,158 @@ const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ classNa
   { id: "exec-bt", label: "Execution Backtests", icon: Boxes, to: "/research/execution-backtests" },
 ];
 
+// Cockpit-tile id → backend health-overview tile id (the rollup names a subset of the
+// landing tiles). The rest (live/batch/paper) are filled from the umbrella summaries.
+const OVERVIEW_TILE_BY_COCKPIT_ID: Record<string, string> = {
+  fleet: "fleet",
+  consolidators: "consolidator",
+  coverage: "coverage",
+  alerts: "alerts",
+  github: "gh_budget",
+  billing: "cost",
+};
+
+const OVERALL_TONE: Record<HealthStatus, string> = {
+  ok: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
+  degraded: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+  critical: "border-red-500/40 bg-red-500/10 text-red-400",
+};
+const OVERALL_LABEL: Record<HealthStatus, string> = {
+  ok: "ALL SYSTEMS OK",
+  degraded: "DEGRADED",
+  critical: "CRITICAL",
+};
+
+/** Derive a live/batch/paper tile's status + one-line value from its umbrella summary. */
+function umbrellaTile(summary: UmbrellaSummaryResponse): { status: TileStatus; value: string } {
+  const running = summary.counts_by_status.running ?? 0;
+  const failed = summary.counts_by_status.failed ?? 0;
+  const status: TileStatus =
+    summary.last_failure || failed > 0 ? "critical" : summary.stale_count > 0 ? "degraded" : "ok";
+  const value = `${summary.total} targets · ${running} running · ${summary.stale_count} stale${failed > 0 ? ` · ${failed} failed` : ""}`;
+  return { status, value };
+}
+
+const UMBRELLA_BY_TILE_ID: Record<string, "LIVE" | "BATCH" | "PAPER"> = {
+  live: "LIVE",
+  batch: "BATCH",
+  paper: "PAPER",
+};
+
+/** Minimal CI-overview shape the health tile needs (the CI tab consumes the full payload). */
+interface CiOverviewLite {
+  repos: unknown[];
+  stuck_prs: unknown[];
+  promotion_blocked: unknown[];
+}
+
+async function getCiOverviewLite(): Promise<CiOverviewLite> {
+  const base = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
+  const res = await fetch(`${base}/api/repo-ci/overview`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<CiOverviewLite>;
+}
+
+function ciTile(ci: CiOverviewLite): { status: TileStatus; value: string } {
+  const repos = ci.repos?.length ?? 0;
+  const stuck = ci.stuck_prs?.length ?? 0;
+  const blocked = ci.promotion_blocked?.length ?? 0;
+  const status: TileStatus = blocked > 0 ? "critical" : stuck > 0 ? "degraded" : "ok";
+  return { status, value: `${repos} repos · ${stuck} stuck PRs · ${blocked} blocked promotions` };
+}
+
 function HealthTab() {
+  const [overview, setOverview] = useState<HealthOverviewResponse | null>(null);
+  const [umbrellas, setUmbrellas] = useState<Record<string, UmbrellaSummaryResponse>>({});
+  const [ci, setCi] = useState<CiOverviewLite | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      const [ovr, live, batch, paper, ciRes] = await Promise.allSettled([
+        getHealthOverview(),
+        getUmbrellaSummary("LIVE"),
+        getUmbrellaSummary("BATCH"),
+        getUmbrellaSummary("PAPER"),
+        getCiOverviewLite(),
+      ]);
+      if (cancelled) return;
+      if (ovr.status === "fulfilled") {
+        setOverview(ovr.value);
+      } else {
+        setError(ovr.reason instanceof Error ? ovr.reason.message : "health overview unavailable");
+      }
+      const next: Record<string, UmbrellaSummaryResponse> = {};
+      if (live.status === "fulfilled") next.LIVE = live.value;
+      if (batch.status === "fulfilled") next.BATCH = batch.value;
+      if (paper.status === "fulfilled") next.PAPER = paper.value;
+      setUmbrellas(next);
+      if (ciRes.status === "fulfilled") setCi(ciRes.value);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const overviewById = new Map((overview?.tiles ?? []).map((t) => [t.id, t]));
+
   return (
     <div data-testid="cockpit-health">
-      <PlaceholderNote endpoint="GET /api/health/overview" phase="Phase 1" />
+      {error && !overview ? (
+        <div
+          data-testid="cockpit-health-error"
+          className="mb-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>
+            Health rollup unavailable — <code className="font-mono">GET /api/health/overview</code> failed ({error}).
+            Tiles still link to their drill-downs.
+          </span>
+        </div>
+      ) : overview ? (
+        <div
+          data-testid="cockpit-health-overall"
+          className={`mb-4 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs ${OVERALL_TONE[overview.overall]}`}
+        >
+          <span className="font-semibold tracking-wide">{OVERALL_LABEL[overview.overall]}</span>
+          <span className="text-[var(--color-text-tertiary)]">
+            live rollup · updated {new Date(overview.generated_at).toLocaleTimeString()}
+          </span>
+        </div>
+      ) : (
+        <div
+          data-testid="cockpit-health-loading"
+          className="mb-4 rounded-md border border-[var(--color-border-default)] px-3 py-2 text-xs text-[var(--color-text-tertiary)]"
+        >
+          {loading ? "Loading health rollup…" : "—"}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {HEALTH_TILES.map((tile) => {
           const Icon = tile.icon;
+          // Overlay real data: overview rollup tiles, then live/batch/paper from umbrella summaries.
+          const backend = overviewById.get(OVERVIEW_TILE_BY_COCKPIT_ID[tile.id] ?? "");
+          const umbrellaKey = UMBRELLA_BY_TILE_ID[tile.id];
+          const umbrella = umbrellaKey ? umbrellas[umbrellaKey] : undefined;
+          let status: TileStatus = tile.status;
+          let metric: string = tile.metric;
+          if (backend) {
+            status = backend.status;
+            metric = backend.value;
+          } else if (umbrella) {
+            const derived = umbrellaTile(umbrella);
+            status = derived.status;
+            metric = derived.value;
+          } else if (tile.id === "ci" && ci) {
+            const derived = ciTile(ci);
+            status = derived.status;
+            metric = derived.value;
+          }
           return (
             <Link key={tile.id} to={tile.to} data-testid={`cockpit-tile-${tile.id}`} className="group">
               <Card className="h-full transition-colors group-hover:border-[var(--color-accent-cyan)]/50">
@@ -225,9 +378,9 @@ function HealthTab() {
                       </span>
                       <span className="text-sm font-medium text-[var(--color-text-primary)]">{tile.label}</span>
                     </div>
-                    <StatusChip status={tile.status} testId={`cockpit-tile-status-${tile.id}`} />
+                    <StatusChip status={status} testId={`cockpit-tile-status-${tile.id}`} />
                   </div>
-                  <p className="mt-3 text-xs text-[var(--color-text-tertiary)]">{tile.metric}</p>
+                  <p className="mt-3 text-xs text-[var(--color-text-tertiary)]">{metric}</p>
                   <span className="mt-2 inline-block text-xs font-medium text-[var(--color-accent-cyan)] opacity-0 transition-opacity group-hover:opacity-100">
                     Open →
                   </span>
@@ -368,29 +521,99 @@ function FleetTab() {
 
 const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 
+function fmtAge(seconds: number | null): string {
+  if (seconds === null) return "—";
+  if (seconds < 90) return `${Math.round(seconds)}s`;
+  if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
+}
+
 function ConsolidatorsTab() {
+  const [data, setData] = useState<HealthConsolidatorResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const res = await getHealthConsolidator();
+        if (!cancelled) setData(res);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "consolidator health unavailable");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const byAg = new Map((data?.asset_groups ?? []).map((a) => [a.asset_group, a]));
+
   return (
     <div data-testid="cockpit-consolidators">
-      <PlaceholderNote endpoint="GET /api/health/consolidator" phase="Phase 1" />
+      {error ? (
+        <div
+          data-testid="cockpit-consolidators-error"
+          className="mb-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>
+            Consolidator health unavailable — <code className="font-mono">GET /api/health/consolidator</code> failed (
+            {error}).
+          </span>
+        </div>
+      ) : data ? (
+        <div
+          data-testid="cockpit-consolidators-overall"
+          className={`mb-4 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs ${OVERALL_TONE[data.overall]}`}
+        >
+          <span className="font-semibold tracking-wide">{OVERALL_LABEL[data.overall]}</span>
+          <span className="text-[var(--color-text-tertiary)]">
+            per-asset_group manifest-index freshness · updated {new Date(data.generated_at).toLocaleTimeString()}
+          </span>
+        </div>
+      ) : (
+        <div className="mb-4 rounded-md border border-[var(--color-border-default)] px-3 py-2 text-xs text-[var(--color-text-tertiary)]">
+          {loading ? "Loading consolidator health…" : "—"}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ASSET_GROUPS.map((ag) => (
-          <Card key={ag} data-testid={`cockpit-consolidator-${ag}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                  {ag}
-                </span>
-                <StatusChip status="placeholder" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-1">
-              <p>index age: —</p>
-              <p>per-VM shard fallback: —</p>
-              <p>last successful run: —</p>
-            </CardContent>
-          </Card>
-        ))}
+        {ASSET_GROUPS.map((ag) => {
+          const real = byAg.get(ag);
+          const status: TileStatus = real ? real.status : "placeholder";
+          return (
+            <Card key={ag} data-testid={`cockpit-consolidator-${ag}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+                    {ag}
+                  </span>
+                  <StatusChip status={status} testId={`cockpit-consolidator-status-${ag}`} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-1">
+                <p>
+                  index age:{" "}
+                  <span className="text-[var(--color-text-secondary)]">
+                    {real ? `${fmtAge(real.index_age_seconds)} (budget ${fmtAge(real.staleness_budget_seconds)})` : "—"}
+                  </span>
+                </p>
+                <p>per-VM shard fallback: {real ? (real.per_vm_shard_fallback_active ? "ACTIVE ⚠️" : "no") : "—"}</p>
+                <p>
+                  last successful run:{" "}
+                  {real?.last_successful_run_at ? new Date(real.last_successful_run_at).toLocaleTimeString() : "—"}
+                </p>
+                {real?.detail ? <p className="pt-1 text-[var(--color-text-tertiary)]/80">{real.detail}</p> : null}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
