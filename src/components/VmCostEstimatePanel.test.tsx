@@ -49,10 +49,8 @@ describe("VmCostEstimatePanel", () => {
 
   it("shows cost breakdown after submitting the form", async () => {
     render(<VmCostEstimatePanel />);
-    fireEvent.submit(screen.getByTestId("cost-estimate-form"));
-    await waitFor(() =>
-      expect(screen.getByTestId("cost-estimate-result")).toBeInTheDocument(),
-    );
+    fireEvent.click(screen.getByTestId("calculate-cost-btn"));
+    await waitFor(() => expect(screen.getByTestId("cost-estimate-result")).toBeInTheDocument());
     expect(screen.getByTestId("cost-total")).toBeInTheDocument();
     expect(screen.getByTestId("cost-compute")).toBeInTheDocument();
     expect(mockFetchVmCostEstimate).toHaveBeenCalledOnce();
@@ -61,19 +59,15 @@ describe("VmCostEstimatePanel", () => {
   it("shows error state when fetch fails", async () => {
     mockFetchVmCostEstimate.mockRejectedValueOnce(new Error("network error"));
     render(<VmCostEstimatePanel />);
-    fireEvent.submit(screen.getByTestId("cost-estimate-form"));
-    await waitFor(() =>
-      expect(screen.getByTestId("cost-estimate-error")).toBeInTheDocument(),
-    );
+    fireEvent.click(screen.getByTestId("calculate-cost-btn"));
+    await waitFor(() => expect(screen.getByTestId("cost-estimate-error")).toBeInTheDocument());
     expect(screen.getByText(/network error/)).toBeInTheDocument();
   });
 
   it("shows dry_run label when result has dry_run=true", async () => {
     render(<VmCostEstimatePanel />);
-    fireEvent.submit(screen.getByTestId("cost-estimate-form"));
-    await waitFor(() =>
-      expect(screen.getByTestId("cost-estimate-result")).toBeInTheDocument(),
-    );
+    fireEvent.click(screen.getByTestId("calculate-cost-btn"));
+    await waitFor(() => expect(screen.getByTestId("cost-estimate-result")).toBeInTheDocument());
     expect(screen.getByText(/dry_run=true/)).toBeInTheDocument();
   });
 
@@ -85,7 +79,7 @@ describe("VmCostEstimatePanel", () => {
     fireEvent.change(screen.getByTestId("ce-hours"), {
       target: { value: "5" },
     });
-    fireEvent.submit(screen.getByTestId("cost-estimate-form"));
+    fireEvent.click(screen.getByTestId("calculate-cost-btn"));
     await waitFor(() => expect(mockFetchVmCostEstimate).toHaveBeenCalled());
     expect(mockFetchVmCostEstimate).toHaveBeenCalledWith(
       expect.objectContaining({
