@@ -45,22 +45,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { DeploymentsContent } from "./Deployments";
 import { DeploymentDetail } from "./DeploymentDetail";
 import { VmDeploymentsContent } from "./VmDeployments";
+import { LiveDeploymentsContent } from "./LiveDeployments";
+import { FleetInfraContent } from "./FleetInfra";
+import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
 import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import {
+  getDeploymentFreshness,
   getFleetReconciliation,
   getHealthConsolidator,
   getHealthOverview,
+  type DeploymentFreshnessResponse,
   type FleetReconciliationResponse,
   type HealthConsolidatorResponse,
   type HealthOverviewResponse,
   type HealthStatus,
 } from "../api/health";
-import { getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
+import { getDeploymentInventory, getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
 
 // ---------------------------------------------------------------------------
 // Shared status vocabulary — mirrors the Deployments page chip tones so the
@@ -259,10 +265,35 @@ function ciTile(ci: CiOverviewLite): { status: TileStatus; value: string } {
   return { status, value: `${repos} repos · ${stuck} stuck PRs · ${blocked} blocked promotions` };
 }
 
+/**
+ * Per-deployment MANIFEST-derived freshness summary for the Data Coverage tile — counts
+ * the LIVE deployments by `/api/deployments/{id}/freshness` status. `liveness_only`
+ * (gateway / control-plane) is reported HONESTLY (its own count), never folded into "fresh".
+ * A `stale` live deployment degrades the tile; this rides ON TOP of the overview's
+ * `coverage` %-captured value so the tile shows both capture % and live-feed freshness.
+ */
+function freshnessSummary(rows: DeploymentFreshnessResponse[]): { status: TileStatus; suffix: string } | null {
+  if (rows.length === 0) return null;
+  let fresh = 0;
+  let stale = 0;
+  let livenessOnly = 0;
+  for (const r of rows) {
+    if (r.freshness_status === "fresh") fresh += 1;
+    else if (r.freshness_status === "stale") stale += 1;
+    else if (r.freshness_status === "liveness_only") livenessOnly += 1;
+  }
+  const status: TileStatus = stale > 0 ? "critical" : "ok";
+  const parts = [`${fresh} fresh`];
+  if (stale > 0) parts.push(`${stale} stale`);
+  if (livenessOnly > 0) parts.push(`${livenessOnly} liveness-only`);
+  return { status, suffix: ` · live feed: ${parts.join(" · ")}` };
+}
+
 function HealthTab() {
   const [overview, setOverview] = useState<HealthOverviewResponse | null>(null);
   const [umbrellas, setUmbrellas] = useState<Record<string, UmbrellaSummaryResponse>>({});
   const [ci, setCi] = useState<CiOverviewLite | null>(null);
+  const [freshness, setFreshness] = useState<DeploymentFreshnessResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -291,6 +322,17 @@ function HealthTab() {
       setUmbrellas(next);
       if (ciRes.status === "fulfilled") setCi(ciRes.value);
       setLoading(false);
+      // Enrich the Data Coverage tile with REAL per-deployment manifest-derived freshness
+      // (NOT the health-ping): pull the LIVE inventory, then each deployment's /freshness.
+      try {
+        const inv = await getDeploymentInventory({ umbrella: "LIVE" });
+        if (cancelled) return;
+        const fr = await Promise.allSettled(inv.items.map((i) => getDeploymentFreshness(i.name)));
+        if (cancelled) return;
+        setFreshness(fr.flatMap((r) => (r.status === "fulfilled" ? [r.value] : [])));
+      } catch {
+        /* freshness is additive — a failure leaves the tile on the overview %-captured value */
+      }
     })();
     return () => {
       cancelled = true;
@@ -350,6 +392,15 @@ function HealthTab() {
             const derived = ciTile(ci);
             status = derived.status;
             metric = derived.value;
+          }
+          // Data Coverage tile: overlay the REAL per-deployment manifest-derived freshness on
+          // top of the %-captured value (a stale live feed degrades it; liveness-only is honest).
+          if (tile.id === "coverage") {
+            const fr = freshnessSummary(freshness);
+            if (fr) {
+              metric = `${metric}${fr.suffix}`;
+              if (fr.status === "critical") status = "critical";
+            }
           }
           return (
             <Link key={tile.id} to={tile.to} data-testid={`cockpit-tile-${tile.id}`} className="group">
@@ -553,6 +604,27 @@ function FleetTab() {
           The cross-cloud reconciliation alarm rows (UNKNOWN / EXPECTED-MISSING) wire to
           GET /api/fleet/reconciliation in Phase 4; the census below is REAL today. */}
       <VmDeploymentsContent compact />
+
+      {/* Fold /fleet/infra — orchestrator/control-plane + infra VM health tiles (Phase 0.5
+          "Fold /fleet/infra into Fleet"). Chrome-less, reuses the existing component. */}
+      <div className="mt-6" data-testid="cockpit-fleet-infra">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+          Infra & orchestrator health
+        </h2>
+        <ErrorBoundary fallbackTitle="Fleet infra failed to load">
+          <FleetInfraContent />
+        </ErrorBoundary>
+      </div>
+
+      {/* Fold /fleet/git — per-slot git health across the fleet (Phase 0.5 "Fold /fleet/git"). */}
+      <div className="mt-6" data-testid="cockpit-fleet-git">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+          Fleet git health
+        </h2>
+        <ErrorBoundary fallbackTitle="Fleet git failed to load">
+          <FleetGitContent />
+        </ErrorBoundary>
+      </div>
     </div>
   );
 }
@@ -751,6 +823,16 @@ export function Cockpit() {
         <TabsContent value="live">
           <div data-testid="cockpit-live">
             <DeploymentsContent fixedUmbrella="LIVE" onDrill={openDetail} />
+            {/* Fold /ops/live-deployments — the live-mode VM list + WS event/log tail
+                (Phase 0.5 "Fold /ops/live-deployments"). Chrome-less, no ?tab collision. */}
+            <div className="mt-6" data-testid="cockpit-live-ops">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+                Live ops — running services + event/log stream
+              </h2>
+              <ErrorBoundary fallbackTitle="Live ops failed to load">
+                <LiveDeploymentsContent />
+              </ErrorBoundary>
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="batch">

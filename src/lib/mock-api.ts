@@ -2142,6 +2142,54 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const id = path.split("/")[3];
     return json({ deployment_id: id, events: [], count: 0 });
   }
+  // Per-deployment manifest-derived freshness (Phase 4.5). The deployment's
+  // ShardResponsibility resolves which asset_group's availability-index heartbeat counts;
+  // a `none` responsibility (gateway/control-plane) honestly reports `liveness_only`.
+  // Mirrors deployment-api@f05a1dc GET /api/deployments/{id}/freshness.
+  if (path.match(/^\/api\/deployments\/(.+)\/freshness$/)) {
+    const id = decodeURIComponent(path.split("/")[3]);
+    // A small fixture keyed on the mock LIVE inventory rows so the cockpit Live feed-health
+    // column + the Health Data-Coverage tile render fresh / stale / liveness-only honestly.
+    const FRESHNESS: Record<string, Record<string, unknown>> = {
+      "defi-live-capture-1": {
+        responsibility: "asset_group_capture",
+        asset_group: "defi",
+        mode: "live",
+        freshness_status: "fresh",
+        index_age_seconds: 48,
+        staleness_budget_seconds: 300,
+        per_vm_shard_fallback_active: false,
+        oldest_available_at: "2026-06-22T08:29:00Z",
+        detail: "consolidated availability index 48s old (budget 300s) — fresh",
+      },
+      "cefi-live-trading-1": {
+        responsibility: "asset_group_capture",
+        asset_group: "cefi",
+        mode: "live",
+        freshness_status: "stale",
+        index_age_seconds: 4200,
+        staleness_budget_seconds: 300,
+        per_vm_shard_fallback_active: true,
+        oldest_available_at: "2026-06-22T07:19:00Z",
+        detail: "consolidated availability index 70m old (budget 300s) — STALE, per-VM shard fallback active",
+      },
+    };
+    const found = FRESHNESS[id];
+    if (found) return json({ deployment_id: id, ...found });
+    // Default: liveness-only (a gateway / control-plane / unclassified target).
+    return json({
+      deployment_id: id,
+      responsibility: "none",
+      asset_group: null,
+      mode: null,
+      freshness_status: "liveness_only",
+      index_age_seconds: null,
+      staleness_budget_seconds: null,
+      per_vm_shard_fallback_active: false,
+      oldest_available_at: null,
+      detail: "liveness-only (gateway / control-plane — no data-freshness obligation)",
+    });
+  }
   // GET /api/deployments/<id> — single deployment lookup. Regex excludes
   // any extra path segments (rollback / deploy / events / vm-events /
   // quota) which are handled by their own branches below — the previous
