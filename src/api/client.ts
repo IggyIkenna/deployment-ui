@@ -361,6 +361,27 @@ export async function resumeDeployment(id: string): Promise<ResumeDeploymentResu
   return fetchJson(`/deployments/${id}/resume`, { method: "POST" });
 }
 
+// VM operator controls — POST /api/vm/admin/{vm}/(pause|resume|cancel) → AdminActionResult (202).
+// Pause writes a cooperative pause-signal blob; resume deletes it; cancel marks the deployment
+// terminal (→ archive). Protective (pause/stop) are safe-by-default; the UI confirms on stop.
+export interface VmAdminActionResult {
+  action: string;
+  status: string;
+  message: string;
+}
+
+export async function pauseVm(vmName: string): Promise<VmAdminActionResult> {
+  return fetchJson(`/vm/admin/${encodeURIComponent(vmName)}/pause`, { method: "POST" });
+}
+
+export async function resumeVm(vmName: string): Promise<VmAdminActionResult> {
+  return fetchJson(`/vm/admin/${encodeURIComponent(vmName)}/resume`, { method: "POST" });
+}
+
+export async function cancelVm(vmName: string): Promise<VmAdminActionResult> {
+  return fetchJson(`/vm/admin/${encodeURIComponent(vmName)}/cancel`, { method: "POST" });
+}
+
 export interface VerifyCompletionResult {
   completed_with_errors: number;
   completed_with_warnings: number;

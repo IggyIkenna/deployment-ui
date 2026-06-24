@@ -3236,6 +3236,16 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/fleet/vm-census") {
     return json(mockVmCensus());
   }
+  // VM operator controls — POST /api/vm/admin/{vm}/(pause|resume|cancel) → AdminActionResult (202).
+  const vmAdminMatch = path.match(/^\/api\/vm\/admin\/([^/]+)\/(pause|resume|cancel)$/);
+  if (vmAdminMatch && method === "POST") {
+    const action = vmAdminMatch[2];
+    const status = action === "cancel" ? "cancelled" : action === "pause" ? "paused" : "running";
+    return json(
+      { action, status, message: `VM '${decodeURIComponent(vmAdminMatch[1])}' ${action} accepted (mock).` },
+      202,
+    );
+  }
   // Fleet infra-VM health (AO /api/fleet/summary proxy)
   if (path === "/api/fleet/infra-vm-health") {
     return json(mockInfraVmHealth());

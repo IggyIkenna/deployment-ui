@@ -54,6 +54,11 @@ vi.mock("./api/client", () => ({
   createDeployment: vi.fn(),
   setApiBaseUrl: vi.fn(),
   clearCache: vi.fn().mockResolvedValue(undefined),
+  // VmControls (folded into the deployments inventory) imports these VM-admin actions.
+  pauseVm: vi.fn(),
+  resumeVm: vi.fn(),
+  cancelVm: vi.fn(),
+  getServices: vi.fn().mockResolvedValue({ services: [], count: 0 }),
 }));
 
 describe("App", () => {

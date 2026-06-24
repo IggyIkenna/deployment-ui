@@ -108,6 +108,9 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();
     await expect(page.getByTestId("cockpit-deploy-paper")).toBeVisible();
+    // Phase 6: the embedded deploy console (service-picker → DeployForm/CloudBuildsTab/DeploymentHistory).
+    await expect(page.getByTestId("cockpit-deploy-console")).toBeVisible();
+    await expect(page.getByTestId("deploy-service-picker")).toBeVisible();
 
     await page.getByTestId("cockpit-tab-consolidators").click();
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
@@ -150,6 +153,37 @@ test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
     // A real LIVE target row from the mock inventory + the LIVE-preset feed-health column.
     await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
     await expect(page.getByTestId("feed-health-defi-live-capture-1")).toBeVisible();
+  });
+
+  test("Live tab rows carry pause/stop/restart VM controls (Phase 6)", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    // A running LIVE VM row exposes the operator controls (reuse /api/vm/admin/{vm}/*).
+    await expect(page.getByTestId("vm-controls-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("vm-pause-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("vm-resume-defi-live-capture-1")).toBeVisible();
+    // Stop is destructive → confirm dialog (with a Restart = stop+relaunch affordance).
+    await page.getByTestId("vm-stop-defi-live-capture-1").click();
+    await expect(page.getByTestId("vm-stop-confirm-body-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("vm-restart-defi-live-capture-1")).toBeVisible();
+    await page.getByTestId("vm-stop-confirm-defi-live-capture-1").click();
+    // The mock returns 202 → the action result renders (no crash).
+    await expect(page.getByTestId("vm-controls-result-defi-live-capture-1")).toBeVisible();
+  });
+
+  test("Deploy tab embeds the launch/rollback console + build & deployment history (Phase 6)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deploy");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-deploy-console")).toBeVisible();
+    await expect(page.getByTestId("deploy-no-service")).toBeVisible();
+    // Pick a service → the launch / build-history / deployment-history view tabs appear.
+    const picker = page.getByTestId("deploy-service-picker");
+    const firstValue = await picker.locator("option").nth(1).getAttribute("value");
+    await picker.selectOption(firstValue ?? "");
+    await expect(page.getByTestId("deploy-view-tabs")).toBeVisible();
+    await expect(page.getByTestId("deploy-view-launch")).toBeVisible();
+    await expect(page.getByTestId("deploy-view-builds")).toBeVisible();
+    await expect(page.getByTestId("deploy-view-history")).toBeVisible();
   });
 
   test("Batch tab renders the folded inventory with the failed/137 (OOM) row", async ({ page }) => {
