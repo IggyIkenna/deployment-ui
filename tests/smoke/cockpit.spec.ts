@@ -68,7 +68,7 @@ test.describe("Cockpit — scaffold IA", () => {
     }
   });
 
-  test("Health landing shows the full monitoring tile grid + placeholder note", async ({ page }) => {
+  test("Health landing shows the full monitoring tile grid wired to the real rollup", async ({ page }) => {
     await mockBase(page);
     await page.goto("/cockpit");
     await page.waitForLoadState("networkidle");
@@ -88,7 +88,14 @@ test.describe("Cockpit — scaffold IA", () => {
     ]) {
       await expect(page.getByTestId(`cockpit-tile-${id}`)).toBeVisible();
     }
-    await expect(page.getByTestId("cockpit-placeholder-note").first()).toBeVisible();
+    // The landing is wired to GET /api/health/overview — the live rollup banner replaces the
+    // old placeholder note, and the rollup tiles render REAL status + value (not "—").
+    await expect(page.getByTestId("cockpit-health-overall")).toBeVisible();
+    await expect(page.getByTestId("cockpit-health-error")).toHaveCount(0);
+    // The consolidator overview tile carries the real value from the rollup ("DOWN for: cefi" in mock).
+    await expect(page.getByTestId("cockpit-tile-consolidators")).toContainText("cefi");
+    // The fleet tile reflects the rollup census, not the placeholder em-dash.
+    await expect(page.getByTestId("cockpit-tile-status-fleet")).not.toHaveText("—");
   });
 
   test("each tab switches and renders its pane", async ({ page }) => {
@@ -105,6 +112,12 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.getByTestId("cockpit-tab-consolidators").click();
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidator-defi")).toBeVisible();
+    // Consolidators wires to GET /api/health/consolidator — real per-AG status, not placeholder.
+    await expect(page.getByTestId("cockpit-consolidators-overall")).toBeVisible();
+    await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
+    // cefi is DOWN with per-VM shard fallback active in the mock rollup.
+    await expect(page.getByTestId("cockpit-consolidator-cefi")).toContainText("ACTIVE");
+    await expect(page.getByTestId("cockpit-consolidator-status-defi")).not.toHaveText("—");
   });
 
   test("Header Cockpit nav link routes to /cockpit from another page", async ({ page }) => {
@@ -176,14 +189,16 @@ test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
 test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", () => {
   test("Alerts & Logs tab folds the alert ledger + a live log-tail with a target input", async ({ page }) => {
     await mockBase(page);
+    // The log-tail opens an EventSource (SSE) that holds the connection open, so
+    // `networkidle` never settles — wait on DOM + the explicit testids instead.
     await page.goto("/cockpit?tab=alerts");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     await expect(page.getByTestId("cockpit-alerts-logs")).toBeVisible();
     await expect(page.getByTestId("cockpit-logs-target")).toBeVisible();
     await expect(page.getByTestId("cockpit-logs-empty")).toBeVisible();
     // deep-link ?logs=<target> auto-opens the streaming panel (alert → logs flow)
     await page.goto("/cockpit?tab=alerts&logs=strategy-live-csb-001");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     await expect(page.getByTestId("cockpit-logs-empty")).toHaveCount(0);
   });
 
