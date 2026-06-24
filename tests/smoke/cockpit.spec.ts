@@ -159,6 +159,22 @@ test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
     await expect(page.getByTestId("feed-health-defi-live-capture-1")).toBeVisible();
   });
 
+  test("Live row drill opens the per-target detail IN the cockpit (Phase 0.5 slide-over)", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    // Clicking a row opens the chrome-less DeploymentDetail in a slide-over (no nav-away).
+    await page.getByTestId("deployment-link-defi-live-capture-1").click();
+    await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
+    await expect(page.getByTestId("deployment-detail-title")).toHaveText("defi-live-capture-1");
+    // Embedded → no standalone back-link; the URL carries ?detail (deep-linkable).
+    await expect(page.getByTestId("deployment-detail-back")).toHaveCount(0);
+    await expect(page).toHaveURL(/detail=defi-live-capture-1/);
+    // Phase 2: the Redeploy affordance closes the alert→logs→redeploy walk (→ Deploy console).
+    await expect(page.getByTestId("detail-redeploy")).toBeVisible();
+    await page.getByTestId("cockpit-detail-close").click();
+    await expect(page.getByTestId("cockpit-detail-panel")).toHaveCount(0);
+  });
+
   test("Live tab rows carry pause/stop/restart VM controls (Phase 6)", async ({ page }) => {
     await page.goto("/cockpit?tab=live");
     await page.waitForLoadState("networkidle");
