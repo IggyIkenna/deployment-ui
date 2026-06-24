@@ -25,6 +25,7 @@ import {
   type DeploymentUmbrella,
   type UmbrellaSummaryResponse,
 } from "../api/deploymentApi";
+import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { VmControls } from "../components/VmControls";
 
@@ -179,13 +180,42 @@ function UmbrellaSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse |
   );
 }
 
-/** Feed-health read for LIVE: a recent heartbeat reads green, stale amber, absent gray. */
+/** Feed-health read for LIVE: a recent heartbeat reads green, stale amber, absent gray.
+ * This is the HEARTBEAT proxy — used only as a fallback when manifest-derived freshness
+ * (the `/freshness` endpoint, preferred below) hasn't loaded for the row. */
 function feedHealthLabel(seconds: number | null): { label: string; tone: ChipTone } {
   if (seconds == null) return { label: "—", tone: "gray" };
   if (seconds < 90) return { label: "live", tone: "green" };
   if (seconds < 600) return { label: "lagging", tone: "yellow" };
   return { label: "stale", tone: "red" };
 }
+
+/**
+ * Feed-health from the per-deployment MANIFEST-DERIVED freshness (GET /api/deployments/
+ * {id}/freshness). This is the real per-shard freshness against the availability index of
+ * the asset_group the deployment owns — NOT the in-memory health-ping. A `liveness_only`
+ * deployment (gateway / control-plane, no data-freshness obligation) renders HONESTLY as
+ * such, never a false "fresh". `unknown` falls through to the heartbeat proxy.
+ */
+function freshnessFeedLabel(
+  fresh: DeploymentFreshnessResponse,
+): { label: string; tone: ChipTone; title: string } | null {
+  switch (fresh.freshness_status) {
+    case "fresh":
+      return { label: "fresh", tone: "green", title: fresh.detail };
+    case "stale":
+      return { label: "stale", tone: "red", title: fresh.detail };
+    case "liveness_only":
+      return { label: "liveness only", tone: "gray", title: fresh.detail };
+    default:
+      return null; // unknown → fall back to the heartbeat proxy
+  }
+}
+
+// The LIVE-preset feed-health cell prefers manifest-derived freshness, looked up by row
+// name from this map (populated by DeploymentsContent after the inventory loads). Standalone
+// (no provider) → the heartbeat proxy is used (map is empty), unchanged.
+const FreshnessContext = createContext<Record<string, DeploymentFreshnessResponse>>({});
 
 /** The column header set for each dynamics preset. */
 const PRESET_HEADERS: Record<DynamicsPreset, string[]> = {
@@ -244,9 +274,13 @@ function StatusCell({ item }: { item: DeploymentItem }) {
 }
 
 function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: DynamicsPreset }) {
+  const freshnessByName = useContext(FreshnessContext);
   const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
   if (preset === "live") {
-    const feed = feedHealthLabel(item.heartbeat_age_seconds);
+    // Prefer the per-deployment MANIFEST-derived freshness; fall back to the heartbeat proxy.
+    const fresh = freshnessByName[item.name];
+    const derived = fresh ? freshnessFeedLabel(fresh) : null;
+    const feed = derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" };
     return (
       <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
         <TargetCell item={item} />
@@ -261,7 +295,7 @@ function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: Dynamic
         <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
           {heartbeatLabel(item.heartbeat_age_seconds) ?? "—"}
         </td>
-        <td className="py-1.5">
+        <td className="py-1.5" title={feed.title}>
           <Chip tone={feed.tone} testId={`feed-health-${item.name}`}>
             {feed.label}
           </Chip>
@@ -453,6 +487,8 @@ export function DeploymentsContent({
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Per-deployment manifest-derived freshness for the LIVE preset (keyed by row name).
+  const [freshness, setFreshness] = useState<Record<string, DeploymentFreshnessResponse>>({});
 
   // The active dynamics column preset — explicit prop, else derived from the umbrella.
   const activePreset: DynamicsPreset = preset ?? (embedded ? (activeTab.toLowerCase() as DynamicsPreset) : "default");
@@ -497,8 +533,22 @@ export function DeploymentsContent({
         // a defensive client-side keep of LIVE/BATCH/PAPER+EXPERIMENT under the active tab.
         const keep: DeploymentUmbrella[] =
           activeTab === "BATCH" ? ["BATCH", "EXPERIMENT"] : [activeTab as DeploymentUmbrella];
-        setItems(inv.items.filter((i) => keep.includes(i.umbrella)));
+        const kept = inv.items.filter((i) => keep.includes(i.umbrella));
+        setItems(kept);
         setSummary(sum);
+        // For the LIVE preset, enrich rows with manifest-derived per-deployment freshness
+        // (the feed-health column reads it, falling back to the heartbeat proxy on failure).
+        if (activeTab === "LIVE" && kept.length > 0) {
+          void Promise.allSettled(kept.map((i) => getDeploymentFreshness(i.name))).then((results) => {
+            const next: Record<string, DeploymentFreshnessResponse> = {};
+            results.forEach((r) => {
+              if (r.status === "fulfilled") next[r.value.deployment_id] = r.value;
+            });
+            setFreshness(next);
+          });
+        } else {
+          setFreshness({});
+        }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
@@ -520,118 +570,120 @@ export function DeploymentsContent({
 
   return (
     <DrillContext.Provider value={onDrill}>
-      <div className="w-full" data-testid="deployments-page">
-        <div className="flex items-center justify-between mb-4">
-          {embedded ? (
-            <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-              {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
-            </span>
-          ) : (
-            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              Deployments
+      <FreshnessContext.Provider value={freshness}>
+        <div className="w-full" data-testid="deployments-page">
+          <div className="flex items-center justify-between mb-4">
+            {embedded ? (
               <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                live / batch / paper — every VM + Cloud Run job
+                {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
               </span>
-            </h1>
-          )}
-          <button
-            onClick={load}
-            disabled={loading}
-            aria-label="Refresh deployments"
-            data-testid="deployments-refresh"
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-
-        {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
-          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
-        {!embedded && (
-          <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
-            {UMBRELLA_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                data-testid={`umbrella-tab-${t.id}`}
-                aria-pressed={activeTab === t.id}
-                onClick={() => setParam("umbrella", t.id.toLowerCase())}
-                className={`rounded border px-3 py-1.5 text-sm ${
-                  activeTab === t.id
-                    ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
-                    : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            ) : (
+              <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+                Deployments
+                <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+                  live / batch / paper — every VM + Cloud Run job
+                </span>
+              </h1>
+            )}
+            <button
+              onClick={load}
+              disabled={loading}
+              aria-label="Refresh deployments"
+              data-testid="deployments-refresh"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
           </div>
-        )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments
-            </CardTitle>
-            <div className="pt-2">
-              <UmbrellaSummaryHeader summary={summary} />
+          {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
+          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
+          {!embedded && (
+            <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
+              {UMBRELLA_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  data-testid={`umbrella-tab-${t.id}`}
+                  aria-pressed={activeTab === t.id}
+                  onClick={() => setParam("umbrella", t.id.toLowerCase())}
+                  className={`rounded border px-3 py-1.5 text-sm ${
+                    activeTab === t.id
+                      ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
+                      : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-            {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
-            <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
-              <FilterSelect
-                testId="filter-cloud"
-                label="cloud"
-                value={cloudFilter}
-                onChange={(v) => setParam("cloud", v)}
-                options={[
-                  { value: "", label: "all" },
-                  { value: "GCP", label: "GCP" },
-                  { value: "AWS", label: "AWS" },
-                ]}
-              />
-              <FilterSelect
-                testId="filter-status"
-                label="status"
-                value={statusFilter}
-                onChange={(v) => setParam("status", v)}
-                options={[
-                  { value: "", label: "all" },
-                  { value: "succeeded", label: "succeeded" },
-                  { value: "running", label: "running" },
-                  { value: "failed", label: "failed" },
-                  { value: "stale", label: "stale" },
-                  { value: "unknown", label: "unknown" },
-                ]}
-              />
-              <FilterSelect
-                testId="filter-asset-group"
-                label="asset group"
-                value={assetGroupFilter}
-                onChange={(v) => setParam("asset_group", v)}
-                options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <div
-                role="alert"
-                className="flex items-center gap-2 text-sm text-red-400 py-2"
-                data-testid="deployments-error"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
+          )}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments
+              </CardTitle>
+              <div className="pt-2">
+                <UmbrellaSummaryHeader summary={summary} />
               </div>
-            )}
-            {loading && items.length === 0 && !error && (
-              <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
-              </p>
-            )}
-            {!error && <DeploymentMatrix items={items} preset={activePreset} />}
-          </CardContent>
-        </Card>
-      </div>
+              {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
+              <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
+                <FilterSelect
+                  testId="filter-cloud"
+                  label="cloud"
+                  value={cloudFilter}
+                  onChange={(v) => setParam("cloud", v)}
+                  options={[
+                    { value: "", label: "all" },
+                    { value: "GCP", label: "GCP" },
+                    { value: "AWS", label: "AWS" },
+                  ]}
+                />
+                <FilterSelect
+                  testId="filter-status"
+                  label="status"
+                  value={statusFilter}
+                  onChange={(v) => setParam("status", v)}
+                  options={[
+                    { value: "", label: "all" },
+                    { value: "succeeded", label: "succeeded" },
+                    { value: "running", label: "running" },
+                    { value: "failed", label: "failed" },
+                    { value: "stale", label: "stale" },
+                    { value: "unknown", label: "unknown" },
+                  ]}
+                />
+                <FilterSelect
+                  testId="filter-asset-group"
+                  label="asset group"
+                  value={assetGroupFilter}
+                  onChange={(v) => setParam("asset_group", v)}
+                  options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 text-sm text-red-400 py-2"
+                  data-testid="deployments-error"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              {loading && items.length === 0 && !error && (
+                <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
+                </p>
+              )}
+              {!error && <DeploymentMatrix items={items} preset={activePreset} />}
+            </CardContent>
+          </Card>
+        </div>
+      </FreshnessContext.Provider>
     </DrillContext.Provider>
   );
 }

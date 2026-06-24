@@ -1,8 +1,5 @@
 import { useState } from "react";
-import {
-  fetchVmCostEstimate,
-  type VmCostEstimateResponse,
-} from "../api/deploymentApi";
+import { fetchVmCostEstimate, type VmCostEstimateResponse } from "../api/deploymentApi";
 
 const MACHINE_TYPES = [
   "n1-standard-1",
@@ -29,16 +26,9 @@ export function VmCostEstimatePanel() {
   const hours = parseFloat(runtimeHours);
   const disk = parseInt(diskGb, 10);
   const cnt = parseInt(count, 10);
-  const isValid =
-    !isNaN(hours) &&
-    hours > 0 &&
-    !isNaN(disk) &&
-    disk >= 10 &&
-    !isNaN(cnt) &&
-    cnt >= 1;
+  const isValid = !isNaN(hours) && hours > 0 && !isNaN(disk) && disk >= 10 && !isNaN(cnt) && cnt >= 1;
 
-  function handleCalculate(e: React.FormEvent) {
-    e.preventDefault();
+  function handleCalculate() {
     if (!isValid) return;
     setLoading(true);
     setError(null);
@@ -54,9 +44,7 @@ export function VmCostEstimatePanel() {
         setLoading(false);
       })
       .catch((err: unknown) => {
-        setError(
-          err instanceof Error ? err.message : "Failed to estimate cost",
-        );
+        setError(err instanceof Error ? err.message : "Failed to estimate cost");
         setLoading(false);
       });
   }
@@ -66,20 +54,14 @@ export function VmCostEstimatePanel() {
       data-testid="vm-cost-estimate-panel"
       className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 space-y-3"
     >
-      <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
-        Cost Estimate
-      </p>
+      <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">Cost Estimate</p>
 
-      <form
-        onSubmit={handleCalculate}
-        data-testid="cost-estimate-form"
-        className="grid grid-cols-2 gap-3"
-      >
+      {/* Not a <form>: this panel renders INSIDE the parent launch <form> (e.g.
+          MlExperiments), so a nested <form> is invalid HTML (React hydration warning).
+          The "Calculate" button drives the estimate via onClick instead of submit. */}
+      <div data-testid="cost-estimate-form" role="group" className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label
-            className="text-xs text-[var(--color-text-muted)]"
-            htmlFor="ce-machine-type"
-          >
+          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-machine-type">
             Machine type
           </label>
           <select
@@ -98,10 +80,7 @@ export function VmCostEstimatePanel() {
         </div>
 
         <div className="space-y-1">
-          <label
-            className="text-xs text-[var(--color-text-muted)]"
-            htmlFor="ce-hours"
-          >
+          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-hours">
             Runtime hours
           </label>
           <input
@@ -118,10 +97,7 @@ export function VmCostEstimatePanel() {
         </div>
 
         <div className="space-y-1">
-          <label
-            className="text-xs text-[var(--color-text-muted)]"
-            htmlFor="ce-disk"
-          >
+          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-disk">
             Disk (GB)
           </label>
           <input
@@ -138,10 +114,7 @@ export function VmCostEstimatePanel() {
         </div>
 
         <div className="space-y-1">
-          <label
-            className="text-xs text-[var(--color-text-muted)]"
-            htmlFor="ce-count"
-          >
+          <label className="text-xs text-[var(--color-text-muted)]" htmlFor="ce-count">
             Count
           </label>
           <input
@@ -159,7 +132,8 @@ export function VmCostEstimatePanel() {
 
         <div className="col-span-2">
           <button
-            type="submit"
+            type="button"
+            onClick={handleCalculate}
             data-testid="calculate-cost-btn"
             disabled={loading || !isValid}
             className="rounded px-3 py-1 text-xs font-medium bg-[var(--color-accent-blue)] text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
@@ -167,13 +141,10 @@ export function VmCostEstimatePanel() {
             {loading ? "Calculating..." : "Calculate"}
           </button>
         </div>
-      </form>
+      </div>
 
       {error && (
-        <p
-          className="text-xs text-[var(--color-error)]"
-          data-testid="cost-estimate-error"
-        >
+        <p className="text-xs text-[var(--color-error)]" data-testid="cost-estimate-error">
           {error}
         </p>
       )}
@@ -181,47 +152,30 @@ export function VmCostEstimatePanel() {
       {result && (
         <div data-testid="cost-estimate-result" className="space-y-2">
           {result.unknown_machine_type && (
-            <p className="text-xs text-amber-500">
-              Unknown machine type — using n1-standard-4 rate as proxy.
-            </p>
+            <p className="text-xs text-amber-500">Unknown machine type — using n1-standard-4 rate as proxy.</p>
           )}
           <dl
             className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             <dt className="text-[var(--color-text-muted)]">Compute</dt>
-            <dd
-              data-testid="cost-compute"
-              className="text-[var(--color-text-primary)]"
-            >
+            <dd data-testid="cost-compute" className="text-[var(--color-text-primary)]">
               ${result.compute_cost_usd.toFixed(4)} USD
             </dd>
             <dt className="text-[var(--color-text-muted)]">Disk</dt>
-            <dd
-              data-testid="cost-disk"
-              className="text-[var(--color-text-primary)]"
-            >
+            <dd data-testid="cost-disk" className="text-[var(--color-text-primary)]">
               ${result.disk_cost_usd.toFixed(4)} USD
             </dd>
-            <dt className="text-[var(--color-text-muted)] font-semibold">
-              Total
-            </dt>
-            <dd
-              data-testid="cost-total"
-              className="text-[var(--color-accent-green)] font-semibold"
-            >
+            <dt className="text-[var(--color-text-muted)] font-semibold">Total</dt>
+            <dd data-testid="cost-total" className="text-[var(--color-accent-green)] font-semibold">
               ${result.total_cost_usd.toFixed(4)} USD
             </dd>
             <dt className="text-[var(--color-text-muted)]">Hourly rate</dt>
-            <dd className="text-[var(--color-text-muted)]">
-              ${result.hourly_rate_usd.toFixed(4)}/hr
-            </dd>
+            <dd className="text-[var(--color-text-muted)]">${result.hourly_rate_usd.toFixed(4)}/hr</dd>
             <dt className="text-[var(--color-text-muted)]">Region</dt>
             <dd className="text-[var(--color-text-muted)]">{result.region}</dd>
           </dl>
-          {result.dry_run && (
-            <p className="text-xs text-amber-500 font-mono">dry_run=true</p>
-          )}
+          {result.dry_run && <p className="text-xs text-amber-500 font-mono">dry_run=true</p>}
         </div>
       )}
     </div>
