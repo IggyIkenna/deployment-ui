@@ -3201,8 +3201,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // lives there now. The deployment-api `/subscriptions` backend is unchanged.
 
   // ─── Chaos injections (Phase 4b — controlled fault injection) ───
-  if (path.startsWith("/chaos/injections")) {
-    const idMatch = path.match(/^\/chaos\/injections\/([^/?]+)$/);
+  if (path.startsWith("/api/chaos/injections")) {
+    const idMatch = path.match(/^\/api\/chaos\/injections\/([^/?]+)$/);
     if (idMatch && method === "DELETE") {
       return json({ revoked: decodeURIComponent(idMatch[1]) });
     }
@@ -3222,10 +3222,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         201,
       );
     }
-    return json([
-      _mockChaosInjection("chaos-venue-latency-001", "venue_latency", "execution-service", "staging"),
-      _mockChaosInjection("chaos-rpc-timeout-002", "rpc_timeout", "market-tick-data-service", "paper"),
-    ]);
+    // Real backend shape is the `{injections: [...]}` envelope (not a bare array) — match it
+    // so the smoke exercises the client's unwrap path (guards the Chaos-tab crash regression).
+    return json({
+      injections: [
+        _mockChaosInjection("chaos-venue-latency-001", "venue_latency", "execution-service", "staging"),
+        _mockChaosInjection("chaos-rpc-timeout-002", "rpc_timeout", "market-tick-data-service", "paper"),
+      ],
+    });
   }
 
   // Fleet VM census (vm_zombie_watchdog.py running/expected/zombie/OOM)

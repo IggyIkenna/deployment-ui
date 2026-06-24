@@ -3167,7 +3167,10 @@ import type { ChaosInjectionSpec, RuntimeProfile } from "../types";
 
 export async function listActiveChaosInjections(runtimeProfile?: RuntimeProfile): Promise<ChaosInjectionSpec[]> {
   const qs = runtimeProfile ? `?runtime_profile=${encodeURIComponent(runtimeProfile)}` : "";
-  return fetchJson<ChaosInjectionSpec[]>(`/chaos/injections/${qs}`);
+  // The backend returns `{injections: [...]}`; tolerate a bare array too (defensive) so the
+  // cockpit Chaos tab never crashes on `injections.map` when the real shape is the envelope.
+  const data = await fetchJson<{ injections?: ChaosInjectionSpec[] } | ChaosInjectionSpec[]>(`/chaos/injections/${qs}`);
+  return Array.isArray(data) ? data : (data.injections ?? []);
 }
 
 export async function createChaosInjection(spec: ChaosInjectionSpec): Promise<ChaosInjectionSpec> {

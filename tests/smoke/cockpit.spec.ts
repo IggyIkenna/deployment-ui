@@ -220,4 +220,14 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
     await page.getByTestId("cockpit-tab-ci").click();
     await expect(page.getByTestId("cockpit-page")).toBeVisible();
   });
+
+  test("Chaos tab folds without crashing on the {injections:[...]} envelope", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/cockpit?tab=chaos");
+    await page.waitForLoadState("networkidle");
+    // Regression: the backend returns `{injections:[...]}` (not a bare array). The client must
+    // unwrap it — before the fix `injections.map` threw and the tab rendered empty.
+    await expect(page.getByTestId("chaos-content")).toBeVisible();
+    await expect(page.getByText("venue_latency").first()).toBeVisible();
+  });
 });
