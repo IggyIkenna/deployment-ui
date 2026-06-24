@@ -15,6 +15,7 @@
  */
 
 import { lazy, Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Boxes, History, Rocket } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { createDeployment, getServices } from "../../api/client";
@@ -33,8 +34,11 @@ const VIEWS: { id: DeployView; label: string; icon: React.ComponentType<{ classN
 ];
 
 export function DeployConsole(): React.ReactElement {
+  const [searchParams] = useSearchParams();
+  // A "Redeploy" deep-link (from a deployment-detail drill) prefills ?service=<name>.
+  const initialService = searchParams.get("service") ?? "";
   const [services, setServices] = useState<string[]>([]);
-  const [service, setService] = useState<string>("");
+  const [service, setService] = useState<string>(initialService);
   const [view, setView] = useState<DeployView>("launch");
   const [deploying, setDeploying] = useState(false);
   const [result, setResult] = useState<string | null>(null);
