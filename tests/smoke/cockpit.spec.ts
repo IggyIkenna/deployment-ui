@@ -362,3 +362,77 @@ test.describe("Cockpit — Launch tab nested-form fix", () => {
     expect(formNesting, `nested-<form> warnings: ${formNesting.join(" | ")}`).toHaveLength(0);
   });
 });
+
+/**
+ * Regression: operator additions O1–O4 (unified_deployment_health_cockpit_2026_06_23.md
+ * "Operator additions 2026-06-24").
+ *  - O1: the Consolidators drill-down renders the REAL per-AG index age (not "—").
+ *  - O2: the Health Data-Coverage tile routes to the data-status surface (not /deployments).
+ *  - O3: the Live/Batch/Paper inventory shows status-filter chips (All/Running/Succeeded/
+ *        Failed/Stuck) with per-status counts that drive the status filter.
+ *  - O4: a deployment drill-down surfaces the alerts + restart/escalation lifecycle card.
+ * Uses the dev mock-api (VITE_MOCK_API=true) for /api/health/consolidator, /api/deployments/*,
+ * /api/alerts, /api/vm/{name}/events — so the wiring is exercised end-to-end, not mocked-away.
+ */
+test.describe("Cockpit — operator additions O1–O4", () => {
+  test("O1: Consolidators drill-down renders the real per-AG index age (not —)", async ({ page }) => {
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
+    await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
+    // The defi card (mock: 25s old) renders a concrete index age, NOT the placeholder dash.
+    const defiCard = page.getByTestId("cockpit-consolidator-defi");
+    await expect(defiCard).toContainText("index age:");
+    await expect(defiCard).toContainText("25s");
+    // The cefi card (mock: 2457s, fallback active) shows the budget + the ACTIVE fallback flag.
+    const cefiCard = page.getByTestId("cockpit-consolidator-cefi");
+    await expect(cefiCard).toContainText("budget");
+    await expect(cefiCard).toContainText("ACTIVE");
+    await expect(page.getByTestId("cockpit-consolidator-status-cefi")).toHaveText("CRITICAL");
+  });
+
+  test("O2: Data-Coverage tile links to the data-status surface, not /deployments", async ({ page }) => {
+    await page.goto("/cockpit");
+    await page.waitForLoadState("networkidle");
+    const tile = page.getByTestId("cockpit-tile-coverage");
+    await expect(tile).toBeVisible();
+    // The coverage tile now deep-links to the per-service data-status tab (market-tick-data-service)
+    // — NOT the generic /deployments inventory (which has no %-captured-per-asset_group view).
+    const href = await tile.getAttribute("href");
+    expect(href).toContain("/service/market-tick-data-service/data-status");
+    expect(href).not.toBe("/deployments");
+  });
+
+  test("O3: Batch inventory shows status-filter chips with counts that drive the filter", async ({ page }) => {
+    await page.goto("/cockpit?tab=batch");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-batch")).toBeVisible();
+    const chips = page.getByTestId("status-filter-chips");
+    await expect(chips).toBeVisible();
+    // All / Running / Succeeded / Failed / Stuck chips with per-status counts (from the summary).
+    await expect(page.getByTestId("status-chip-all")).toBeVisible();
+    await expect(page.getByTestId("status-chip-failed")).toBeVisible();
+    // BATCH mock: 1 failed (sports-backfill exit 137), ≥1 succeeded.
+    await expect(page.getByTestId("status-chip-count-failed")).toHaveText("1");
+    await expect(page.getByTestId("status-chip-count-succeeded")).not.toHaveText("0");
+    // Clicking "Failed" isolates the failed row + drops the succeeded one.
+    await page.getByTestId("status-chip-failed").click();
+    await expect(page.getByTestId("status-chip-failed")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("deployment-row-sports-backfill-20260621")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-cefi-backfill-20260620")).toHaveCount(0);
+  });
+
+  test("O4: deployment drill-down surfaces the alerts + restart/escalation lifecycle card", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("deployment-link-defi-live-capture-1").click();
+    await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
+    // The lifecycle card composes /api/alerts + the deployment event stream (no new endpoint).
+    const card = page.getByTestId("detail-alerts-lifecycle");
+    await expect(card).toBeVisible();
+    // No mock alert names this deployment → honest empty state (never a fabricated all-clear).
+    await expect(page.getByTestId("detail-alerts-empty")).toBeVisible();
+    // The mock event stream has no restart/escalation events → honest empty state.
+    await expect(page.getByTestId("detail-lifecycle-empty")).toBeVisible();
+  });
+});
