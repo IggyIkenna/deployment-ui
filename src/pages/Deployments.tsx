@@ -438,6 +438,62 @@ function FilterSelect({
   );
 }
 
+/**
+ * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles per
+ * umbrella, with the LIVE count beside each so the operator sees the spread at a glance. They
+ * drive the SAME `status` filter the dropdown does (URL-param-backed standalone / local-state
+ * embedded), so a chip click and the dropdown stay consistent. "Stuck" maps to `stale` — a
+ * deployment that stopped advancing (the inventory's stuck-equivalent). Counts come from the
+ * per-umbrella summary's `counts_by_status` (the authoritative server tally), not the current
+ * page filter — so the chips show the full spread even while a filter is applied.
+ */
+const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
+  { value: "", label: "All", tone: "gray", countKey: null },
+  { value: "running", label: "Running", tone: "blue", countKey: "running" },
+  { value: "succeeded", label: "Succeeded", tone: "green", countKey: "succeeded" },
+  { value: "failed", label: "Failed", tone: "red", countKey: "failed" },
+  { value: "stale", label: "Stuck", tone: "yellow", countKey: "stale" },
+];
+
+function StatusFilterChips({
+  summary,
+  active,
+  onSelect,
+}: {
+  summary: UmbrellaSummaryResponse | null;
+  active: string;
+  onSelect: (value: string) => void;
+}) {
+  const total = summary?.total ?? 0;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="status-filter-chips">
+      {STATUS_CHIPS.map((chip) => {
+        const count = chip.countKey == null ? total : (summary?.counts_by_status[chip.countKey] ?? 0);
+        const isActive = active === chip.value;
+        return (
+          <button
+            key={chip.value || "all"}
+            type="button"
+            aria-pressed={isActive}
+            data-testid={`status-chip-${chip.value || "all"}`}
+            onClick={() => onSelect(chip.value)}
+            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium border transition-colors ${
+              isActive
+                ? TONE_CLASSES[chip.tone]
+                : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            {chip.label}
+            <span data-testid={`status-chip-count-${chip.value || "all"}`} className="font-mono opacity-80">
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Per-umbrella column preset — the operator wants live/batch/paper to read as their
  * DISTINCT dynamics, not one matrix shape (plan Phase 2). One inventory source, three
  * presets: LIVE → uptime/heartbeat/feed-health; BATCH → progress/coverage/exit-code;
@@ -626,6 +682,11 @@ export function DeploymentsContent({
               </CardTitle>
               <div className="pt-2">
                 <UmbrellaSummaryHeader summary={summary} />
+              </div>
+              {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles
+                  with per-status counts; drive the same `status` filter as the dropdown below. */}
+              <div className="pt-3">
+                <StatusFilterChips summary={summary} active={statusFilter} onSelect={(v) => setParam("status", v)} />
               </div>
               {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
               <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
