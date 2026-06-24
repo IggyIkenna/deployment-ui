@@ -55,8 +55,10 @@ function statusTone(status: string): ChipTone {
   }
 }
 
-export function DeploymentDetail() {
-  const { name } = useParams<{ name: string }>();
+export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; embedded?: boolean } = {}) {
+  // Standalone route reads :name from the URL; the cockpit passes it as a prop (chrome-less embed).
+  const params = useParams<{ name: string }>();
+  const name = nameProp ?? params.name;
   const [item, setItem] = useState<DeploymentItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,17 +90,22 @@ export function DeploymentDetail() {
   }
 
   const KindIcon = item?.kind === "CLOUD_RUN_JOB" ? Workflow : Server;
+  // Embedded (cockpit drill panel): a chrome-less <div>, no standalone <main>/back-link.
+  const Wrapper = embedded ? "div" : "main";
+  const wrapperClass = embedded ? "space-y-6" : "mx-auto px-4 lg:px-6 py-6 max-w-[1280px] space-y-6";
 
   return (
-    <main className="mx-auto px-4 lg:px-6 py-6 max-w-[1280px] space-y-6" data-testid="deployment-detail-page">
+    <Wrapper className={wrapperClass} data-testid="deployment-detail-page">
       <div className="flex flex-col gap-3">
-        <Link
-          to="/deployments"
-          data-testid="deployment-detail-back"
-          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] w-fit"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Deployments
-        </Link>
+        {!embedded && (
+          <Link
+            to="/deployments"
+            data-testid="deployment-detail-back"
+            className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] w-fit"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Deployments
+          </Link>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2">
             <KindIcon className="h-5 w-5 text-[var(--color-accent-cyan)]" />
@@ -116,6 +123,15 @@ export function DeploymentDetail() {
               <Chip tone={statusTone(item.status)} testId="detail-status">
                 {item.status}
               </Chip>
+              {/* Close the alert → cockpit → logs → REDEPLOY walk: route to the Deploy console
+                  (the embedded DeployForm, service pre-selectable) to relaunch this target. */}
+              <Link
+                to={`/cockpit?tab=deploy&service=${encodeURIComponent(item.service)}`}
+                data-testid="detail-redeploy"
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--color-accent-cyan)]/40 bg-[var(--color-accent-cyan)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/20"
+              >
+                <ExternalLink className="h-3 w-3" /> Redeploy
+              </Link>
             </div>
           )}
         </div>
@@ -218,6 +234,6 @@ export function DeploymentDetail() {
           </div>
         </CardContent>
       </Card>
-    </main>
+    </Wrapper>
   );
 }

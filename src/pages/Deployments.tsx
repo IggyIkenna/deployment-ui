@@ -13,7 +13,7 @@
  * Plan: deployment_observability_parity_live_batch_paper_2026_06_22.md Phase 2.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AlertCircle, Cloud, RefreshCw, Server, Workflow } from "lucide-react";
 import {
@@ -195,7 +195,28 @@ const PRESET_HEADERS: Record<DynamicsPreset, string[]> = {
   default: ["Target", "Cloud", "Service", "Asset group", "Status", "Last run", "Exit", "Progress"],
 };
 
+// When the cockpit embeds the inventory it provides an `onDrill` so a row opens the
+// per-target detail IN the cockpit (a slide-over) instead of navigating to /deployments/:name.
+// Standalone (no provider) → the row is a Link to the detail page (unchanged).
+const DrillContext = createContext<((name: string) => void) | undefined>(undefined);
+
 function TargetCell({ item }: { item: DeploymentItem }) {
+  const onDrill = useContext(DrillContext);
+  if (onDrill) {
+    return (
+      <td className="py-1.5">
+        <button
+          type="button"
+          onClick={() => onDrill(item.name)}
+          data-testid={`deployment-link-${item.name}`}
+          className="inline-flex items-center gap-1.5 font-mono text-[var(--color-text-primary)] hover:underline"
+        >
+          <KindIcon kind={item.kind} />
+          {item.name}
+        </button>
+      </td>
+    );
+  }
   return (
     <td className="py-1.5">
       <Link
@@ -401,9 +422,11 @@ export type DynamicsPreset = "live" | "batch" | "paper" | "default";
 export function DeploymentsContent({
   fixedUmbrella,
   preset,
+  onDrill,
 }: {
   fixedUmbrella?: UmbrellaTab;
   preset?: DynamicsPreset;
+  onDrill?: (name: string) => void;
 } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const embedded = fixedUmbrella != null;
@@ -496,118 +519,120 @@ export function DeploymentsContent({
   }, [items, assetGroupFilter]);
 
   return (
-    <div className="w-full" data-testid="deployments-page">
-      <div className="flex items-center justify-between mb-4">
-        {embedded ? (
-          <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-            {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
-          </span>
-        ) : (
-          <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-            Deployments
+    <DrillContext.Provider value={onDrill}>
+      <div className="w-full" data-testid="deployments-page">
+        <div className="flex items-center justify-between mb-4">
+          {embedded ? (
             <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-              live / batch / paper — every VM + Cloud Run job
+              {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
             </span>
-          </h1>
-        )}
-        <button
-          onClick={load}
-          disabled={loading}
-          aria-label="Refresh deployments"
-          data-testid="deployments-refresh"
-          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </div>
-
-      {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
-          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
-      {!embedded && (
-        <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
-          {UMBRELLA_TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              data-testid={`umbrella-tab-${t.id}`}
-              aria-pressed={activeTab === t.id}
-              onClick={() => setParam("umbrella", t.id.toLowerCase())}
-              className={`rounded border px-3 py-1.5 text-sm ${
-                activeTab === t.id
-                  ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
-                  : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          ) : (
+            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              Deployments
+              <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+                live / batch / paper — every VM + Cloud Run job
+              </span>
+            </h1>
+          )}
+          <button
+            onClick={load}
+            disabled={loading}
+            aria-label="Refresh deployments"
+            data-testid="deployments-refresh"
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
-      )}
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments
-          </CardTitle>
-          <div className="pt-2">
-            <UmbrellaSummaryHeader summary={summary} />
+        {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
+          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
+        {!embedded && (
+          <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
+            {UMBRELLA_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`umbrella-tab-${t.id}`}
+                aria-pressed={activeTab === t.id}
+                onClick={() => setParam("umbrella", t.id.toLowerCase())}
+                className={`rounded border px-3 py-1.5 text-sm ${
+                  activeTab === t.id
+                    ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
+                    : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
-          <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
-            <FilterSelect
-              testId="filter-cloud"
-              label="cloud"
-              value={cloudFilter}
-              onChange={(v) => setParam("cloud", v)}
-              options={[
-                { value: "", label: "all" },
-                { value: "GCP", label: "GCP" },
-                { value: "AWS", label: "AWS" },
-              ]}
-            />
-            <FilterSelect
-              testId="filter-status"
-              label="status"
-              value={statusFilter}
-              onChange={(v) => setParam("status", v)}
-              options={[
-                { value: "", label: "all" },
-                { value: "succeeded", label: "succeeded" },
-                { value: "running", label: "running" },
-                { value: "failed", label: "failed" },
-                { value: "stale", label: "stale" },
-                { value: "unknown", label: "unknown" },
-              ]}
-            />
-            <FilterSelect
-              testId="filter-asset-group"
-              label="asset group"
-              value={assetGroupFilter}
-              onChange={(v) => setParam("asset_group", v)}
-              options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div
-              role="alert"
-              className="flex items-center gap-2 text-sm text-red-400 py-2"
-              data-testid="deployments-error"
-            >
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
+        )}
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments
+            </CardTitle>
+            <div className="pt-2">
+              <UmbrellaSummaryHeader summary={summary} />
             </div>
-          )}
-          {loading && items.length === 0 && !error && (
-            <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
-            </p>
-          )}
-          {!error && <DeploymentMatrix items={items} preset={activePreset} />}
-        </CardContent>
-      </Card>
-    </div>
+            {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
+            <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
+              <FilterSelect
+                testId="filter-cloud"
+                label="cloud"
+                value={cloudFilter}
+                onChange={(v) => setParam("cloud", v)}
+                options={[
+                  { value: "", label: "all" },
+                  { value: "GCP", label: "GCP" },
+                  { value: "AWS", label: "AWS" },
+                ]}
+              />
+              <FilterSelect
+                testId="filter-status"
+                label="status"
+                value={statusFilter}
+                onChange={(v) => setParam("status", v)}
+                options={[
+                  { value: "", label: "all" },
+                  { value: "succeeded", label: "succeeded" },
+                  { value: "running", label: "running" },
+                  { value: "failed", label: "failed" },
+                  { value: "stale", label: "stale" },
+                  { value: "unknown", label: "unknown" },
+                ]}
+              />
+              <FilterSelect
+                testId="filter-asset-group"
+                label="asset group"
+                value={assetGroupFilter}
+                onChange={(v) => setParam("asset_group", v)}
+                options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 text-sm text-red-400 py-2"
+                data-testid="deployments-error"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            {loading && items.length === 0 && !error && (
+              <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
+              </p>
+            )}
+            {!error && <DeploymentMatrix items={items} preset={activePreset} />}
+          </CardContent>
+        </Card>
+      </div>
+    </DrillContext.Provider>
   );
 }
 
