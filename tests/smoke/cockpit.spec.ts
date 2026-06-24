@@ -285,3 +285,80 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
     await expect(page.getByText("venue_latency").first()).toBeVisible();
   });
 });
+
+/**
+ * Regression: the cockpit wires REAL per-deployment, manifest-DERIVED freshness
+ * (GET /api/deployments/{id}/freshness — NOT the health-ping) into the Live tab
+ * feed-health column + the Health Data-Coverage tile. A `liveness_only` deployment
+ * renders honestly as such (never a false "fresh"), and a `stale` live feed shows stale.
+ * (Plan: unified_deployment_health_cockpit_2026_06_23.md Phase 4.5 — "Cockpit wires REAL
+ * per-shard freshness".) The dev mock-api serves /freshness keyed on the LIVE inventory:
+ * defi-live-capture-1 = fresh, cefi-live-trading-1 = stale.
+ */
+test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
+  test("Live tab feed-health reads manifest freshness (fresh / stale), not just the heartbeat", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    // The fresh live row renders the manifest-derived "fresh" feed-health…
+    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("fresh");
+    // …and the stale-index live row renders honest "stale" (NOT a false fresh).
+    await expect(page.getByTestId("feed-health-cefi-live-trading-1")).toHaveText("stale");
+  });
+
+  test("Health Data-Coverage tile overlays the real live-feed freshness summary", async ({ page }) => {
+    await page.goto("/cockpit");
+    await page.waitForLoadState("networkidle");
+    // The coverage tile shows the %-captured value PLUS the per-deployment freshness summary
+    // (1 fresh, 1 stale from the mock LIVE inventory) — proving it reads /freshness, not a ping.
+    await expect(page.getByTestId("cockpit-tile-coverage")).toContainText("live feed:");
+    await expect(page.getByTestId("cockpit-tile-coverage")).toContainText("stale");
+  });
+});
+
+/**
+ * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/infra +
+ * /fleet/git surfaces IN-PLACE (reusing LiveDeploymentsContent / FleetInfraContent /
+ * FleetGitContent — no nav-away, no new fetch logic). Guards Phase 0.5 "Fold
+ * /ops/live-deployments + /fleet/infra + /fleet/git into Live/Fleet/Health".
+ */
+test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
+  test("Live tab folds the live-ops running-services + event/log surface", async ({ page }) => {
+    await page.goto("/cockpit?tab=live");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-live-ops")).toBeVisible();
+    await expect(page.getByTestId("live-deployments-content")).toBeVisible();
+  });
+
+  test("Fleet tab folds the infra/orchestrator + git-health surfaces", async ({ page }) => {
+    await page.goto("/cockpit?tab=fleet");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible();
+    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
+  });
+});
+
+/**
+ * Regression: the Launch tab no longer logs the nested-<form> hydration warning
+ * ("<form> cannot be a descendant of <form>") — the inner VmCostEstimatePanel form was
+ * unwrapped to a <div> (its Calculate button drives the estimate via onClick). Guards
+ * Phase 0.5 "Launch tab nested-<form> hydration warning".
+ */
+test.describe("Cockpit — Launch tab nested-form fix", () => {
+  test("ML launch console has no nested-<form> console error + cost-estimate is still a button", async ({ page }) => {
+    const formNesting: string[] = [];
+    page.on("console", (msg) => {
+      const t = msg.text();
+      if (/<form>\s*cannot be a descendant of\s*<form>/i.test(t) || /form.*descendant.*form/i.test(t)) {
+        formNesting.push(t);
+      }
+    });
+    await mockBase(page);
+    await page.goto("/cockpit?tab=launch");
+    await page.waitForLoadState("networkidle");
+    // ML is the default Launch sub-tab; its form contains the cost-estimate panel.
+    await expect(page.getByTestId("cost-estimate-form")).toBeVisible();
+    // The cost-estimate trigger is a non-submit button (no inner <form>).
+    await expect(page.getByTestId("calculate-cost-btn")).toHaveAttribute("type", "button");
+    expect(formNesting, `nested-<form> warnings: ${formNesting.join(" | ")}`).toHaveLength(0);
+  });
+});

@@ -100,3 +100,31 @@ export async function getFleetReconciliation(): Promise<FleetReconciliationRespo
   const response = await fetch(`${DEPLOYMENT_API}/api/fleet/reconciliation`);
   return handleResponse<FleetReconciliationResponse>(response);
 }
+
+/**
+ * Per-deployment, MANIFEST-DERIVED data freshness (NOT the in-memory health-ping
+ * callback). The deployment's `ShardResponsibility` resolves which asset_group's
+ * availability-index heartbeat counts as its freshness; a `none` responsibility
+ * (gateway / control-plane) honestly reports `liveness_only` — never a false "fresh".
+ *
+ * Backend: deployment-api@f05a1dc — GET /api/deployments/{id}/freshness.
+ */
+export type FreshnessStatus = "fresh" | "stale" | "liveness_only" | "unknown";
+
+export interface DeploymentFreshnessResponse {
+  deployment_id: string;
+  responsibility: string;
+  asset_group: string | null;
+  mode: string | null;
+  freshness_status: FreshnessStatus;
+  index_age_seconds: number | null;
+  staleness_budget_seconds: number | null;
+  per_vm_shard_fallback_active: boolean;
+  oldest_available_at: string | null;
+  detail: string;
+}
+
+export async function getDeploymentFreshness(id: string): Promise<DeploymentFreshnessResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(id)}/freshness`);
+  return handleResponse<DeploymentFreshnessResponse>(response);
+}
