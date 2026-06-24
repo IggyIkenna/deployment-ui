@@ -14,10 +14,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Server, Workflow } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, RotateCcw, Server, Workflow } from "lucide-react";
 import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { StreamingLogsPanel } from "../components/StreamingLogsPanel";
-import { getDeploymentInventory, type DeploymentItem } from "../api/deploymentApi";
+import {
+  fetchVmFilteredEvents,
+  getDeploymentInventory,
+  type DeploymentItem,
+  type VMLifecycleEvent,
+} from "../api/deploymentApi";
+import { getUnifiedAlerts, type UnifiedAlertEntry } from "../api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
@@ -53,6 +59,151 @@ function statusTone(status: string): ChipTone {
     default:
       return "gray";
   }
+}
+
+// Restart / escalation lifecycle event kinds — the "did it restart / escalate?" answer for the
+// end-to-end click-through. Matched case-insensitively against the event name (the runtime emits
+// e.g. RESTARTED / RESTART_REQUESTED / ESCALATED / WATCHDOG_KILLED / FAILOVER_*); the broad
+// substring match keeps the card useful as the event vocabulary grows without re-coding.
+const LIFECYCLE_EVENT_PATTERNS = ["restart", "escalat", "failover", "watchdog", "respawn", "killed"];
+
+function isLifecycleEvent(eventName: string): boolean {
+  const lower = eventName.toLowerCase();
+  return LIFECYCLE_EVENT_PATTERNS.some((p) => lower.includes(p));
+}
+
+/** Alert severity → chip tone (CRITICAL/ERROR red, WARNING amber, else gray). */
+function alertTone(severity: string | null): ChipTone {
+  const s = (severity ?? "").toUpperCase();
+  if (s === "CRITICAL" || s === "ERROR") return "red";
+  if (s === "WARNING" || s === "WARN") return "yellow";
+  return "gray";
+}
+
+/**
+ * Alerts & lifecycle — the end-to-end "what happened to this deployment" answer that closes
+ * the lifecycle click-through (logs → alerts → did-it-restart/escalate). Composes EXISTING
+ * endpoints, no new backend: GET /api/alerts (filtered to this target by name in repo/message)
+ * + the deployment's own event stream (GET /api/vm/{name}/events) narrowed to restart/escalation
+ * kinds. An empty result reads HONESTLY ("no alerts / no restart-or-escalation events"), never a
+ * fabricated all-clear.
+ */
+function AlertsLifecycleCard({ name }: { name: string }) {
+  const [alerts, setAlerts] = useState<UnifiedAlertEntry[]>([]);
+  const [lifecycle, setLifecycle] = useState<VMLifecycleEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    Promise.allSettled([getUnifiedAlerts(), fetchVmFilteredEvents(name, { limit: 200 })])
+      .then(([alertsRes, eventsRes]) => {
+        if (alertsRes.status === "fulfilled") {
+          const lower = name.toLowerCase();
+          // Match the deployment by name in the alert's repo OR message (the alert ledger is
+          // CI/infra-class-keyed; a deployment-scoped alert names the target in one of these).
+          setAlerts(
+            alertsRes.value.alerts.filter(
+              (a) => (a.repo ?? "").toLowerCase().includes(lower) || (a.message ?? "").toLowerCase().includes(lower),
+            ),
+          );
+        }
+        if (eventsRes.status === "fulfilled") {
+          setLifecycle(eventsRes.value.events.filter((e) => isLifecycleEvent(e.event)));
+        }
+        if (alertsRes.status === "rejected" && eventsRes.status === "rejected") {
+          const r = alertsRes.reason;
+          setError(r instanceof Error ? r.message : "alerts + lifecycle unavailable");
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [name]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+          Alerts & lifecycle
+          <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+            — did it alert / restart / escalate?
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4" data-testid="detail-alerts-lifecycle">
+        {error && (
+          <div role="alert" className="text-xs text-red-400" data-testid="detail-alerts-error">
+            {error}
+          </div>
+        )}
+
+        {/* Alerts scoped to this deployment. */}
+        <div>
+          <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            Alerts ({alerts.length})
+          </h3>
+          {loading && alerts.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
+          ) : alerts.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-alerts-empty">
+              No alerts reference this deployment.
+            </p>
+          ) : (
+            <ul className="space-y-1" data-testid="detail-alerts-list">
+              {alerts.map((a, i) => (
+                <li
+                  key={`${a.repo}-${a.timestamp}-${i}`}
+                  className="flex items-start gap-2 text-xs"
+                  data-testid="detail-alert-row"
+                >
+                  <Chip tone={alertTone(a.severity)}>{a.severity ?? a.conclusion ?? "alert"}</Chip>
+                  <span className="font-mono text-[var(--color-text-muted)] shrink-0">
+                    {a.timestamp.slice(5, 16).replace("T", " ")}
+                  </span>
+                  <span className="text-[var(--color-text-secondary)]">{a.message ?? a.workflow_name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Restart / escalation lifecycle events (from the deployment's own event stream). */}
+        <div>
+          <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] flex items-center gap-1">
+            <RotateCcw className="h-3 w-3" />
+            Restart / escalation ({lifecycle.length})
+          </h3>
+          {loading && lifecycle.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
+          ) : lifecycle.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-lifecycle-empty">
+              No restart or escalation events for this deployment.
+            </p>
+          ) : (
+            <ul className="space-y-1" data-testid="detail-lifecycle-list">
+              {lifecycle.map((e, i) => (
+                <li
+                  key={`${e.event}-${e.timestamp}-${i}`}
+                  className="flex items-start gap-2 text-xs"
+                  data-testid="detail-lifecycle-row"
+                >
+                  <Chip tone={e.severity === "ERROR" || e.severity === "CRITICAL" ? "red" : "yellow"}>{e.event}</Chip>
+                  <span className="font-mono text-[var(--color-text-muted)]">
+                    {e.timestamp.slice(5, 19).replace("T", " ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; embedded?: boolean } = {}) {
@@ -214,6 +365,10 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
           )}
         </CardContent>
       </Card>
+
+      {/* Alerts + restart/escalation lifecycle — the end-to-end "what happened" answer
+          (composes /api/alerts + the deployment event stream; no new endpoint). */}
+      <AlertsLifecycleCard name={name} />
 
       <Card>
         <CardHeader className="pb-2">
