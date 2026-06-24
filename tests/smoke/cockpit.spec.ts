@@ -104,6 +104,10 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
+    // Phase 4: the reconciliation cards wire to GET /api/fleet/reconciliation — real counts, not "—".
+    await expect(page.getByTestId("cockpit-fleet-value-unknown")).toHaveText("2");
+    await expect(page.getByTestId("cockpit-fleet-status-unknown")).toHaveText("CRITICAL");
+    await expect(page.getByTestId("cockpit-fleet-value-missing")).toHaveText("58");
 
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();

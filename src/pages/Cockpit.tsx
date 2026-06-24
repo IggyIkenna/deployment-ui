@@ -51,8 +51,10 @@ import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
 import {
+  getFleetReconciliation,
   getHealthConsolidator,
   getHealthOverview,
+  type FleetReconciliationResponse,
   type HealthConsolidatorResponse,
   type HealthOverviewResponse,
   type HealthStatus,
@@ -88,26 +90,6 @@ function StatusChip({ status, testId }: { status: TileStatus; testId?: string })
     >
       {STATUS_LABEL[status]}
     </span>
-  );
-}
-
-/**
- * PlaceholderNote — the honest "this pane is scaffolded; here's what wires it"
- * banner. Keeps the no-blind-build contract visible: every placeholder names its
- * backend endpoint + the plan phase that replaces it.
- */
-function PlaceholderNote({ endpoint, phase }: { endpoint: string; phase: string }) {
-  return (
-    <div
-      data-testid="cockpit-placeholder-note"
-      className="mb-4 flex items-start gap-2 rounded-md border border-[var(--color-accent-blue)]/30 bg-[var(--color-accent-blue)]/10 px-3 py-2 text-xs text-[var(--color-text-secondary)]"
-    >
-      <Layers className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[var(--color-accent-blue)]" />
-      <span>
-        <strong>Placeholder.</strong> Wires to{" "}
-        <code className="font-mono rounded bg-[var(--color-bg-tertiary)] px-1">{endpoint}</code> in {phase}.
-      </span>
-    </div>
   );
 }
 
@@ -466,39 +448,102 @@ function DeployTab() {
 // ---------------------------------------------------------------------------
 
 function FleetTab() {
+  const [recon, setRecon] = useState<FleetReconciliationResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await getFleetReconciliation();
+        if (!cancelled) setRecon(r);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "reconciliation unavailable");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const running = (recon?.clouds ?? []).reduce((a, c) => a + c.running, 0);
+  const unknownTotal = recon?.unknown_total ?? 0;
+  const missingTotal = recon?.expected_missing_total ?? 0;
+  const accounted = Math.max(0, running - unknownTotal);
+  const cards: { id: string; label: string; status: TileStatus; value: string; hint: string }[] = recon
+    ? [
+        {
+          id: "accounted",
+          label: "Accounted for",
+          status: "ok",
+          value: `${accounted}`,
+          hint: "running ∩ registered/control-plane",
+        },
+        {
+          id: "unknown",
+          label: "Unknown (running, unregistered)",
+          status: unknownTotal > 0 ? "critical" : "ok",
+          value: `${unknownTotal}`,
+          hint: "alarm: classify or kill",
+        },
+        {
+          id: "missing",
+          label: "Expected-missing (registered, not running)",
+          status: missingTotal > 0 ? "degraded" : "ok",
+          value: `${missingTotal}`,
+          hint: "registered but not running (relaunch / de-register / reap)",
+        },
+      ]
+    : [
+        { id: "accounted", label: "Accounted for", status: "placeholder", value: "—", hint: "running ∩ registered" },
+        {
+          id: "unknown",
+          label: "Unknown (running, unregistered)",
+          status: "placeholder",
+          value: "—",
+          hint: "alarm: classify or kill",
+        },
+        {
+          id: "missing",
+          label: "Expected-missing (registered, not running)",
+          status: "placeholder",
+          value: "—",
+          hint: "alarm: relaunch or de-register",
+        },
+      ];
+
   return (
     <div data-testid="cockpit-fleet">
-      <PlaceholderNote endpoint="GET /api/fleet/reconciliation" phase="Phase 4" />
+      {error ? (
+        <div
+          data-testid="cockpit-fleet-error"
+          className="mb-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>
+            Reconciliation unavailable — <code className="font-mono">GET /api/fleet/reconciliation</code> failed (
+            {error}
+            ). The census table below is still real.
+          </span>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        {[
-          {
-            id: "accounted",
-            label: "Accounted for",
-            status: "placeholder" as TileStatus,
-            hint: "running ∩ registered",
-          },
-          {
-            id: "unknown",
-            label: "Unknown (running, unregistered)",
-            status: "placeholder" as TileStatus,
-            hint: "alarm: classify or kill",
-          },
-          {
-            id: "missing",
-            label: "Expected-missing (registered, not running)",
-            status: "placeholder" as TileStatus,
-            hint: "alarm: relaunch or de-register",
-          },
-        ].map((c) => (
+        {cards.map((c) => (
           <Card key={c.id} data-testid={`cockpit-fleet-card-${c.id}`}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 {c.label}
-                <StatusChip status={c.status} />
+                <StatusChip status={c.status} testId={`cockpit-fleet-status-${c.id}`} />
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-[var(--color-text-tertiary)]">{c.hint}</p>
+              <p
+                className="text-2xl font-semibold text-[var(--color-text-primary)]"
+                data-testid={`cockpit-fleet-value-${c.id}`}
+              >
+                {c.value}
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{c.hint}</p>
             </CardContent>
           </Card>
         ))}
