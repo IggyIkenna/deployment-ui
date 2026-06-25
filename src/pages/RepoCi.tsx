@@ -1023,7 +1023,21 @@ function OverviewTable({
                 selected === row.repo ? "bg-[var(--color-bg-secondary)]" : rowIndex % 2 === 1 ? "bg-white/[0.04]" : ""
               }`}
             >
-              <td className="py-1.5 font-mono text-[var(--color-text-primary)]">{row.repo}</td>
+              <td className="py-1.5 font-mono text-[var(--color-text-primary)]">
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>{row.repo}</span>
+                  {/* Slack↔/repos parity (ci_status_repos_promotion_failure_parity_2026_06_25): an
+                      open promotion PR whose required quality-gates-v2 is failing pages Slack CRITICAL
+                      but leaves the per-branch SHA tones GREEN (the branch-push ci_status stays
+                      MAIN_GREEN off the last green main push). Render an unmissable repo-level chip so
+                      a failing/red promotion is visible at a glance, matching Slack. */}
+                  {row.promotion_blocked && (
+                    <Chip tone="red" testId={`promotion-failing-${row.repo}`}>
+                      PROMOTION FAILING
+                    </Chip>
+                  )}
+                </span>
+              </td>
               {/* Per-branch CI colour on each SHA cell (operator review 2026-06-19) — replaces the
                   standalone CI-status column: green = that branch's last v2 passed, red = failed. */}
               <td className="py-1.5 font-mono">
