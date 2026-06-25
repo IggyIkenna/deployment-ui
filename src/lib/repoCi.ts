@@ -140,16 +140,30 @@ export function branchTone(row: RepoCiOverviewRow, branch: string, sha: string |
   return row.ci_status === "FAILING" ? "gray" : "green";
 }
 
-/** "FAILING (main)" / "FAILING (LDR, staging)" when branch_ci pins the red branch(es); else bare ci_status. */
+/** "FAILING (main)" / "FAILING (LDR, staging)" when branch_ci pins the red branch(es); else bare ci_status.
+ * When the repo's PROMOTION is blocked (an open promotion PR's required quality-gates-v2 is failing) but the
+ * branch-push ci_status reads on-main, append `· PROMOTION FAILING` so a failing promotion is visible at a
+ * glance — the Slack↔/repos parity case (ci_status stays MAIN_GREEN off the last green main push while the
+ * LDR→main PR's v2 failed and pages Slack CRITICAL). */
 export function ciStatusLabel(row: RepoCiOverviewRow): string {
   const failing = failingBranches(row);
-  if (failing.length === 0) return row.ci_status;
-  return `${row.ci_status} (${failing.join(", ")})`;
+  const base = failing.length === 0 ? row.ci_status : `${row.ci_status} (${failing.join(", ")})`;
+  // Only annotate when the branch-push status itself doesn't already read FAILING (avoid "FAILING …
+  // · PROMOTION FAILING" double-flag); the value of this annotation is precisely the MASKED case
+  // where ci_status looks green/on-main but the promotion PR's required check is red.
+  if (row.promotion_blocked && !base.startsWith("FAILING")) {
+    return `${base} · PROMOTION FAILING`;
+  }
+  return base;
 }
 
 /** Worst problem on a repo row — drives the row-level attention badge + sorting. */
 export function rowSeverity(row: RepoCiOverviewRow): number {
   if (row.ci_status === "FAILING") return 3;
+  // A blocked PROMOTION (an open promotion PR's required quality-gates-v2 is failing) is a genuine
+  // failure that pages Slack CRITICAL — sort it to the top (3) so a stale-green ci_status can't bury
+  // it. This is the masked case ci_status alone misses (MAIN_GREEN repo, failing LDR→main PR).
+  if (row.promotion_blocked) return 3;
   // Genuinely-stuck (needs a human/worker) = a non-draining stuck_class, or SIT-stuck → attention (2).
   // A draining-only PR (auto-merge armed / v2 re-fire, self-healing) is in-progress (1), NOT counted
   // as "stuck" — so a self-healing drain does not inflate the operator's attention queue (2026-06-11).

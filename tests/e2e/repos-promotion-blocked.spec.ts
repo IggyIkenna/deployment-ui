@@ -7,6 +7,29 @@
 
 import { expect, test } from "@playwright/test";
 
+test.describe("Repos CI — promotion-failing headline parity (Slack↔/repos)", () => {
+  // ci_status_repos_promotion_failure_parity_2026_06_25: a repo whose ci_status reads MAIN_GREEN but
+  // whose LDR→main promotion PR's required quality-gates-v2 FAILED (paged Slack CRITICAL) must show a
+  // "PROMOTION FAILING" chip at the repo level — the masked stale-green case the operator hit on
+  // PM PR-547. The mock unified-trading-pm row is MAIN_GREEN with a failing_check LDR→main PR + zero
+  // content deltas (squash-merged) so drain_stalled does NOT fire — only promotion_blocked surfaces.
+  test("a MAIN_GREEN repo with a failing promotion PR shows a PROMOTION FAILING chip", async ({ page }) => {
+    await page.goto("/repos");
+    const row = page.getByTestId("repo-row-unified-trading-pm");
+    await expect(row).toBeVisible();
+    const chip = page.getByTestId("promotion-failing-unified-trading-pm");
+    await expect(chip).toBeVisible();
+    await expect(chip).toContainText("PROMOTION FAILING");
+  });
+
+  test("a healthy MAIN_GREEN repo does NOT show a PROMOTION FAILING chip", async ({ page }) => {
+    await page.goto("/repos");
+    const utl = page.getByTestId("repo-row-unified-trading-library");
+    await expect(utl).toBeVisible();
+    await expect(page.getByTestId("promotion-failing-unified-trading-library")).toHaveCount(0);
+  });
+});
+
 test.describe("Repos CI — promotion-blocked panel (G1)", () => {
   test("always-visible panel lists quarantined + failing repos", async ({ page }) => {
     await page.goto("/repos");

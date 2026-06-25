@@ -189,6 +189,34 @@ describe("failingBranches / ciStatusLabel (branch-aware CI chip)", () => {
       ),
     ).toBe("MAIN_GREEN");
   });
+
+  // Slack↔/repos parity (ci_status_repos_promotion_failure_parity_2026_06_25): a MAIN_GREEN repo
+  // whose LDR→main promotion PR's required v2 FAILED (paged Slack CRITICAL) must NOT read bare
+  // MAIN_GREEN — the headline annotates the failing promotion so Slack + /repos agree.
+  it("annotates `· PROMOTION FAILING` when promotion_blocked masks a green ci_status (the PM PR-547 case)", () => {
+    expect(ciStatusLabel(row({ ci_status: "MAIN_GREEN", promotion_blocked: true }))).toBe(
+      "MAIN_GREEN · PROMOTION FAILING",
+    );
+    // also composes with the branch-aware suffix when a green-ish status is pinned
+    expect(ciStatusLabel(row({ ci_status: "STAGING_GREEN", promotion_blocked: true }))).toBe(
+      "STAGING_GREEN · PROMOTION FAILING",
+    );
+  });
+
+  it("does NOT double-flag when ci_status already reads FAILING", () => {
+    const failing = row({
+      ci_status: "FAILING",
+      promotion_blocked: true,
+      branch_ci: { "live-defi-rollout": "failure", staging: "success", main: "success" },
+    });
+    // the branch-aware "FAILING (LDR)" stands; no redundant "· PROMOTION FAILING" appended
+    expect(ciStatusLabel(failing)).toBe("FAILING (LDR)");
+  });
+
+  it("leaves the label bare when promotion_blocked is absent/false (no false annotation)", () => {
+    expect(ciStatusLabel(row({ ci_status: "MAIN_GREEN", promotion_blocked: false }))).toBe("MAIN_GREEN");
+    expect(ciStatusLabel(row({ ci_status: "MAIN_GREEN" }))).toBe("MAIN_GREEN");
+  });
 });
 
 describe("branchTone (per-branch SHA-cell colour — replaces the CI-status column)", () => {
@@ -256,6 +284,12 @@ describe("rowSeverity", () => {
       ),
     ).toBe(1);
     expect(rowSeverity(row({}))).toBe(0);
+  });
+
+  it("a blocked promotion (promotion_blocked) is severity 3 even when ci_status reads MAIN_GREEN (parity)", () => {
+    // Slack↔/repos parity: the PM PR-547 case — MAIN_GREEN repo, failing LDR→main PR — must sort to
+    // the top of the attention queue, not bury behind a green ci_status (severity would be 0).
+    expect(rowSeverity(row({ ci_status: "MAIN_GREEN", promotion_blocked: true }))).toBe(3);
   });
 
   it("a DRAINING-only stuck PR is in-progress (1), NOT counted as stuck (2) — operator 2026-06-11", () => {

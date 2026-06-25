@@ -3476,6 +3476,13 @@ export interface RepoCiOverviewRow {
    * AND the corresponding global drain leg is failing/stale (the bug-#11 class — content piling
    * on LDR with a dead drain). */
   drain_stalled?: boolean;
+  /** Slack↔/repos parity: true when this repo has an OPEN promotion PR (LDR→staging / LDR→main /
+   * staging→main) stuck on a human-actionable BLOCKING class (conflicting / failing_check /
+   * skip_ci_jammed) — the repo-level mirror of the Slack `quality-gates-v2 ... PR #N FAILED`
+   * CRITICAL page. Distinct from drain_stalled (which ALSO needs real content ahead) and from
+   * ci_status (which stays MAIN_GREEN off the last green main push while a promotion PR fails),
+   * so a failing/stale promotion is visible at a glance instead of masked by a green main. */
+  promotion_blocked?: boolean;
   /** Dependency layer from the manifest (e.g. "0"/"1"/"service") — the promotion tier. */
   tier?: string;
   /** Deps NOT yet on main that hold THIS repo's staging→main promotion (dep-order). Empty/absent

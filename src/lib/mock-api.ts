@@ -1331,6 +1331,14 @@ function mockRepoCiRow(
     // promotion-drain follow-up: FAILING repo seeds the drain-stalled case (content ahead + a
     // stale/failing drain leg); healthy repos are draining so not stalled.
     drain_stalled: opts.drainStalled ?? ciStatus === "FAILING",
+    // Slack↔/repos parity (ci_status_repos_promotion_failure_parity_2026_06_25): an open promotion
+    // PR stuck on a BLOCKING class (failing_check / conflicting / skip_ci_jammed) → the repo's
+    // promotion is blocked, surfaced at the headline even when ci_status reads green. Derived from
+    // prs (same per-PR signal the backend uses) so the mock can't drift from the real contract.
+    promotion_blocked: prs.some(
+      (pr) =>
+        pr.stuck_class === "failing_check" || pr.stuck_class === "conflicting" || pr.stuck_class === "skip_ci_jammed",
+    ),
     // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
     tier,
     blocked_by: blockedBy,
@@ -1365,6 +1373,30 @@ function mockRepoCiOverview() {
       ["market-tick-data-service", "strategy-service"],
     ),
     mockRepoCiRow("unified-trading-library", "library", "MAIN_GREEN", [], false, false, "1"),
+    // Slack↔/repos parity (ci_status_repos_promotion_failure_parity_2026_06_25): the PM PR-547 case —
+    // a MAIN_GREEN repo whose LDR→main promotion PR's required quality-gates-v2 FAILED (paged Slack
+    // CRITICAL). Content already squash-merged (zero deltas) so drain_stalled does NOT fire and the
+    // per-branch SHAs read green — only promotion_blocked surfaces the failing promotion. Proves the
+    // headline shows "PROMOTION FAILING" despite the green MAIN_GREEN status.
+    mockRepoCiRow(
+      "unified-trading-pm",
+      "devops",
+      "MAIN_GREEN",
+      [mockRepoCiPr("unified-trading-pm", 547, "main", "failing_check", "blocked")],
+      false,
+      false,
+      "0",
+      [],
+      [],
+      {
+        deltas: [
+          { base: "staging", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+          { base: "main", head: "staging", ahead_by: 0, behind_by: 0, files_changed: 0 },
+          { base: "main", head: "live-defi-rollout", ahead_by: 0, behind_by: 0, files_changed: 0 },
+        ],
+        lagMin: null,
+      },
+    ),
     // The healthy in-sync reference — content fully promoted to main (all hops 0 files, no lag), so
     // classifyStall = none → no hop pills, "—" stall reason. Proves the dashboard doesn't false-flag.
     mockRepoCiRow("client-reporting-api", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
