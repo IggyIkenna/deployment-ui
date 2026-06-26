@@ -239,6 +239,11 @@ export function classifyStall(row: RepoCiOverviewRow): StallReason {
   }
   // staging == LDR by content, but staging is ahead of main with no PR → the staging→main promoter
   // isn't firing. ciStatusStale ⟺ ci_status reads on-main while git says it isn't (the AO class).
+  // WS-L: for ldr_main repos, staging ahead of main is the EXPECTED steady state (staging is the
+  // SIT sandbox; promotion goes LDR→main directly). Do NOT classify this as a stall.
+  if (row.promotion_model === "ldr_main") {
+    return { kind: "none", files: 0, blockers: [] };
+  }
   return {
     kind: "staging-to-main",
     files: stagingMainFiles || mainFiles,
