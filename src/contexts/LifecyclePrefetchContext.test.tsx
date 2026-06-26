@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import {
-  LifecyclePrefetchProvider,
-  useLifecyclePrefetch,
-} from "./LifecyclePrefetchContext";
+import { LifecyclePrefetchProvider, useLifecyclePrefetch } from "./LifecyclePrefetchContext";
 import * as deploymentApi from "../api/deploymentApi";
 import * as cloudContext from "./CloudProviderContext";
 
@@ -15,9 +12,7 @@ const TestComponent = () => {
   return (
     <>
       {state.backfill.loading && <div>Backfill loading</div>}
-      {state.backfill.error && (
-        <div>Backfill error: {state.backfill.error.message}</div>
-      )}
+      {state.backfill.error && <div>Backfill error: {state.backfill.error.message}</div>}
       {state.backfill.data && <div>Backfill loaded</div>}
       {state.live.loading && <div>Live loading</div>}
       {state.live.error && <div>Live error: {state.live.error.message}</div>}
@@ -35,15 +30,19 @@ describe("LifecyclePrefetchContext", () => {
       apiBaseUrl: "http://localhost:8004",
       switching: false,
     });
+    // The provider fetches /api/monitor/{experiments,scheduled} via global fetch on mount and
+    // dispatches backfill/live only AFTER Promise.allSettled settles all four. Without this stub
+    // the real fetch to the (absent) dev server hangs → allSettled never settles → backfill/live
+    // never dispatch → the async waitFor assertions time out. (F.2 stubs its own; this covers the rest.)
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
   });
 
   it("provides initial state with empty cache", () => {
-    vi.spyOn(deploymentApi, "fetchVmDeployments").mockImplementation(
-      () => new Promise(() => {}),
-    );
-    vi.spyOn(deploymentApi, "getLiveStatus").mockImplementation(
-      () => new Promise(() => {}),
-    );
+    vi.spyOn(deploymentApi, "fetchVmDeployments").mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(deploymentApi, "getLiveStatus").mockImplementation(() => new Promise(() => {}));
 
     render(
       <LifecyclePrefetchProvider>
@@ -58,9 +57,7 @@ describe("LifecyclePrefetchContext", () => {
     const mockVmDeployments = { active: [], recent: [], archive_days: 7 };
     const mockLiveStatus = { rows: [], refreshed_at: new Date().toISOString() };
 
-    vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(
-      mockVmDeployments,
-    );
+    vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(mockVmDeployments);
     vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(mockLiveStatus);
 
     render(
@@ -79,9 +76,7 @@ describe("LifecyclePrefetchContext", () => {
     const backfillError = new Error("VM deployments failed");
     const mockLiveStatus = { rows: [], refreshed_at: new Date().toISOString() };
 
-    vi.spyOn(deploymentApi, "fetchVmDeployments").mockRejectedValue(
-      backfillError,
-    );
+    vi.spyOn(deploymentApi, "fetchVmDeployments").mockRejectedValue(backfillError);
     vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(mockLiveStatus);
 
     render(
@@ -91,9 +86,7 @@ describe("LifecyclePrefetchContext", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Backfill error: VM deployments failed"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Backfill error: VM deployments failed")).toBeInTheDocument();
       expect(screen.getByText("Live loaded")).toBeInTheDocument();
     });
   });
@@ -102,9 +95,7 @@ describe("LifecyclePrefetchContext", () => {
     const liveError = new Error("Live status failed");
     const mockVmDeployments = { active: [], recent: [], archive_days: 7 };
 
-    vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(
-      mockVmDeployments,
-    );
+    vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(mockVmDeployments);
     vi.spyOn(deploymentApi, "getLiveStatus").mockRejectedValue(liveError);
 
     render(
@@ -114,9 +105,7 @@ describe("LifecyclePrefetchContext", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Live error: Live status failed"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Live error: Live status failed")).toBeInTheDocument();
       expect(screen.getByText("Backfill loaded")).toBeInTheDocument();
     });
   });
@@ -129,9 +118,7 @@ describe("LifecyclePrefetchContext", () => {
 
     expect(() => {
       render(<ComponentWithoutProvider />);
-    }).toThrow(
-      "useLifecyclePrefetch must be used within LifecyclePrefetchProvider",
-    );
+    }).toThrow("useLifecyclePrefetch must be used within LifecyclePrefetchProvider");
   });
 
   it("F.2 — no re-fetch when all caches are warm (simulates sub-tab navigation)", async () => {
@@ -139,12 +126,8 @@ describe("LifecyclePrefetchContext", () => {
     const mockVmDeployments = { active: [], recent: [], archive_days: 7 };
     const mockLiveStatus = { rows: [], refreshed_at: new Date().toISOString() };
 
-    const fetchVmSpy = vi
-      .spyOn(deploymentApi, "fetchVmDeployments")
-      .mockResolvedValue(mockVmDeployments);
-    const getLiveSpy = vi
-      .spyOn(deploymentApi, "getLiveStatus")
-      .mockResolvedValue(mockLiveStatus);
+    const fetchVmSpy = vi.spyOn(deploymentApi, "fetchVmDeployments").mockResolvedValue(mockVmDeployments);
+    const getLiveSpy = vi.spyOn(deploymentApi, "getLiveStatus").mockResolvedValue(mockLiveStatus);
 
     // Stub global fetch for monitor endpoints (experiments + scheduled).
     const globalFetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
