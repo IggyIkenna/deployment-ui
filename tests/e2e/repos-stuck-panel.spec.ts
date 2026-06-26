@@ -14,7 +14,9 @@ test.describe("Repos CI — stuck panel regression", () => {
     await expect(panel.getByTestId("stuck-class-conflicting")).toBeVisible();
     await expect(panel.getByTestId("stuck-class-v2_never_reported")).toBeVisible();
     await expect(panel.getByTestId("stuck-class-skip_ci_jammed")).toBeVisible();
-    await expect(panel.getByTestId("stuck-class-failing_check")).toBeVisible();
+    // failing_check can appear on multiple PRs simultaneously (e.g. unified-trading-pm#547 +
+    // execution-service#89); .first() avoids a strict-mode violation while still guarding render.
+    await expect(panel.getByTestId("stuck-class-failing_check").first()).toBeVisible();
     await expect(panel.getByTestId("stuck-class-automerge_stuck")).toBeVisible();
   });
 
