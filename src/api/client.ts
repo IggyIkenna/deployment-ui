@@ -3504,6 +3504,11 @@ export interface RepoCiOverviewRow {
     /** Files in the 700–899 warn zone. */
     warn_file_count: number | null;
   } | null;
+  /** WS-L: promotion path from workspace-manifest.json (e.g. "ldr_main" = promotes
+   * live-defi-rollout→main directly, bypassing the staging→main hop). Absent/null = default
+   * path (staging→main). For "ldr_main" repos, staging being ahead of main is the EXPECTED
+   * steady state — classifyStall suppresses the staging-to-main stall kind for these repos. */
+  promotion_model?: string | null;
 }
 
 export interface RepoCiLastGreen {

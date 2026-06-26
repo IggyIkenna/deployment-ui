@@ -402,4 +402,35 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
     );
     expect(r.kind).toBe("staging-to-main");
   });
+
+  // WS-L regression: ldr_main repos promote LDR→main directly; staging ahead of main is normal.
+  it("ldr_main repo: staging ahead of main, no PR, MAIN_GREEN → none (NOT staging-to-main)", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "MAIN_GREEN",
+        promotion_model: "ldr_main",
+        deltas: [
+          d("staging", "live-defi-rollout", 0, 0),
+          d("main", "staging", 5, 10),
+          d("main", "live-defi-rollout", 5, 10),
+        ],
+      }),
+    );
+    expect(r.kind).toBe("none");
+  });
+
+  it("non-ldr_main repo in same state STILL returns staging-to-main (no regression)", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "MAIN_GREEN",
+        // no promotion_model field = default staging→main path
+        deltas: [
+          d("staging", "live-defi-rollout", 0, 0),
+          d("main", "staging", 5, 10),
+          d("main", "live-defi-rollout", 5, 10),
+        ],
+      }),
+    );
+    expect(r.kind).toBe("staging-to-main");
+  });
 });
