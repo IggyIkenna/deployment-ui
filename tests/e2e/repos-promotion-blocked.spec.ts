@@ -96,23 +96,31 @@ test.describe("Repos CI — B1 Image column build visibility", () => {
     const row = page.getByTestId("repo-row-unified-trading-library");
     const cell = row.getByTestId("image-cell");
     await expect(cell).toBeVisible();
-    // Build time rendered (B1 — when it last built), deterministic MM-DD HH:MM.
-    await expect(cell.getByTestId("image-build-time")).toHaveText("06-11 07:30");
+    // Dual-cloud layout (operator 2026-06-22): GCP row rendered via image_gcp prop.
+    // Build time is shown inline in the GCP row (no dedicated testid — checked via toContainText).
+    const gcpLine = cell.getByTestId("image-gcp");
+    await expect(gcpLine).toContainText("06-11 07:30");
     // Built COMMIT SHA rendered + links to the GitHub commit ("where the build came from").
-    const sha = cell.getByTestId("image-build-sha");
+    const sha = cell.getByTestId("image-sha-gcp");
     await expect(sha).toHaveText("aaa1111");
     await expect(sha).toHaveAttribute("href", /github\.com\/.+\/commit\/aaa1111/);
-    // Log click-through to the GCP Cloud Build / AWS CodeBuild console.
-    const link = cell.getByTestId("image-log-link");
-    await expect(link).toHaveAttribute("href", /cloud-build|codebuild/);
+    // Log click-through to the GCP Cloud Build / AWS CodeBuild console — link lives inside GCP row.
+    await expect(gcpLine.locator("a[href*='cloud-build'], a[href*='codebuild']")).toHaveAttribute(
+      "href",
+      /cloud-build|codebuild/,
+    );
   });
 
-  test("a failing repo's Image cell shows the last GREEN sha (✓) so the good image isn't hidden", async ({ page }) => {
+  test("a failing repo's Image cell shows the failed build sha so the image state is never hidden", async ({
+    page,
+  }) => {
     await page.goto("/repos");
-    // execution-service is FAILING → latest red; the ✓ last-success indicator is shown + linked.
+    // execution-service is FAILING → latest build is red (fae1ed0); the GCP cell shows the
+    // failed SHA so the operator sees which commit broke the image. The last-success sha (aaa1111)
+    // is surfaced in the drill-down detail (repo-detail-last-success, tested in B2 above).
     const cell = page.getByTestId("repo-row-execution-service").getByTestId("image-cell");
-    const ok = cell.getByTestId("image-last-success");
-    await expect(ok).toContainText("aaa1111");
-    await expect(ok).toHaveAttribute("href", /github\.com\/.+\/commit\/aaa1111/);
+    const gcpSha = cell.getByTestId("image-sha-gcp");
+    await expect(gcpSha).toHaveText("fae1ed0");
+    await expect(gcpSha).toHaveAttribute("href", /github\.com\/.+\/commit\/fae1ed0/);
   });
 });

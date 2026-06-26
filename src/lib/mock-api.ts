@@ -1319,6 +1319,21 @@ function mockRepoCiRow(
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
     },
+    // Dual-cloud image signal (operator 2026-06-22) — the ImageCell renders GCP + AWS side-by-side
+    // via image_gcp / image_aws props. image_gcp mirrors `image` (the active/primary cloud);
+    // image_aws is null in this mock (no AWS builds seeded) so the AWS line shows "—".
+    image_gcp: {
+      last_build_status: ciStatus === "FAILING" ? "FAILURE" : "SUCCESS",
+      last_build_sha: ciStatus === "FAILING" ? "fae1ed0" : "aaa1111",
+      last_build_time: ciStatus === "FAILING" ? "2026-06-11T09:15:00Z" : "2026-06-11T07:30:00Z",
+      last_build_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-latest",
+      last_success_sha: "aaa1111",
+      last_success_time: "2026-06-11T07:30:00Z",
+      last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
+      deployed_version: "1.2.0",
+      image_stale: ciStatus === "FAILING",
+    },
+    image_aws: null,
     // N2: last-green main — when main is red (FAILING) the last green ≠ head (an earlier green
     // sha); else the head IS green so last-green = the main head.
     last_green_main:
