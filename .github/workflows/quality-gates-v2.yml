@@ -1,34 +1,23 @@
-# quality-gates-v2.yml — UNIFIED quality-gates workflow template (v2, escapes GHA ghost cache)
+# quality-gates-v2.yml — UI quality-gates workflow for deployment-ui (TS/Vite/React)
 #
-# CANONICAL SOURCE. Do NOT hand-edit per-repo copies — edit THIS template and run
-#   bash unified-trading-pm/scripts/workflow-templates/rollout-workflow-templates.sh
-# The hand-copied v2 workflows that predated this template carried a stale job
-# `name:` (every copy said `Quality Gates (alerting-service)` regardless of repo),
-# which broke the ruleset required-check derivation in
-# `scripts/repo-management/pin_branch_protection_rulesets.py` (the required context
-# is `<job name:> / quality-gates-v2`, so a wrong name = a context the run never
-# emits = a permanently-red required check). This template renders the correct
-# per-repo `name:` + the full **transitive editable dependency closure** so CI
-# clones every `path = "../<repo>"` sibling `uv sync` needs (an incomplete
-# `dep_repos` is the other historical break — e.g. system-integration-tests failing
-# on `metadata for alerting-service==0.1.0 @ editable+../alerting-service`).
+# DESIGN: Calls the LOCAL reusable ui-quality-gates-v2.yml (NOT the Python python-quality-gates-v2.yml).
+# deployment-ui is a TS/Vite/React repo — the Python gate cannot run TS checks (no pyproject.toml /
+# uv.lock). Cross-repo reusable calls don't work between private user repos (only GitHub organizations),
+# so ui-quality-gates-v2.yml is a within-repo local copy (workflow_call).
 #
-# DESIGN: v2 replacement for workspace-qg.yml. The v1 chain had GitHub cache a
-# BuildFailed state for check context "quality-gates"; calling
-# python-quality-gates-v2.yml (job key "quality-gates-v2") registers a fresh check
-# context that bypasses the ghost cache (Option D).
+# Emits check context: "Quality Gates (deployment-ui) / quality-gates-v2"
+# Branch protection requires this exact context (derived from job `name:` + inner job id).
+# Inner job id in ui-quality-gates-v2.yml is `quality-gates-v2` → emits `.../quality-gates-v2`.
+#
+# NOTE: Do NOT apply the Python fleet template (scripts/workflow-templates/quality-gates-v2.yml.tmpl)
+# to this repo — it calls python-quality-gates-v2.yml which runs uv/pytest/basedpyright/ruff
+# and cannot handle a TS/Vite repo (uv sync --frozen fails: no pyproject.toml). The rollout
+# script must exclude deployment-ui (same exemption as unified-trading-system-ui).
 #
 # ## Trigger surface:
 #   push to [main] + pull_request to [main, staging] + workflow_dispatch
 #   (live-defi-rollout never triggers — no remote CI on the gateless trunk;
 #    push:[staging] dropped 2026-06-10 A3 — staging-green inherits from the LDR→staging PR's v2)
-#
-# ## Substitution placeholders (rendered by rollout-workflow-templates.sh):
-#   -    — transitive editable closure from the repo's pyproject
-#                       `path = "../<repo>"` deps (manifest fallback if no pyproject)
-#   - deployment-ui   — repo name (e.g. alerting-service)
-#   - deployment_ui  — Python source dir (e.g. alerting_service) [reserved; derived
-#                       inside the reusable workflow today]
 
 name: quality-gates-v2
 
@@ -57,14 +46,14 @@ permissions:
 jobs:
   quality-gates-v2:
     name: Quality Gates (deployment-ui)
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/python-quality-gates-v2.yml@live-defi-rollout
+    uses: ./.github/workflows/ui-quality-gates-v2.yml
     with:
-      dep_repos: ""
-    secrets: inherit
-    # Note: reusable workflow inputs are intentionally minimal — service_name + source_dir
-    # are derived inside the reusable workflow from github.repository (caller's repo name)
-    # and the conventional `<repo>_<underscored>` source-dir layout per workspace SSOT.
-    # See `.github/workflows/python-quality-gates-v2.yml` in unified-trading-pm.
+      node-version: "22"
+    secrets:
+      GH_PAT: ${{ secrets.GH_PAT }}
+    # deployment-ui is a TS/Vite/React repo — use the local UI reusable workflow.
+    # The Python python-quality-gates-v2.yml calls uv sync --frozen which fails (no pyproject.toml).
+    # Cross-repo reusable calls don't work between private user repos → local copy only.
 
   # Escalate a FAILED promotion-gate run to the orchestrator (event-driven LDR-QG-failure escalation).
   # When quality-gates-v2 FAILS on an LDR→staging / LDR→main promotion PR, the deterministic CI/CD
@@ -138,9 +127,8 @@ jobs:
   dispatch-cloud-build:
     name: Dispatch cloud-build trigger (main release)
     needs: quality-gates-v2
-    # Skip for a metadata-only commit (version bump or dep pin, fast-pathed by the reusable
-    # workflow): no code changed, so no image to rebuild.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gates-v2.outputs.metadata_only != 'true'
+    # UI repo: no metadata_only output from ui-quality-gates-v2.yml — fire on every push:[main].
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch qg-passed → cloud-build-router
