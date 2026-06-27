@@ -1,7 +1,7 @@
 /** Unit tests for the Repo-CI presentation helpers (plan: ci_dashboard_deployment_ui_2026_06_10.md). */
 
 import { describe, expect, it } from "vitest";
-import type { RepoCiOverviewRow, RepoCiPr } from "../api/client";
+import type { ActiveEscalation, RepoCiOverviewRow, RepoCiPr } from "../api/client";
 import {
   branchTone,
   buildSourceLabel,
@@ -15,10 +15,13 @@ import {
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  orchestratorStateLabel,
+  orchestratorStateTone,
   promotionBlockedLabel,
   promotionBlockedTone,
   prV2State,
   isDrainingClass,
+  repoOrchestratorState,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -432,5 +435,50 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
       }),
     );
     expect(r.kind).toBe("staging-to-main");
+  });
+});
+
+describe("Gap-4: repoOrchestratorState / orchestratorStateTone / orchestratorStateLabel", () => {
+  const esc = (repo: string, status: "queued" | "dispatched"): ActiveEscalation => ({
+    escalation_id: `esc-${repo}`,
+    status,
+    repo,
+    pr_number: 1,
+    wall_type: "conflicting",
+    slot_id: status === "dispatched" ? 3 : null,
+    created_at: "2026-06-27T10:00:00Z",
+    dispatched_at: status === "dispatched" ? "2026-06-27T10:01:00Z" : null,
+    attempts: 1,
+  });
+
+  it("returns 'working' when repo has a dispatched escalation", () => {
+    expect(repoOrchestratorState("greeks-service", [esc("greeks-service", "dispatched")])).toBe("working");
+  });
+
+  it("returns 'pending' when repo has a queued escalation", () => {
+    expect(repoOrchestratorState("execution-service", [esc("execution-service", "queued")])).toBe("pending");
+  });
+
+  it("returns null when repo has no matching escalation", () => {
+    expect(repoOrchestratorState("mtds", [esc("greeks-service", "dispatched")])).toBeNull();
+  });
+
+  it("dispatched wins over queued for the same repo", () => {
+    const both = [esc("greeks-service", "queued"), esc("greeks-service", "dispatched")];
+    expect(repoOrchestratorState("greeks-service", both)).toBe("working");
+  });
+
+  it("returns null on an empty escalation list", () => {
+    expect(repoOrchestratorState("any-repo", [])).toBeNull();
+  });
+
+  it("orchestratorStateTone maps working→blue and pending→yellow", () => {
+    expect(orchestratorStateTone("working")).toBe("blue");
+    expect(orchestratorStateTone("pending")).toBe("yellow");
+  });
+
+  it("orchestratorStateLabel returns readable badge text", () => {
+    expect(orchestratorStateLabel("working")).toBe("agent working");
+    expect(orchestratorStateLabel("pending")).toBe("agent queued");
   });
 });

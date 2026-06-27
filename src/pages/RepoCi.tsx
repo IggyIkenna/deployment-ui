@@ -13,8 +13,10 @@ import { Link } from "react-router-dom";
 import { useCloudProvider } from "../contexts/CloudProviderContext";
 import { AlertCircle, ExternalLink, GitBranch, HelpCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import {
+  getEscalations,
   getRepoCiDetail,
   getRepoCiOverview,
+  type ActiveEscalation,
   type RepoCiDetail,
   type RepoCiOverview,
   type RepoCiImageSignal,
@@ -39,9 +41,12 @@ import {
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  orchestratorStateLabel,
+  orchestratorStateTone,
   promotionBlockedLabel,
   promotionBlockedTone,
   prV2State,
+  repoOrchestratorState,
   rowSeverity,
   shortSha,
   sitJobTone,
@@ -828,11 +833,13 @@ function OverviewTable({
   selected,
   onSelect,
   sortMode,
+  escalations,
 }: {
   rows: RepoCiOverviewRow[];
   selected: string | null;
   onSelect: (repo: string) => void;
   sortMode: SortMode;
+  escalations: ActiveEscalation[];
 }) {
   const sorted = [...rows].sort((a, b) => {
     if (sortMode === "alpha") return a.repo.localeCompare(b.repo);
@@ -1006,6 +1013,17 @@ function OverviewTable({
               </>
             }
           />
+          <Th
+            id="agent"
+            label="Agent"
+            help={
+              <>
+                Whether an orchestrator agent is actively recovering this repo&apos;s stuck PR: <b>agent working</b>{" "}
+                (blue — dispatched, ≤2h window) or <b>agent queued</b> (yellow — waiting for capacity). Blank = no
+                active escalation. Source: <code>/api/repo-ci/escalations</code>.
+              </>
+            }
+          />
         </tr>
       </thead>
       <tbody>
@@ -1014,6 +1032,7 @@ function OverviewTable({
           const ldrMain = row.deltas.find((d) => d.base === "main" && d.head === "live-defi-rollout");
           const stuckCount = row.open_prs.filter((pr) => pr.stuck_class).length;
           const stall = classifyStall(row);
+          const agentState = repoOrchestratorState(row.repo, escalations);
           return (
             <tr
               key={row.repo}
@@ -1169,6 +1188,14 @@ function OverviewTable({
                   ) : (
                     <Chip tone="green">✓</Chip>
                   )
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">—</span>
+                )}
+              </td>
+              {/* Gap-4: agent working/pending indicator — from orchestrator active escalations */}
+              <td className="py-1.5" data-testid={`agent-state-${row.repo}`}>
+                {agentState ? (
+                  <Chip tone={orchestratorStateTone(agentState)}>{orchestratorStateLabel(agentState)}</Chip>
                 ) : (
                   <span className="text-[var(--color-text-muted)]">—</span>
                 )}
@@ -1629,6 +1656,9 @@ export function RepoCiContent() {
   const [loading, setLoading] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("severity");
+  // Gap-4: per-repo agent working/pending state from the orchestrator's active escalations.
+  // Independent fetch — degrades silently (empty list) so overview never fails because of it.
+  const [escalations, setEscalations] = useState<ActiveEscalation[]>([]);
   // Option B: the GCP/AWS toggle drives ?provider= on the repo-CI fetch (one backend serves both
   // clouds), NOT a base-URL swap — so the Image column reflects the selected cloud's build status.
   const { target } = useCloudProvider();
@@ -1640,6 +1670,14 @@ export function RepoCiContent() {
       .then(setOverview)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
+    // Escalations fetched in parallel; failures degrade silently (no badge shown, not an error).
+    getEscalations()
+      .then((proxy) => {
+        if (proxy.available) setEscalations(proxy.escalations);
+      })
+      .catch(() => {
+        /* degrade honestly — no agent-state badge shown */
+      });
   }, [target]);
 
   useEffect(() => {
@@ -1765,6 +1803,7 @@ export function RepoCiContent() {
                   selected={selectedRepo}
                   onSelect={setSelectedRepo}
                   sortMode={sortMode}
+                  escalations={escalations}
                 />
               </div>
             </CardContent>

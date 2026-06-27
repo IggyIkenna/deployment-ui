@@ -4,6 +4,7 @@
  */
 
 import type {
+  ActiveEscalation,
   RepoCiBranchDelta,
   RepoCiOverviewRow,
   RepoCiPr,
@@ -311,4 +312,34 @@ export function githubChecksUrl(repo: string, sha: string | null): string {
   return sha
     ? `https://github.com/${GITHUB_ORG}/${repo}/commit/${sha}/checks`
     : `https://github.com/${GITHUB_ORG}/${repo}/actions`;
+}
+
+// --- Gap-4: per-repo orchestrator working/pending state -------------------------
+// The agent-orchestrator assigns an escalation worker to stuck PRs. The deployment-ui
+// renders a per-repo badge so the operator can tell "agent has this" from "parked".
+// Source: GET /api/repo-ci/escalations → EscalationsProxy → ActiveEscalation[].
+// "dispatched" (agent assigned, ≤2h window) → working; "queued" (waiting) → pending.
+
+/** Active-agent state for a repo: "working" when an agent is dispatched, "pending" when
+ * queued for capacity.  Null when no active escalation matches the repo. */
+export type OrchestratorState = "working" | "pending";
+
+/** Derive the orchestrator state for one repo from the active escalation list.
+ * "dispatched" wins over "queued" when both exist (agent already running). */
+export function repoOrchestratorState(repo: string, escalations: ActiveEscalation[]): OrchestratorState | null {
+  const matches = escalations.filter((e) => e.repo === repo);
+  if (matches.some((e) => e.status === "dispatched")) return "working";
+  if (matches.some((e) => e.status === "queued")) return "pending";
+  return null;
+}
+
+/** Chip tone for the orchestrator-state badge: blue (agent actively working) or
+ * yellow (queued / waiting for capacity). */
+export function orchestratorStateTone(state: OrchestratorState): ChipTone {
+  return state === "working" ? "blue" : "yellow";
+}
+
+/** Short label for the orchestrator-state badge. */
+export function orchestratorStateLabel(state: OrchestratorState): string {
+  return state === "working" ? "agent working" : "agent queued";
 }
