@@ -436,6 +436,62 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
     );
     expect(r.kind).toBe("staging-to-main");
   });
+
+  // WS-L staging-dormant: the prior bug was the ldr-to-staging "drain behind" branch firing BEFORE the
+  // ldr_main suppression, so an ldr_main repo with LDR ahead of staging still showed "drain behind".
+  it("ldr_main repo: LDR ahead of staging (drain behind) → none (NOT ldr-to-staging)", () => {
+    const r = classifyStall(
+      row({
+        promotion_model: "ldr_main",
+        deltas: [d("staging", "live-defi-rollout", 3), d("main", "staging", 1), d("main", "live-defi-rollout", 4)],
+      }),
+    );
+    expect(r.kind).toBe("none");
+  });
+
+  it("staging_dormant_mode toggle: ANY repo (no promotion_model) with drain-behind → none", () => {
+    const r = classifyStall(
+      row({
+        staging_dormant_mode: true,
+        deltas: [d("staging", "live-defi-rollout", 3), d("main", "staging", 1), d("main", "live-defi-rollout", 4)],
+      }),
+    );
+    expect(r.kind).toBe("none");
+  });
+
+  it("staging_dormant_mode toggle: ANY repo with staging-ahead-of-main → none (not staging-to-main)", () => {
+    const r = classifyStall(
+      row({
+        ci_status: "MAIN_GREEN",
+        staging_dormant_mode: true,
+        deltas: [
+          d("staging", "live-defi-rollout", 0),
+          d("main", "staging", 5, 10),
+          d("main", "live-defi-rollout", 5, 10),
+        ],
+      }),
+    );
+    expect(r.kind).toBe("none");
+  });
+
+  it("dep-order + pr-stuck STILL classify under staging_dormant_mode (real LDR→main blockers)", () => {
+    const dep = classifyStall(
+      row({
+        staging_dormant_mode: true,
+        deltas: [d("main", "live-defi-rollout", 5), d("main", "staging", 5)],
+        blocked_by: [{ name: "unified-api-contracts", tier: "0", ci_status: "STAGING_GREEN" }],
+      }),
+    );
+    expect(dep.kind).toBe("dep-order");
+    const stuck = classifyStall(
+      row({
+        staging_dormant_mode: true,
+        deltas: [d("main", "live-defi-rollout", 4), d("main", "staging", 2)],
+        open_prs: [{ repo: "r", number: 7, stuck_class: "conflicting" }],
+      }),
+    );
+    expect(stuck.kind).toBe("pr-stuck");
+  });
 });
 
 describe("Gap-4: repoOrchestratorState / orchestratorStateTone / orchestratorStateLabel", () => {

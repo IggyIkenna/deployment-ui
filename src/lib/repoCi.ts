@@ -219,11 +219,12 @@ export function classifyStall(row: RepoCiOverviewRow): StallReason {
   const ldrStagingFiles = ldrStaging?.files_changed ?? 0;
   // No real content behind main → no stall (in sync, or ahead-by-commits-only squash skew).
   if (mainFiles === 0) return { kind: "none", files: 0, blockers: [] };
-  // Dep-order: STAGE 1.8 holds it behind a dependency that isn't on main yet.
+  // Dep-order: STAGE 1.8 holds it behind a dependency that isn't on main yet (a REAL LDR→main
+  // blocker — surfaced in BOTH modes).
   if (row.blocked_by && row.blocked_by.length > 0) {
     return { kind: "dep-order", files: stagingMainFiles, blockers: row.blocked_by.map((d) => d.name) };
   }
-  // A promotion PR exists but is genuinely jammed (not a self-healing drain).
+  // A promotion PR exists but is genuinely jammed (not a self-healing drain) — a REAL blocker.
   const stuck = row.open_prs.find((pr) => pr.stuck_class && !isDrainingClass(pr.stuck_class));
   if (stuck) {
     return {
@@ -234,17 +235,22 @@ export function classifyStall(row: RepoCiOverviewRow): StallReason {
       stuckClass: stuck.stuck_class ?? undefined,
     };
   }
+  // WS-L staging-dormant mode: when the fleet-wide toggle is on, OR this repo promotes LDR→main
+  // directly (promotion_model=ldr_main), every STAGING-direction lag is EXPECTED, not a stall —
+  // "LDR→staging drain behind" and "staging→main not promoting" are both noise. Suppress them so
+  // ONLY the LDR→main signal (the delta column + dep-order/pr-stuck above) is actionable. This MUST
+  // be checked BEFORE the ldr-to-staging branch below (the prior bug: the drain-behind branch fired
+  // first, so the ldr_main suppression never caught it).
+  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
+  if (stagingDormant) {
+    return { kind: "none", files: 0, blockers: [] };
+  }
   // Real content on LDR not yet on staging → the Tier-C drain is behind.
   if (ldrStagingFiles > 0) {
     return { kind: "ldr-to-staging", files: ldrStagingFiles, blockers: [] };
   }
   // staging == LDR by content, but staging is ahead of main with no PR → the staging→main promoter
   // isn't firing. ciStatusStale ⟺ ci_status reads on-main while git says it isn't (the AO class).
-  // WS-L: for ldr_main repos, staging ahead of main is the EXPECTED steady state (staging is the
-  // SIT sandbox; promotion goes LDR→main directly). Do NOT classify this as a stall.
-  if (row.promotion_model === "ldr_main") {
-    return { kind: "none", files: 0, blockers: [] };
-  }
   return {
     kind: "staging-to-main",
     files: stagingMainFiles || mainFiles,

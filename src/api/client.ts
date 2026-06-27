@@ -3509,6 +3509,12 @@ export interface RepoCiOverviewRow {
    * path (staging→main). For "ldr_main" repos, staging being ahead of main is the EXPECTED
    * steady state — classifyStall suppresses the staging-to-main stall kind for these repos. */
   promotion_model?: string | null;
+  /** WS-L staging-dormant mode (workspace-manifest.json top-level `staging_dormant_mode`): when true
+   * the fleet promotes LDR→main directly and STAGING is dormant, so the UI suppresses every
+   * staging-direction signal (LDR→staging drain behind / staging→main not promoting / the stg→main
+   * hop / drain-stalled) for ALL repos — only the LDR→main signal stays actionable. Per-repo
+   * `promotion_model==="ldr_main"` has the same effect for that repo. */
+  staging_dormant_mode?: boolean | null;
 }
 
 export interface RepoCiLastGreen {
