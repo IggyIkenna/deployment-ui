@@ -504,16 +504,18 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
   const [activeInstrumentType, setActiveInstrumentType] = useState<string>(coord.instrument_type);
 
   // Debounce the search input — only fire when >= 2 chars.
+  // Cleanup always cancels the pending timer so it never fires after unmount
+  // (the missing cleanup on the s.length===0 branch was the source of the
+  // "window is not defined" flake: timer fired into a torn-down jsdom env).
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const s = searchInput.trim();
     if (s.length === 0) {
       debounceRef.current = setTimeout(() => setDebouncedSearch(""), 100);
-      return;
+    } else if (s.length >= 2) {
+      debounceRef.current = setTimeout(() => setDebouncedSearch(s), 300);
     }
-    if (s.length < 2) return; // hold off until the user types enough
-    debounceRef.current = setTimeout(() => setDebouncedSearch(s), 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };

@@ -410,6 +410,25 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("reason-cell-client-reporting-api")).toContainText("—");
   });
 
+  // Gap-4 (ci_pipeline_self_healing_gaps_2026_06_11): orchestrator recovery state in the Agent column.
+  // Mock seeds greeks-service=dispatched ("agent working", blue) + execution-service=queued ("agent queued", yellow).
+  test("Agent column renders working (dispatched) and pending (queued) orchestrator states", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-ci-table")).toBeVisible();
+    // dispatched → blue "agent working" chip
+    const working = page.getByTestId("agent-state-greeks-service");
+    await expect(working).toBeVisible();
+    await expect(working).toContainText("agent working");
+    // queued → yellow "agent queued" chip
+    const queued = page.getByTestId("agent-state-execution-service");
+    await expect(queued).toBeVisible();
+    await expect(queued).toContainText("agent queued");
+    // a repo with no escalation shows a dash
+    const none = page.getByTestId("agent-state-unified-trading-library");
+    await expect(none).toBeVisible();
+    await expect(none).toContainText("—");
+  });
+
   test("sort control reorders the overview (A–Z + dependency tier)", async ({ page }) => {
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();

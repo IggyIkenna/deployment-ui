@@ -1557,6 +1557,40 @@ function mockRepoCiOverview() {
   };
 }
 
+// Gap-4 escalations proxy (mirrors deployment-api _mock_escalations) — one dispatched
+// entry (greeks-service, slot assigned) + one queued entry (execution-service, no slot yet),
+// so the Repos-CI Agent column renders both "agent working" (blue) and "agent queued" (yellow).
+function mockEscalations() {
+  return {
+    available: true,
+    reason: "",
+    escalations: [
+      {
+        escalation_id: "esc-001",
+        status: "dispatched",
+        repo: "greeks-service",
+        pr_number: 547,
+        wall_type: "failing_check",
+        slot_id: 3,
+        created_at: "2026-06-27T07:10:00Z",
+        dispatched_at: "2026-06-27T07:12:00Z",
+        attempts: 1,
+      },
+      {
+        escalation_id: "esc-002",
+        status: "queued",
+        repo: "execution-service",
+        pr_number: 312,
+        wall_type: "skip_ci_jammed",
+        slot_id: null,
+        created_at: "2026-06-27T07:15:00Z",
+        dispatched_at: null,
+        attempts: 0,
+      },
+    ],
+  };
+}
+
 // Fleet git-health proxy (mirrors deployment-api _mock_fleet_git_health) — one laptop
 // host with a clean slot + a drift-violating slot, so the Fleet Git tab renders the
 // proxied data AND the orchestrator deep-link.
@@ -1796,6 +1830,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path === "/api/repo-ci/fleet-git-health") {
     return json(mockFleetGitHealth());
+  }
+  if (path === "/api/repo-ci/escalations") {
+    return json(mockEscalations());
   }
   // GitHub rate-budget tracker — the whole fleet shares ONE PAT (5000/hr REST).
   // Mock seeds a healthy REST pool + a low GraphQL pool so the tracker's

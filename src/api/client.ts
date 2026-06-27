@@ -3754,6 +3754,30 @@ export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
   return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
+// Gap-4: per-repo orchestrator working/pending state (ci_pipeline_self_healing_gaps_2026_06_11)
+// Served by deployment-api GET /api/repo-ci/escalations (proxies agent-orchestrator)
+export interface ActiveEscalation {
+  escalation_id: string;
+  status: "queued" | "dispatched";
+  repo: string;
+  pr_number: number;
+  wall_type: string;
+  slot_id: number | null;
+  created_at: string | null;
+  dispatched_at: string | null;
+  attempts: number;
+}
+
+export interface EscalationsProxy {
+  available: boolean;
+  reason: string;
+  escalations: ActiveEscalation[];
+}
+
+export async function getEscalations(): Promise<EscalationsProxy> {
+  return fetchJson<EscalationsProxy>("/repo-ci/escalations");
+}
+
 // VM Census — vm_zombie_watchdog.py running/expected/zombie/OOM surface
 // Served by deployment-api GET /api/fleet/vm-census (INFRA P1 — backend pending)
 export type VmLifecycleClass = "EPHEMERAL_BATCH" | "EPHEMERAL_EXPERIMENT" | "SCHEDULED_RECURRING" | "LONG_LIVED_LIVE";

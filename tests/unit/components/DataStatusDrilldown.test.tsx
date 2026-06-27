@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import {
-  BucketCountsBadge,
-  InstrumentsModal,
-  SchemaModal,
-} from "../../../src/components/DataStatusDrilldown";
+import { BucketCountsBadge, InstrumentsModal, SchemaModal } from "../../../src/components/DataStatusDrilldown";
 
 vi.mock("../../../src/api/client", () => ({
   fetchShardSchema: vi.fn(),
@@ -15,12 +11,7 @@ vi.mock("../../../src/api/client", () => ({
   fetchBundlePreview: vi.fn(),
   fetchShardInfo: vi.fn(),
   buildCsvDownloadUrl: vi.fn(
-    (p: {
-      day: string;
-      venue: string;
-      instrument_type: string;
-      instrument_ids: string[];
-    }) =>
+    (p: { day: string; venue: string; instrument_type: string; instrument_ids: string[] }) =>
       `/api/data-status/download-csv?day=${p.day}&venue=${p.venue}&instrument_type=${p.instrument_type}&ids=${p.instrument_ids.join(",")}`,
   ),
   setApiBaseUrl: vi.fn(),
@@ -29,7 +20,7 @@ vi.mock("../../../src/api/client", () => ({
   retryFailedShard: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 import * as api from "../../../src/api/client";
 
 describe("SchemaModal", () => {
@@ -83,9 +74,7 @@ describe("SchemaModal", () => {
       venue: null,
       symbol_column: null,
       source: "VENUE_CONTRACT_OVERRIDES",
-      columns: [
-        { name: "price", dtype: "float64", nullable: true, description: "" },
-      ],
+      columns: [{ name: "price", dtype: "float64", nullable: true, description: "" }],
       message: "No contract",
     });
     render(
@@ -307,9 +296,7 @@ describe("InstrumentsModal", () => {
         onClose={vi.fn()}
       />,
     );
-    await waitFor(() =>
-      expect(screen.getByText("Download day CSV")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText("Download day CSV")).toBeTruthy());
     // No pagination / search for the full-CSV variant.
     expect(screen.queryByText(/Load more/)).toBeNull();
     expect(screen.queryByPlaceholderText(/type >= 2 chars/)).toBeNull();
@@ -319,9 +306,7 @@ describe("InstrumentsModal", () => {
     (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...basePolymarketListing,
       total_count: 1,
-      instruments: [
-        { instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1 },
-      ],
+      instruments: [{ instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1 }],
     });
     render(
       <InstrumentsModal
@@ -370,9 +355,48 @@ describe("InstrumentsModal", () => {
     const paste = screen.getByPlaceholderText(/paste exact ID/);
     fireEvent.change(paste, { target: { value: "BTC USDT" } });
     fireEvent.click(screen.getByText("Download"));
-    await waitFor(() =>
-      expect(screen.getByText(/Invalid instrument_id/i)).toBeTruthy(),
+    await waitFor(() => expect(screen.getByText(/Invalid instrument_id/i)).toBeTruthy());
+  });
+
+  // Regression: the debounce effect for s.length===0 previously lacked a
+  // cleanup return, so the 100ms timer fired into a torn-down jsdom env after
+  // unmount → "window is not defined" uncaught exception that flaked the whole
+  // suite (non-deterministically). Fix: always return clearTimeout cleanup.
+  it("debounce timer is cancelled on unmount — no post-unmount state update", async () => {
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      total_count: 1,
+      instruments: [{ instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1 }],
+    });
+    vi.useFakeTimers();
+    const { unmount } = render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          category: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
     );
+    await act(async () => {
+      // Flush the initial fetch
+      await Promise.resolve();
+    });
+    // Type then clear — triggers the s.length===0 → 100ms debounce branch
+    const input = screen.getByPlaceholderText(/type >= 2 chars/i);
+    fireEvent.change(input, { target: { value: "abc" } });
+    fireEvent.change(input, { target: { value: "" } });
+    // Unmount before the timer fires — the fix ensures clearTimeout is called
+    unmount();
+    // Advance past both debounce windows; no error should be thrown
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    vi.useRealTimers();
   });
 });
 
