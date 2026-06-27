@@ -157,10 +157,14 @@ function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: Stal
 function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallReason }) {
   const blocking = row.blocking ?? [];
   const blockedBy = row.blocked_by ?? [];
+  // WS-L staging-dormant: a repo in dormant mode (fleet toggle) or promoting LDR→main directly has
+  // its staging drain expected-behind, so the "drain stalled" chip is noise too — suppress it (the
+  // staging-direction stall kinds are already suppressed in classifyStall).
+  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
+  const drainStalled = !!row.drain_stalled && !stagingDormant;
   const hasHopReason =
-    !row.drain_stalled &&
-    (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
-  if (blocking.length === 0 && blockedBy.length === 0 && !row.drain_stalled && !hasHopReason) {
+    !drainStalled && (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
+  if (blocking.length === 0 && blockedBy.length === 0 && !drainStalled && !hasHopReason) {
     return <span className="text-[var(--color-text-muted)]">—</span>;
   }
   return (
@@ -175,7 +179,7 @@ function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallR
           blocked-by: {blockedBy.map((dep) => `${dep.name} (tier ${dep.tier})`).join(", ")}
         </Chip>
       )}
-      {row.drain_stalled && (
+      {drainStalled && (
         <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
           drain stalled
         </Chip>
