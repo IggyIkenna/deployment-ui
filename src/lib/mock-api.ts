@@ -1482,13 +1482,13 @@ function mockRepoCiOverview() {
       lagMin: 12180,
       drainStalled: false,
     }),
-    // WS-L staging-dormant regression (operator 2026-06-27 /repos report: "why is staging here —
-    // LDR→stg 35f, stg→main 14f; it should say no staging→main"). A repo promoting LDR→main DIRECTLY
-    // (promotion_model=ldr_main) carrying REAL LDR→staging (35f) + staging→main (14f) deltas: WITHOUT
-    // the dormant guard this renders staging hop pills + a drain-behind/staging→main stall. The
-    // isStagingDormant SSOT must suppress BOTH — only the LDR→main delta (4 files) is actionable. Pairs
-    // with agent-orchestrator (the NON-dormant staging-to-main case that DOES show hops) to prove the
-    // guard fires only under dormant mode.
+    // WS-L staging-dormant regression (operator 2026-06-28: dormant staging signals must SHOW muted,
+    // not be hidden). A repo promoting LDR→main DIRECTLY (promotion_model=ldr_main) carrying REAL
+    // LDR→staging (35f) + staging→main (14f) deltas: the hop pills + the "LDR→staging drain behind"
+    // stall reason STILL render, but MUTED (grey, never red) + a "dormant" tag — so the data is visible
+    // yet reads as ignored. Pairs with agent-orchestrator (the NON-dormant staging-to-main case whose
+    // identical signals render RED/actionable) to prove dormancy only changes STYLING, not presence.
+    // drain_stalled=false so the muted stall-reason chip (not the drain-stalled chip) is exercised.
     mockRepoCiRow("alerting-service", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
       deltas: [
         { base: "staging", head: "live-defi-rollout", ahead_by: 20, behind_by: 0, files_changed: 35 },
@@ -1496,7 +1496,7 @@ function mockRepoCiOverview() {
         { base: "main", head: "live-defi-rollout", ahead_by: 24, behind_by: 0, files_changed: 4 },
       ],
       lagMin: 60,
-      drainStalled: true,
+      drainStalled: false,
       promotionModel: "ldr_main",
     }),
   ];

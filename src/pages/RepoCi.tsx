@@ -102,24 +102,34 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
  * eye is drawn to the stuck leg (e.g. AO: LDR→stg ✓, stg→main 144f). */
 function HopPills({ row }: { row: RepoCiOverviewRow }) {
   // WS-L staging-dormant: when the fleet toggle is on, OR this repo promotes LDR→main directly
-  // (promotion_model=ldr_main), the staging legs (LDR→stg / stg→main) are EXPECTED to lag — they are
-  // noise, not a stuck hop. Suppress the staging hop pills entirely; the actionable signal is the
-  // LDR→main delta column. (Mirrors classifyStall's dormant suppression — the hops column was the gap.)
-  if (isStagingDormant(row)) return null;
+  // (promotion_model=ldr_main), the staging legs (LDR→stg / stg→main) are EXPECTED to lag. Operator
+  // 2026-06-28: still SHOW them (the deltas are real) but render MUTED (grey, never red) + a "dormant"
+  // tag so they read as ignored-not-actionable — flip staging back to relevant → the same pills return
+  // to red-when-behind, no structural change.
+  const dormant = isStagingDormant(row);
   const hop = (base: string, head: string): number =>
     row.deltas.find((d) => d.base === base && d.head === head)?.files_changed ?? 0;
   const pill = (label: string, files: number, testId: string) => (
     <span
       data-testid={testId}
-      className={`inline-flex items-center gap-0.5 ${files > 0 ? TONE_TEXT.red : TONE_TEXT.green}`}
+      className={`inline-flex items-center gap-0.5 ${dormant ? TONE_TEXT.gray : files > 0 ? TONE_TEXT.red : TONE_TEXT.green}`}
     >
       {label} {files > 0 ? `${files}f` : "✓"}
     </span>
   );
   return (
-    <span className="inline-flex flex-col items-start gap-0.5 text-[11px]" data-testid={`stall-hops-${row.repo}`}>
+    <span
+      className="inline-flex flex-col items-start gap-0.5 text-[11px]"
+      data-testid={`stall-hops-${row.repo}`}
+      data-dormant={dormant ? "true" : undefined}
+    >
       {pill("LDR→stg", hop("staging", "live-defi-rollout"), `hop-ldr-staging-${row.repo}`)}
       {pill("stg→main", hop("main", "staging"), `hop-staging-main-${row.repo}`)}
+      {dormant && (
+        <span className={`text-[10px] ${TONE_TEXT.gray}`} data-testid={`hop-dormant-${row.repo}`}>
+          dormant · ignored
+        </span>
+      )}
     </span>
   );
 }
@@ -130,19 +140,25 @@ function HopPills({ row }: { row: RepoCiOverviewRow }) {
  * Severity tracks the lag age (red past the 60-min monitor threshold, else yellow) so a fresh
  * staging→main gap reads as "promoting" while AO's 8-day stall reads red. */
 function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: StallReason }) {
-  const lagTone: ChipTone = (row.main_lag_age_min ?? 0) > 60 ? "red" : "yellow";
+  // WS-L staging-dormant: the staging-direction kinds (staging→main / LDR→staging) are ignored noise
+  // when staging is dormant → grey tone + "· dormant" suffix (operator 2026-06-28: show, don't hide).
+  // pr-stuck is a REAL LDR→main blocker → keeps its active tone in both modes.
+  const dormant = isStagingDormant(row);
+  const lagTone: ChipTone = dormant ? "gray" : (row.main_lag_age_min ?? 0) > 60 ? "red" : "yellow";
+  const dormantSuffix = dormant ? " · dormant" : "";
   if (reason.kind === "staging-to-main") {
     const detail = reason.ciStatusStale ? `status stale (${row.ci_status})` : "no promotion PR";
     return (
       <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
         staging→main not promoting · {detail}
+        {dormantSuffix}
       </Chip>
     );
   }
   if (reason.kind === "ldr-to-staging") {
     return (
       <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
-        LDR→staging drain behind
+        LDR→staging drain behind{dormantSuffix}
       </Chip>
     );
   }
@@ -163,10 +179,10 @@ function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: Stal
 function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallReason }) {
   const blocking = row.blocking ?? [];
   const blockedBy = row.blocked_by ?? [];
-  // WS-L staging-dormant: a repo in dormant mode (fleet toggle) or promoting LDR→main directly has
-  // its staging drain expected-behind, so the "drain stalled" chip is noise too — suppress it (the
-  // staging-direction stall kinds are already suppressed in classifyStall).
-  const drainStalled = !!row.drain_stalled && !isStagingDormant(row);
+  // WS-L staging-dormant: a dormant repo's staging drain is expected-behind, so "drain stalled" is
+  // ignored noise too — but SHOW it muted (grey + "· dormant"), don't hide it (operator 2026-06-28).
+  const dormant = isStagingDormant(row);
+  const drainStalled = !!row.drain_stalled;
   const hasHopReason =
     !drainStalled && (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
   if (blocking.length === 0 && blockedBy.length === 0 && !drainStalled && !hasHopReason) {
@@ -185,8 +201,8 @@ function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallR
         </Chip>
       )}
       {drainStalled && (
-        <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
-          drain stalled
+        <Chip tone={dormant ? "gray" : "red"} testId={`drain-stalled-${row.repo}`}>
+          drain stalled{dormant ? " · dormant" : ""}
         </Chip>
       )}
       {hasHopReason && <StallReasonChip row={row} reason={stall} />}
