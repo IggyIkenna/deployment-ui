@@ -369,7 +369,27 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
 }
 
 /** One leg of the routine promotion drain (LDR→staging or LDR→main). */
-function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPromoteRun | null; testId?: string }) {
+function PromoteDrainRow({
+  label,
+  run,
+  testId,
+  dormant = false,
+}: {
+  label: string;
+  run: RepoCiPromoteRun | null;
+  testId?: string;
+  dormant?: boolean;
+}) {
+  // WS-L staging-dormant: the LDR→staging leg's */15 schedule is STOPPED (fleet is LDR→main direct) —
+  // show it greyed as "dormant · not scheduled", not its last (no-op) run status (operator 2026-06-28).
+  if (dormant) {
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId} data-dormant="true">
+        <span className={TONE_TEXT.gray}>{label}</span>
+        <Chip tone="gray">dormant · not scheduled</Chip>
+      </div>
+    );
+  }
   const tone: ChipTone = !run ? "gray" : run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue";
   return (
     <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId}>
@@ -467,9 +487,11 @@ function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | und
 function PromotionDrainPanel({
   drain,
   stalledRepos,
+  stagingDormant,
 }: {
   drain: RepoCiPromotionDrain | null | undefined;
   stalledRepos: string[];
+  stagingDormant: boolean;
 }) {
   return (
     <Card data-testid="promotion-drain-panel">
@@ -482,12 +504,21 @@ function PromotionDrainPanel({
             drain is <span className="font-medium">stalled</span> (real content ahead but a stale/failing leg).
           </CardHelp>
         </CardTitle>
-        <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {stagingDormant
+            ? "Routine LDR→main auto-merge (every 15 min) · LDR→staging dormant (not scheduled)"
+            : "Routine LDR→staging / →main auto-merge (every 15 min)"}
+        </p>
       </CardHeader>
       <CardContent className="space-y-2">
         {drain ? (
           <>
-            <PromoteDrainRow label="LDR → staging" run={drain.ldr_to_staging} testId="drain-ldr-to-staging" />
+            <PromoteDrainRow
+              label="LDR → staging"
+              run={drain.ldr_to_staging}
+              testId="drain-ldr-to-staging"
+              dormant={stagingDormant}
+            />
             <PromoteDrainRow label="LDR → main" run={drain.ldr_to_main} testId="drain-ldr-to-main" />
           </>
         ) : (
@@ -1135,9 +1166,22 @@ function OverviewTable({
                   <span>
                     {ldrMain ? deltaLabel(ldrMain.files_changed, row.main_unpromoted_commits ?? ldrMain.ahead_by) : "—"}
                   </span>
-                  {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
+                  {/* G6: promotion-lag age. Tone tracks ACTIONABILITY, not just age (operator 2026-06-28:
+                      "lags showing despite no stuck queue"). Under LDR-to-main-direct + SIT-gated promotion a
+                      repo is routinely behind main (gated / awaiting the 15-min promote / SIT-coverage-pending)
+                      WITHOUT being stuck — so a bare lag is grey/informational. RED only when there's a real
+                      blocker (promotion_blocked quarantine or a jammed promote PR); YELLOW for a dep-order hold. */}
                   {typeof row.main_lag_age_min === "number" && (
-                    <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
+                    <Chip
+                      tone={
+                        row.promotion_blocked === true || stall.kind === "pr-stuck"
+                          ? "red"
+                          : stall.kind === "dep-order"
+                            ? "yellow"
+                            : "gray"
+                      }
+                      testId={`lag-${row.repo}`}
+                    >
                       {formatAge(row.main_lag_age_min)} lag
                     </Chip>
                   )}
@@ -1808,6 +1852,7 @@ export function RepoCiContent() {
             <PromotionDrainPanel
               drain={overview.promotion_drain}
               stalledRepos={overview.repos.filter((r) => r.drain_stalled).map((r) => r.repo)}
+              stagingDormant={overview.repos.some(isStagingDormant)}
             />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
