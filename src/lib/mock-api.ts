@@ -1272,6 +1272,8 @@ function mockRepoCiRow(
     deltas?: { base: string; head: string; ahead_by: number; behind_by: number; files_changed: number }[];
     lagMin?: number | null;
     drainStalled?: boolean;
+    promotionModel?: string | null;
+    stagingDormantMode?: boolean;
   } = {},
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
@@ -1354,6 +1356,10 @@ function mockRepoCiRow(
       (pr) =>
         pr.stuck_class === "failing_check" || pr.stuck_class === "conflicting" || pr.stuck_class === "skip_ci_jammed",
     ),
+    // WS-L staging-dormant: a repo promoting LDR→main directly (promotion_model=ldr_main) or under the
+    // fleet toggle — drives isStagingDormant → hop-pills suppressed + the panel's "LDR→main" framing.
+    promotion_model: opts.promotionModel ?? null,
+    staging_dormant_mode: opts.stagingDormantMode ?? false,
     // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
     tier,
     blocked_by: blockedBy,
@@ -1475,6 +1481,23 @@ function mockRepoCiOverview() {
       ],
       lagMin: 12180,
       drainStalled: false,
+    }),
+    // WS-L staging-dormant regression (operator 2026-06-27 /repos report: "why is staging here —
+    // LDR→stg 35f, stg→main 14f; it should say no staging→main"). A repo promoting LDR→main DIRECTLY
+    // (promotion_model=ldr_main) carrying REAL LDR→staging (35f) + staging→main (14f) deltas: WITHOUT
+    // the dormant guard this renders staging hop pills + a drain-behind/staging→main stall. The
+    // isStagingDormant SSOT must suppress BOTH — only the LDR→main delta (4 files) is actionable. Pairs
+    // with agent-orchestrator (the NON-dormant staging-to-main case that DOES show hops) to prove the
+    // guard fires only under dormant mode.
+    mockRepoCiRow("alerting-service", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 20, behind_by: 0, files_changed: 35 },
+        { base: "main", head: "staging", ahead_by: 8, behind_by: 0, files_changed: 14 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 24, behind_by: 0, files_changed: 4 },
+      ],
+      lagMin: 60,
+      drainStalled: true,
+      promotionModel: "ldr_main",
     }),
   ];
   const stuckPrs = rows.flatMap((row) => row.open_prs.filter((pr) => pr.stuck_class));

@@ -210,6 +210,14 @@ function findDelta(row: RepoCiOverviewRow, base: string, head: string): RepoCiBr
   return row.deltas.find((d) => d.base === base && d.head === head);
 }
 
+/** WS-L staging-dormant: this repo promotes LDR→main DIRECTLY (the fleet-wide toggle is on, OR the
+ * per-repo promotion_model is ldr_main). When true, staging is a dormant by-pass — every
+ * STAGING-direction signal (LDR→staging drain-behind, staging→main hops/promotion) is EXPECTED noise,
+ * not a stall. SSOT for the predicate used by classifyStall + the /repos hop/panel display. */
+export function isStagingDormant(row: RepoCiOverviewRow): boolean {
+  return row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
+}
+
 export function classifyStall(row: RepoCiOverviewRow): StallReason {
   const ldrMain = findDelta(row, "main", "live-defi-rollout");
   const stagingMain = findDelta(row, "main", "staging");
@@ -241,8 +249,7 @@ export function classifyStall(row: RepoCiOverviewRow): StallReason {
   // ONLY the LDR→main signal (the delta column + dep-order/pr-stuck above) is actionable. This MUST
   // be checked BEFORE the ldr-to-staging branch below (the prior bug: the drain-behind branch fired
   // first, so the ldr_main suppression never caught it).
-  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
-  if (stagingDormant) {
+  if (isStagingDormant(row)) {
     return { kind: "none", files: 0, blockers: [] };
   }
   // Real content on LDR not yet on staging → the Tier-C drain is behind.

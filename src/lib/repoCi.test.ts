@@ -15,6 +15,7 @@ import {
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  isStagingDormant,
   orchestratorStateLabel,
   orchestratorStateTone,
   promotionBlockedLabel,
@@ -491,6 +492,25 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
       }),
     );
     expect(stuck.kind).toBe("pr-stuck");
+  });
+});
+
+// WS-L staging-dormant: the SSOT predicate behind the hop-pills suppression + the promotion-blocked
+// panel's "LDR→main" title / "Staging dormant" empty-state (the operator's "why is staging here / it
+// should say no staging→main" /repos report). True when the fleet toggle is on OR the per-repo
+// promotion_model is ldr_main.
+describe("isStagingDormant — LDR→main-direct predicate", () => {
+  it("false for a default repo (no toggle, no promotion_model)", () => {
+    expect(isStagingDormant(row({}))).toBe(false);
+  });
+  it("true when the fleet staging_dormant_mode toggle is on", () => {
+    expect(isStagingDormant(row({ staging_dormant_mode: true }))).toBe(true);
+  });
+  it("true when the per-repo promotion_model is ldr_main", () => {
+    expect(isStagingDormant(row({ promotion_model: "ldr_main" }))).toBe(true);
+  });
+  it("false when promotion_model routes through staging (not ldr_main)", () => {
+    expect(isStagingDormant(row({ promotion_model: "staging" }))).toBe(false);
   });
 });
 

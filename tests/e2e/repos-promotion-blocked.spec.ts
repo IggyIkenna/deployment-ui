@@ -46,6 +46,38 @@ test.describe("Repos CI — promotion-blocked panel (G1)", () => {
   });
 });
 
+test.describe("Repos CI — WS-L staging-dormant (LDR→main direct) display", () => {
+  // operator 2026-06-27 /repos report: a dormant repo still showed staging hop pills
+  // ("LDR→stg 35f, stg→main 14f") and the panel read "staging→main". With staging dormant the staging
+  // legs are EXPECTED noise — suppress the hops + the drain-stalled chip and reframe the panel to
+  // LDR→main. Mock: alerting-service is promotion_model=ldr_main with REAL 35f LDR→stg + 14f stg→main
+  // deltas (and drain_stalled set); agent-orchestrator is the NON-dormant staging→main contrast.
+  // SSOT: codex/08-workflows/ci-cd-flow.md (WS-L SIT-rehome / staging-dormant) + isStagingDormant().
+  test("a dormant repo (ldr_main) suppresses its staging hop pills despite real staging deltas", async ({ page }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-row-alerting-service")).toBeVisible();
+    // hops cell collapses to "—" (classifyStall=none) and the HopPills span is not rendered at all.
+    await expect(page.getByTestId("hops-cell-alerting-service")).toContainText("—");
+    await expect(page.getByTestId("stall-hops-alerting-service")).toHaveCount(0);
+    // and no "drain stalled" chip even though drain_stalled is set on the row.
+    await expect(page.getByTestId("drain-stalled-alerting-service")).toHaveCount(0);
+  });
+
+  test("a NON-dormant repo still shows its staging hop pills (guard fires only under dormant)", async ({ page }) => {
+    await page.goto("/repos");
+    // agent-orchestrator: staging→main 144 files behind, NOT dormant → hops render.
+    await expect(page.getByTestId("stall-hops-agent-orchestrator")).toBeVisible();
+    await expect(page.getByTestId("hop-staging-main-agent-orchestrator")).toContainText("144f");
+  });
+
+  test("the promotion-blocked panel reframes to LDR→main when the fleet is staging-dormant", async ({ page }) => {
+    await page.goto("/repos");
+    const panel = page.getByTestId("promotion-blocked-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Promotion blocked — LDR→main");
+  });
+});
+
 test.describe("Repos CI — B3 commit count in LDR→main delta", () => {
   test("delta cell shows files-ahead (content truth) AND commit count", async ({ page }) => {
     await page.goto("/repos");

@@ -41,6 +41,7 @@ import {
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  isStagingDormant,
   orchestratorStateLabel,
   orchestratorStateTone,
   promotionBlockedLabel,
@@ -100,6 +101,11 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
  * row-level mirror of the detail panel's pipeline; renders only when the row has real lag, so the
  * eye is drawn to the stuck leg (e.g. AO: LDR→stg ✓, stg→main 144f). */
 function HopPills({ row }: { row: RepoCiOverviewRow }) {
+  // WS-L staging-dormant: when the fleet toggle is on, OR this repo promotes LDR→main directly
+  // (promotion_model=ldr_main), the staging legs (LDR→stg / stg→main) are EXPECTED to lag — they are
+  // noise, not a stuck hop. Suppress the staging hop pills entirely; the actionable signal is the
+  // LDR→main delta column. (Mirrors classifyStall's dormant suppression — the hops column was the gap.)
+  if (isStagingDormant(row)) return null;
   const hop = (base: string, head: string): number =>
     row.deltas.find((d) => d.base === base && d.head === head)?.files_changed ?? 0;
   const pill = (label: string, files: number, testId: string) => (
@@ -160,8 +166,7 @@ function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallR
   // WS-L staging-dormant: a repo in dormant mode (fleet toggle) or promoting LDR→main directly has
   // its staging drain expected-behind, so the "drain stalled" chip is noise too — suppress it (the
   // staging-direction stall kinds are already suppressed in classifyStall).
-  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
-  const drainStalled = !!row.drain_stalled && !stagingDormant;
+  const drainStalled = !!row.drain_stalled && !isStagingDormant(row);
   const hasHopReason =
     !drainStalled && (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
   if (blocking.length === 0 && blockedBy.length === 0 && !drainStalled && !hasHopReason) {
@@ -654,14 +659,20 @@ function ImageCell({
   );
 }
 
-function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
+function PromotionBlockedPanel({
+  blocked,
+  stagingDormant,
+}: {
+  blocked: RepoCiPromotionBlocked[];
+  stagingDormant: boolean;
+}) {
   const empty = blocked.length === 0;
   return (
     <Card data-testid="promotion-blocked-panel">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-red-400" />
-          Promotion blocked — staging→main
+          Promotion blocked — {stagingDormant ? "LDR→main" : "staging→main"}
           <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
           <CardHelp id="blocked" title="Promotion blocked — staging→main">
             Repos <span className="font-medium">parked by repeated FAILURE</span> — quarantined after consecutive
@@ -673,7 +684,9 @@ function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] 
       <CardContent className="space-y-1.5">
         {empty && (
           <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-blocked-empty">
-            Nothing parked — staging→main draining cleanly.
+            {stagingDormant
+              ? "Staging dormant — LDR→main direct; no staging→main promotion."
+              : "Nothing parked — staging→main draining cleanly."}
           </p>
         )}
         {blocked.map((b) => (
@@ -1782,7 +1795,10 @@ export function RepoCiContent() {
             />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
-            <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
+            <PromotionBlockedPanel
+              blocked={overview.promotion_blocked ?? []}
+              stagingDormant={overview.repos.some(isStagingDormant)}
+            />
             <PromotionHeldPanel held={overview.promotion_held} />
             <SemverHealthPanel health={overview.semver_health} />
           </div>
