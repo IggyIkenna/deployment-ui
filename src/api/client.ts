@@ -3444,6 +3444,12 @@ export interface RepoCiImageSignal {
   last_success_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
+  /** WS-L "track the deployed artifact" (operator 2026-06-29): which IMAGE ships this repo.
+   *  null/"standalone" = own image (image_stale meaningful); "source" = runs from source, no image;
+   *  "bundled" = shipped inside `deploy_host`'s image — fields reflect that host build's health,
+   *  image_stale is null (host build sha is a different repo's sha). */
+  deploy_model?: string | null;
+  deploy_host?: string | null;
 }
 
 export interface RepoCiOverviewRow {
@@ -3507,13 +3513,16 @@ export interface RepoCiOverviewRow {
   /** WS-L: promotion path from workspace-manifest.json (e.g. "ldr_main" = promotes
    * live-defi-rollout→main directly, bypassing the staging→main hop). Absent/null = default
    * path (staging→main). For "ldr_main" repos, staging being ahead of main is the EXPECTED
-   * steady state — classifyStall suppresses the staging-to-main stall kind for these repos. */
+   * steady state — the UI keeps the staging signals but renders them MUTED ("dormant"), see
+   * `isStagingDormant` / the hop+stall render layer. */
   promotion_model?: string | null;
   /** WS-L staging-dormant mode (workspace-manifest.json top-level `staging_dormant_mode`): when true
-   * the fleet promotes LDR→main directly and STAGING is dormant, so the UI suppresses every
+   * the fleet promotes LDR→main directly and STAGING is dormant. The UI still SHOWS every
    * staging-direction signal (LDR→staging drain behind / staging→main not promoting / the stg→main
-   * hop / drain-stalled) for ALL repos — only the LDR→main signal stays actionable. Per-repo
-   * `promotion_model==="ldr_main"` has the same effect for that repo. */
+   * hop / drain-stalled) but renders them MUTED (grey, never red) + a "dormant" tag for ALL repos —
+   * the data stays visible, only the LDR→main signal is actionable, and flipping staging back to
+   * relevant restores the active styling. Per-repo `promotion_model==="ldr_main"` has the same effect
+   * for that repo. (classifyStall stays dormant-agnostic; muting is a render-layer concern.) */
   staging_dormant_mode?: boolean | null;
 }
 

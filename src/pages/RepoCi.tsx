@@ -41,6 +41,7 @@ import {
   formatAge,
   githubChecksUrl,
   githubCommitUrl,
+  isStagingDormant,
   orchestratorStateLabel,
   orchestratorStateTone,
   promotionBlockedLabel,
@@ -100,20 +101,35 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
  * row-level mirror of the detail panel's pipeline; renders only when the row has real lag, so the
  * eye is drawn to the stuck leg (e.g. AO: LDR→stg ✓, stg→main 144f). */
 function HopPills({ row }: { row: RepoCiOverviewRow }) {
+  // WS-L staging-dormant: when the fleet toggle is on, OR this repo promotes LDR→main directly
+  // (promotion_model=ldr_main), the staging legs (LDR→stg / stg→main) are EXPECTED to lag. Operator
+  // 2026-06-28: still SHOW them (the deltas are real) but render MUTED (grey, never red) + a "dormant"
+  // tag so they read as ignored-not-actionable — flip staging back to relevant → the same pills return
+  // to red-when-behind, no structural change.
+  const dormant = isStagingDormant(row);
   const hop = (base: string, head: string): number =>
     row.deltas.find((d) => d.base === base && d.head === head)?.files_changed ?? 0;
   const pill = (label: string, files: number, testId: string) => (
     <span
       data-testid={testId}
-      className={`inline-flex items-center gap-0.5 ${files > 0 ? TONE_TEXT.red : TONE_TEXT.green}`}
+      className={`inline-flex items-center gap-0.5 ${dormant ? TONE_TEXT.gray : files > 0 ? TONE_TEXT.red : TONE_TEXT.green}`}
     >
       {label} {files > 0 ? `${files}f` : "✓"}
     </span>
   );
   return (
-    <span className="inline-flex flex-col items-start gap-0.5 text-[11px]" data-testid={`stall-hops-${row.repo}`}>
+    <span
+      className="inline-flex flex-col items-start gap-0.5 text-[11px]"
+      data-testid={`stall-hops-${row.repo}`}
+      data-dormant={dormant ? "true" : undefined}
+    >
       {pill("LDR→stg", hop("staging", "live-defi-rollout"), `hop-ldr-staging-${row.repo}`)}
       {pill("stg→main", hop("main", "staging"), `hop-staging-main-${row.repo}`)}
+      {dormant && (
+        <span className={`text-[10px] ${TONE_TEXT.gray}`} data-testid={`hop-dormant-${row.repo}`}>
+          dormant · ignored
+        </span>
+      )}
     </span>
   );
 }
@@ -124,19 +140,25 @@ function HopPills({ row }: { row: RepoCiOverviewRow }) {
  * Severity tracks the lag age (red past the 60-min monitor threshold, else yellow) so a fresh
  * staging→main gap reads as "promoting" while AO's 8-day stall reads red. */
 function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: StallReason }) {
-  const lagTone: ChipTone = (row.main_lag_age_min ?? 0) > 60 ? "red" : "yellow";
+  // WS-L staging-dormant: the staging-direction kinds (staging→main / LDR→staging) are ignored noise
+  // when staging is dormant → grey tone + "· dormant" suffix (operator 2026-06-28: show, don't hide).
+  // pr-stuck is a REAL LDR→main blocker → keeps its active tone in both modes.
+  const dormant = isStagingDormant(row);
+  const lagTone: ChipTone = dormant ? "gray" : (row.main_lag_age_min ?? 0) > 60 ? "red" : "yellow";
+  const dormantSuffix = dormant ? " · dormant" : "";
   if (reason.kind === "staging-to-main") {
     const detail = reason.ciStatusStale ? `status stale (${row.ci_status})` : "no promotion PR";
     return (
       <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
         staging→main not promoting · {detail}
+        {dormantSuffix}
       </Chip>
     );
   }
   if (reason.kind === "ldr-to-staging") {
     return (
       <Chip tone={lagTone} testId={`stall-reason-${row.repo}`}>
-        LDR→staging drain behind
+        LDR→staging drain behind{dormantSuffix}
       </Chip>
     );
   }
@@ -157,11 +179,10 @@ function StallReasonChip({ row, reason }: { row: RepoCiOverviewRow; reason: Stal
 function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallReason }) {
   const blocking = row.blocking ?? [];
   const blockedBy = row.blocked_by ?? [];
-  // WS-L staging-dormant: a repo in dormant mode (fleet toggle) or promoting LDR→main directly has
-  // its staging drain expected-behind, so the "drain stalled" chip is noise too — suppress it (the
-  // staging-direction stall kinds are already suppressed in classifyStall).
-  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
-  const drainStalled = !!row.drain_stalled && !stagingDormant;
+  // WS-L staging-dormant: a dormant repo's staging drain is expected-behind, so "drain stalled" is
+  // ignored noise too — but SHOW it muted (grey + "· dormant"), don't hide it (operator 2026-06-28).
+  const dormant = isStagingDormant(row);
+  const drainStalled = !!row.drain_stalled;
   const hasHopReason =
     !drainStalled && (stall.kind === "staging-to-main" || stall.kind === "ldr-to-staging" || stall.kind === "pr-stuck");
   if (blocking.length === 0 && blockedBy.length === 0 && !drainStalled && !hasHopReason) {
@@ -180,8 +201,8 @@ function StallReasonCell({ row, stall }: { row: RepoCiOverviewRow; stall: StallR
         </Chip>
       )}
       {drainStalled && (
-        <Chip tone="red" testId={`drain-stalled-${row.repo}`}>
-          drain stalled
+        <Chip tone={dormant ? "gray" : "red"} testId={`drain-stalled-${row.repo}`}>
+          drain stalled{dormant ? " · dormant" : ""}
         </Chip>
       )}
       {hasHopReason && <StallReasonChip row={row} reason={stall} />}
@@ -348,7 +369,27 @@ function SitRunPanel({ run }: { run: RepoCiSitLastRun | null }) {
 }
 
 /** One leg of the routine promotion drain (LDR→staging or LDR→main). */
-function PromoteDrainRow({ label, run, testId }: { label: string; run: RepoCiPromoteRun | null; testId?: string }) {
+function PromoteDrainRow({
+  label,
+  run,
+  testId,
+  dormant = false,
+}: {
+  label: string;
+  run: RepoCiPromoteRun | null;
+  testId?: string;
+  dormant?: boolean;
+}) {
+  // WS-L staging-dormant: the LDR→staging leg's */15 schedule is STOPPED (fleet is LDR→main direct) —
+  // show it greyed as "dormant · not scheduled", not its last (no-op) run status (operator 2026-06-28).
+  if (dormant) {
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId} data-dormant="true">
+        <span className={TONE_TEXT.gray}>{label}</span>
+        <Chip tone="gray">dormant · not scheduled</Chip>
+      </div>
+    );
+  }
   const tone: ChipTone = !run ? "gray" : run.conclusion === "success" ? "green" : run.conclusion ? "red" : "blue";
   return (
     <div className="flex items-center justify-between gap-2 text-xs" data-testid={testId}>
@@ -446,9 +487,11 @@ function SemverHealthPanel({ health }: { health: RepoCiSemverHealth | null | und
 function PromotionDrainPanel({
   drain,
   stalledRepos,
+  stagingDormant,
 }: {
   drain: RepoCiPromotionDrain | null | undefined;
   stalledRepos: string[];
+  stagingDormant: boolean;
 }) {
   return (
     <Card data-testid="promotion-drain-panel">
@@ -461,12 +504,21 @@ function PromotionDrainPanel({
             drain is <span className="font-medium">stalled</span> (real content ahead but a stale/failing leg).
           </CardHelp>
         </CardTitle>
-        <p className="text-xs text-[var(--color-text-muted)]">Routine LDR→staging / →main auto-merge (every 15 min)</p>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {stagingDormant
+            ? "Routine LDR→main auto-merge (every 15 min) · LDR→staging dormant (not scheduled)"
+            : "Routine LDR→staging / →main auto-merge (every 15 min)"}
+        </p>
       </CardHeader>
       <CardContent className="space-y-2">
         {drain ? (
           <>
-            <PromoteDrainRow label="LDR → staging" run={drain.ldr_to_staging} testId="drain-ldr-to-staging" />
+            <PromoteDrainRow
+              label="LDR → staging"
+              run={drain.ldr_to_staging}
+              testId="drain-ldr-to-staging"
+              dormant={stagingDormant}
+            />
             <PromoteDrainRow label="LDR → main" run={drain.ldr_to_main} testId="drain-ldr-to-main" />
           </>
         ) : (
@@ -580,14 +632,44 @@ function buildShaTone(image: RepoCiImageSignal | null | undefined): string {
  * commit on GitHub; hover = status · sha · time) + build datetime + log link. Shows "—" when that
  * cloud has no build / isn't reachable (honest, never fabricated). */
 function CloudBuildLine({ cloud, image, repo }: { cloud: string; image?: RepoCiImageSignal | null; repo: string }) {
+  const dm = image?.deploy_model;
+  // WS-L "track the deployed artifact" (operator 2026-06-29): source-deployed repos have NO image —
+  // show "N/A · source-deployed" (grey), not a misleading "no access".
+  if (dm === "source") {
+    return (
+      <div
+        className="flex items-center gap-1.5"
+        data-testid={`image-${cloud.toLowerCase()}`}
+        data-deploy-model="source"
+        title={`${cloud}: source-deployed (runs from source — no image build)`}
+      >
+        <span className="w-7 shrink-0 text-[10px] font-semibold text-[var(--color-text-muted)]">{cloud}</span>
+        <span className={`text-[11px] ${TONE_TEXT.gray}`}>N/A · source-deployed</span>
+      </div>
+    );
+  }
+  // Bundled repos ship inside deploy_host's image — the build sha shown is the HOST repo's, so link it
+  // to the host repo (not this one) and append a "bundled in <host>" label.
+  const host = dm === "bundled" ? (image?.deploy_host ?? null) : null;
   const sha = image?.last_build_sha ?? null;
+  const shaRepo = host ?? repo;
   const status = image?.image_stale ? "stale" : (image?.last_build_status ?? (image ? "no build" : "no access"));
-  const commitUrl = sha ? githubCommitUrl(repo, sha) : null;
-  const title = [`${cloud}: ${status}`, sha ?? "", image?.last_build_time ? `at ${image.last_build_time}` : ""]
+  const commitUrl = sha ? githubCommitUrl(shaRepo, sha) : null;
+  const title = [
+    `${cloud}: ${status}`,
+    host ? `bundled in ${host}` : "",
+    sha ?? "",
+    image?.last_build_time ? `at ${image.last_build_time}` : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   return (
-    <div className="flex items-center gap-1.5" data-testid={`image-${cloud.toLowerCase()}`} title={title}>
+    <div
+      className="flex items-center gap-1.5"
+      data-testid={`image-${cloud.toLowerCase()}`}
+      data-deploy-model={dm ?? undefined}
+      title={title}
+    >
       <span className="w-7 shrink-0 text-[10px] font-semibold text-[var(--color-text-muted)]">{cloud}</span>
       {sha ? (
         <a
@@ -610,6 +692,11 @@ function CloudBuildLine({ cloud, image, repo }: { cloud: string; image?: RepoCiI
       )}
       {image?.last_build_time && (
         <span className="text-[10px] text-[var(--color-text-muted)]">· {buildTimeLabel(image.last_build_time)}</span>
+      )}
+      {host && (
+        <span className={`text-[10px] ${TONE_TEXT.gray}`} data-testid={`image-bundled-${cloud.toLowerCase()}`}>
+          · bundled in {host}
+        </span>
       )}
       {image?.last_build_log_url && (
         <a
@@ -654,14 +741,20 @@ function ImageCell({
   );
 }
 
-function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] }) {
+function PromotionBlockedPanel({
+  blocked,
+  stagingDormant,
+}: {
+  blocked: RepoCiPromotionBlocked[];
+  stagingDormant: boolean;
+}) {
   const empty = blocked.length === 0;
   return (
     <Card data-testid="promotion-blocked-panel">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-red-400" />
-          Promotion blocked — staging→main
+          Promotion blocked — {stagingDormant ? "LDR→main" : "staging→main"}
           <Chip tone={empty ? "green" : "red"}>{blocked.length}</Chip>
           <CardHelp id="blocked" title="Promotion blocked — staging→main">
             Repos <span className="font-medium">parked by repeated FAILURE</span> — quarantined after consecutive
@@ -673,7 +766,9 @@ function PromotionBlockedPanel({ blocked }: { blocked: RepoCiPromotionBlocked[] 
       <CardContent className="space-y-1.5">
         {empty && (
           <p className="text-sm text-[var(--color-text-muted)]" data-testid="promotion-blocked-empty">
-            Nothing parked — staging→main draining cleanly.
+            {stagingDormant
+              ? "Staging dormant — LDR→main direct; no staging→main promotion."
+              : "Nothing parked — staging→main draining cleanly."}
           </p>
         )}
         {blocked.map((b) => (
@@ -1106,9 +1201,22 @@ function OverviewTable({
                   <span>
                     {ldrMain ? deltaLabel(ldrMain.files_changed, row.main_unpromoted_commits ?? ldrMain.ahead_by) : "—"}
                   </span>
-                  {/* G6: promotion-lag age — red past the 60-min monitor threshold. */}
+                  {/* G6: promotion-lag age. Tone tracks ACTIONABILITY, not just age (operator 2026-06-28:
+                      "lags showing despite no stuck queue"). Under LDR-to-main-direct + SIT-gated promotion a
+                      repo is routinely behind main (gated / awaiting the 15-min promote / SIT-coverage-pending)
+                      WITHOUT being stuck — so a bare lag is grey/informational. RED only when there's a real
+                      blocker (promotion_blocked quarantine or a jammed promote PR); YELLOW for a dep-order hold. */}
                   {typeof row.main_lag_age_min === "number" && (
-                    <Chip tone={row.main_lag_age_min > 60 ? "red" : "yellow"} testId={`lag-${row.repo}`}>
+                    <Chip
+                      tone={
+                        row.promotion_blocked === true || stall.kind === "pr-stuck"
+                          ? "red"
+                          : stall.kind === "dep-order"
+                            ? "yellow"
+                            : "gray"
+                      }
+                      testId={`lag-${row.repo}`}
+                    >
                       {formatAge(row.main_lag_age_min)} lag
                     </Chip>
                   )}
@@ -1779,10 +1887,14 @@ export function RepoCiContent() {
             <PromotionDrainPanel
               drain={overview.promotion_drain}
               stalledRepos={overview.repos.filter((r) => r.drain_stalled).map((r) => r.repo)}
+              stagingDormant={overview.repos.some(isStagingDormant)}
             />
             <SitRunPanel run={overview.sit_last_run} />
             <StuckPanel stuckPrs={overview.stuck_prs} stuckInSit={overview.stuck_in_sit} />
-            <PromotionBlockedPanel blocked={overview.promotion_blocked ?? []} />
+            <PromotionBlockedPanel
+              blocked={overview.promotion_blocked ?? []}
+              stagingDormant={overview.repos.some(isStagingDormant)}
+            />
             <PromotionHeldPanel held={overview.promotion_held} />
             <SemverHealthPanel health={overview.semver_health} />
           </div>

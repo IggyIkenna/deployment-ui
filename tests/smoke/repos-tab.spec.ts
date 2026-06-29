@@ -21,8 +21,11 @@ test.describe("Repos CI page", () => {
     const drain = page.getByTestId("promotion-drain-panel");
     await expect(drain).toBeVisible();
     await expect(drain).toContainText("Promotion drain");
-    // Both legs render their last-run result (mock seeds both green).
-    await expect(page.getByTestId("drain-ldr-to-staging")).toContainText("success");
+    // WS-L staging-dormant (mock has a ldr_main repo → fleet treated dormant): the LDR→staging leg
+    // shows "dormant · not scheduled" (greyed, schedule stopped), NOT a run status; the active
+    // LDR→main leg still renders its last-run result.
+    await expect(page.getByTestId("drain-ldr-to-staging")).toContainText("dormant");
+    await expect(page.getByTestId("drain-ldr-to-staging")).toHaveAttribute("data-dormant", "true");
     await expect(page.getByTestId("drain-ldr-to-main")).toBeVisible();
     // The cascade/SIT panel is relabelled so the routine drain is never conflated with the
     // breaking-change cascade.
@@ -85,11 +88,20 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("last-green-execution-service")).toContainText("ab09999");
   });
 
-  test("overview shows the promotion-lag age chip (G6) on a behind-main repo", async ({ page }) => {
+  test("promotion-lag chip (G6) is RED only when actually stuck, else grey (operator 2026-06-28)", async ({ page }) => {
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
-    // execution-service is LDR-ahead-of-main with a 185-min lag → a red "lag" chip renders.
-    await expect(page.getByTestId("lag-execution-service")).toContainText("lag");
+    // execution-service is LDR-ahead-of-main AND genuinely stuck (jammed promote PR → pr-stuck) → RED lag.
+    const execLag = page.getByTestId("lag-execution-service");
+    await expect(execLag).toContainText("lag");
+    await expect(execLag).toHaveClass(/red-/);
+    // agent-orchestrator is behind main (lagging) but NOT stuck — no quarantine / jammed PR / dep-hold.
+    // Under LDR→main-direct that's expected (gated / awaiting promote), so the lag is GREY/informational,
+    // not a red alarm ("lags showing despite no stuck queue").
+    const aoLag = page.getByTestId("lag-agent-orchestrator");
+    await expect(aoLag).toContainText("lag");
+    await expect(aoLag).toHaveClass(/zinc-/);
+    await expect(aoLag).not.toHaveClass(/red-/);
   });
 
   test("per-branch SHA cells are colour-coded (replaces the standalone CI-status column)", async ({ page }) => {

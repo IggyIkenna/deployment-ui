@@ -46,6 +46,50 @@ test.describe("Repos CI — promotion-blocked panel (G1)", () => {
   });
 });
 
+test.describe("Repos CI — WS-L staging-dormant (LDR→main direct) display", () => {
+  // operator 2026-06-28: a dormant repo's staging signals must still SHOW (the deltas are real) but
+  // render MUTED (grey, never red) + a "dormant" tag — NOT be hidden — so flipping staging back to
+  // relevant restores the same cells as active/red, no structural change. Mock: alerting-service is
+  // promotion_model=ldr_main with REAL 35f LDR→stg + 14f stg→main deltas; agent-orchestrator is the
+  // NON-dormant contrast whose identical 144f signal renders RED/actionable.
+  // SSOT: codex/08-workflows/ci-cd-flow.md (WS-L staging-dormant) + isStagingDormant().
+  test("a dormant repo (ldr_main) SHOWS its staging hop pills, MUTED + tagged dormant (not hidden)", async ({
+    page,
+  }) => {
+    await page.goto("/repos");
+    await expect(page.getByTestId("repo-row-alerting-service")).toBeVisible();
+    // hops STILL render — the 35f LDR→stg + 14f stg→main pills are present (real deltas, not erased)...
+    const hops = page.getByTestId("stall-hops-alerting-service");
+    await expect(hops).toBeVisible();
+    await expect(page.getByTestId("hop-ldr-staging-alerting-service")).toContainText("35f");
+    await expect(page.getByTestId("hop-staging-main-alerting-service")).toContainText("14f");
+    // ...but MUTED (grey, never red) + a "dormant" tag — marked ignored, not actionable.
+    await expect(hops).toHaveAttribute("data-dormant", "true");
+    await expect(page.getByTestId("hop-ldr-staging-alerting-service")).toHaveClass(/text-zinc-400/);
+    await expect(page.getByTestId("hop-ldr-staging-alerting-service")).not.toHaveClass(/text-red-400/);
+    await expect(page.getByTestId("hop-dormant-alerting-service")).toContainText("dormant");
+    // the stall reason shows muted "· dormant", not a red alert.
+    await expect(page.getByTestId("stall-reason-alerting-service")).toContainText("dormant");
+  });
+
+  test("a NON-dormant repo shows the SAME signals RED/actionable (dormancy only changes styling)", async ({ page }) => {
+    await page.goto("/repos");
+    // agent-orchestrator: staging→main 144 files behind, NOT dormant → hops render red, no dormant tag.
+    const hops = page.getByTestId("stall-hops-agent-orchestrator");
+    await expect(hops).toBeVisible();
+    await expect(hops).not.toHaveAttribute("data-dormant", "true");
+    await expect(page.getByTestId("hop-staging-main-agent-orchestrator")).toContainText("144f");
+    await expect(page.getByTestId("hop-staging-main-agent-orchestrator")).toHaveClass(/text-red-400/);
+  });
+
+  test("the promotion-blocked panel reframes to LDR→main when the fleet is staging-dormant", async ({ page }) => {
+    await page.goto("/repos");
+    const panel = page.getByTestId("promotion-blocked-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Promotion blocked — LDR→main");
+  });
+});
+
 test.describe("Repos CI — B3 commit count in LDR→main delta", () => {
   test("delta cell shows files-ahead (content truth) AND commit count", async ({ page }) => {
     await page.goto("/repos");
@@ -122,5 +166,17 @@ test.describe("Repos CI — B1 Image column build visibility", () => {
     const gcpSha = cell.getByTestId("image-sha-gcp");
     await expect(gcpSha).toHaveText("fae1ed0");
     await expect(gcpSha).toHaveAttribute("href", /github\.com\/.+\/commit\/fae1ed0/);
+  });
+
+  // WS-L "track the deployed artifact" (operator 2026-06-29): a SOURCE-deployed repo has no image
+  // build, so its GCP image line reads "N/A · source-deployed" (no sha / no "no access"), not a
+  // misleading build status. agent-orchestrator runs from source on the orchestrator VM.
+  test("a source-deployed repo's image column reads 'source-deployed', not a build status", async ({ page }) => {
+    await page.goto("/repos");
+    const gcpLine = page.getByTestId("repo-row-agent-orchestrator").getByTestId("image-gcp");
+    await expect(gcpLine).toBeVisible();
+    await expect(gcpLine).toHaveAttribute("data-deploy-model", "source");
+    await expect(gcpLine).toContainText("source-deployed");
+    await expect(gcpLine).not.toContainText("no access");
   });
 });

@@ -15,6 +15,7 @@ import {
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  isStagingDormant,
   orchestratorStateLabel,
   orchestratorStateTone,
   promotionBlockedLabel,
@@ -406,8 +407,10 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
     expect(r.kind).toBe("staging-to-main");
   });
 
-  // WS-L regression: ldr_main repos promote LDR→main directly; staging ahead of main is normal.
-  it("ldr_main repo: staging ahead of main, no PR, MAIN_GREEN → none (NOT staging-to-main)", () => {
+  // WS-L: ldr_main repos promote LDR→main directly; staging ahead of main is normal. classifyStall
+  // stays dormant-agnostic → still reports staging-to-main (the render layer mutes it as "dormant";
+  // see isStagingDormant). Same git-delta state as the non-dormant case below → same kind.
+  it("ldr_main repo: staging ahead of main, no PR, MAIN_GREEN → staging-to-main (dormant-agnostic)", () => {
     const r = classifyStall(
       row({
         ci_status: "MAIN_GREEN",
@@ -419,7 +422,7 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
         ],
       }),
     );
-    expect(r.kind).toBe("none");
+    expect(r.kind).toBe("staging-to-main");
   });
 
   it("non-ldr_main repo in same state STILL returns staging-to-main (no regression)", () => {
@@ -437,29 +440,31 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
     expect(r.kind).toBe("staging-to-main");
   });
 
-  // WS-L staging-dormant: the prior bug was the ldr-to-staging "drain behind" branch firing BEFORE the
-  // ldr_main suppression, so an ldr_main repo with LDR ahead of staging still showed "drain behind".
-  it("ldr_main repo: LDR ahead of staging (drain behind) → none (NOT ldr-to-staging)", () => {
+  // WS-L staging-dormant: classifyStall is dormant-AGNOSTIC — it reports the REAL git-delta kind
+  // regardless of staging-dormant mode (operator 2026-06-28: dormancy is a DISPLAY concern; the render
+  // layer mutes these kinds via isStagingDormant, it does not erase them). So an ldr_main /
+  // staging_dormant repo with staging lag classifies as ldr-to-staging / staging-to-main, NOT "none".
+  it("ldr_main repo: LDR ahead of staging (drain behind) → ldr-to-staging (dormant-agnostic)", () => {
     const r = classifyStall(
       row({
         promotion_model: "ldr_main",
         deltas: [d("staging", "live-defi-rollout", 3), d("main", "staging", 1), d("main", "live-defi-rollout", 4)],
       }),
     );
-    expect(r.kind).toBe("none");
+    expect(r.kind).toBe("ldr-to-staging");
   });
 
-  it("staging_dormant_mode toggle: ANY repo (no promotion_model) with drain-behind → none", () => {
+  it("staging_dormant_mode toggle: ANY repo with drain-behind → ldr-to-staging (dormant-agnostic)", () => {
     const r = classifyStall(
       row({
         staging_dormant_mode: true,
         deltas: [d("staging", "live-defi-rollout", 3), d("main", "staging", 1), d("main", "live-defi-rollout", 4)],
       }),
     );
-    expect(r.kind).toBe("none");
+    expect(r.kind).toBe("ldr-to-staging");
   });
 
-  it("staging_dormant_mode toggle: ANY repo with staging-ahead-of-main → none (not staging-to-main)", () => {
+  it("staging_dormant_mode toggle: staging-ahead-of-main → staging-to-main (dormant-agnostic)", () => {
     const r = classifyStall(
       row({
         ci_status: "MAIN_GREEN",
@@ -471,7 +476,7 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
         ],
       }),
     );
-    expect(r.kind).toBe("none");
+    expect(r.kind).toBe("staging-to-main");
   });
 
   it("dep-order + pr-stuck STILL classify under staging_dormant_mode (real LDR→main blockers)", () => {
@@ -491,6 +496,25 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
       }),
     );
     expect(stuck.kind).toBe("pr-stuck");
+  });
+});
+
+// WS-L staging-dormant: the SSOT predicate behind the hop-pills suppression + the promotion-blocked
+// panel's "LDR→main" title / "Staging dormant" empty-state (the operator's "why is staging here / it
+// should say no staging→main" /repos report). True when the fleet toggle is on OR the per-repo
+// promotion_model is ldr_main.
+describe("isStagingDormant — LDR→main-direct predicate", () => {
+  it("false for a default repo (no toggle, no promotion_model)", () => {
+    expect(isStagingDormant(row({}))).toBe(false);
+  });
+  it("true when the fleet staging_dormant_mode toggle is on", () => {
+    expect(isStagingDormant(row({ staging_dormant_mode: true }))).toBe(true);
+  });
+  it("true when the per-repo promotion_model is ldr_main", () => {
+    expect(isStagingDormant(row({ promotion_model: "ldr_main" }))).toBe(true);
+  });
+  it("false when promotion_model routes through staging (not ldr_main)", () => {
+    expect(isStagingDormant(row({ promotion_model: "staging" }))).toBe(false);
   });
 });
 

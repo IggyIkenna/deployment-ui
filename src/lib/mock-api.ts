@@ -1272,6 +1272,10 @@ function mockRepoCiRow(
     deltas?: { base: string; head: string; ahead_by: number; behind_by: number; files_changed: number }[];
     lagMin?: number | null;
     drainStalled?: boolean;
+    promotionModel?: string | null;
+    stagingDormantMode?: boolean;
+    deployModel?: string | null;
+    deployHost?: string | null;
   } = {},
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
@@ -1332,6 +1336,8 @@ function mockRepoCiRow(
       last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
+      deploy_model: opts.deployModel ?? null,
+      deploy_host: opts.deployHost ?? null,
     },
     image_aws: null,
     // N2: last-green main — when main is red (FAILING) the last green ≠ head (an earlier green
@@ -1354,6 +1360,10 @@ function mockRepoCiRow(
       (pr) =>
         pr.stuck_class === "failing_check" || pr.stuck_class === "conflicting" || pr.stuck_class === "skip_ci_jammed",
     ),
+    // WS-L staging-dormant: a repo promoting LDR→main directly (promotion_model=ldr_main) or under the
+    // fleet toggle — drives isStagingDormant → hop-pills suppressed + the panel's "LDR→main" framing.
+    promotion_model: opts.promotionModel ?? null,
+    staging_dormant_mode: opts.stagingDormantMode ?? false,
     // dep-order (operator 2026-06-19): tier + deps holding this repo + repos this repo holds.
     tier,
     blocked_by: blockedBy,
@@ -1475,6 +1485,26 @@ function mockRepoCiOverview() {
       ],
       lagMin: 12180,
       drainStalled: false,
+      // WS-L "track the deployed artifact": agent-orchestrator runs from SOURCE on the VM — no image
+      // build → the GCP image column reads "N/A · source-deployed", not a misleading "no access".
+      deployModel: "source",
+    }),
+    // WS-L staging-dormant regression (operator 2026-06-28: dormant staging signals must SHOW muted,
+    // not be hidden). A repo promoting LDR→main DIRECTLY (promotion_model=ldr_main) carrying REAL
+    // LDR→staging (35f) + staging→main (14f) deltas: the hop pills + the "LDR→staging drain behind"
+    // stall reason STILL render, but MUTED (grey, never red) + a "dormant" tag — so the data is visible
+    // yet reads as ignored. Pairs with agent-orchestrator (the NON-dormant staging-to-main case whose
+    // identical signals render RED/actionable) to prove dormancy only changes STYLING, not presence.
+    // drain_stalled=false so the muted stall-reason chip (not the drain-stalled chip) is exercised.
+    mockRepoCiRow("alerting-service", "service", "MAIN_GREEN", [], false, false, "service", [], [], {
+      deltas: [
+        { base: "staging", head: "live-defi-rollout", ahead_by: 20, behind_by: 0, files_changed: 35 },
+        { base: "main", head: "staging", ahead_by: 8, behind_by: 0, files_changed: 14 },
+        { base: "main", head: "live-defi-rollout", ahead_by: 24, behind_by: 0, files_changed: 4 },
+      ],
+      lagMin: 60,
+      drainStalled: false,
+      promotionModel: "ldr_main",
     }),
   ];
   const stuckPrs = rows.flatMap((row) => row.open_prs.filter((pr) => pr.stuck_class));

@@ -210,6 +210,14 @@ function findDelta(row: RepoCiOverviewRow, base: string, head: string): RepoCiBr
   return row.deltas.find((d) => d.base === base && d.head === head);
 }
 
+/** WS-L staging-dormant: this repo promotes LDR→main DIRECTLY (the fleet-wide toggle is on, OR the
+ * per-repo promotion_model is ldr_main). When true, staging is a dormant by-pass — every
+ * STAGING-direction signal (LDR→staging drain-behind, staging→main hops/promotion) is EXPECTED noise,
+ * not a stall. SSOT for the predicate used by classifyStall + the /repos hop/panel display. */
+export function isStagingDormant(row: RepoCiOverviewRow): boolean {
+  return row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
+}
+
 export function classifyStall(row: RepoCiOverviewRow): StallReason {
   const ldrMain = findDelta(row, "main", "live-defi-rollout");
   const stagingMain = findDelta(row, "main", "staging");
@@ -235,16 +243,12 @@ export function classifyStall(row: RepoCiOverviewRow): StallReason {
       stuckClass: stuck.stuck_class ?? undefined,
     };
   }
-  // WS-L staging-dormant mode: when the fleet-wide toggle is on, OR this repo promotes LDR→main
-  // directly (promotion_model=ldr_main), every STAGING-direction lag is EXPECTED, not a stall —
-  // "LDR→staging drain behind" and "staging→main not promoting" are both noise. Suppress them so
-  // ONLY the LDR→main signal (the delta column + dep-order/pr-stuck above) is actionable. This MUST
-  // be checked BEFORE the ldr-to-staging branch below (the prior bug: the drain-behind branch fired
-  // first, so the ldr_main suppression never caught it).
-  const stagingDormant = row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
-  if (stagingDormant) {
-    return { kind: "none", files: 0, blockers: [] };
-  }
+  // WS-L staging-dormant: classifyStall stays dormant-AGNOSTIC — it reports the real git-delta kind
+  // (ldr-to-staging / staging-to-main) regardless of staging-dormant mode. Dormancy is a DISPLAY
+  // concern, not a classification one (operator 2026-06-28: a dormant repo's staging signals must
+  // still SHOW, just rendered muted/"dormant" so they read as ignored-not-actionable, and so flipping
+  // staging back to relevant restores them with no structural change). The render layer (HopPills /
+  // StallReasonChip / StallReasonCell) calls `isStagingDormant(row)` to mute these kinds.
   // Real content on LDR not yet on staging → the Tier-C drain is behind.
   if (ldrStagingFiles > 0) {
     return { kind: "ldr-to-staging", files: ldrStagingFiles, blockers: [] };
