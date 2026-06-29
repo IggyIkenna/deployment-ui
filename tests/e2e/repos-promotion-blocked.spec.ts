@@ -167,4 +167,16 @@ test.describe("Repos CI — B1 Image column build visibility", () => {
     await expect(gcpSha).toHaveText("fae1ed0");
     await expect(gcpSha).toHaveAttribute("href", /github\.com\/.+\/commit\/fae1ed0/);
   });
+
+  // WS-L "track the deployed artifact" (operator 2026-06-29): a SOURCE-deployed repo has no image
+  // build, so its GCP image line reads "N/A · source-deployed" (no sha / no "no access"), not a
+  // misleading build status. agent-orchestrator runs from source on the orchestrator VM.
+  test("a source-deployed repo's image column reads 'source-deployed', not a build status", async ({ page }) => {
+    await page.goto("/repos");
+    const gcpLine = page.getByTestId("repo-row-agent-orchestrator").getByTestId("image-gcp");
+    await expect(gcpLine).toBeVisible();
+    await expect(gcpLine).toHaveAttribute("data-deploy-model", "source");
+    await expect(gcpLine).toContainText("source-deployed");
+    await expect(gcpLine).not.toContainText("no access");
+  });
 });

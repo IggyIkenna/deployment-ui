@@ -3444,6 +3444,12 @@ export interface RepoCiImageSignal {
   last_success_log_url?: string | null;
   deployed_version: string | null;
   image_stale: boolean | null;
+  /** WS-L "track the deployed artifact" (operator 2026-06-29): which IMAGE ships this repo.
+   *  null/"standalone" = own image (image_stale meaningful); "source" = runs from source, no image;
+   *  "bundled" = shipped inside `deploy_host`'s image — fields reflect that host build's health,
+   *  image_stale is null (host build sha is a different repo's sha). */
+  deploy_model?: string | null;
+  deploy_host?: string | null;
 }
 
 export interface RepoCiOverviewRow {

@@ -632,14 +632,44 @@ function buildShaTone(image: RepoCiImageSignal | null | undefined): string {
  * commit on GitHub; hover = status · sha · time) + build datetime + log link. Shows "—" when that
  * cloud has no build / isn't reachable (honest, never fabricated). */
 function CloudBuildLine({ cloud, image, repo }: { cloud: string; image?: RepoCiImageSignal | null; repo: string }) {
+  const dm = image?.deploy_model;
+  // WS-L "track the deployed artifact" (operator 2026-06-29): source-deployed repos have NO image —
+  // show "N/A · source-deployed" (grey), not a misleading "no access".
+  if (dm === "source") {
+    return (
+      <div
+        className="flex items-center gap-1.5"
+        data-testid={`image-${cloud.toLowerCase()}`}
+        data-deploy-model="source"
+        title={`${cloud}: source-deployed (runs from source — no image build)`}
+      >
+        <span className="w-7 shrink-0 text-[10px] font-semibold text-[var(--color-text-muted)]">{cloud}</span>
+        <span className={`text-[11px] ${TONE_TEXT.gray}`}>N/A · source-deployed</span>
+      </div>
+    );
+  }
+  // Bundled repos ship inside deploy_host's image — the build sha shown is the HOST repo's, so link it
+  // to the host repo (not this one) and append a "bundled in <host>" label.
+  const host = dm === "bundled" ? (image?.deploy_host ?? null) : null;
   const sha = image?.last_build_sha ?? null;
+  const shaRepo = host ?? repo;
   const status = image?.image_stale ? "stale" : (image?.last_build_status ?? (image ? "no build" : "no access"));
-  const commitUrl = sha ? githubCommitUrl(repo, sha) : null;
-  const title = [`${cloud}: ${status}`, sha ?? "", image?.last_build_time ? `at ${image.last_build_time}` : ""]
+  const commitUrl = sha ? githubCommitUrl(shaRepo, sha) : null;
+  const title = [
+    `${cloud}: ${status}`,
+    host ? `bundled in ${host}` : "",
+    sha ?? "",
+    image?.last_build_time ? `at ${image.last_build_time}` : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   return (
-    <div className="flex items-center gap-1.5" data-testid={`image-${cloud.toLowerCase()}`} title={title}>
+    <div
+      className="flex items-center gap-1.5"
+      data-testid={`image-${cloud.toLowerCase()}`}
+      data-deploy-model={dm ?? undefined}
+      title={title}
+    >
       <span className="w-7 shrink-0 text-[10px] font-semibold text-[var(--color-text-muted)]">{cloud}</span>
       {sha ? (
         <a
@@ -662,6 +692,11 @@ function CloudBuildLine({ cloud, image, repo }: { cloud: string; image?: RepoCiI
       )}
       {image?.last_build_time && (
         <span className="text-[10px] text-[var(--color-text-muted)]">· {buildTimeLabel(image.last_build_time)}</span>
+      )}
+      {host && (
+        <span className={`text-[10px] ${TONE_TEXT.gray}`} data-testid={`image-bundled-${cloud.toLowerCase()}`}>
+          · bundled in {host}
+        </span>
       )}
       {image?.last_build_log_url && (
         <a

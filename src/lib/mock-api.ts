@@ -1274,6 +1274,8 @@ function mockRepoCiRow(
     drainStalled?: boolean;
     promotionModel?: string | null;
     stagingDormantMode?: boolean;
+    deployModel?: string | null;
+    deployHost?: string | null;
   } = {},
 ) {
   // Per-branch v2 conclusion: FAILING → main red (the "main red, LDR recovered" shape);
@@ -1334,6 +1336,8 @@ function mockRepoCiRow(
       last_success_log_url: "https://console.cloud.google.com/cloud-build/builds/mock-success",
       deployed_version: "1.2.0",
       image_stale: ciStatus === "FAILING",
+      deploy_model: opts.deployModel ?? null,
+      deploy_host: opts.deployHost ?? null,
     },
     image_aws: null,
     // N2: last-green main — when main is red (FAILING) the last green ≠ head (an earlier green
@@ -1481,6 +1485,9 @@ function mockRepoCiOverview() {
       ],
       lagMin: 12180,
       drainStalled: false,
+      // WS-L "track the deployed artifact": agent-orchestrator runs from SOURCE on the VM — no image
+      // build → the GCP image column reads "N/A · source-deployed", not a misleading "no access".
+      deployModel: "source",
     }),
     // WS-L staging-dormant regression (operator 2026-06-28: dormant staging signals must SHOW muted,
     // not be hidden). A repo promoting LDR→main DIRECTLY (promotion_model=ldr_main) carrying REAL
