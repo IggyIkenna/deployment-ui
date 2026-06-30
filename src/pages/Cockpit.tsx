@@ -45,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { DeploymentsContent } from "./Deployments";
 import { DeploymentDetail } from "./DeploymentDetail";
 import { VmDeploymentsContent } from "./VmDeployments";
+import { FleetOrphansContent } from "./FleetOrphans";
 import { LiveDeploymentsContent } from "./LiveDeployments";
 import { FleetInfraContent } from "./FleetInfra";
 import { FleetGitContent } from "./FleetGit";
@@ -608,6 +609,14 @@ function FleetTab() {
           The cross-cloud reconciliation alarm rows (UNKNOWN / EXPECTED-MISSING) wire to
           GET /api/fleet/reconciliation in Phase 4; the census below is REAL today. */}
       <VmDeploymentsContent compact />
+
+      {/* Stopped & orphaned VMs — the idle-disk-spend surface (GET /api/fleet/orphans).
+          Makes the recurring boot-disk cost of stopped VMs visible + reapable in-place. */}
+      <div className="mt-6">
+        <ErrorBoundary fallbackTitle="Orphan inventory failed to load">
+          <FleetOrphansContent />
+        </ErrorBoundary>
+      </div>
 
       {/* Fold /fleet/infra — orchestrator/control-plane + infra VM health tiles (Phase 0.5
           "Fold /fleet/infra into Fleet"). Chrome-less, reuses the existing component. */}
