@@ -3398,6 +3398,92 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/fleet/vm-census") {
     return json(mockVmCensus());
   }
+  // Stopped/orphaned-VM inventory — GET /api/fleet/orphans → OrphanInventoryResponse.
+  // One reapable ephemeral, one within-grace, one paused-live, one keep-labelled.
+  if (path === "/api/fleet/orphans") {
+    return json({
+      generated_at: "2026-06-30T09:00:00+00:00",
+      grace_hours: 24,
+      stopped_total: 4,
+      reapable_total: 1,
+      monthly_idle_usd: 18.85,
+      monthly_reapable_usd: 2.6,
+      orphans: [
+        {
+          name: "cefi-binance-spot-20260601",
+          zone: "asia-northeast1-c",
+          status: "TERMINATED",
+          lifecycle_class: "EPHEMERAL_BATCH",
+          stopped_age_hours: 120,
+          boot_disk_gb: 50,
+          boot_disk_type: "pd-standard",
+          monthly_disk_usd: 2.6,
+          reapable: true,
+          verdict: "reap",
+        },
+        {
+          name: "tradfi-databento-recent",
+          zone: "asia-northeast1-c",
+          status: "STOPPED",
+          lifecycle_class: "EPHEMERAL_BATCH",
+          stopped_age_hours: 2,
+          boot_disk_gb: 50,
+          boot_disk_type: "pd-standard",
+          monthly_disk_usd: 2.6,
+          reapable: false,
+          verdict: "keep_within_grace",
+        },
+        {
+          name: "strategy-live-eth-20260601",
+          zone: "asia-northeast1-c",
+          status: "TERMINATED",
+          lifecycle_class: "LONG_LIVED_LIVE",
+          stopped_age_hours: 240,
+          boot_disk_gb: 50,
+          boot_disk_type: "pd-ssd",
+          monthly_disk_usd: 11.05,
+          reapable: false,
+          verdict: "keep_not_ephemeral",
+        },
+        {
+          name: "cefi-keepme-20260601",
+          zone: "asia-northeast1-c",
+          status: "TERMINATED",
+          lifecycle_class: "EPHEMERAL_BATCH",
+          stopped_age_hours: 240,
+          boot_disk_gb: 50,
+          boot_disk_type: "pd-standard",
+          monthly_disk_usd: 2.6,
+          reapable: false,
+          verdict: "keep_retained",
+        },
+      ],
+    });
+  }
+  // Reap orphans — POST /api/fleet/reap (dry-run by default) → ReapResponse.
+  if (path === "/api/fleet/reap" && method === "POST") {
+    let dryRun = true;
+    try {
+      const body = init?.body ? (JSON.parse(String(init.body)) as { dry_run?: boolean }) : {};
+      dryRun = body.dry_run ?? true;
+    } catch {
+      dryRun = true;
+    }
+    const candidate = { name: "cefi-binance-spot-20260601", zone: "asia-northeast1-c", monthly_disk_usd: 2.6 };
+    return json({
+      dry_run: dryRun,
+      grace_hours: 24,
+      candidate_total: 1,
+      reaped_total: dryRun ? 0 : 1,
+      monthly_reclaimed_usd: dryRun ? 0 : 2.6,
+      results: [{ ...candidate, deleted: !dryRun }],
+    });
+  }
+  // Delete a single stopped instance — DELETE /api/fleet/instances/{name}?zone=… → DeleteInstanceResponse.
+  const fleetDeleteMatch = path.match(/^\/api\/fleet\/instances\/([^/]+)$/);
+  if (fleetDeleteMatch && method === "DELETE") {
+    return json({ name: decodeURIComponent(fleetDeleteMatch[1]), zone: "asia-northeast1-c", deleted: true });
+  }
   // VM operator controls — POST /api/vm/admin/{vm}/(pause|resume|cancel) → AdminActionResult (202).
   const vmAdminMatch = path.match(/^\/api\/vm\/admin\/([^/]+)\/(pause|resume|cancel)$/);
   if (vmAdminMatch && method === "POST") {

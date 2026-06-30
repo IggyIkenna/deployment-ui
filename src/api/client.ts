@@ -3872,6 +3872,73 @@ export async function getVmCensus(): Promise<VmCensusResponse> {
   return fetchJson<VmCensusResponse>("/fleet/vm-census");
 }
 
+// Orphan (stopped/TERMINATED) VM inventory + reap/delete
+// Served by deployment-api GET /api/fleet/orphans, POST /api/fleet/reap, DELETE /api/fleet/instances/{name}
+export type OrphanVerdict = "reap" | "keep_within_grace" | "keep_not_ephemeral" | "keep_retained" | "keep_no_timestamp";
+
+export interface OrphanEntry {
+  name: string;
+  zone: string;
+  status: VmRunStatus;
+  lifecycle_class: VmLifecycleClass;
+  stopped_age_hours: number | null;
+  boot_disk_gb: number | null;
+  boot_disk_type: string | null;
+  monthly_disk_usd: number; // ESTIMATE — asia-northeast1 list rate x GB
+  reapable: boolean;
+  verdict: OrphanVerdict;
+}
+
+export interface OrphanInventoryResponse {
+  generated_at: string;
+  grace_hours: number;
+  stopped_total: number;
+  reapable_total: number;
+  monthly_idle_usd: number;
+  monthly_reapable_usd: number;
+  orphans: OrphanEntry[];
+}
+
+export interface ReapResultEntry {
+  name: string;
+  zone: string;
+  monthly_disk_usd: number;
+  deleted: boolean;
+}
+
+export interface ReapResponse {
+  dry_run: boolean;
+  grace_hours: number;
+  candidate_total: number;
+  reaped_total: number;
+  monthly_reclaimed_usd: number;
+  results: ReapResultEntry[];
+}
+
+export interface DeleteInstanceResponse {
+  name: string;
+  zone: string;
+  deleted: boolean;
+}
+
+export async function getOrphans(graceHours = 24): Promise<OrphanInventoryResponse> {
+  return fetchJson<OrphanInventoryResponse>(`/fleet/orphans?grace_hours=${encodeURIComponent(graceHours)}`);
+}
+
+export async function reapOrphans(dryRun: boolean, graceHours = 24): Promise<ReapResponse> {
+  return fetchJson<ReapResponse>("/fleet/reap", {
+    method: "POST",
+    body: JSON.stringify({ dry_run: dryRun, grace_hours: graceHours }),
+  });
+}
+
+export async function deleteInstance(name: string, zone: string): Promise<DeleteInstanceResponse> {
+  return fetchJson<DeleteInstanceResponse>(
+    `/fleet/instances/${encodeURIComponent(name)}?zone=${encodeURIComponent(zone)}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function getInfraVmHealth(): Promise<InfraVmHealthResponse> {
   return fetchJson<InfraVmHealthResponse>("/fleet/infra-vm-health");
 }
