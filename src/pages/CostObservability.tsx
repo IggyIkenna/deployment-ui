@@ -115,9 +115,9 @@ function Segmented<T extends string | number>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5"
+      className="inline-flex items-stretch overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-tertiary)]"
     >
-      {options.map((o) => {
+      {options.map((o, i) => {
         const active = o.value === value;
         return (
           <button
@@ -125,10 +125,14 @@ function Segmented<T extends string | number>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(o.value)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            // Each cell is bordered off from its neighbour (border-l from the 2nd on) so the
+            // options never read as one run-together word; the active cell is filled.
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              i > 0 ? "border-l border-[var(--color-border-emphasis)] " : ""
+            }${
               active
                 ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
             }`}
           >
             {o.label}
