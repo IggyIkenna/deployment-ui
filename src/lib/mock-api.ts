@@ -2012,7 +2012,16 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const cloud = params.get("cloud") ?? "all";
     const dimension = params.get("dimension") ?? "service";
     if (path === "/api/costs/summary") return json(mockCostSummary(days));
-    if (path === "/api/costs/breakdown") return json(mockCostBreakdown(dimension, cloud, days));
+    if (path === "/api/costs/breakdown") {
+      // Test-only hook (mirrors __mockErrors/__mockRequests): a spec can make one dimension's
+      // response resolve slower than another to deterministically reproduce the out-of-order-
+      // response race the stale-during-refetch fix guards against (see
+      // tests/smoke/cost-observability.spec.ts).
+      const extraDelay = (window as typeof window & { __mockBreakdownDelayMs?: Record<string, number> })
+        .__mockBreakdownDelayMs?.[dimension];
+      if (extraDelay) await delay(extraDelay);
+      return json(mockCostBreakdown(dimension, cloud, days));
+    }
     if (path === "/api/costs/timeseries") return json(mockCostTimeseries(days, cloud));
   }
 

@@ -737,10 +737,15 @@ function BreakdownPanel({
   dimension,
   onDimension,
   data,
+  stale,
 }: {
   dimension: CostDimension;
   onDimension: (d: CostDimension) => void;
   data: CostBreakdownResponse;
+  // True while `data` is still the PRIOR fetch's response (dimension/cloud/range just changed and
+  // the new request hasn't resolved yet) — gates the body so the old rows never render under the
+  // new column header. See CostObservability() `breakdownFresh`.
+  stale: boolean;
 }) {
   const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(data.rows, "cost");
   const max = Math.max(...data.rows.map((r) => r.cost), 1);
@@ -749,6 +754,7 @@ function BreakdownPanel({
   // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
   // would otherwise show two columns of "—" for no reason.
   const hasCredits = data.rows.some((r) => r.credit < 0);
+  const colCount = 4 + (dimension === "bucket" ? 3 : 0) + (dimension === "resource" ? 2 : 0) + (hasCredits ? 2 : 0);
   return (
     <Panel>
       <PanelHeader
@@ -815,126 +821,133 @@ function BreakdownPanel({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((r) => {
-                const col = r.cloud ? CLOUDS[r.cloud].color : "var(--color-accent-cyan)";
-                return (
-                  <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
-                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-primary)]">
-                      {r.cloud && (
-                        <span
-                          className="mr-1.5 inline-block h-2 w-2 rounded-sm align-middle"
-                          style={{ background: CLOUDS[r.cloud].color }}
-                        />
-                      )}
-                      {r.label}
-                      {/* provisional is meaningful per-day (recent, unreconciled); an aggregate that
-                          merely touches the last days isn't usefully "provisional". */}
-                      {dimension === "day" && r.is_provisional && (
-                        <span className="ml-1.5 rounded border border-[var(--color-accent-amber)]/50 px-1 text-[9px] font-bold uppercase text-[var(--color-accent-amber)]">
-                          prov
-                        </span>
-                      )}
-                    </td>
-                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
-                      {r.detail}
-                    </td>
-                    {dimension === "bucket" && (
-                      <>
-                        <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
-                          data-testid="cost-bucket-storage-gb"
-                        >
-                          {r.storage_gb != null ? formatGb(r.storage_gb) : "—"}
-                        </td>
-                        <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
-                          data-testid="cost-bucket-storage-class"
-                        >
-                          {r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "—"}
-                        </td>
-                        <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
-                          data-testid="cost-bucket-cost-per-gb"
-                        >
-                          {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
-                        </td>
-                      </>
-                    )}
-                    {dimension === "resource" && (
-                      <>
-                        <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
-                          data-testid="cost-resource-machine"
-                        >
-                          {formatMachine(r)}
-                        </td>
-                        <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
-                          data-testid="cost-resource-waste"
-                        >
-                          {r.is_idle ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span
-                                className={`rounded border px-1 text-[9px] font-bold uppercase ${
-                                  r.waste_kind === "orphaned_disk"
-                                    ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
-                                    : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
-                                }`}
-                              >
-                                {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
-                              </span>
-                              <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
-                            </span>
-                          ) : (
-                            <span className="text-[var(--color-text-tertiary)]">—</span>
-                          )}
-                        </td>
-                      </>
-                    )}
-                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
-                      <div className="flex items-center justify-end gap-2">
-                        <div
-                          className="relative h-[18px] w-24 shrink-0 overflow-hidden rounded-sm bg-[var(--color-bg-tertiary)]"
-                          data-testid="cost-bar-track"
-                        >
-                          <div
-                            className="h-full rounded-sm transition-[width] duration-500"
-                            style={{ width: `${(r.cost / max) * 100}%`, background: col, minWidth: 2 }}
-                            data-testid="cost-bar-fill"
-                          />
-                        </div>
-                        <span className="w-[74px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
-                          {usd(r.cost)}
-                        </span>
-                      </div>
-                    </td>
-                    {hasCredits && (
-                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
-                        {usd(r.gross)}
-                      </td>
-                    )}
-                    {hasCredits && (
-                      <td
-                        className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]"
-                        data-testid="cost-row-credit"
-                      >
-                        {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
-                      </td>
-                    )}
-                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
-                      {r.share_pct.toFixed(1)}%
-                    </td>
-                  </tr>
-                );
-              })}
-              {sorted.length === 0 && (
+              {stale && (
                 <tr>
                   <td
-                    colSpan={
-                      4 + (dimension === "bucket" ? 3 : 0) + (dimension === "resource" ? 2 : 0) + (hasCredits ? 2 : 0)
-                    }
+                    colSpan={colCount}
                     className="py-4 text-center text-[var(--color-text-muted)]"
+                    data-testid="cost-breakdown-loading"
                   >
+                    Loading…
+                  </td>
+                </tr>
+              )}
+              {!stale &&
+                sorted.map((r) => {
+                  const col = r.cloud ? CLOUDS[r.cloud].color : "var(--color-accent-cyan)";
+                  return (
+                    <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
+                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-primary)]">
+                        {r.cloud && (
+                          <span
+                            className="mr-1.5 inline-block h-2 w-2 rounded-sm align-middle"
+                            style={{ background: CLOUDS[r.cloud].color }}
+                          />
+                        )}
+                        {r.label}
+                        {/* provisional is meaningful per-day (recent, unreconciled); an aggregate that
+                          merely touches the last days isn't usefully "provisional". */}
+                        {dimension === "day" && r.is_provisional && (
+                          <span className="ml-1.5 rounded border border-[var(--color-accent-amber)]/50 px-1 text-[9px] font-bold uppercase text-[var(--color-accent-amber)]">
+                            prov
+                          </span>
+                        )}
+                      </td>
+                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
+                        {r.detail}
+                      </td>
+                      {dimension === "bucket" && (
+                        <>
+                          <td
+                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                            data-testid="cost-bucket-storage-gb"
+                          >
+                            {r.storage_gb != null ? formatGb(r.storage_gb) : "—"}
+                          </td>
+                          <td
+                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                            data-testid="cost-bucket-storage-class"
+                          >
+                            {r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "—"}
+                          </td>
+                          <td
+                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
+                            data-testid="cost-bucket-cost-per-gb"
+                          >
+                            {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
+                          </td>
+                        </>
+                      )}
+                      {dimension === "resource" && (
+                        <>
+                          <td
+                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                            data-testid="cost-resource-machine"
+                          >
+                            {formatMachine(r)}
+                          </td>
+                          <td
+                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
+                            data-testid="cost-resource-waste"
+                          >
+                            {r.is_idle ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span
+                                  className={`rounded border px-1 text-[9px] font-bold uppercase ${
+                                    r.waste_kind === "orphaned_disk"
+                                      ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
+                                      : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
+                                  }`}
+                                >
+                                  {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
+                                </span>
+                                <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[var(--color-text-tertiary)]">—</span>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
+                        <div className="flex items-center justify-end gap-2">
+                          <div
+                            className="relative h-[18px] w-24 shrink-0 overflow-hidden rounded-sm bg-[var(--color-bg-tertiary)]"
+                            data-testid="cost-bar-track"
+                          >
+                            <div
+                              className="h-full rounded-sm transition-[width] duration-500"
+                              style={{ width: `${(r.cost / max) * 100}%`, background: col, minWidth: 2 }}
+                              data-testid="cost-bar-fill"
+                            />
+                          </div>
+                          <span className="w-[74px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
+                            {usd(r.cost)}
+                          </span>
+                        </div>
+                      </td>
+                      {hasCredits && (
+                        <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                          {usd(r.gross)}
+                        </td>
+                      )}
+                      {hasCredits && (
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]"
+                          data-testid="cost-row-credit"
+                        >
+                          {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                        </td>
+                      )}
+                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                        {r.share_pct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              {!stale && sorted.length === 0 && (
+                <tr>
+                  <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
                     No spend in this window.
                   </td>
                 </tr>
@@ -1104,12 +1117,23 @@ export function CostObservability() {
     },
     [days, cloud],
   );
+  // Guards against an in-flight, slower request (e.g. a dimension switched away from) resolving
+  // AFTER a newer one and clobbering fresher state with stale rows — only the latest-issued
+  // request's response is ever applied.
+  const breakdownReqId = useRef(0);
   const loadBreakdown = useCallback(
     async (force: boolean) => {
-      setBreakdown(await fetchCostBreakdown(dimension, cloud, days, force));
+      const reqId = ++breakdownReqId.current;
+      const result = await fetchCostBreakdown(dimension, cloud, days, force);
+      if (reqId === breakdownReqId.current) setBreakdown(result);
     },
     [dimension, cloud, days],
   );
+  // True once `breakdown` actually reflects the CURRENTLY selected dimension/cloud/range — false
+  // during the gap between changing a filter and its fetch resolving, so the table body never
+  // renders the prior fetch's rows under the new column header (see BreakdownPanel `stale`).
+  const breakdownFresh =
+    breakdown != null && breakdown.dimension === dimension && breakdown.cloud === cloud && breakdown.days === days;
 
   useEffect(() => {
     let alive = true;
@@ -1240,7 +1264,14 @@ export function CostObservability() {
                 <DonutPanel summary={summary} clouds={activeClouds} />
               </div>
             </div>
-            {breakdown && <BreakdownPanel dimension={dimension} onDimension={setDimension} data={breakdown} />}
+            {breakdown && (
+              <BreakdownPanel
+                dimension={dimension}
+                onDimension={setDimension}
+                data={breakdown}
+                stale={!breakdownFresh}
+              />
+            )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} />
               <LeafPanel title="Top storage buckets" hint="GCS + S3" rows={bucketRows} />

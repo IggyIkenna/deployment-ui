@@ -175,6 +175,56 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByTestId("cost-resource-waste")).toHaveCount(0);
   });
 
+  test("switching dimension never shows the prior fetch's rows under the new header (loading gate during refetch)", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (window as typeof window & { __mockBreakdownDelayMs?: Record<string, number> }).__mockBreakdownDelayMs = {
+        resource: 400,
+      };
+    });
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("Compute Engine"); // default "By service" rows loaded
+
+    await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
+    // While the (slowed) resource fetch is in flight, the body shows the loading gate — never the
+    // prior "service"-dimension rows re-rendered under the "resource" header.
+    await expect(page.getByTestId("cost-breakdown-loading")).toBeVisible();
+    await expect(table).not.toContainText("Compute Engine");
+
+    // Once the slow fetch resolves, the gate clears and the correct resource rows render.
+    await expect(page.getByTestId("cost-breakdown-loading")).toHaveCount(0, { timeout: 2000 });
+    await expect(table).toContainText("mtds-perp-funding-backfill");
+  });
+
+  test("a stale slower response never clobbers a fresher one after a rapid dimension switch", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as typeof window & { __mockBreakdownDelayMs?: Record<string, number> }).__mockBreakdownDelayMs = {
+        resource: 400,
+      };
+    });
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // "By resource" is slowed (400ms); "By bucket" is fast (default ~60ms) and clicked right after,
+    // so bucket's response lands first — the still-in-flight, now-stale resource response must not
+    // be allowed to land afterward and overwrite the fresher bucket state.
+    await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
+    await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
+
+    await expect(page.getByTestId("cost-bucket-storage-gb").first()).toBeVisible({ timeout: 2000 });
+    // Give the slow, now-stale "resource" response time to resolve in the background.
+    await page.waitForTimeout(500);
+    // Bucket columns/rows are still in view — the late resource response never overwrote them.
+    await expect(page.getByTestId("cost-bucket-storage-gb").first()).toBeVisible();
+    await expect(table).not.toContainText("mtds-perp-funding-backfill");
+  });
+
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
     await page.goto("/ops/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).
