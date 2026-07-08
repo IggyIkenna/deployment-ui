@@ -436,6 +436,9 @@ export interface CostBreakdownRow {
   machine_type?: string;
   vcpu?: number | null;
   memory_gb?: number | null;
+  // Resource/service-only: "spot" | "on-demand" | "other" (a group shows "spot" if any of its
+  // underlying SKU lines is spot-priced). "" / undefined on dimensions the axis doesn't apply to.
+  purchase_option?: string;
 }
 
 export interface CostBreakdownResponse {

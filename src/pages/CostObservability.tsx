@@ -754,7 +754,15 @@ function BreakdownPanel({
   // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
   // would otherwise show two columns of "—" for no reason.
   const hasCredits = data.rows.some((r) => r.credit < 0);
-  const colCount = 4 + (dimension === "bucket" ? 3 : 0) + (dimension === "resource" ? 2 : 0) + (hasCredits ? 2 : 0);
+  // Spot/on-demand only applies to compute SKUs — the backend folds it onto resource + service
+  // rows (spot wins if any underlying line is spot-priced); other dimensions never carry it.
+  const showPurchase = dimension === "resource" || dimension === "service";
+  const colCount =
+    4 +
+    (dimension === "bucket" ? 3 : 0) +
+    (dimension === "resource" ? 2 : 0) +
+    (hasCredits ? 2 : 0) +
+    (showPurchase ? 1 : 0);
   return (
     <Panel>
       <PanelHeader
@@ -780,6 +788,7 @@ function BreakdownPanel({
               <tr>
                 <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} sticky />
                 <PlainHead label="Detail" sticky />
+                {showPurchase && <PlainHead label="Purchase" sticky testId="cost-col-purchase" />}
                 {dimension === "bucket" && (
                   <>
                     <SortHead
@@ -856,6 +865,22 @@ function BreakdownPanel({
                       <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
                         {r.detail}
                       </td>
+                      {showPurchase && (
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]"
+                          data-testid="cost-row-purchase"
+                        >
+                          {r.purchase_option === "spot" ? (
+                            <span className="rounded border border-[var(--color-accent-green)]/50 px-1 text-[9px] font-bold uppercase tracking-wide text-[var(--color-accent-green)]">
+                              spot
+                            </span>
+                          ) : r.purchase_option === "on-demand" ? (
+                            <span className="text-[var(--color-text-tertiary)]">on-demand</span>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)]">—</span>
+                          )}
+                        </td>
+                      )}
                       {dimension === "bucket" && (
                         <>
                           <td

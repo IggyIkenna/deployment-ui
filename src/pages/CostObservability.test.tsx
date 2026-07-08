@@ -54,6 +54,7 @@ const serviceBreakdown: api.CostBreakdownResponse = {
       resource_kind: "other",
       share_pct: 36.2,
       is_provisional: false,
+      purchase_option: "spot",
     },
     {
       label: "GitHub Actions",
@@ -65,6 +66,7 @@ const serviceBreakdown: api.CostBreakdownResponse = {
       resource_kind: "other",
       share_pct: 1.4,
       is_provisional: false,
+      purchase_option: "other",
     },
   ],
 };
@@ -88,6 +90,19 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       machine_type: "e2-highmem-8",
       vcpu: 8,
       memory_gb: 64,
+      purchase_option: "spot",
+    },
+    {
+      label: "i-0c9b283b31d6b5ca7",
+      cloud: "aws",
+      cost: 46,
+      gross: 46,
+      credit: 0,
+      detail: "Amazon EC2",
+      resource_kind: "vm",
+      share_pct: 9,
+      is_provisional: false,
+      purchase_option: "on-demand",
     },
     {
       label: "central-element-323112-events",
@@ -99,6 +114,7 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       resource_kind: "bucket",
       share_pct: 40,
       is_provisional: false,
+      purchase_option: "other",
     },
     {
       label: "ikenna-windows-tokyo-restored",
@@ -250,6 +266,30 @@ describe("CostObservability", () => {
     expect(creditCells.some((c) => c.textContent?.includes("800.00"))).toBe(true);
     // GitHub Actions carries no credit — its credit cell is a dash, not "$0.00".
     expect(creditCells.some((c) => c.textContent === "—")).toBe(true);
+  });
+
+  it("shows a spot/on-demand chip on service rows, dash for the non-compute axis", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    expect(screen.getByTestId("cost-col-purchase")).toBeInTheDocument();
+    const purchaseCells = screen.getAllByTestId("cost-row-purchase");
+    expect(purchaseCells.some((c) => c.textContent === "spot")).toBe(true); // Compute Engine
+    expect(purchaseCells.some((c) => c.textContent === "—")).toBe(true); // GitHub Actions (other)
+  });
+
+  it("shows on-demand for a resource row and omits the purchase column on non-compute dimensions", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "By resource" }));
+    await waitFor(() => expect(screen.getByText("i-0c9b283b31d6b5ca7")).toBeInTheDocument());
+    const purchaseCells = screen.getAllByTestId("cost-row-purchase");
+    expect(purchaseCells.some((c) => c.textContent === "on-demand")).toBe(true);
+    expect(purchaseCells.some((c) => c.textContent === "spot")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "By region" }));
+    await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("cost-col-purchase")).toBeNull();
+    expect(screen.queryAllByTestId("cost-row-purchase")).toHaveLength(0);
   });
 
   it("omits the gross/credit columns entirely when nothing in view carries a credit", async () => {

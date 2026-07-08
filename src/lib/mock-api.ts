@@ -1880,27 +1880,32 @@ function mockCostTimeseries(days: number, cloud: string) {
 }
 function mockCostBreakdown(dimension: string, cloud: string, days: number) {
   const scale = days / 30;
-  type Row = [string, string | null, number, string, string];
+  // 6th element = purchase_option (spot | on-demand | other); only meaningful for compute rows
+  // on the resource/service dimensions, mirrors the backend's rank-based fold onto those groups.
+  type Row = [string, string | null, number, string, string, string?];
   const fixtures: Record<string, Row[]> = {
     service: [
-      ["Compute Engine", "gcp", 5560, "GCP", "other"],
-      ["Cloud Storage", "gcp", 4707, "GCP", "other"],
-      ["Cloud Run", "gcp", 3946, "GCP", "other"],
-      ["Amazon EC2", "aws", 93, "AWS", "other"],
-      ["GitHub Actions", "github", 212, "GitHub", "other"],
-      ["Copilot (3 seats)", "github", 57, "GitHub", "other"],
+      // Backfill fleet defaults to SPOT (codex/05-infrastructure/spot-vms-for-backfill.md) — the
+      // Compute Engine rollup shows spot since most of its underlying instance-core lines are.
+      ["Compute Engine", "gcp", 5560, "GCP", "other", "spot"],
+      ["Cloud Storage", "gcp", 4707, "GCP", "other", "other"],
+      ["Cloud Run", "gcp", 3946, "GCP", "other", "other"],
+      ["Amazon EC2", "aws", 93, "AWS", "other", "on-demand"],
+      ["GitHub Actions", "github", 212, "GitHub", "other", "other"],
+      ["Copilot (3 seats)", "github", 57, "GitHub", "other", "other"],
     ],
     resource: [
-      ["mtds-perp-funding-backfill", "gcp", 255, "Compute Engine", "vm"],
-      ["mtds-dex-swaps-backfill", "gcp", 242, "Compute Engine", "vm"],
-      ["i-0c9b283b31d6b5ca7", "aws", 46, "Amazon EC2", "vm"],
-      ["central-element-323112-events", "gcp", 2494, "Cloud Storage", "bucket"],
-      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "Cloud Storage", "bucket"],
-      ["unified-trading-instruments-defi-427895769566", "aws", 2, "Amazon S3", "bucket"],
+      ["mtds-perp-funding-backfill", "gcp", 255, "Compute Engine", "vm", "spot"],
+      ["mtds-dex-swaps-backfill", "gcp", 242, "Compute Engine", "vm", "spot"],
+      ["i-0c9b283b31d6b5ca7", "aws", 46, "Amazon EC2", "vm", "on-demand"],
+      ["central-element-323112-events", "gcp", 2494, "Cloud Storage", "bucket", "other"],
+      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "Cloud Storage", "bucket", "other"],
+      ["unified-trading-instruments-defi-427895769566", "aws", 2, "Amazon S3", "bucket", "other"],
       // Cost-waste evidence resources (mirror the live audit findings) — an idle reserved IP and
-      // an orphaned disk with no matching running VM.
-      ["harsh-static-ip", "gcp", 5.95, "Compute Engine", "other"],
-      ["ikenna-windows-tokyo-restored", "gcp", 68.62, "Compute Engine", "disk"],
+      // an orphaned disk with no matching running VM. Neither carries the compute purchase-option
+      // axis (IP/disk SKUs, not instance core/ram) — "other".
+      ["harsh-static-ip", "gcp", 5.95, "Compute Engine", "other", "other"],
+      ["ikenna-windows-tokyo-restored", "gcp", 68.62, "Compute Engine", "disk", "other"],
     ],
     bucket: [
       ["central-element-323112-events", "gcp", 2494, "GCS", "bucket"],
@@ -1942,7 +1947,7 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     "harsh-static-ip": "idle_static_ip",
     "ikenna-windows-tokyo-restored": "orphaned_disk",
   };
-  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => {
+  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind, purchase]) => {
     const net = +(cost * scale).toFixed(2);
     // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
     // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
@@ -1970,6 +1975,7 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       memory_gb: spec?.memory_gb ?? null,
       is_idle: wasteKind !== "",
       waste_kind: wasteKind,
+      purchase_option: purchase ?? "other",
     };
   });
   if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);
