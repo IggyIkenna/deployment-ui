@@ -122,6 +122,26 @@ const regionBreakdownNoCredit: api.CostBreakdownResponse = {
   ],
 };
 
+const skuBreakdown: api.CostBreakdownResponse = {
+  dimension: "sku",
+  cloud: "all",
+  days: 30,
+  total: 2870,
+  rows: [
+    {
+      label: "Regional Coldline Class A Operations",
+      cloud: "gcp",
+      cost: 2296,
+      gross: 2870,
+      credit: -574,
+      detail: "Cloud Storage",
+      resource_kind: "other",
+      share_pct: 100,
+      is_provisional: false,
+    },
+  ],
+};
+
 const timeseries: api.CostTimeseriesResponse = {
   days: 30,
   clouds: ["gcp", "aws", "github"],
@@ -138,7 +158,9 @@ beforeEach(() => {
         ? resourceBreakdown
         : dimension === "region"
           ? regionBreakdownNoCredit
-          : serviceBreakdown,
+          : dimension === "sku"
+            ? skuBreakdown
+            : serviceBreakdown,
     ),
   );
 });
@@ -200,6 +222,16 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
     expect(screen.queryByTestId("cost-col-gross")).toBeNull();
     expect(screen.queryByTestId("cost-col-credit")).toBeNull();
+  });
+
+  it("switches to the SKU dimension and refetches with dimension=sku", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "By SKU" }));
+    await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false));
+    // The SKU dimension's note + the top-driver SKU fixture row both render.
+    expect(screen.getByText("Google/AWS SKU")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Regional Coldline Class A Operations")).toBeInTheDocument());
   });
 
   it("refetches with a new window when the range changes", async () => {

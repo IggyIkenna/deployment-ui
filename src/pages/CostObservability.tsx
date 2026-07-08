@@ -38,6 +38,7 @@ const DIMENSIONS: { value: CostDimension; label: string }[] = [
   { value: "bucket", label: "By bucket" },
   { value: "region", label: "By region" },
   { value: "day", label: "By day" },
+  { value: "sku", label: "By SKU" },
 ];
 const DIM_NOTE: Record<CostDimension, string> = {
   service: "Google / AWS service · GitHub product",
@@ -45,6 +46,7 @@ const DIM_NOTE: Record<CostDimension, string> = {
   bucket: "GCS + S3 object stores",
   region: "billing location",
   day: "daily totals across selected clouds",
+  sku: "Google/AWS SKU",
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

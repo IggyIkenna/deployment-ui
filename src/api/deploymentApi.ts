@@ -386,7 +386,7 @@ export async function fetchVmHealth(vmName: string, scanHours = 24): Promise<VmH
 // Cost observability — GET /api/costs/{summary,breakdown,timeseries}
 // Comprehensive cross-cloud billing (GCP BigQuery + AWS CUR/Athena; GitHub dummy until PAT).
 export type CostCloud = "gcp" | "aws" | "github";
-export type CostDimension = "service" | "resource" | "bucket" | "region" | "day";
+export type CostDimension = "service" | "resource" | "bucket" | "region" | "day" | "sku";
 export type CloudFilter = "all" | CostCloud;
 
 export interface CloudSummary {

@@ -1909,6 +1909,15 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       ["global", "github", 292, "GitHub", "other"],
     ],
     day: mockCostDates(days).map((d, i) => [d, null, +(510 + 80 * Math.sin(i / 3)).toFixed(2), "", "other"] as Row),
+    // The audit's #1 finding — the top cost driver hidden inside a service rollup
+    // (mirrors the real "Regional Coldline Class A Operations" line item).
+    sku: [
+      ["Regional Coldline Class A Operations", "gcp", 2870, "Cloud Storage", "other"],
+      ["N2 Instance Core running in Americas", "gcp", 1840, "Compute Engine", "vm"],
+      ["Cloud Run CPU Allocation Time", "gcp", 1230, "Cloud Run", "other"],
+      ["EC2 Compute - Compute Instance", "aws", 62, "Amazon EC2", "vm"],
+      ["GitHub Actions Linux minutes", "github", 180, "GitHub Actions", "other"],
+    ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
   // it's a window-average, not a sum). cost_per_gb is derived after cost is scaled below.
