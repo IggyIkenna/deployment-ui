@@ -17,7 +17,11 @@ const TabsList = React.forwardRef<React.ComponentRef<typeof TabsPrimitive.List>,
       ref={ref}
       className={cn(
         "inline-flex items-center justify-center",
-        variant === "pill" && "rounded-lg bg-[var(--color-bg-elevated)] p-1 text-[var(--color-text-muted)]",
+        // Pill = a segmented control: a bordered frame with a divider between every cell so the
+        // triggers read as distinct buttons (not one run-together strip). `[&>*]:rounded-none`
+        // squares the shared TabsTrigger inside the frame; the active cell fills edge-to-edge.
+        variant === "pill" &&
+          "overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] [&>*]:rounded-none [&>*:not(:first-child)]:border-l [&>*:not(:first-child)]:border-[var(--color-border-emphasis)]",
         variant === "underline" && "border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]",
         className,
       )}
