@@ -1819,6 +1819,175 @@ function mockRepoCiAlerts() {
   };
 }
 
+// --- Cost observability mocks (mirror deployment-api routes/costs.py shapes) ---
+const MOCK_COST_CLOUDS: Record<string, { base: number; wobble: number; placeholder: boolean; delta: number }> = {
+  gcp: { base: 480, wobble: 70, placeholder: false, delta: 12.4 },
+  aws: { base: 22, wobble: 9, placeholder: false, delta: -5.2 },
+  github: { base: 8.8, wobble: 0.6, placeholder: true, delta: 0.1 },
+};
+function mockCostDates(days: number): string[] {
+  return Array.from({ length: days }, (_, i) =>
+    new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0, 10),
+  );
+}
+function mockCostDaily(cloud: string, days: number): number[] {
+  const c = MOCK_COST_CLOUDS[cloud];
+  return Array.from({ length: days }, (_, i) => Math.max(0, +(c.base + c.wobble * Math.sin(i / 3)).toFixed(4)));
+}
+function mockCostSummary(days: number) {
+  const clouds = ["gcp", "aws", "github"].map((cloud) => {
+    const daily = mockCostDaily(cloud, days);
+    const net = +daily.reduce((a, b) => a + b, 0).toFixed(2);
+    // GCP carries ~20% promotional credit (mirrors the real billing export); AWS/GitHub have none.
+    const credit = cloud === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
+    const gross = +(net - credit).toFixed(2); // net = gross + credit (credit ≤ 0)
+    return {
+      cloud,
+      total: net,
+      gross,
+      credit,
+      delta_pct: MOCK_COST_CLOUDS[cloud].delta,
+      daily,
+      is_placeholder: MOCK_COST_CLOUDS[cloud].placeholder,
+    };
+  });
+  const total = +clouds.reduce((a, c) => a + c.total, 0).toFixed(2);
+  const gross = +clouds.reduce((a, c) => a + c.gross, 0).toFixed(2);
+  const credit = +clouds.reduce((a, c) => a + c.credit, 0).toFixed(2);
+  return {
+    days,
+    total,
+    gross,
+    credit,
+    run_rate_daily: +(total / days).toFixed(2),
+    delta_pct: 8.1,
+    dates: mockCostDates(days),
+    clouds,
+    provisional_days: 2,
+    generated_at: new Date().toISOString(),
+  };
+}
+function mockCostTimeseries(days: number, cloud: string) {
+  const clouds = cloud === "all" ? ["gcp", "aws", "github"] : [cloud];
+  const daily: Record<string, number[]> = {};
+  clouds.forEach((c) => (daily[c] = mockCostDaily(c, days)));
+  const dates = mockCostDates(days);
+  return {
+    days,
+    clouds,
+    points: dates.map((date, i) => ({ date, values: Object.fromEntries(clouds.map((c) => [c, daily[c][i]])) })),
+  };
+}
+function mockCostBreakdown(dimension: string, cloud: string, days: number) {
+  const scale = days / 30;
+  // 6th element = purchase_option (spot | on-demand | other); only meaningful for compute rows
+  // on the resource/service dimensions, mirrors the backend's rank-based fold onto those groups.
+  type Row = [string, string | null, number, string, string, string?];
+  const fixtures: Record<string, Row[]> = {
+    service: [
+      // Backfill fleet defaults to SPOT (codex/05-infrastructure/spot-vms-for-backfill.md) — the
+      // Compute Engine rollup shows spot since most of its underlying instance-core lines are.
+      ["Compute Engine", "gcp", 5560, "GCP", "other", "spot"],
+      ["Cloud Storage", "gcp", 4707, "GCP", "other", "other"],
+      ["Cloud Run", "gcp", 3946, "GCP", "other", "other"],
+      ["Amazon EC2", "aws", 93, "AWS", "other", "on-demand"],
+      ["GitHub Actions", "github", 212, "GitHub", "other", "other"],
+      ["Copilot (3 seats)", "github", 57, "GitHub", "other", "other"],
+    ],
+    resource: [
+      ["mtds-perp-funding-backfill", "gcp", 255, "Compute Engine", "vm", "spot"],
+      ["mtds-dex-swaps-backfill", "gcp", 242, "Compute Engine", "vm", "spot"],
+      ["i-0c9b283b31d6b5ca7", "aws", 46, "Amazon EC2", "vm", "on-demand"],
+      ["central-element-323112-events", "gcp", 2494, "Cloud Storage", "bucket", "other"],
+      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "Cloud Storage", "bucket", "other"],
+      ["unified-trading-instruments-defi-427895769566", "aws", 2, "Amazon S3", "bucket", "other"],
+      // Cost-waste evidence resources (mirror the live audit findings) — an idle reserved IP and
+      // an orphaned disk with no matching running VM. Neither carries the compute purchase-option
+      // axis (IP/disk SKUs, not instance core/ram) — "other".
+      ["harsh-static-ip", "gcp", 5.95, "Compute Engine", "other", "other"],
+      ["ikenna-windows-tokyo-restored", "gcp", 68.62, "Compute Engine", "disk", "other"],
+    ],
+    bucket: [
+      ["central-element-323112-events", "gcp", 2494, "GCS", "bucket"],
+      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "GCS", "bucket"],
+      ["unified-trading-instruments-defi-427895769566", "aws", 2, "S3", "bucket"],
+    ],
+    region: [
+      ["asia-northeast1", "gcp", 14200, "GCP", "other"],
+      ["ap-northeast-1", "aws", 190, "AWS", "other"],
+      ["global", "github", 292, "GitHub", "other"],
+    ],
+    day: mockCostDates(days).map((d, i) => [d, null, +(510 + 80 * Math.sin(i / 3)).toFixed(2), "", "other"] as Row),
+    // The audit's #1 finding — the top cost driver hidden inside a service rollup
+    // (mirrors the real "Regional Coldline Class A Operations" line item).
+    sku: [
+      ["Regional Coldline Class A Operations", "gcp", 2870, "Cloud Storage", "other"],
+      ["N2 Instance Core running in Americas", "gcp", 1840, "Compute Engine", "vm"],
+      ["Cloud Run CPU Allocation Time", "gcp", 1230, "Cloud Run", "other"],
+      ["EC2 Compute - Compute Instance", "aws", 62, "Amazon EC2", "vm"],
+      ["GitHub Actions Linux minutes", "github", 180, "GitHub Actions", "other"],
+    ],
+  };
+  // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
+  // it's a window-average, not a sum). cost_per_gb is derived after cost is scaled below.
+  const BUCKET_STORAGE: Record<string, Record<string, number>> = {
+    "central-element-323112-events": { Standard: 12000, Nearline: 4000, Coldline: 2000, Archive: 500 },
+    "market-data-tick-cefi-central-element-323112": { Standard: 6200 },
+    "unified-trading-instruments-defi-427895769566": { Standard: 40 },
+  };
+  // Resource-only: VM machine specs (from GCP system_labels, no Compute API) — AWS carries no
+  // machine-spec equivalent, so i-0c9b283b31d6b5ca7 is deliberately absent here.
+  const VM_MACHINE_SPECS: Record<string, { machine_type: string; vcpu: number; memory_gb: number }> = {
+    "mtds-perp-funding-backfill": { machine_type: "e2-highmem-8", vcpu: 8, memory_gb: 64 },
+    "mtds-dex-swaps-backfill": { machine_type: "e2-standard-4", vcpu: 4, memory_gb: 16 },
+  };
+  // Resource-only: cost-waste flags — a row IS the idle/orphaned resource (its own cost is the
+  // waste amount), never a cross-referenced sub-amount on another row.
+  const RESOURCE_WASTE: Record<string, "idle_static_ip" | "orphaned_disk"> = {
+    "harsh-static-ip": "idle_static_ip",
+    "ikenna-windows-tokyo-restored": "orphaned_disk",
+  };
+  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind, purchase]) => {
+    const net = +(cost * scale).toFixed(2);
+    // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
+    // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
+    const credit = c === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
+    const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
+    // Keyed by resource_kind, not the query dimension — the real backend's `_by_resource` attaches
+    // storage detail to bucket rows whether the caller asked for dimension=bucket or dimension=resource
+    // (the leaf "Top storage buckets" table sources from the latter).
+    const storageClassGb = kind === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
+    const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
+    const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
+    const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";
+    return {
+      label,
+      cloud: c,
+      cost: net,
+      gross,
+      credit,
+      detail,
+      resource_kind: kind,
+      share_pct: 0,
+      is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
+      storage_gb: storageGb,
+      storage_class_gb: storageClassGb,
+      cost_per_gb: storageGb ? +(net / storageGb).toFixed(4) : null,
+      machine_type: spec?.machine_type ?? "",
+      vcpu: spec?.vcpu ?? null,
+      memory_gb: spec?.memory_gb ?? null,
+      is_idle: wasteKind !== "",
+      waste_kind: wasteKind,
+      purchase_option: purchase ?? "other",
+    };
+  });
+  if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);
+  const total = +rows.reduce((a, r) => a + r.cost, 0).toFixed(2);
+  rows.forEach((r) => (r.share_pct = total ? +((r.cost / total) * 100).toFixed(1) : 0));
+  rows.sort((a, b) => b.cost - a.cost);
+  return { dimension, cloud, days, total, rows };
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -1843,6 +2012,26 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         return json({ error: "Mock forced error", path }, entry.status);
       }
     }
+  }
+
+  // Cost observability (mirrors deployment-api routes/costs.py) — /ops/costs page
+  if (path.startsWith("/api/costs/")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const days = Number(params.get("days") ?? 30);
+    const cloud = params.get("cloud") ?? "all";
+    const dimension = params.get("dimension") ?? "service";
+    if (path === "/api/costs/summary") return json(mockCostSummary(days));
+    if (path === "/api/costs/breakdown") {
+      // Test-only hook (mirrors __mockErrors/__mockRequests): a spec can make one dimension's
+      // response resolve slower than another to deterministically reproduce the out-of-order-
+      // response race the stale-during-refetch fix guards against (see
+      // tests/smoke/cost-observability.spec.ts).
+      const extraDelay = (window as typeof window & { __mockBreakdownDelayMs?: Record<string, number> })
+        .__mockBreakdownDelayMs?.[dimension];
+      if (extraDelay) await delay(extraDelay);
+      return json(mockCostBreakdown(dimension, cloud, days));
+    }
+    if (path === "/api/costs/timeseries") return json(mockCostTimeseries(days, cloud));
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
@@ -1949,7 +2138,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           label: "Daily Cost",
           status: "ok",
           value: "$12.40 today (3 VMs)",
-          detail_href: "/api/costs/daily",
+          detail_href: "/api/costs/summary",
         },
       ],
     });

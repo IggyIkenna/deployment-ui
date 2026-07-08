@@ -1,32 +1,37 @@
 /**
  * Smoke: Deployments observability page renders against the mock API.
  *
- * Regression guard for the /deployments surface (Phase 2 of
- * deployment_observability_parity_live_batch_paper_2026_06_22.md): the umbrella
- * tabs (Live / Batch / Paper) render, a target row appears, the failed/137 row
- * shows the failed badge + exit code, a status filter deep-link narrows the list,
- * and the per-target drill-down renders. The mock API (VITE_MOCK_API=true via the
- * playwright webServer) serves /api/deployments/inventory + the umbrella summary.
+ * Regression guard for the /deployments surface — MERGED into one flat all-modes table
+ * (operator 2026-07-08; live/batch/paper are a Mode FILTER, not tabs). Guards: the unified
+ * table renders every mode with a Mode badge, the failed/137 row shows the failed badge +
+ * exit code, a mode+status filter deep-link narrows the list, and the per-target drill-down
+ * renders. The mock API (VITE_MOCK_API=true via the playwright webServer) serves
+ * /api/deployments/inventory + the umbrella summaries.
  */
 import { expect, test } from "@playwright/test";
 
-test.describe("Deployments observability page", () => {
-  test("the /deployments page renders the umbrella tabs + a target row", async ({ page }) => {
+test.describe("Deployments observability page (unified all-modes)", () => {
+  test("the /deployments page renders one flat table with every mode + a Mode filter", async ({ page }) => {
     await page.goto("/deployments");
     await expect(page).toHaveURL(/\/deployments$/);
     await expect(page.getByTestId("deployments-page")).toBeVisible();
-    await expect(page.getByTestId("umbrella-tab-LIVE")).toBeVisible();
-    await expect(page.getByTestId("umbrella-tab-BATCH")).toBeVisible();
-    await expect(page.getByTestId("umbrella-tab-PAPER")).toBeVisible();
-    // A live target row appears in the default (Live) tab.
+    // Mode is a FILTER now, not per-mode tabs.
+    await expect(page.getByTestId("umbrella-tab-LIVE")).toHaveCount(0);
+    await expect(page.getByTestId("filter-mode")).toBeVisible();
     await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    // Rows from MULTIPLE modes appear together (live + batch + paper) with Mode badges.
     await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-sports-backfill-20260621")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-defi-paper-trading-1")).toBeVisible();
+    await expect(page.getByTestId("mode-badge-LIVE").first()).toBeVisible();
+    await expect(page.getByTestId("mode-badge-BATCH").first()).toBeVisible();
+    await expect(page.getByTestId("mode-badge-PAPER").first()).toBeVisible();
     // Both GCP and AWS cloud badges render.
     await expect(page.getByTestId("cloud-badge-GCP").first()).toBeVisible();
     await expect(page.getByTestId("cloud-badge-AWS").first()).toBeVisible();
   });
 
-  test("Batch tab surfaces the failed/137 (OOM) row with a failed badge + exit code", async ({ page }) => {
+  test("the mode filter (umbrella deep-link) surfaces the failed/137 (OOM) batch row", async ({ page }) => {
     await page.goto("/deployments?umbrella=batch");
     const row = page.getByTestId("deployment-row-sports-backfill-20260621");
     await expect(row).toBeVisible();

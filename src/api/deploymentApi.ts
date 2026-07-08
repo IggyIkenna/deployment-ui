@@ -383,42 +383,107 @@ export async function fetchVmHealth(vmName: string, scanHours = 24): Promise<VmH
   return handleResponse<VmHealthResult>(response);
 }
 
-// Daily cost aggregation — GET /api/costs/daily
-export interface VmCostRow {
-  vm_name: string;
-  asset_group: string;
-  archetype: string;
-  machine_type: string;
-  runtime_hours: number;
-  compute_usd: number;
-  disk_usd: number;
-  total_usd: number;
+// Cost observability — GET /api/costs/{summary,breakdown,timeseries}
+// Comprehensive cross-cloud billing (GCP BigQuery + AWS CUR/Athena; GitHub dummy until PAT).
+export type CostCloud = "gcp" | "aws" | "github";
+export type CostDimension = "service" | "resource" | "bucket" | "region" | "day" | "sku";
+export type CloudFilter = "all" | CostCloud;
+
+export interface CloudSummary {
+  cloud: CostCloud;
+  total: number; // NET — what you actually pay (= gross + credit)
+  gross: number; // usage cost before credits
+  credit: number; // credits applied (<= 0)
+  delta_pct: number | null;
+  daily: number[];
+  is_placeholder: boolean;
 }
 
-export interface AssetGroupCostRow {
-  asset_group: string;
-  total_usd: number;
-  vm_count: number;
+export interface CostSummaryResponse {
+  days: number;
+  total: number; // NET grand total — what you actually pay
+  gross: number; // usage cost before credits
+  credit: number; // credits applied (<= 0)
+  run_rate_daily: number;
+  delta_pct: number | null;
+  dates: string[];
+  clouds: CloudSummary[];
+  provisional_days: number;
+  generated_at: string;
 }
 
-export interface ArchetypeCostRow {
-  archetype: string;
-  total_usd: number;
-  vm_count: number;
+export interface CostBreakdownRow {
+  label: string;
+  cloud: CostCloud | null;
+  cost: number; // NET — primary (matches the summary net total)
+  gross: number; // usage cost before credits (Σcost for this group)
+  credit: number; // credits applied to this group (<= 0); cost == gross + credit
+  detail: string;
+  resource_kind: string;
+  share_pct: number;
+  is_provisional: boolean;
+  // Bucket-only (dimension=bucket rows): avg GB stored over the window, storage-class split, net
+  // cost / storage_gb. null when the row isn't a bucket or carries no storage-volume usage.
+  storage_gb?: number | null;
+  storage_class_gb?: Record<string, number> | null;
+  cost_per_gb?: number | null;
+  // Resource-only (dimension=resource rows): cost-waste flags — a row IS an idle static/elastic IP
+  // or an orphaned disk when is_idle is true (its own `cost` is the waste amount); "" when not
+  // flagged (never a false-positive orphan when the running-VM cross-ref is unavailable).
+  is_idle?: boolean;
+  waste_kind?: "" | "idle_static_ip" | "orphaned_disk" | "idle_elastic_ip";
+  // VM rows only, parsed from GCP billing system_labels (no Compute API). "" / null when unset.
+  machine_type?: string;
+  vcpu?: number | null;
+  memory_gb?: number | null;
+  // Resource/service-only: "spot" | "on-demand" | "other" (a group shows "spot" if any of its
+  // underlying SKU lines is spot-priced). "" / undefined on dimensions the axis doesn't apply to.
+  purchase_option?: string;
 }
 
-export interface DailyCostResponse {
+export interface CostBreakdownResponse {
+  dimension: CostDimension;
+  cloud: CloudFilter;
+  days: number;
+  total: number;
+  rows: CostBreakdownRow[];
+}
+
+export interface CostTimeseriesPoint {
   date: string;
-  total_usd: number;
-  by_asset_group: AssetGroupCostRow[];
-  by_archetype: ArchetypeCostRow[];
-  by_vm: VmCostRow[];
+  values: Partial<Record<CostCloud, number>>;
 }
 
-export async function fetchDailyCosts(date?: string): Promise<DailyCostResponse> {
-  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/costs/daily${qs}`);
-  return handleResponse<DailyCostResponse>(response);
+export interface CostTimeseriesResponse {
+  days: number;
+  clouds: CostCloud[];
+  points: CostTimeseriesPoint[];
+}
+
+export async function fetchCostSummary(days = 30, refresh = false): Promise<CostSummaryResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/summary?days=${days}&refresh=${refresh}`);
+  return handleResponse<CostSummaryResponse>(response);
+}
+
+export async function fetchCostBreakdown(
+  dimension: CostDimension,
+  cloud: CloudFilter = "all",
+  days = 30,
+  refresh = false,
+): Promise<CostBreakdownResponse> {
+  const qs = `?dimension=${dimension}&cloud=${cloud}&days=${days}&refresh=${refresh}`;
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/breakdown${qs}`);
+  return handleResponse<CostBreakdownResponse>(response);
+}
+
+export async function fetchCostTimeseries(
+  days = 30,
+  cloud: CloudFilter = "all",
+  refresh = false,
+): Promise<CostTimeseriesResponse> {
+  const qs = `?days=${days}&cloud=${cloud}&refresh=${refresh}`;
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/timeseries${qs}`);
+  return handleResponse<CostTimeseriesResponse>(response);
 }
 
 // Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=

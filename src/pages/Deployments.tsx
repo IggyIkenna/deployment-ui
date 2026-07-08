@@ -1,16 +1,21 @@
 /**
- * Deployments — the /repos-grade observability surface for LIVE / BATCH / PAPER
- * deployments. Every compute unit (a VM or a Cloud Run job) is tracked under one
- * umbrella × cloud, mirroring the CI /repos matrix grade: umbrella tabs, a status
- * matrix (status badge, kind icon, GCP/AWS cloud badge, last-run, exit_code with
- * 137/non-zero highlight, captured progress), a per-umbrella summary header, and
- * URL-param-backed filters so an alert can deep-link
- * (`/deployments?umbrella=batch&cloud=gcp&status=failed`).
+ * Deployments — the /repos-grade observability surface for every LIVE / BATCH / PAPER
+ * deployment, MERGED into ONE flat all-modes table (operator 2026-07-08 — was three
+ * separate mode presets; consolidated into a single table with a Mode column so every
+ * VM + Cloud Run job reads on one grid). One inventory source, one column shape:
  *
- * Reuses the api-client + status-badge + table grade of RepoCi.tsx; per-target
- * drill-down (event timeline + live log tail) lives in DeploymentDetail.tsx.
+ *   Mode · Target · Cloud · Service · Asset group · Status · Last run · Progress ·
+ *   Exit · Feed health · Controls
  *
- * Plan: deployment_observability_parity_live_batch_paper_2026_06_22.md Phase 2.
+ * A cell is "—" where a mode doesn't populate that field (batch has no feed-health,
+ * live/paper have no captured-progress count). Mode is a FILTER (All / Live / Batch / Paper), not a
+ * tab. Retired columns: the phantom "Uptime" (was last-run mislabelled), the duplicate
+ * Heartbeat column (heartbeat now rides the Status chip), the Progress/Coverage dupe
+ * (one number), and paper's never-wired Recon-drift / Determinism-ε placeholders.
+ *
+ * Per-target drill-down (event timeline + live log tail) lives in DeploymentDetail.tsx.
+ *
+ * Plan: deployment_observability_parity_live_batch_paper_2026_06_22.md Phase 2 → merge.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -23,20 +28,21 @@ import {
   type DeploymentItem,
   type DeploymentStatus,
   type DeploymentUmbrella,
+  type UmbrellaLastFailure,
   type UmbrellaSummaryResponse,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { VmControls } from "../components/VmControls";
 
-// The umbrella tabs the operator sees — Experiment folds under Batch by default
-// (the plan's umbrella-model table). A target classified EXPERIMENT therefore shows
-// under the Batch tab so the surface stays a 3-tab Live/Batch/Paper view.
-type UmbrellaTab = "LIVE" | "BATCH" | "PAPER";
-const UMBRELLA_TABS: { id: UmbrellaTab; label: string }[] = [
-  { id: "LIVE", label: "Live" },
-  { id: "BATCH", label: "Batch" },
-  { id: "PAPER", label: "Paper" },
+// The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
+// EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
+type ModeFilter = "" | "LIVE" | "BATCH" | "PAPER";
+const MODE_OPTIONS: { value: ModeFilter; label: string }[] = [
+  { value: "", label: "all" },
+  { value: "LIVE", label: "Live" },
+  { value: "BATCH", label: "Batch" },
+  { value: "PAPER", label: "Paper" },
 ];
 
 type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
@@ -57,6 +63,17 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
     >
       {children}
     </span>
+  );
+}
+
+/** Mode badge — LIVE (green) / BATCH (blue) / PAPER (amber). EXPERIMENT rides the BATCH badge. */
+const MODE_TONE: Record<string, ChipTone> = { LIVE: "green", BATCH: "blue", PAPER: "yellow", EXPERIMENT: "blue" };
+function ModeBadge({ umbrella }: { umbrella: DeploymentUmbrella }) {
+  const label = umbrella === "EXPERIMENT" ? "batch·exp" : umbrella.toLowerCase();
+  return (
+    <Chip tone={MODE_TONE[umbrella] ?? "gray"} testId={`mode-badge-${umbrella}`}>
+      {label}
+    </Chip>
   );
 }
 
@@ -134,8 +151,8 @@ function heartbeatLabel(seconds: number | null): string | null {
   return `${Math.round(min / 60)}h`;
 }
 
-/** Per-umbrella summary header — the /repos-overview equivalent: counts by status + last failure. */
-function UmbrellaSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse | null }) {
+/** Summary header — counts by status + last failure, aggregated across every mode in view. */
+function DeploymentsSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse | null }) {
   if (!summary) {
     return (
       <p className="text-sm text-[var(--color-text-muted)]" data-testid="umbrella-summary-empty">
@@ -180,9 +197,8 @@ function UmbrellaSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse |
   );
 }
 
-/** Feed-health read for LIVE: a recent heartbeat reads green, stale amber, absent gray.
- * This is the HEARTBEAT proxy — used only as a fallback when manifest-derived freshness
- * (the `/freshness` endpoint, preferred below) hasn't loaded for the row. */
+/** Feed-health read (heartbeat proxy) — a recent heartbeat reads green, stale amber, absent gray.
+ * Used only as a fallback when manifest-derived freshness (the `/freshness` endpoint) hasn't loaded. */
 function feedHealthLabel(seconds: number | null): { label: string; tone: ChipTone } {
   if (seconds == null) return { label: "—", tone: "gray" };
   if (seconds < 90) return { label: "live", tone: "green" };
@@ -192,10 +208,9 @@ function feedHealthLabel(seconds: number | null): { label: string; tone: ChipTon
 
 /**
  * Feed-health from the per-deployment MANIFEST-DERIVED freshness (GET /api/deployments/
- * {id}/freshness). This is the real per-shard freshness against the availability index of
- * the asset_group the deployment owns — NOT the in-memory health-ping. A `liveness_only`
- * deployment (gateway / control-plane, no data-freshness obligation) renders HONESTLY as
- * such, never a false "fresh". `unknown` falls through to the heartbeat proxy.
+ * {id}/freshness). The real per-shard freshness against the availability index of the
+ * asset_group the deployment owns — NOT the in-memory health-ping. A `liveness_only`
+ * deployment (gateway / control-plane) renders HONESTLY as such, never a false "fresh".
  */
 function freshnessFeedLabel(
   fresh: DeploymentFreshnessResponse,
@@ -212,23 +227,29 @@ function freshnessFeedLabel(
   }
 }
 
-// The LIVE-preset feed-health cell prefers manifest-derived freshness, looked up by row
-// name from this map (populated by DeploymentsContent after the inventory loads). Standalone
-// (no provider) → the heartbeat proxy is used (map is empty), unchanged.
+// LIVE-row feed-health prefers manifest-derived freshness, looked up by row name from this
+// map (populated by DeploymentsContent after the inventory loads). Non-live rows show "—".
 const FreshnessContext = createContext<Record<string, DeploymentFreshnessResponse>>({});
-
-/** The column header set for each dynamics preset. */
-const PRESET_HEADERS: Record<DynamicsPreset, string[]> = {
-  live: ["Target", "Cloud", "Service", "Status", "Uptime", "Heartbeat", "Feed health", "Controls"],
-  batch: ["Target", "Cloud", "Asset group", "Status", "Progress", "Coverage %", "Exit"],
-  paper: ["Strategy", "Cloud", "Service", "Status", "Recon drift", "Determinism ε", "Last run"],
-  default: ["Target", "Cloud", "Service", "Asset group", "Status", "Last run", "Exit", "Progress"],
-};
 
 // When the cockpit embeds the inventory it provides an `onDrill` so a row opens the
 // per-target detail IN the cockpit (a slide-over) instead of navigating to /deployments/:name.
-// Standalone (no provider) → the row is a Link to the detail page (unchanged).
+// Standalone (no provider) → the row is a Link to the detail page.
 const DrillContext = createContext<((name: string) => void) | undefined>(undefined);
+
+/** The single unified column set — one shape for every mode (sparse "—" where N/A). */
+const UNIFIED_COLUMNS: { label: string; align?: "right" }[] = [
+  { label: "Mode" },
+  { label: "Target" },
+  { label: "Cloud" },
+  { label: "Service" },
+  { label: "Asset group" },
+  { label: "Status" },
+  { label: "Last run" },
+  { label: "Progress", align: "right" },
+  { label: "Exit" },
+  { label: "Feed health" },
+  { label: "Controls" },
+];
 
 function TargetCell({ item }: { item: DeploymentItem }) {
   const onDrill = useContext(DrillContext);
@@ -262,6 +283,7 @@ function TargetCell({ item }: { item: DeploymentItem }) {
 }
 
 function StatusCell({ item }: { item: DeploymentItem }) {
+  // Heartbeat rides the status chip (its own column was a duplicate — retired in the merge).
   const hb = heartbeatLabel(item.heartbeat_age_seconds);
   return (
     <td className="py-1.5">
@@ -273,86 +295,24 @@ function StatusCell({ item }: { item: DeploymentItem }) {
   );
 }
 
-function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: DynamicsPreset }) {
+/** One unified row — every column, "—" where the mode doesn't populate a field. */
+function DeploymentRow({ item }: { item: DeploymentItem }) {
   const freshnessByName = useContext(FreshnessContext);
   const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
-  if (preset === "live") {
-    // Prefer the per-deployment MANIFEST-derived freshness; fall back to the heartbeat proxy.
-    const fresh = freshnessByName[item.name];
-    const derived = fresh ? freshnessFeedLabel(fresh) : null;
-    const feed = derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" };
-    return (
-      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
-        <TargetCell item={item} />
-        <td className="py-1.5">
-          <CloudBadge cloud={item.cloud} />
-        </td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
-        <StatusCell item={item} />
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
-          {lastRunLabel(item.last_run_at)}
-        </td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
-          {heartbeatLabel(item.heartbeat_age_seconds) ?? "—"}
-        </td>
-        <td className="py-1.5" title={feed.title}>
-          <Chip tone={feed.tone} testId={`feed-health-${item.name}`}>
-            {feed.label}
-          </Chip>
-        </td>
-        <td className="py-1.5">
-          {item.kind === "VM" ? (
-            <VmControls vmName={item.name} status={item.status} />
-          ) : (
-            <span className="text-[10px] text-[var(--color-text-muted)]">—</span>
-          )}
-        </td>
-      </tr>
-    );
-  }
-  if (preset === "batch") {
-    const coverage = item.captured_progress != null ? `${item.captured_progress}%` : "—";
-    return (
-      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
-        <TargetCell item={item} />
-        <td className="py-1.5">
-          <CloudBadge cloud={item.cloud} />
-        </td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
-        <StatusCell item={item} />
-        <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
-          {item.captured_progress != null ? `${item.captured_progress}` : "—"}
-        </td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{coverage}</td>
-        <td className="py-1.5">
-          <ExitCodeCell exitCode={item.exit_code} />
-        </td>
-      </tr>
-    );
-  }
-  if (preset === "paper") {
-    // Paper recon-drift / determinism-ε are reconciliation outputs not yet on the inventory
-    // item (Phase 2 of the citadel recon plan emits them); surface "—" until wired, so the
-    // column shape is correct without faking a value.
-    return (
-      <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
-        <TargetCell item={item} />
-        <td className="py-1.5">
-          <CloudBadge cloud={item.cloud} />
-        </td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
-        <StatusCell item={item} />
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-muted)]">—</td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-muted)]">—</td>
-        <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">
-          {lastRunLabel(item.last_run_at)}
-        </td>
-      </tr>
-    );
-  }
-  // default — the full matrix shape (standalone /deployments page).
+
+  // Feed-health is a LIVE-mode signal: prefer manifest freshness, fall back to the heartbeat proxy.
+  const isLive = item.umbrella === "LIVE";
+  const fresh = freshnessByName[item.name];
+  const derived = fresh ? freshnessFeedLabel(fresh) : null;
+  const feed = isLive
+    ? (derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" })
+    : null;
+
   return (
     <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+      <td className="py-1.5">
+        <ModeBadge umbrella={item.umbrella} />
+      </td>
       <TargetCell item={item} />
       <td className="py-1.5">
         <CloudBadge cloud={item.cloud} />
@@ -361,17 +321,37 @@ function DeploymentRow({ item, preset }: { item: DeploymentItem; preset: Dynamic
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
       <StatusCell item={item} />
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{lastRunLabel(item.last_run_at)}</td>
+      <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
+        {item.captured_progress != null ? (
+          item.captured_progress.toLocaleString()
+        ) : (
+          <span className="text-[var(--color-text-muted)]">—</span>
+        )}
+      </td>
       <td className="py-1.5">
         <ExitCodeCell exitCode={item.exit_code} />
       </td>
-      <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
-        {item.captured_progress != null ? `${item.captured_progress}` : "—"}
+      <td className="py-1.5" title={feed?.title}>
+        {feed ? (
+          <Chip tone={feed.tone} testId={`feed-health-${item.name}`}>
+            {feed.label}
+          </Chip>
+        ) : (
+          <span className="text-[var(--color-text-muted)]">—</span>
+        )}
+      </td>
+      <td className="py-1.5">
+        {item.kind === "VM" ? (
+          <VmControls vmName={item.name} status={item.status} />
+        ) : (
+          <span className="text-[10px] text-[var(--color-text-muted)]">—</span>
+        )}
       </td>
     </tr>
   );
 }
 
-function DeploymentMatrix({ items, preset }: { items: DeploymentItem[]; preset: DynamicsPreset }) {
+function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
   if (items.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-muted)] py-3" data-testid="deployment-matrix-empty">
@@ -379,25 +359,21 @@ function DeploymentMatrix({ items, preset }: { items: DeploymentItem[]; preset: 
       </p>
     );
   }
-  const headers = PRESET_HEADERS[preset];
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid="deployment-matrix">
         <thead>
           <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)] text-left">
-            {headers.map((h, i) => (
-              <th
-                key={h}
-                className={`py-1.5 font-medium${i === headers.length - 1 && preset === "default" ? " text-right" : ""}`}
-              >
-                {h}
+            {UNIFIED_COLUMNS.map((c) => (
+              <th key={c.label} className={`py-1.5 font-medium${c.align === "right" ? " text-right" : ""}`}>
+                {c.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
-            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} preset={preset} />
+            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} />
           ))}
         </tbody>
       </table>
@@ -405,7 +381,7 @@ function DeploymentMatrix({ items, preset }: { items: DeploymentItem[]; preset: 
   );
 }
 
-/** Segmented filter control (cloud / status) — URL-param-backed so an alert can deep-link. */
+/** Segmented filter control (mode / cloud / status / asset_group) — URL-param-backed so an alert can deep-link. */
 function FilterSelect({
   testId,
   label,
@@ -439,13 +415,10 @@ function FilterSelect({
 }
 
 /**
- * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles per
- * umbrella, with the LIVE count beside each so the operator sees the spread at a glance. They
- * drive the SAME `status` filter the dropdown does (URL-param-backed standalone / local-state
- * embedded), so a chip click and the dropdown stay consistent. "Stuck" maps to `stale` — a
- * deployment that stopped advancing (the inventory's stuck-equivalent). Counts come from the
- * per-umbrella summary's `counts_by_status` (the authoritative server tally), not the current
- * page filter — so the chips show the full spread even while a filter is applied.
+ * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with
+ * the count beside each so the operator sees the spread at a glance. They drive the SAME
+ * `status` filter the dropdown does. "Stuck" maps to `stale`. Counts come from the
+ * summary's `counts_by_status` (the authoritative tally aggregated across every mode in view).
  */
 const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
   { value: "", label: "All", tone: "gray", countKey: null },
@@ -494,47 +467,56 @@ function StatusFilterChips({
   );
 }
 
-/** Per-umbrella column preset — the operator wants live/batch/paper to read as their
- * DISTINCT dynamics, not one matrix shape (plan Phase 2). One inventory source, three
- * presets: LIVE → uptime/heartbeat/feed-health; BATCH → progress/coverage/exit-code;
- * PAPER → recon-drift/determinism-ε/last-recon. */
-export type DynamicsPreset = "live" | "batch" | "paper" | "default";
+/** Aggregate per-mode summaries into one combined tally (for the all-modes view). */
+function aggregateSummaries(sums: UmbrellaSummaryResponse[]): UmbrellaSummaryResponse | null {
+  if (sums.length === 0) return null;
+  if (sums.length === 1) return sums[0];
+  const counts: Record<string, number> = {};
+  let total = 0;
+  let stale = 0;
+  let lastFailure: UmbrellaLastFailure | null = null;
+  for (const s of sums) {
+    total += s.total;
+    stale += s.stale_count;
+    for (const [k, v] of Object.entries(s.counts_by_status)) counts[k] = (counts[k] ?? 0) + v;
+    if (s.last_failure && (!lastFailure || (s.last_failure.last_run_at ?? "") > (lastFailure.last_run_at ?? ""))) {
+      lastFailure = s.last_failure;
+    }
+  }
+  return { umbrella: "LIVE", total, counts_by_status: counts, stale_count: stale, last_failure: lastFailure };
+}
 
 /**
- * DeploymentsContent — the chrome-less inventory surface (no `<main>`, no page `<h1>`)
- * so it can render standalone (the /deployments page wraps it) OR embedded inside a
- * cockpit tab. When `fixedUmbrella` is set the umbrella is driven by the PROP (a cockpit
- * Live/Batch/Paper tab owns it) and the cloud/status/asset_group filters live in LOCAL
- * state — it does NOT touch `?umbrella=`/`?tab=` so it can't collide with the cockpit's
- * `?tab=` ownership. Without `fixedUmbrella` it is the full URL-param-backed standalone
- * page (alert deep-links `/deployments?umbrella=batch&cloud=gcp&status=failed`).
+ * DeploymentsContent — the chrome-less unified inventory surface (no `<main>`, no page
+ * `<h1>`) so it can render standalone (the /deployments page wraps it) OR embedded inside
+ * the cockpit Deployments tab. Shows EVERY mode in one flat table; Mode is a FILTER
+ * (All / Live / Batch / Paper), not a tab.
+ *
+ * When `embedded` the mode/cloud/status filters live in LOCAL state (no URL writes) so they
+ * can't collide with the cockpit's `?tab=` ownership; standalone reads/writes
+ * `?umbrella=&cloud=&status=&asset_group=` for alert deep-links (`umbrella` = the mode filter).
  */
 export function DeploymentsContent({
-  fixedUmbrella,
-  preset,
+  embedded = false,
   onDrill,
 }: {
-  fixedUmbrella?: UmbrellaTab;
-  preset?: DynamicsPreset;
+  embedded?: boolean;
   onDrill?: (name: string) => void;
 } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const embedded = fixedUmbrella != null;
 
-  // Embedded filters live in local state (no URL writes) to avoid colliding with the
-  // cockpit's `?tab=` ownership; standalone reads/writes the URL for alert deep-links.
+  // Embedded filters live in local state (no URL writes); standalone reads/writes the URL.
+  const [localMode, setLocalMode] = useState<ModeFilter>("");
   const [localCloud, setLocalCloud] = useState("");
   const [localStatus, setLocalStatus] = useState("");
   const [localAssetGroup, setLocalAssetGroup] = useState("");
 
-  // URL is the source of truth for the umbrella tab + filters (deep-linkable from an alert)
-  // ONLY when standalone; embedded uses the prop + local state.
-  const umbrellaParam = (searchParams.get("umbrella") ?? "live").toUpperCase();
-  const activeTab: UmbrellaTab = embedded
-    ? fixedUmbrella
-    : ["LIVE", "BATCH", "PAPER"].includes(umbrellaParam)
-      ? (umbrellaParam as UmbrellaTab)
-      : "LIVE";
+  const urlMode = (searchParams.get("umbrella") ?? "").toUpperCase();
+  const modeFilter: ModeFilter = embedded
+    ? localMode
+    : ["LIVE", "BATCH", "PAPER"].includes(urlMode)
+      ? (urlMode as ModeFilter)
+      : "";
   const cloudFilter = embedded ? localCloud : (searchParams.get("cloud")?.toUpperCase() ?? "");
   const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "");
   const assetGroupFilter = embedded ? localAssetGroup : (searchParams.get("asset_group") ?? "");
@@ -543,16 +525,13 @@ export function DeploymentsContent({
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Per-deployment manifest-derived freshness for the LIVE preset (keyed by row name).
   const [freshness, setFreshness] = useState<Record<string, DeploymentFreshnessResponse>>({});
-
-  // The active dynamics column preset — explicit prop, else derived from the umbrella.
-  const activePreset: DynamicsPreset = preset ?? (embedded ? (activeTab.toLowerCase() as DynamicsPreset) : "default");
 
   const setParam = useCallback(
     (key: string, value: string) => {
       if (embedded) {
-        if (key === "cloud") setLocalCloud(value);
+        if (key === "umbrella") setLocalMode(value as ModeFilter);
+        else if (key === "cloud") setLocalCloud(value);
         else if (key === "status") setLocalStatus(value);
         else if (key === "asset_group") setLocalAssetGroup(value);
         return;
@@ -574,28 +553,27 @@ export function DeploymentsContent({
     setLoading(true);
     setError(null);
     const cloud = cloudFilter === "GCP" || cloudFilter === "AWS" ? (cloudFilter as DeploymentCloud) : undefined;
+    const mode = modeFilter ? (modeFilter as DeploymentUmbrella) : undefined;
+    // Summary: a single mode → its own summary; all modes → aggregate LIVE+BATCH+PAPER.
+    const summaryP: Promise<UmbrellaSummaryResponse[]> = mode
+      ? getUmbrellaSummary(mode).then((s) => [s])
+      : Promise.all([getUmbrellaSummary("LIVE"), getUmbrellaSummary("BATCH"), getUmbrellaSummary("PAPER")]);
     Promise.all([
       getDeploymentInventory({
-        umbrella: activeTab,
+        umbrella: mode,
         cloud,
         status: statusFilter || undefined,
         asset_group: assetGroupFilter || undefined,
       }),
-      getUmbrellaSummary(activeTab),
+      summaryP,
     ])
-      .then(([inv, sum]) => {
-        // EXPERIMENT folds under Batch — if the backend returns it as a distinct umbrella on the
-        // BATCH query it already arrives here; the inventory route honours the umbrella filter, so
-        // a defensive client-side keep of LIVE/BATCH/PAPER+EXPERIMENT under the active tab.
-        const keep: DeploymentUmbrella[] =
-          activeTab === "BATCH" ? ["BATCH", "EXPERIMENT"] : [activeTab as DeploymentUmbrella];
-        const kept = inv.items.filter((i) => keep.includes(i.umbrella));
-        setItems(kept);
-        setSummary(sum);
-        // For the LIVE preset, enrich rows with manifest-derived per-deployment freshness
-        // (the feed-health column reads it, falling back to the heartbeat proxy on failure).
-        if (activeTab === "LIVE" && kept.length > 0) {
-          void Promise.allSettled(kept.map((i) => getDeploymentFreshness(i.name))).then((results) => {
+      .then(([inv, sums]) => {
+        setItems(inv.items);
+        setSummary(aggregateSummaries(sums));
+        // Enrich LIVE rows with manifest-derived per-deployment freshness (feed-health column).
+        const liveRows = inv.items.filter((i) => i.umbrella === "LIVE");
+        if (liveRows.length > 0) {
+          void Promise.allSettled(liveRows.map((i) => getDeploymentFreshness(i.name))).then((results) => {
             const next: Record<string, DeploymentFreshnessResponse> = {};
             results.forEach((r) => {
               if (r.status === "fulfilled") next[r.value.deployment_id] = r.value;
@@ -608,7 +586,7 @@ export function DeploymentsContent({
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
-  }, [activeTab, cloudFilter, statusFilter, assetGroupFilter]);
+  }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter]);
 
   useEffect(() => {
     load();
@@ -631,13 +609,13 @@ export function DeploymentsContent({
           <div className="flex items-center justify-between mb-4">
             {embedded ? (
               <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments — every VM + Cloud Run job
+                live / batch / paper — every VM + Cloud Run job
               </span>
             ) : (
               <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
                 Deployments
                 <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                  live / batch / paper — every VM + Cloud Run job
+                  live · batch · paper (unified) — every VM + Cloud Run job
                 </span>
               </h1>
             )}
@@ -652,44 +630,25 @@ export function DeploymentsContent({
             </button>
           </div>
 
-          {/* Umbrella tabs — Live / Batch / Paper (Experiment folds under Batch). Hidden when
-          embedded in a cockpit Live/Batch/Paper tab (the cockpit tab IS the umbrella). */}
-          {!embedded && (
-            <div className="inline-flex items-center gap-1 mb-4" data-testid="umbrella-tabs">
-              {UMBRELLA_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  data-testid={`umbrella-tab-${t.id}`}
-                  aria-pressed={activeTab === t.id}
-                  onClick={() => setParam("umbrella", t.id.toLowerCase())}
-                  className={`rounded border px-3 py-1.5 text-sm ${
-                    activeTab === t.id
-                      ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
-                      : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                {UMBRELLA_TABS.find((t) => t.id === activeTab)?.label} deployments
-              </CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">Deployments</CardTitle>
               <div className="pt-2">
-                <UmbrellaSummaryHeader summary={summary} />
+                <DeploymentsSummaryHeader summary={summary} />
               </div>
-              {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles
-                  with per-status counts; drive the same `status` filter as the dropdown below. */}
+              {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
               <div className="pt-3">
                 <StatusFilterChips summary={summary} active={statusFilter} onSelect={(v) => setParam("status", v)} />
               </div>
-              {/* Filters — cloud / status / asset_group, URL-param-backed for alert deep-links. */}
+              {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
               <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
+                <FilterSelect
+                  testId="filter-mode"
+                  label="mode"
+                  value={modeFilter}
+                  onChange={(v) => setParam("umbrella", v)}
+                  options={MODE_OPTIONS}
+                />
                 <FilterSelect
                   testId="filter-cloud"
                   label="cloud"
@@ -740,7 +699,7 @@ export function DeploymentsContent({
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
                 </p>
               )}
-              {!error && <DeploymentMatrix items={items} preset={activePreset} />}
+              {!error && <DeploymentMatrix items={items} />}
             </CardContent>
           </Card>
         </div>
@@ -751,8 +710,8 @@ export function DeploymentsContent({
 
 /**
  * Deployments — the standalone /repos-grade observability page. A thin `<main>` shell
- * around the chrome-less {@link DeploymentsContent} (URL-param-backed umbrella tabs +
- * filters for alert deep-links). The cockpit embeds DeploymentsContent directly per tab.
+ * around the chrome-less {@link DeploymentsContent} (URL-param-backed mode + filters for
+ * alert deep-links). The cockpit embeds DeploymentsContent directly in its Deployments tab.
  */
 export function Deployments() {
   return (

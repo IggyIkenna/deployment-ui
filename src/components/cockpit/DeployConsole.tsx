@@ -92,7 +92,11 @@ export function DeployConsole(): React.ReactElement {
           ))}
         </select>
         {service ? (
-          <div className="flex items-center gap-1" role="tablist" data-testid="deploy-view-tabs">
+          <div
+            className="inline-flex items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5"
+            role="tablist"
+            data-testid="deploy-view-tabs"
+          >
             {VIEWS.map((v) => {
               const Icon = v.icon;
               return (
@@ -103,9 +107,9 @@ export function DeployConsole(): React.ReactElement {
                   aria-selected={view === v.id}
                   onClick={() => setView(v.id)}
                   data-testid={`deploy-view-${v.id}`}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     view === v.id
-                      ? "bg-[var(--color-accent-cyan)]/15 text-[var(--color-accent-cyan)]"
+                      ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
                       : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                   }`}
                 >

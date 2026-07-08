@@ -46,7 +46,7 @@ import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { Chaos } from "./pages/Chaos";
 import { Cockpit } from "./pages/Cockpit";
-import { DailyCosts } from "./pages/DailyCosts";
+import { CostObservability } from "./pages/CostObservability";
 import { Deployments } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
 import { RepoDetailPanel } from "./pages/RepoCi";
@@ -156,7 +156,7 @@ function App() {
                   <Route path="/deployments/:name" element={<DeploymentDetail />} />
                   <Route path="/chaos" element={<Chaos />} />
                   <Route path="/ops/live-deployments" element={<LiveDeployments />} />
-                  <Route path="/ops/costs" element={<DailyCosts />} />
+                  <Route path="/ops/costs" element={<CostObservability />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   {/* /repos falls through to the home shell (`*`) so Repos CI renders as a
                       first-class LandingTabs tab, not a separate full-page app. */}

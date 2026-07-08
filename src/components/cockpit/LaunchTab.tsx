@@ -40,7 +40,10 @@ export function LaunchTab() {
 
   return (
     <div data-testid="cockpit-launch-panes" className="space-y-4">
-      <div className="flex flex-wrap gap-2" role="tablist">
+      <div
+        className="inline-flex flex-wrap items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5"
+        role="tablist"
+      >
         {LAUNCH_PANES.map((p) => {
           const Icon = p.icon;
           const selected = p.id === active;
@@ -52,10 +55,10 @@ export function LaunchTab() {
               aria-selected={selected}
               data-testid={`cockpit-launch-tab-${p.id}`}
               onClick={() => setActive(p.id)}
-              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium ${
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 selected
-                  ? "border-[var(--color-accent-cyan)]/50 bg-[var(--color-accent-cyan)]/10 text-[var(--color-accent-cyan)]"
-                  : "border-[var(--color-border-default)] text-[var(--color-text-secondary)]"
+                  ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
