@@ -148,6 +148,33 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByTestId("cost-bucket-storage-gb")).toHaveCount(0);
   });
 
+  test("By resource shows machine specs + cost-waste badges (idle IP / orphaned disk) made visually obvious", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("ikenna-windows-tokyo-restored");
+
+    // A VM row's machine spec renders (model · vCPU · GB, per the mock's e2-highmem-8 fixture).
+    await expect(page.getByText(/e2-highmem-8.*8 vCPU.*64 GB/)).toBeVisible();
+
+    // The orphaned-disk mock resource carries a waste badge + its own cost as the waste amount —
+    // not a separate/hidden sub-amount, the row's cost IS the waste.
+    const wasteCells = table.locator("tbody tr").getByTestId("cost-resource-waste");
+    await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => /orphaned/i.test(t))).toBe(true);
+    await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t.includes("68.62"))).toBe(true);
+    // Non-waste resource rows dash instead of a false "$0.00" waste amount.
+    await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t === "—")).toBe(true);
+
+    // Both columns are resource-dimension-only — switching away drops them.
+    await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
+    await expect(page.getByTestId("cost-resource-machine")).toHaveCount(0);
+    await expect(page.getByTestId("cost-resource-waste")).toHaveCount(0);
+  });
+
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
     await page.goto("/ops/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).

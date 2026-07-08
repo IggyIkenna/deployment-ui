@@ -85,6 +85,9 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       resource_kind: "vm",
       share_pct: 51,
       is_provisional: false,
+      machine_type: "e2-highmem-8",
+      vcpu: 8,
+      memory_gb: 64,
     },
     {
       label: "central-element-323112-events",
@@ -96,6 +99,19 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       resource_kind: "bucket",
       share_pct: 40,
       is_provisional: false,
+    },
+    {
+      label: "ikenna-windows-tokyo-restored",
+      cloud: "gcp",
+      cost: 68.62,
+      gross: 68.62,
+      credit: 0,
+      detail: "Compute Engine",
+      resource_kind: "disk",
+      share_pct: 13.7,
+      is_provisional: false,
+      is_idle: true,
+      waste_kind: "orphaned_disk",
     },
   ],
 };
@@ -200,6 +216,27 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
     await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false));
+  });
+
+  it("shows machine specs + a cost-waste badge only under the resource dimension", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    // Not present under the default "By service" view.
+    expect(screen.queryByTestId("cost-resource-machine")).toBeNull();
+    expect(screen.queryByTestId("cost-resource-waste")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "By resource" }));
+    await waitFor(() => expect(screen.getByText("ikenna-windows-tokyo-restored")).toBeInTheDocument());
+
+    // The VM row's machine spec renders; the bucket row (no spec) shows a dash.
+    expect(screen.getByText("e2-highmem-8 · 8 vCPU · 64 GB")).toBeInTheDocument();
+    const machineCells = screen.getAllByTestId("cost-resource-machine");
+    expect(machineCells.some((c) => c.textContent === "—")).toBe(true);
+
+    // The orphaned-disk row carries a badge + its own cost as the waste amount; non-waste rows dash.
+    const wasteCells = screen.getAllByTestId("cost-resource-waste");
+    expect(wasteCells.some((c) => c.textContent?.includes("orphaned") && c.textContent.includes("68.62"))).toBe(true);
+    expect(wasteCells.some((c) => c.textContent === "—")).toBe(true);
   });
 
   it("shows gross/credit columns only where a credit applies, dash for zero-credit rows", async () => {

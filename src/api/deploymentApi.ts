@@ -427,6 +427,15 @@ export interface CostBreakdownRow {
   storage_gb?: number | null;
   storage_class_gb?: Record<string, number> | null;
   cost_per_gb?: number | null;
+  // Resource-only (dimension=resource rows): cost-waste flags — a row IS an idle static/elastic IP
+  // or an orphaned disk when is_idle is true (its own `cost` is the waste amount); "" when not
+  // flagged (never a false-positive orphan when the running-VM cross-ref is unavailable).
+  is_idle?: boolean;
+  waste_kind?: "" | "idle_static_ip" | "orphaned_disk" | "idle_elastic_ip";
+  // VM rows only, parsed from GCP billing system_labels (no Compute API). "" / null when unset.
+  machine_type?: string;
+  vcpu?: number | null;
+  memory_gb?: number | null;
 }
 
 export interface CostBreakdownResponse {

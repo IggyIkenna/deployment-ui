@@ -1897,6 +1897,10 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       ["central-element-323112-events", "gcp", 2494, "Cloud Storage", "bucket"],
       ["market-data-tick-cefi-central-element-323112", "gcp", 771, "Cloud Storage", "bucket"],
       ["unified-trading-instruments-defi-427895769566", "aws", 2, "Amazon S3", "bucket"],
+      // Cost-waste evidence resources (mirror the live audit findings) — an idle reserved IP and
+      // an orphaned disk with no matching running VM.
+      ["harsh-static-ip", "gcp", 5.95, "Compute Engine", "other"],
+      ["ikenna-windows-tokyo-restored", "gcp", 68.62, "Compute Engine", "disk"],
     ],
     bucket: [
       ["central-element-323112-events", "gcp", 2494, "GCS", "bucket"],
@@ -1926,6 +1930,18 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     "market-data-tick-cefi-central-element-323112": { Standard: 6200 },
     "unified-trading-instruments-defi-427895769566": { Standard: 40 },
   };
+  // Resource-only: VM machine specs (from GCP system_labels, no Compute API) — AWS carries no
+  // machine-spec equivalent, so i-0c9b283b31d6b5ca7 is deliberately absent here.
+  const VM_MACHINE_SPECS: Record<string, { machine_type: string; vcpu: number; memory_gb: number }> = {
+    "mtds-perp-funding-backfill": { machine_type: "e2-highmem-8", vcpu: 8, memory_gb: 64 },
+    "mtds-dex-swaps-backfill": { machine_type: "e2-standard-4", vcpu: 4, memory_gb: 16 },
+  };
+  // Resource-only: cost-waste flags — a row IS the idle/orphaned resource (its own cost is the
+  // waste amount), never a cross-referenced sub-amount on another row.
+  const RESOURCE_WASTE: Record<string, "idle_static_ip" | "orphaned_disk"> = {
+    "harsh-static-ip": "idle_static_ip",
+    "ikenna-windows-tokyo-restored": "orphaned_disk",
+  };
   let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => {
     const net = +(cost * scale).toFixed(2);
     // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
@@ -1934,6 +1950,8 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
     const storageClassGb = dimension === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
     const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
+    const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
+    const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";
     return {
       label,
       cloud: c,
@@ -1947,6 +1965,11 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       storage_gb: storageGb,
       storage_class_gb: storageClassGb,
       cost_per_gb: storageGb ? +(net / storageGb).toFixed(4) : null,
+      machine_type: spec?.machine_type ?? "",
+      vcpu: spec?.vcpu ?? null,
+      memory_gb: spec?.memory_gb ?? null,
+      is_idle: wasteKind !== "",
+      waste_kind: wasteKind,
     };
   });
   if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);

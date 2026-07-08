@@ -74,6 +74,19 @@ function storageClassSplit(classes: Record<string, number>): string {
     .map(([cls, gb]) => `${cls} ${formatGb(gb)}`)
     .join(" · ");
 }
+// VM rows only — machine_type is "" when unset (AWS has no system_labels equivalent).
+function formatMachine(r: CostBreakdownRow): string {
+  if (!r.machine_type) return "—";
+  const specs = [r.vcpu != null ? `${r.vcpu} vCPU` : null, r.memory_gb != null ? `${r.memory_gb} GB` : null].filter(
+    Boolean,
+  );
+  return specs.length ? `${r.machine_type} · ${specs.join(" · ")}` : r.machine_type;
+}
+const WASTE_LABEL: Record<string, string> = {
+  idle_static_ip: "idle IP",
+  idle_elastic_ip: "idle IP",
+  orphaned_disk: "orphaned",
+};
 function isoParts(iso: string): { y: number; m: number; d: number } {
   const [y, m, d] = iso.split("-").map(Number);
   return { y: y ?? 0, m: m ?? 1, d: d ?? 1 };
@@ -782,6 +795,12 @@ function BreakdownPanel({
                     />
                   </>
                 )}
+                {dimension === "resource" && (
+                  <>
+                    <PlainHead label="Machine" sticky />
+                    <PlainHead label="Waste" align="right" sticky />
+                  </>
+                )}
                 <SortHead
                   label="Cost"
                   active={key === "cost"}
@@ -841,6 +860,37 @@ function BreakdownPanel({
                         </td>
                       </>
                     )}
+                    {dimension === "resource" && (
+                      <>
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                          data-testid="cost-resource-machine"
+                        >
+                          {formatMachine(r)}
+                        </td>
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
+                          data-testid="cost-resource-waste"
+                        >
+                          {r.is_idle ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span
+                                className={`rounded border px-1 text-[9px] font-bold uppercase ${
+                                  r.waste_kind === "orphaned_disk"
+                                    ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
+                                    : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
+                                }`}
+                              >
+                                {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
+                              </span>
+                              <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[var(--color-text-tertiary)]">—</span>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
                       <div className="flex items-center justify-end gap-2">
                         <div
@@ -880,7 +930,9 @@ function BreakdownPanel({
               {sorted.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4 + (dimension === "bucket" ? 3 : 0) + (hasCredits ? 2 : 0)}
+                    colSpan={
+                      4 + (dimension === "bucket" ? 3 : 0) + (dimension === "resource" ? 2 : 0) + (hasCredits ? 2 : 0)
+                    }
                     className="py-4 text-center text-[var(--color-text-muted)]"
                   >
                     No spend in this window.
