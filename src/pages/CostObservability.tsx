@@ -115,9 +115,9 @@ function Segmented<T extends string | number>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex items-stretch overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-tertiary)]"
+      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-1"
     >
-      {options.map((o, i) => {
+      {options.map((o) => {
         const active = o.value === value;
         return (
           <button
@@ -125,11 +125,9 @@ function Segmented<T extends string | number>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(o.value)}
-            // Each cell is bordered off from its neighbour (border-l from the 2nd on) so the
-            // options never read as one run-together word; the active cell is filled.
-            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-              i > 0 ? "border-l border-[var(--color-border-emphasis)] " : ""
-            }${
+            // Mock-faithful: padded, rounded pills with a gap between them + a filled accent
+            // active pill. The separation comes from padding + the active pill, not dividers.
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               active
                 ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"

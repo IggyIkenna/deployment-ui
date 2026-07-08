@@ -17,11 +17,12 @@ const TabsList = React.forwardRef<React.ComponentRef<typeof TabsPrimitive.List>,
       ref={ref}
       className={cn(
         "inline-flex items-center justify-center",
-        // Pill = a segmented control: a bordered frame with a divider between every cell so the
-        // triggers read as distinct buttons (not one run-together strip). `[&>*]:rounded-none`
-        // squares the shared TabsTrigger inside the frame; the active cell fills edge-to-edge.
+        // Pill = a segmented control of padded, rounded pills with a gap between them + a filled
+        // accent active pill (matches the design mock + the cost page's Segmented). The active
+        // override is pill-scoped (`[&>[data-state=active]]`) so the `underline` variant — used by
+        // Monitor / DataStatus tabs — keeps its own active treatment.
         variant === "pill" &&
-          "overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] [&>*]:rounded-none [&>*:not(:first-child)]:border-l [&>*:not(:first-child)]:border-[var(--color-border-emphasis)]",
+          "gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-1 text-[var(--color-text-muted)] [&>[data-state=active]]:bg-[var(--color-accent-dim)]! [&>[data-state=active]]:text-[var(--color-accent)]! [&>[data-state=active]]:shadow-none!",
         variant === "underline" && "border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]",
         className,
       )}
