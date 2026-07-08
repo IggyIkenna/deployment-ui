@@ -621,31 +621,43 @@ function SortHead({
   dir,
   onClick,
   align = "left",
+  sticky = false,
 }: {
   label: string;
   active: boolean;
   dir: SortDir;
   onClick: () => void;
   align?: "left" | "right";
+  sticky?: boolean;
 }) {
   return (
     <th
       onClick={onClick}
+      // `sticky` keeps the header visible while a long breakdown (up to 90 daily rows) scrolls
+      // inside its max-height container; the opaque panel bg hides rows sliding underneath.
       className={`cursor-pointer select-none whitespace-nowrap border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
+        sticky ? "sticky top-0 z-10 bg-[var(--color-bg-secondary)]" : ""
+      } ${align === "right" ? "text-right" : "text-left"}`}
     >
       {label}
       {active && <span className="ml-1 text-[9px] opacity-60">{dir === "desc" ? "▼" : "▲"}</span>}
     </th>
   );
 }
-function PlainHead({ label, align = "left" }: { label: string; align?: "left" | "right" }) {
+function PlainHead({
+  label,
+  align = "left",
+  sticky = false,
+}: {
+  label: string;
+  align?: "left" | "right";
+  sticky?: boolean;
+}) {
   return (
     <th
       className={`border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
+        sticky ? "sticky top-0 z-10 bg-[var(--color-bg-secondary)]" : ""
+      } ${align === "right" ? "text-right" : "text-left"}`}
     >
       {label}
     </th>
@@ -672,7 +684,7 @@ function BreakdownPanel({
         title="Breakdown"
         hint={`${data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · ${data.days}d · ${usd(
           data.total,
-        )}`}
+        )} · ${data.rows.length} ${data.rows.length === 1 ? "row" : "rows"}`}
       />
       <div className="p-4 pt-3">
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -711,25 +723,34 @@ function BreakdownPanel({
               <p className="py-4 text-sm text-[var(--color-text-muted)]">No spend in this window.</p>
             )}
           </div>
-          {/* table */}
-          <div className="overflow-x-auto">
+          {/* table — every row the backend returned (up to 90 daily / 50 grouped), inside a
+              fixed-height scroll region. Footprint stays ~the old 15-row cap, but nothing is
+              hidden: a 90-day / 40-resource breakdown scrolls instead of stretching the page. */}
+          <div className="max-h-[400px] overflow-auto" data-testid="cost-breakdown-scroll">
             <table className="w-full text-xs" data-testid="cost-breakdown-table">
               <thead>
                 <tr>
-                  <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} />
-                  <PlainHead label="Detail" />
+                  <SortHead
+                    label={dimLabel}
+                    active={key === "label"}
+                    dir={dir}
+                    onClick={() => toggle("label")}
+                    sticky
+                  />
+                  <PlainHead label="Detail" sticky />
                   <SortHead
                     label="Cost"
                     active={key === "cost"}
                     dir={dir}
                     onClick={() => toggle("cost")}
                     align="right"
+                    sticky
                   />
-                  <PlainHead label="Share" align="right" />
+                  <PlainHead label="Share" align="right" sticky />
                 </tr>
               </thead>
               <tbody>
-                {sorted.slice(0, 15).map((r) => (
+                {sorted.map((r) => (
                   <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-primary)]">
                       {r.cloud && (

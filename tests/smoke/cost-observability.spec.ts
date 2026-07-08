@@ -50,4 +50,24 @@ test.describe("Cost Observability page", () => {
     await page.getByRole("button", { name: "7d" }).click();
     await expect(page.getByText("Total spend · last 7 days")).toBeVisible();
   });
+
+  test("By day at 90d lists every day in a bounded scroll region (regression: 15-row table cap removed)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    // Widen to a 90-day window, then slice by day — the mock emits one row per day (~90).
+    await pageRoot.getByRole("button", { name: "90d", exact: true }).click();
+    await pageRoot.getByRole("button", { name: "By day", exact: true }).click();
+
+    // The table previously hard-capped at 15 rows via `.slice(0, 15)`; every day now renders.
+    const rows = page.getByTestId("cost-breakdown-table").locator("tbody tr");
+    await expect.poll(async () => rows.count()).toBeGreaterThan(30);
+
+    // …but the page doesn't grow unboundedly: the rows sit in a max-height scroll container
+    // that actually overflows (scrollHeight > clientHeight), so the footprint stays compact.
+    const scroller = page.getByTestId("cost-breakdown-scroll");
+    const overflow = await scroller.evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(overflow).toBeGreaterThan(0);
+  });
 });
