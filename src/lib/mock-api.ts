@@ -1953,7 +1953,10 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
     const credit = c === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
     const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
-    const storageClassGb = dimension === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
+    // Keyed by resource_kind, not the query dimension — the real backend's `_by_resource` attaches
+    // storage detail to bucket rows whether the caller asked for dimension=bucket or dimension=resource
+    // (the leaf "Top storage buckets" table sources from the latter).
+    const storageClassGb = kind === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
     const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
     const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
     const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";

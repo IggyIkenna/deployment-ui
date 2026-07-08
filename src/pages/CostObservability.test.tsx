@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CostObservability } from "./CostObservability";
 import * as api from "../api/deploymentApi";
@@ -115,6 +115,12 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       share_pct: 40,
       is_provisional: false,
       purchase_option: "other",
+      // The resource-dimension fetch also feeds the "Top storage buckets" leaf table, so bucket
+      // rows here carry storage detail too (mirrors the real backend's `_by_resource`, which keys
+      // off resource_kind, not the query dimension).
+      storage_gb: 18500,
+      storage_class_gb: { Standard: 12000, Nearline: 4000, Coldline: 2000, Archive: 500 },
+      cost_per_gb: 0.1349,
     },
     {
       label: "ikenna-windows-tokyo-restored",
@@ -237,20 +243,23 @@ describe("CostObservability", () => {
   it("shows machine specs + a cost-waste badge only under the resource dimension", async () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
-    // Not present under the default "By service" view.
-    expect(screen.queryByTestId("cost-resource-machine")).toBeNull();
-    expect(screen.queryByTestId("cost-resource-waste")).toBeNull();
+    // Not present in the breakdown table under the default "By service" view — scoped to that
+    // table because the same testids also appear in the always-rendered "Top compute instances"
+    // leaf table, which is pinned to vm rows independent of the breakdown dimension selector.
+    const breakdownTable = screen.getByTestId("cost-breakdown-table");
+    expect(within(breakdownTable).queryByTestId("cost-resource-machine")).toBeNull();
+    expect(within(breakdownTable).queryByTestId("cost-resource-waste")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "By resource" }));
-    await waitFor(() => expect(screen.getByText("ikenna-windows-tokyo-restored")).toBeInTheDocument());
+    await waitFor(() => expect(within(breakdownTable).getByText("ikenna-windows-tokyo-restored")).toBeInTheDocument());
 
     // The VM row's machine spec renders; the bucket row (no spec) shows a dash.
-    expect(screen.getByText("e2-highmem-8 · 8 vCPU · 64 GB")).toBeInTheDocument();
-    const machineCells = screen.getAllByTestId("cost-resource-machine");
+    expect(within(breakdownTable).getByText("e2-highmem-8 · 8 vCPU · 64 GB")).toBeInTheDocument();
+    const machineCells = within(breakdownTable).getAllByTestId("cost-resource-machine");
     expect(machineCells.some((c) => c.textContent === "—")).toBe(true);
 
     // The orphaned-disk row carries a badge + its own cost as the waste amount; non-waste rows dash.
-    const wasteCells = screen.getAllByTestId("cost-resource-waste");
+    const wasteCells = within(breakdownTable).getAllByTestId("cost-resource-waste");
     expect(wasteCells.some((c) => c.textContent?.includes("orphaned") && c.textContent.includes("68.62"))).toBe(true);
     expect(wasteCells.some((c) => c.textContent === "—")).toBe(true);
   });
@@ -299,6 +308,20 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
     expect(screen.queryByTestId("cost-col-gross")).toBeNull();
     expect(screen.queryByTestId("cost-col-credit")).toBeNull();
+  });
+
+  it("applies the same detail columns (machine/waste, storage) to the leaf tables", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("leaf-vm-table")).toBeInTheDocument());
+
+    const vmTable = screen.getByTestId("leaf-vm-table");
+    expect(within(vmTable).getByText("e2-highmem-8 · 8 vCPU · 64 GB")).toBeInTheDocument();
+    expect(within(vmTable).getAllByTestId("cost-resource-waste").length).toBeGreaterThan(0);
+
+    const bucketTable = screen.getByTestId("leaf-bucket-table");
+    expect(within(bucketTable).getByTestId("cost-bucket-storage-gb")).toHaveTextContent("18,500 GB");
+    expect(within(bucketTable).getByTestId("cost-bucket-storage-class")).toHaveTextContent("Standard");
+    expect(within(bucketTable).getByTestId("cost-bucket-cost-per-gb")).toHaveTextContent("/GB");
   });
 
   it("switches to the SKU dimension and refetches with dimension=sku", async () => {

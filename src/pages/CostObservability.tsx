@@ -87,6 +87,26 @@ const WASTE_LABEL: Record<string, string> = {
   idle_elastic_ip: "idle IP",
   orphaned_disk: "orphaned",
 };
+// Resource rows only — a row IS the idle/orphaned resource (its own cost is the waste amount).
+// Shared by the breakdown table's resource-dimension column and the leaf "Top compute instances"
+// table so both surfaces render cost-waste identically.
+function WasteCell({ r }: { r: CostBreakdownRow }) {
+  if (!r.is_idle) return <span className="text-[var(--color-text-tertiary)]">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={`rounded border px-1 text-[9px] font-bold uppercase ${
+          r.waste_kind === "orphaned_disk"
+            ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
+            : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
+        }`}
+      >
+        {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
+      </span>
+      <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
+    </span>
+  );
+}
 function isoParts(iso: string): { y: number; m: number; d: number } {
   const [y, m, d] = iso.split("-").map(Number);
   return { y: y ?? 0, m: m ?? 1, d: d ?? 1 };
@@ -782,7 +802,14 @@ function BreakdownPanel({
             fixed-height scroll region. The Cost column carries an inline proportional bar (width =
             cost / max across the full dataset) instead of a separate top-12 bar chart, freeing
             horizontal space for detail columns and removing the label+cost duplication. */}
-        <div className="max-h-[400px] overflow-auto" data-testid="cost-breakdown-scroll">
+        {/* tabIndex + role make the scroll region keyboard-reachable (axe scrollable-region-focusable) */}
+        <div
+          className="max-h-[400px] overflow-auto"
+          data-testid="cost-breakdown-scroll"
+          role="region"
+          aria-label="Cost breakdown table, scrollable"
+          tabIndex={0}
+        >
           <table className="w-full text-xs" data-testid="cost-breakdown-table">
             <thead>
               <tr>
@@ -862,12 +889,12 @@ function BreakdownPanel({
                           </span>
                         )}
                       </td>
-                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
+                      <td className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
                         {r.detail}
                       </td>
                       {showPurchase && (
                         <td
-                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]"
+                          className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]"
                           data-testid="cost-row-purchase"
                         >
                           {r.purchase_option === "spot" ? (
@@ -884,19 +911,19 @@ function BreakdownPanel({
                       {dimension === "bucket" && (
                         <>
                           <td
-                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
                             data-testid="cost-bucket-storage-gb"
                           >
                             {r.storage_gb != null ? formatGb(r.storage_gb) : "—"}
                           </td>
                           <td
-                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
                             data-testid="cost-bucket-storage-class"
                           >
                             {r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "—"}
                           </td>
                           <td
-                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
                             data-testid="cost-bucket-cost-per-gb"
                           >
                             {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
@@ -906,31 +933,16 @@ function BreakdownPanel({
                       {dimension === "resource" && (
                         <>
                           <td
-                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
                             data-testid="cost-resource-machine"
                           >
                             {formatMachine(r)}
                           </td>
                           <td
-                            className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
                             data-testid="cost-resource-waste"
                           >
-                            {r.is_idle ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                <span
-                                  className={`rounded border px-1 text-[9px] font-bold uppercase ${
-                                    r.waste_kind === "orphaned_disk"
-                                      ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
-                                      : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
-                                  }`}
-                                >
-                                  {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
-                                </span>
-                                <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[var(--color-text-tertiary)]">—</span>
-                            )}
+                            <WasteCell r={r} />
                           </td>
                         </>
                       )}
@@ -986,24 +998,67 @@ function BreakdownPanel({
 }
 
 // ---------- leaf tables (top VMs / buckets) ----------
-function LeafPanel({ title, hint, rows }: { title: string; hint: string; rows: CostBreakdownRow[] }) {
+// Dimension-aware: these are each pinned to one resource_kind (their "natural home"), so they
+// carry the SAME detail columns as the breakdown table's resource/bucket dimension views
+// (same helpers, same data-testids) rather than inventing a parallel column set.
+function LeafPanel({
+  title,
+  hint,
+  rows,
+  kind,
+}: {
+  title: string;
+  hint: string;
+  rows: CostBreakdownRow[];
+  kind: "vm" | "bucket";
+}) {
   const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(rows, "cost");
+  const colCount = 3 + (kind === "vm" ? 2 : 3);
   return (
     <Panel>
       <PanelHeader title={title} hint={hint} />
-      <div className="overflow-x-auto p-4 pt-3">
-        <table className="w-full text-xs">
+      {/* horizontal scroll on narrow widths — the detail columns push past the card width there */}
+      {/* tabIndex + role make the scroll region keyboard-reachable (axe scrollable-region-focusable) */}
+      <div
+        className="overflow-x-auto p-4 pt-3"
+        data-testid={`leaf-${kind}-scroll`}
+        role="region"
+        aria-label={`${title}, scrollable`}
+        tabIndex={0}
+      >
+        <table className="w-full text-xs" data-testid={`leaf-${kind}-table`}>
           <thead>
             <tr>
               <SortHead label="Name" active={key === "label"} dir={dir} onClick={() => toggle("label")} />
               <PlainHead label="Type" />
+              {kind === "vm" && <PlainHead label="Machine" />}
+              {kind === "vm" && <PlainHead label="Waste" align="right" />}
+              {kind === "bucket" && (
+                <SortHead
+                  label="Storage"
+                  active={key === "storage_gb"}
+                  dir={dir}
+                  onClick={() => toggle("storage_gb")}
+                  align="right"
+                />
+              )}
+              {kind === "bucket" && <PlainHead label="Storage class" />}
+              {kind === "bucket" && (
+                <SortHead
+                  label="$/GB"
+                  active={key === "cost_per_gb"}
+                  dir={dir}
+                  onClick={() => toggle("cost_per_gb")}
+                  align="right"
+                />
+              )}
               <SortHead label="Cost" active={key === "cost"} dir={dir} onClick={() => toggle("cost")} align="right" />
             </tr>
           </thead>
           <tbody>
             {sorted.slice(0, 8).map((r) => (
               <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
-                <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
+                <td className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
                   {r.cloud && (
                     <span
                       className="mr-1.5 inline-block h-2 w-2 rounded-sm align-middle"
@@ -1012,17 +1067,57 @@ function LeafPanel({ title, hint, rows }: { title: string; hint: string; rows: C
                   )}
                   <span className="font-mono text-[var(--color-text-primary)]">{r.label}</span>
                 </td>
-                <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
+                <td className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
                   {r.detail}
                 </td>
-                <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]">
+                {kind === "vm" && (
+                  <td
+                    className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                    data-testid="cost-resource-machine"
+                  >
+                    {formatMachine(r)}
+                  </td>
+                )}
+                {kind === "vm" && (
+                  <td
+                    className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
+                    data-testid="cost-resource-waste"
+                  >
+                    <WasteCell r={r} />
+                  </td>
+                )}
+                {kind === "bucket" && (
+                  <td
+                    className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                    data-testid="cost-bucket-storage-gb"
+                  >
+                    {r.storage_gb != null ? formatGb(r.storage_gb) : "—"}
+                  </td>
+                )}
+                {kind === "bucket" && (
+                  <td
+                    className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                    data-testid="cost-bucket-storage-class"
+                  >
+                    {r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "—"}
+                  </td>
+                )}
+                {kind === "bucket" && (
+                  <td
+                    className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
+                    data-testid="cost-bucket-cost-per-gb"
+                  >
+                    {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
+                  </td>
+                )}
+                <td className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]">
                   {usd(r.cost)}
                 </td>
               </tr>
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={3} className="py-4 text-center text-[var(--color-text-muted)]">
+                <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
                   No data.
                 </td>
               </tr>
@@ -1298,8 +1393,8 @@ export function CostObservability() {
               />
             )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} />
-              <LeafPanel title="Top storage buckets" hint="GCS + S3" rows={bucketRows} />
+              <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} kind="vm" />
+              <LeafPanel title="Top storage buckets" hint="GCS + S3" rows={bucketRows} kind="bucket" />
             </div>
             {(cloud === "all" || cloud === "github") && githubRows.length > 0 && <GithubPanel rows={githubRows} />}
             <SourceFooter generatedAt={summary.generated_at} />

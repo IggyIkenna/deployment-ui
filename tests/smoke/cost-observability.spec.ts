@@ -143,9 +143,11 @@ test.describe("Cost Observability page", () => {
     const perGbCell = table.locator("tbody tr").first().getByTestId("cost-bucket-cost-per-gb");
     await expect(perGbCell).toContainText("/GB");
 
-    // These columns are bucket-dimension-only — switching to "By resource" drops them.
+    // These columns are bucket-dimension-only in the breakdown table — switching to "By resource"
+    // drops them there (scoped to `table`; the "Top storage buckets" leaf table carries the same
+    // testid independent of the breakdown dimension selector, so a page-wide count would be wrong).
     await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
-    await expect(page.getByTestId("cost-bucket-storage-gb")).toHaveCount(0);
+    await expect(table.getByTestId("cost-bucket-storage-gb")).toHaveCount(0);
   });
 
   test("By resource shows machine specs + cost-waste badges (idle IP / orphaned disk) made visually obvious", async ({
@@ -159,7 +161,8 @@ test.describe("Cost Observability page", () => {
     await expect(table).toContainText("ikenna-windows-tokyo-restored");
 
     // A VM row's machine spec renders (model · vCPU · GB, per the mock's e2-highmem-8 fixture).
-    await expect(page.getByText(/e2-highmem-8.*8 vCPU.*64 GB/)).toBeVisible();
+    // Scoped to `table` — the "Top compute instances" leaf table renders the same text.
+    await expect(table.getByText(/e2-highmem-8.*8 vCPU.*64 GB/)).toBeVisible();
 
     // The orphaned-disk mock resource carries a waste badge + its own cost as the waste amount —
     // not a separate/hidden sub-amount, the row's cost IS the waste.
@@ -169,10 +172,12 @@ test.describe("Cost Observability page", () => {
     // Non-waste resource rows dash instead of a false "$0.00" waste amount.
     await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t === "—")).toBe(true);
 
-    // Both columns are resource-dimension-only — switching away drops them.
+    // Both columns are resource-dimension-only in the breakdown table — switching away drops them
+    // there (scoped to `table`; the "Top compute instances" leaf table carries the same testids
+    // independent of the breakdown dimension selector).
     await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
-    await expect(page.getByTestId("cost-resource-machine")).toHaveCount(0);
-    await expect(page.getByTestId("cost-resource-waste")).toHaveCount(0);
+    await expect(table.getByTestId("cost-resource-machine")).toHaveCount(0);
+    await expect(table.getByTestId("cost-resource-waste")).toHaveCount(0);
   });
 
   test("switching dimension never shows the prior fetch's rows under the new header (loading gate during refetch)", async ({
@@ -235,5 +240,35 @@ test.describe("Cost Observability page", () => {
     // The GCP tile carries its own credit line; AWS (no credits) does not.
     await expect(page.getByTestId("cost-cloud-breakdown-gcp")).toBeVisible();
     await expect(page.getByTestId("cost-cloud-breakdown-aws")).toHaveCount(0);
+  });
+
+  test("leaf tables carry the same dimension-aware detail columns as the breakdown table (machine/waste, storage)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+
+    // "Top compute instances" is pinned to vm rows — same Machine/Waste columns as the breakdown
+    // table's "By resource" view, not a separate/lesser column set.
+    const vmTable = page.getByTestId("leaf-vm-table");
+    await expect(vmTable).toBeVisible();
+    await expect(vmTable).toContainText("e2-highmem-8");
+    await expect(vmTable).toContainText("8 vCPU");
+
+    // "Top storage buckets" is pinned to bucket rows — same Storage/class/$-per-GB columns as the
+    // breakdown table's "By bucket" view, formatted in GB (not bytes).
+    const bucketTable = page.getByTestId("leaf-bucket-table");
+    await expect(bucketTable).toBeVisible();
+    const storageCell = bucketTable.getByTestId("cost-bucket-storage-gb").first();
+    await expect(storageCell).toContainText("GB");
+    await expect(bucketTable.getByTestId("cost-bucket-cost-per-gb").first()).toContainText("/GB");
+  });
+
+  test("leaf table detail columns scroll horizontally instead of overflowing on narrow widths", async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 900 });
+    await page.goto("/ops/costs");
+    const scroller = page.getByTestId("leaf-vm-scroll");
+    await expect(scroller).toBeVisible();
+    const overflow = await scroller.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeGreaterThan(0);
   });
 });
