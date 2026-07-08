@@ -3,24 +3,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CostObservability } from "./CostObservability";
 import * as api from "../api/deploymentApi";
 
-// Chart engine stubbed — this suite exercises page logic (KPIs, tables, filters);
-// the visual chart render is covered by the Playwright spec.
-vi.mock("recharts", () => {
-  const Stub = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
-  return {
-    ResponsiveContainer: Stub,
-    AreaChart: Stub,
-    Area: Stub,
-    PieChart: Stub,
-    Pie: Stub,
-    Cell: Stub,
-    CartesianGrid: Stub,
-    XAxis: Stub,
-    YAxis: Stub,
-    Tooltip: Stub,
-  };
-});
-
+// The trend + donut are now hand-rolled SVG (no chart lib to stub). This suite
+// exercises page logic (KPIs, tables, filters, refetch); the visual chart render
+// + crosshair are covered by the Playwright spec.
 vi.mock("../api/deploymentApi", () => ({
   fetchCostSummary: vi.fn(),
   fetchCostBreakdown: vi.fn(),
