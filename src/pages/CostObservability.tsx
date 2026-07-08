@@ -683,13 +683,16 @@ function PlainHead({
   label,
   align = "left",
   sticky = false,
+  testId,
 }: {
   label: string;
   align?: "left" | "right";
   sticky?: boolean;
+  testId?: string;
 }) {
   return (
     <th
+      data-testid={testId}
       className={`border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] ${
         sticky ? "sticky top-0 z-10 bg-[var(--color-bg-secondary)]" : ""
       } ${align === "right" ? "text-right" : "text-left"}`}
@@ -712,6 +715,10 @@ function BreakdownPanel({
   const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(data.rows, "cost");
   const max = Math.max(...data.rows.map((r) => r.cost), 1);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
+  // Gross/credit columns mirror the KPI band's net-primary treatment down into the table, but only
+  // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
+  // would otherwise show two columns of "—" for no reason.
+  const hasCredits = data.rows.some((r) => r.credit < 0);
   return (
     <Panel>
       <PanelHeader
@@ -745,6 +752,8 @@ function BreakdownPanel({
                   align="right"
                   sticky
                 />
+                {hasCredits && <PlainHead label="Gross" align="right" sticky testId="cost-col-gross" />}
+                {hasCredits && <PlainHead label="Credit" align="right" sticky testId="cost-col-credit" />}
                 <PlainHead label="Share" align="right" sticky />
               </tr>
             </thead>
@@ -789,6 +798,19 @@ function BreakdownPanel({
                         </span>
                       </div>
                     </td>
+                    {hasCredits && (
+                      <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                        {usd(r.gross)}
+                      </td>
+                    )}
+                    {hasCredits && (
+                      <td
+                        className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]"
+                        data-testid="cost-row-credit"
+                      >
+                        {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                      </td>
+                    )}
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
                       {r.share_pct.toFixed(1)}%
                     </td>
@@ -797,7 +819,7 @@ function BreakdownPanel({
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-[var(--color-text-muted)]">
+                  <td colSpan={hasCredits ? 6 : 4} className="py-4 text-center text-[var(--color-text-muted)]">
                     No spend in this window.
                   </td>
                 </tr>

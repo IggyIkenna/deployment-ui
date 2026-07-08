@@ -97,6 +97,29 @@ test.describe("Cost Observability page", () => {
     expect(parseFloat(ascWidth)).toBeLessThan(parseFloat(width));
   });
 
+  test("breakdown table shows gross/credit columns only where a credit applies (mirrors the KPI band)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // Default "By service · all clouds" view includes GCP (which carries a mock promo credit) —
+    // the Gross/Credit columns render, and at least one row shows a dash (AWS/GitHub, no credit).
+    await expect(page.getByTestId("cost-col-gross")).toBeVisible();
+    await expect(page.getByTestId("cost-col-credit")).toBeVisible();
+    const creditCells = table.locator("tbody tr").getByTestId("cost-row-credit");
+    await expect.poll(async () => (await creditCells.allTextContents()).some((t) => t === "—")).toBe(true);
+    await expect.poll(async () => (await creditCells.allTextContents()).some((t) => t.startsWith("−$"))).toBe(true);
+
+    // Filtering to AWS-only removes every GCP (credited) row — the columns disappear entirely
+    // rather than rendering two all-dash columns.
+    const pageRoot = page.getByTestId("cost-observability-page");
+    await pageRoot.getByRole("button", { name: "AWS", exact: true }).click();
+    await expect(page.getByTestId("cost-col-gross")).toHaveCount(0);
+    await expect(page.getByTestId("cost-col-credit")).toHaveCount(0);
+  });
+
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
     await page.goto("/ops/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).

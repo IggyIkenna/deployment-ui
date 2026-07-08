@@ -48,6 +48,8 @@ const serviceBreakdown: api.CostBreakdownResponse = {
       label: "Compute Engine",
       cloud: "gcp",
       cost: 5560.11,
+      gross: 6360.11, // carries a credit — net = gross + credit
+      credit: -800,
       detail: "GCP",
       resource_kind: "other",
       share_pct: 36.2,
@@ -57,6 +59,8 @@ const serviceBreakdown: api.CostBreakdownResponse = {
       label: "GitHub Actions",
       cloud: "github",
       cost: 211.5,
+      gross: 211.5, // no credit — gross == cost
+      credit: 0,
       detail: "GitHub",
       resource_kind: "other",
       share_pct: 1.4,
@@ -75,6 +79,8 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       label: "mtds-perp-funding-backfill",
       cloud: "gcp",
       cost: 255.26,
+      gross: 295.26,
+      credit: -40,
       detail: "Compute Engine",
       resource_kind: "vm",
       share_pct: 51,
@@ -84,9 +90,33 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       label: "central-element-323112-events",
       cloud: "gcp",
       cost: 2494.71,
+      gross: 2494.71,
+      credit: 0,
       detail: "Cloud Storage",
       resource_kind: "bucket",
       share_pct: 40,
+      is_provisional: false,
+    },
+  ],
+};
+
+// No row here carries a credit — proves the gross/credit columns are omitted entirely
+// when a filtered/dimension view has nothing to bifurcate (e.g. an AWS/GitHub-only cut).
+const regionBreakdownNoCredit: api.CostBreakdownResponse = {
+  dimension: "region",
+  cloud: "all",
+  days: 30,
+  total: 190,
+  rows: [
+    {
+      label: "ap-northeast-1",
+      cloud: "aws",
+      cost: 190,
+      gross: 190,
+      credit: 0,
+      detail: "AWS",
+      resource_kind: "other",
+      share_pct: 100,
       is_provisional: false,
     },
   ],
@@ -103,7 +133,13 @@ beforeEach(() => {
   vi.mocked(api.fetchCostSummary).mockResolvedValue(summary);
   vi.mocked(api.fetchCostTimeseries).mockResolvedValue(timeseries);
   vi.mocked(api.fetchCostBreakdown).mockImplementation((dimension) =>
-    Promise.resolve(dimension === "resource" ? resourceBreakdown : serviceBreakdown),
+    Promise.resolve(
+      dimension === "resource"
+        ? resourceBreakdown
+        : dimension === "region"
+          ? regionBreakdownNoCredit
+          : serviceBreakdown,
+    ),
   );
 });
 
@@ -142,6 +178,28 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
     await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false));
+  });
+
+  it("shows gross/credit columns only where a credit applies, dash for zero-credit rows", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    expect(screen.getByTestId("cost-col-gross")).toBeInTheDocument();
+    expect(screen.getByTestId("cost-col-credit")).toBeInTheDocument();
+    // Compute Engine (gcp) carries a credit — its gross renders as the pre-credit amount.
+    expect(screen.getByText("$6,360.11")).toBeInTheDocument();
+    const creditCells = screen.getAllByTestId("cost-row-credit");
+    expect(creditCells.some((c) => c.textContent?.includes("800.00"))).toBe(true);
+    // GitHub Actions carries no credit — its credit cell is a dash, not "$0.00".
+    expect(creditCells.some((c) => c.textContent === "—")).toBe(true);
+  });
+
+  it("omits the gross/credit columns entirely when nothing in view carries a credit", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "By region" }));
+    await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("cost-col-gross")).toBeNull();
+    expect(screen.queryByTestId("cost-col-credit")).toBeNull();
   });
 
   it("refetches with a new window when the range changes", async () => {

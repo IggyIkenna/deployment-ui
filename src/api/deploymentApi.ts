@@ -415,7 +415,9 @@ export interface CostSummaryResponse {
 export interface CostBreakdownRow {
   label: string;
   cloud: CostCloud | null;
-  cost: number;
+  cost: number; // NET — primary (matches the summary net total)
+  gross: number; // usage cost before credits (Σcost for this group)
+  credit: number; // credits applied to this group (<= 0); cost == gross + credit
   detail: string;
   resource_kind: string;
   share_pct: number;

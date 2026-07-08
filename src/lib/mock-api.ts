@@ -1910,15 +1910,24 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     ],
     day: mockCostDates(days).map((d, i) => [d, null, +(510 + 80 * Math.sin(i / 3)).toFixed(2), "", "other"] as Row),
   };
-  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => ({
-    label,
-    cloud: c,
-    cost: +(cost * scale).toFixed(2),
-    detail,
-    resource_kind: kind,
-    share_pct: 0,
-    is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
-  }));
+  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => {
+    const net = +(cost * scale).toFixed(2);
+    // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
+    // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
+    const credit = c === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
+    const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
+    return {
+      label,
+      cloud: c,
+      cost: net,
+      gross,
+      credit,
+      detail,
+      resource_kind: kind,
+      share_pct: 0,
+      is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
+    };
+  });
   if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);
   const total = +rows.reduce((a, r) => a + r.cost, 0).toFixed(2);
   rows.forEach((r) => (r.share_pct = total ? +((r.cost / total) * 100).toFixed(1) : 0));
