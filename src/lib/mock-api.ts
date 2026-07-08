@@ -1819,6 +1819,103 @@ function mockRepoCiAlerts() {
   };
 }
 
+// --- Cost observability mocks (mirror deployment-api routes/costs.py shapes) ---
+const MOCK_COST_CLOUDS: Record<string, { base: number; wobble: number; placeholder: boolean; delta: number }> = {
+  gcp: { base: 480, wobble: 70, placeholder: false, delta: 12.4 },
+  aws: { base: 22, wobble: 9, placeholder: false, delta: -5.2 },
+  github: { base: 8.8, wobble: 0.6, placeholder: true, delta: 0.1 },
+};
+function mockCostDates(days: number): string[] {
+  return Array.from({ length: days }, (_, i) =>
+    new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0, 10),
+  );
+}
+function mockCostDaily(cloud: string, days: number): number[] {
+  const c = MOCK_COST_CLOUDS[cloud];
+  return Array.from({ length: days }, (_, i) => Math.max(0, +(c.base + c.wobble * Math.sin(i / 3)).toFixed(4)));
+}
+function mockCostSummary(days: number) {
+  const clouds = ["gcp", "aws", "github"].map((cloud) => {
+    const daily = mockCostDaily(cloud, days);
+    return {
+      cloud,
+      total: +daily.reduce((a, b) => a + b, 0).toFixed(2),
+      delta_pct: MOCK_COST_CLOUDS[cloud].delta,
+      daily,
+      is_placeholder: MOCK_COST_CLOUDS[cloud].placeholder,
+    };
+  });
+  const total = +clouds.reduce((a, c) => a + c.total, 0).toFixed(2);
+  return {
+    days,
+    total,
+    run_rate_daily: +(total / days).toFixed(2),
+    delta_pct: 8.1,
+    dates: mockCostDates(days),
+    clouds,
+    provisional_days: 2,
+    generated_at: new Date().toISOString(),
+  };
+}
+function mockCostTimeseries(days: number, cloud: string) {
+  const clouds = cloud === "all" ? ["gcp", "aws", "github"] : [cloud];
+  const daily: Record<string, number[]> = {};
+  clouds.forEach((c) => (daily[c] = mockCostDaily(c, days)));
+  const dates = mockCostDates(days);
+  return {
+    days,
+    clouds,
+    points: dates.map((date, i) => ({ date, values: Object.fromEntries(clouds.map((c) => [c, daily[c][i]])) })),
+  };
+}
+function mockCostBreakdown(dimension: string, cloud: string, days: number) {
+  const scale = days / 30;
+  type Row = [string, string | null, number, string, string];
+  const fixtures: Record<string, Row[]> = {
+    service: [
+      ["Compute Engine", "gcp", 5560, "GCP", "other"],
+      ["Cloud Storage", "gcp", 4707, "GCP", "other"],
+      ["Cloud Run", "gcp", 3946, "GCP", "other"],
+      ["Amazon EC2", "aws", 93, "AWS", "other"],
+      ["GitHub Actions", "github", 212, "GitHub", "other"],
+      ["Copilot (3 seats)", "github", 57, "GitHub", "other"],
+    ],
+    resource: [
+      ["mtds-perp-funding-backfill", "gcp", 255, "Compute Engine", "vm"],
+      ["mtds-dex-swaps-backfill", "gcp", 242, "Compute Engine", "vm"],
+      ["i-0c9b283b31d6b5ca7", "aws", 46, "Amazon EC2", "vm"],
+      ["central-element-323112-events", "gcp", 2494, "Cloud Storage", "bucket"],
+      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "Cloud Storage", "bucket"],
+      ["unified-trading-instruments-defi-427895769566", "aws", 2, "Amazon S3", "bucket"],
+    ],
+    bucket: [
+      ["central-element-323112-events", "gcp", 2494, "GCS", "bucket"],
+      ["market-data-tick-cefi-central-element-323112", "gcp", 771, "GCS", "bucket"],
+      ["unified-trading-instruments-defi-427895769566", "aws", 2, "S3", "bucket"],
+    ],
+    region: [
+      ["asia-northeast1", "gcp", 14200, "GCP", "other"],
+      ["ap-northeast-1", "aws", 190, "AWS", "other"],
+      ["global", "github", 292, "GitHub", "other"],
+    ],
+    day: mockCostDates(days).map((d, i) => [d, null, +(510 + 80 * Math.sin(i / 3)).toFixed(2), "", "other"] as Row),
+  };
+  let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => ({
+    label,
+    cloud: c,
+    cost: +(cost * scale).toFixed(2),
+    detail,
+    resource_kind: kind,
+    share_pct: 0,
+    is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
+  }));
+  if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);
+  const total = +rows.reduce((a, r) => a + r.cost, 0).toFixed(2);
+  rows.forEach((r) => (r.share_pct = total ? +((r.cost / total) * 100).toFixed(1) : 0));
+  rows.sort((a, b) => b.cost - a.cost);
+  return { dimension, cloud, days, total, rows };
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -1843,6 +1940,17 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         return json({ error: "Mock forced error", path }, entry.status);
       }
     }
+  }
+
+  // Cost observability (mirrors deployment-api routes/costs.py) — /ops/costs page
+  if (path.startsWith("/api/costs/")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const days = Number(params.get("days") ?? 30);
+    const cloud = params.get("cloud") ?? "all";
+    const dimension = params.get("dimension") ?? "service";
+    if (path === "/api/costs/summary") return json(mockCostSummary(days));
+    if (path === "/api/costs/breakdown") return json(mockCostBreakdown(dimension, cloud, days));
+    if (path === "/api/costs/timeseries") return json(mockCostTimeseries(days, cloud));
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
@@ -1949,7 +2057,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           label: "Daily Cost",
           status: "ok",
           value: "$12.40 today (3 VMs)",
-          detail_href: "/api/costs/daily",
+          detail_href: "/api/costs/summary",
         },
       ],
     });
