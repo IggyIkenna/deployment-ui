@@ -92,8 +92,12 @@ export function DeployConsole(): React.ReactElement {
           ))}
         </select>
         {service ? (
-          <div className="flex items-center gap-1" role="tablist" data-testid="deploy-view-tabs">
-            {VIEWS.map((v) => {
+          <div
+            className="inline-flex items-stretch overflow-hidden rounded-lg border border-[var(--color-border-emphasis)] bg-[var(--color-bg-tertiary)]"
+            role="tablist"
+            data-testid="deploy-view-tabs"
+          >
+            {VIEWS.map((v, i) => {
               const Icon = v.icon;
               return (
                 <button
@@ -103,10 +107,12 @@ export function DeployConsole(): React.ReactElement {
                   aria-selected={view === v.id}
                   onClick={() => setView(v.id)}
                   data-testid={`deploy-view-${v.id}`}
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                    i > 0 ? "border-l border-[var(--color-border-emphasis)] " : ""
+                  }${
                     view === v.id
                       ? "bg-[var(--color-accent-cyan)]/15 text-[var(--color-accent-cyan)]"
-                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
