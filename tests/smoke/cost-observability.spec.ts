@@ -71,6 +71,32 @@ test.describe("Cost Observability page", () => {
     expect(overflow).toBeGreaterThan(0);
   });
 
+  test("breakdown bars + table are merged into one table with an inline bar-in-cell (regression: separate bar chart removed)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // Only one breakdown table on the page — no separate standalone bar-chart list alongside it.
+    await expect(page.getByTestId("cost-breakdown-table")).toHaveCount(1);
+
+    // Default sort is cost desc, so the top row carries the max cost in-window — its inline
+    // bar-in-cell should render at (near) full width, proving the bar tracks the row's own cost.
+    const firstBarFill = table.locator("tbody tr").first().getByTestId("cost-bar-fill");
+    await expect(firstBarFill).toBeVisible();
+    const width = await firstBarFill.evaluate((el) => (el as HTMLElement).style.width);
+    expect(parseFloat(width)).toBeGreaterThan(90);
+
+    // Sorting by cost ascending flips the bar's magnitude too — proves the bar is data-driven,
+    // not a static decoration, and lives in the same row as the label + share it replaced a
+    // separate chart column for.
+    await table.getByRole("columnheader", { name: /cost/i }).click();
+    const lastBarFill = table.locator("tbody tr").first().getByTestId("cost-bar-fill");
+    const ascWidth = await lastBarFill.evaluate((el) => (el as HTMLElement).style.width);
+    expect(parseFloat(ascWidth)).toBeLessThan(parseFloat(width));
+  });
+
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
     await page.goto("/ops/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).

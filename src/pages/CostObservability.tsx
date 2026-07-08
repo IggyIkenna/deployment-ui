@@ -699,7 +699,7 @@ function PlainHead({
   );
 }
 
-// ---------- breakdown (bars + sortable table) ----------
+// ---------- breakdown (single sortable table, bar-in-cell) ----------
 function BreakdownPanel({
   dimension,
   onDimension,
@@ -711,7 +711,6 @@ function BreakdownPanel({
 }) {
   const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(data.rows, "cost");
   const max = Math.max(...data.rows.map((r) => r.cost), 1);
-  const barRows = sorted.slice(0, 12);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
   return (
     <Panel>
@@ -728,64 +727,31 @@ function BreakdownPanel({
             {DIM_NOTE[dimension]}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* bars */}
-          <div className="flex flex-col gap-2.5">
-            {barRows.map((r) => {
-              const col = r.cloud ? CLOUDS[r.cloud].color : "var(--color-accent-cyan)";
-              return (
-                <div key={`${r.cloud}-${r.label}`} className="grid grid-cols-[140px_1fr_auto] items-center gap-3">
-                  <span
-                    className="flex items-center gap-1.5 truncate text-xs text-[var(--color-text-secondary)]"
-                    title={r.label}
-                  >
-                    {r.cloud && <span className="h-2 w-2 flex-none rounded-sm" style={{ background: col }} />}
-                    {r.label}
-                  </span>
-                  <div className="h-[22px] overflow-hidden rounded-md bg-[var(--color-bg-tertiary)]">
-                    <div
-                      className="h-full rounded-md transition-[width] duration-500"
-                      style={{ width: `${(r.cost / max) * 100}%`, background: col, minWidth: 2 }}
-                    />
-                  </div>
-                  <span className="text-right font-mono text-xs font-semibold text-[var(--color-text-primary)]">
-                    {usd(r.cost)}
-                  </span>
-                </div>
-              );
-            })}
-            {barRows.length === 0 && (
-              <p className="py-4 text-sm text-[var(--color-text-muted)]">No spend in this window.</p>
-            )}
-          </div>
-          {/* table — every row the backend returned (up to 90 daily / 50 grouped), inside a
-              fixed-height scroll region. Footprint stays ~the old 15-row cap, but nothing is
-              hidden: a 90-day / 40-resource breakdown scrolls instead of stretching the page. */}
-          <div className="max-h-[400px] overflow-auto" data-testid="cost-breakdown-scroll">
-            <table className="w-full text-xs" data-testid="cost-breakdown-table">
-              <thead>
-                <tr>
-                  <SortHead
-                    label={dimLabel}
-                    active={key === "label"}
-                    dir={dir}
-                    onClick={() => toggle("label")}
-                    sticky
-                  />
-                  <PlainHead label="Detail" sticky />
-                  <SortHead
-                    label="Cost"
-                    active={key === "cost"}
-                    dir={dir}
-                    onClick={() => toggle("cost")}
-                    align="right"
-                    sticky
-                  />
-                  <PlainHead label="Share" align="right" sticky />
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((r) => (
+        {/* single table — every row the backend returned (up to 90 daily / 50 grouped), inside a
+            fixed-height scroll region. The Cost column carries an inline proportional bar (width =
+            cost / max across the full dataset) instead of a separate top-12 bar chart, freeing
+            horizontal space for detail columns and removing the label+cost duplication. */}
+        <div className="max-h-[400px] overflow-auto" data-testid="cost-breakdown-scroll">
+          <table className="w-full text-xs" data-testid="cost-breakdown-table">
+            <thead>
+              <tr>
+                <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} sticky />
+                <PlainHead label="Detail" sticky />
+                <SortHead
+                  label="Cost"
+                  active={key === "cost"}
+                  dir={dir}
+                  onClick={() => toggle("cost")}
+                  align="right"
+                  sticky
+                />
+                <PlainHead label="Share" align="right" sticky />
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => {
+                const col = r.cloud ? CLOUDS[r.cloud].color : "var(--color-accent-cyan)";
+                return (
                   <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-primary)]">
                       {r.cloud && (
@@ -806,17 +772,38 @@ function BreakdownPanel({
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
                       {r.detail}
                     </td>
-                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]">
-                      {usd(r.cost)}
+                    <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
+                      <div className="flex items-center justify-end gap-2">
+                        <div
+                          className="relative h-[18px] w-24 shrink-0 overflow-hidden rounded-sm bg-[var(--color-bg-tertiary)]"
+                          data-testid="cost-bar-track"
+                        >
+                          <div
+                            className="h-full rounded-sm transition-[width] duration-500"
+                            style={{ width: `${(r.cost / max) * 100}%`, background: col, minWidth: 2 }}
+                            data-testid="cost-bar-fill"
+                          />
+                        </div>
+                        <span className="w-[74px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
+                          {usd(r.cost)}
+                        </span>
+                      </div>
                     </td>
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
                       {r.share_pct.toFixed(1)}%
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-[var(--color-text-muted)]">
+                    No spend in this window.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </Panel>
