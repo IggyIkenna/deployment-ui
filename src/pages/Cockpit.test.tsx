@@ -19,7 +19,8 @@ function renderAt(path: string) {
   );
 }
 
-const TAB_IDS = ["health", "deploy", "live", "batch", "paper", "fleet", "consolidators"];
+// live/batch/paper collapsed into ONE "deployments" tab (operator 2026-07-08 merge).
+const TAB_IDS = ["health", "deploy", "deployments", "fleet", "consolidators"];
 
 describe("Cockpit", () => {
   it("renders the page shell + title", () => {
@@ -28,28 +29,21 @@ describe("Cockpit", () => {
     expect(screen.getByText("Cockpit")).toBeTruthy();
   });
 
-  it("renders all 7 tab triggers", () => {
+  it("renders the core tab triggers (incl. the merged Deployments tab)", () => {
     renderAt("/cockpit");
     for (const id of TAB_IDS) {
       expect(screen.getByTestId(`cockpit-tab-${id}`)).toBeTruthy();
+    }
+    // The retired per-mode tabs are gone.
+    for (const id of ["live", "batch", "paper"]) {
+      expect(screen.queryByTestId(`cockpit-tab-${id}`)).toBeNull();
     }
   });
 
   it("Health is the default tab and shows the full monitoring tile grid", () => {
     renderAt("/cockpit");
     expect(screen.getByTestId("cockpit-health")).toBeTruthy();
-    for (const id of [
-      "live",
-      "batch",
-      "paper",
-      "fleet",
-      "consolidators",
-      "coverage",
-      "ci",
-      "github",
-      "billing",
-      "alerts",
-    ]) {
+    for (const id of ["deployments", "fleet", "consolidators", "coverage", "ci", "github", "billing", "alerts"]) {
       expect(screen.getByTestId(`cockpit-tile-${id}`)).toBeTruthy();
     }
   });

@@ -130,13 +130,18 @@ describe("Header", () => {
     await waitFor(() => expect(screen.getByText("GCS API")).toBeTruthy());
   });
 
-  it("renders a utility-only top bar — the only nav entry is the Cockpit", () => {
+  it("top-left trigger opens a dismissable page-nav menu (does not force-navigate)", () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     renderHeader();
-    // The single nav entry: everything else folded into the cockpit (Plan 0.7).
-    expect(screen.getByTestId("nav-cockpit")).toBeTruthy();
-    // The former per-page links are gone from the top bar.
+    const trigger = screen.getByTestId("nav-cockpit");
+    expect(trigger).toBeTruthy();
+    // Closed by default — the page links are not in the DOM (keeps the top bar quiet).
+    expect(screen.queryByTestId("nav-menu")).toBeNull();
     expect(screen.queryByText("VM Deployments")).toBeNull();
-    expect(screen.queryByText("Chaos")).toBeNull();
+    // Clicking the trigger reveals the grouped page nav instead of navigating away.
+    fireEvent.click(trigger);
+    expect(screen.getByTestId("nav-menu")).toBeTruthy();
+    expect(screen.getByTestId("nav-menu-item-vm-deployments")).toBeTruthy();
+    expect(screen.getByTestId("nav-menu-item-chaos")).toBeTruthy();
   });
 });

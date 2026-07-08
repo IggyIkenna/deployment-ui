@@ -18,6 +18,7 @@ import { useHealth } from "../hooks/useHealth";
 import { useCloudProvider, type CloudTarget } from "../contexts/CloudProviderContext";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { NavMenu, NAV_LINKS_FLAT } from "./NavMenu";
 import * as api from "../api/client";
 
 type EnvTier = "dev" | "staging" | "prod";
@@ -35,6 +36,7 @@ export function Header() {
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [envTooltipOpen, setEnvTooltipOpen] = useState(false);
   const envTier = resolveEnvTier();
 
@@ -56,26 +58,49 @@ export function Header() {
     switchTarget(t);
   };
 
-  // Top bar is utility-only — the only nav entry is the Cockpit, which hosts every
-  // deployment/health surface as a tab + the Consoles section. Mobile mirrors it. Plan 0.7.
-  const NAV_LINKS = [{ to: "/cockpit", label: "Cockpit" }] as const;
+  // Page nav is shared with the desktop dropdown (NavMenu) via NAV_LINKS_FLAT so the
+  // mobile hamburger list and the dropdown never drift. The top-left trigger opens the
+  // dropdown instead of force-navigating to /cockpit (operator 2026-07-08).
+  const NAV_LINKS = NAV_LINKS_FLAT;
 
   return (
-    <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
+    <header className="relative border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
       <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        {/* The logo IS the way home — the cockpit is the default page, so there is no
-            separate "Cockpit" nav button. Plan 0.7. */}
-        <Link to="/cockpit" data-testid="nav-cockpit" className="flex items-center gap-3 group">
+        {/* Top-left trigger — opens the page-nav dropdown. Internal operator tool, so this
+            is a menu affordance (dismissable), not a customer-facing home logo. */}
+        <button
+          type="button"
+          data-testid="nav-cockpit"
+          onClick={() => setNavOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={navOpen}
+          aria-label="Open navigation menu"
+          className="flex items-center gap-3 group"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30 group-hover:border-[var(--color-accent-cyan)]">
             <Server className="h-5 w-5 text-[var(--color-accent-cyan)]" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">
+          <div className="text-left">
+            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight flex items-center gap-1.5">
               Unified Trading Deployment
+              <svg
+                className={`h-4 w-4 text-[var(--color-text-tertiary)] transition-transform ${navOpen ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
             </h1>
             <p className="text-xs text-[var(--color-text-tertiary)] font-mono">deployment monitoring & orchestration</p>
           </div>
-        </Link>
+        </button>
+
+        <NavMenu open={navOpen} onClose={() => setNavOpen(false)} />
 
         {/* Hamburger — mobile only */}
         <button

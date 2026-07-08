@@ -119,28 +119,12 @@ type Tile = {
 
 const HEALTH_TILES: Tile[] = [
   {
-    id: "live",
-    label: "Live Deployments",
-    icon: Radio,
-    status: "placeholder",
-    metric: "uptime · heartbeat · feed health",
-    to: "/cockpit?tab=live",
-  },
-  {
-    id: "batch",
-    label: "Batch Deployments",
+    id: "deployments",
+    label: "Deployments (live+batch+paper)",
     icon: Boxes,
     status: "placeholder",
-    metric: "progress · coverage · exit codes",
-    to: "/cockpit?tab=batch",
-  },
-  {
-    id: "paper",
-    label: "Paper Deployments",
-    icon: Layers,
-    status: "placeholder",
-    metric: "recon drift · determinism ε",
-    to: "/cockpit?tab=paper",
+    metric: "targets · running · stale · failed — one flat grid",
+    to: "/cockpit?tab=deployments",
   },
   {
     id: "fleet",
@@ -232,21 +216,28 @@ const OVERALL_LABEL: Record<HealthStatus, string> = {
   critical: "CRITICAL",
 };
 
-/** Derive a live/batch/paper tile's status + one-line value from its umbrella summary. */
-function umbrellaTile(summary: UmbrellaSummaryResponse): { status: TileStatus; value: string } {
-  const running = summary.counts_by_status.running ?? 0;
-  const failed = summary.counts_by_status.failed ?? 0;
-  const status: TileStatus =
-    summary.last_failure || failed > 0 ? "critical" : summary.stale_count > 0 ? "degraded" : "ok";
-  const value = `${summary.total} targets · ${running} running · ${summary.stale_count} stale${failed > 0 ? ` · ${failed} failed` : ""}`;
+/** Derive the merged Deployments tile (status + one-line value) from all three umbrella summaries. */
+function deploymentsTile(
+  umbrellas: Record<string, UmbrellaSummaryResponse>,
+): { status: TileStatus; value: string } | null {
+  const sums = ["LIVE", "BATCH", "PAPER"]
+    .map((k) => umbrellas[k])
+    .filter((s): s is UmbrellaSummaryResponse => Boolean(s));
+  if (sums.length === 0) return null;
+  let total = 0;
+  let running = 0;
+  let failed = 0;
+  let stale = 0;
+  for (const s of sums) {
+    total += s.total;
+    running += s.counts_by_status.running ?? 0;
+    failed += s.counts_by_status.failed ?? 0;
+    stale += s.stale_count;
+  }
+  const status: TileStatus = failed > 0 ? "critical" : stale > 0 ? "degraded" : "ok";
+  const value = `${total} targets · ${running} running · ${stale} stale${failed > 0 ? ` · ${failed} failed` : ""}`;
   return { status, value };
 }
-
-const UMBRELLA_BY_TILE_ID: Record<string, "LIVE" | "BATCH" | "PAPER"> = {
-  live: "LIVE",
-  batch: "BATCH",
-  paper: "PAPER",
-};
 
 /** Minimal CI-overview shape the health tile needs (the CI tab consumes the full payload). */
 interface CiOverviewLite {
@@ -382,17 +373,17 @@ function HealthTab() {
           const Icon = tile.icon;
           // Overlay real data: overview rollup tiles, then live/batch/paper from umbrella summaries.
           const backend = overviewById.get(OVERVIEW_TILE_BY_COCKPIT_ID[tile.id] ?? "");
-          const umbrellaKey = UMBRELLA_BY_TILE_ID[tile.id];
-          const umbrella = umbrellaKey ? umbrellas[umbrellaKey] : undefined;
           let status: TileStatus = tile.status;
           let metric: string = tile.metric;
           if (backend) {
             status = backend.status;
             metric = backend.value;
-          } else if (umbrella) {
-            const derived = umbrellaTile(umbrella);
-            status = derived.status;
-            metric = derived.value;
+          } else if (tile.id === "deployments") {
+            const derived = deploymentsTile(umbrellas);
+            if (derived) {
+              status = derived.status;
+              metric = derived.value;
+            }
           } else if (tile.id === "ci" && ci) {
             const derived = ciTile(ci);
             status = derived.status;
@@ -752,9 +743,7 @@ function ConsolidatorsTab() {
 const COCKPIT_TABS = [
   { id: "health", label: "Health", icon: ShieldCheck },
   { id: "deploy", label: "Deploy", icon: Rocket },
-  { id: "live", label: "Live", icon: Radio },
-  { id: "batch", label: "Batch", icon: Boxes },
-  { id: "paper", label: "Paper", icon: Layers },
+  { id: "deployments", label: "Deployments", icon: Boxes },
   { id: "fleet", label: "Fleet", icon: Server },
   { id: "consolidators", label: "Consolidators", icon: Database },
   { id: "ci", label: "CI", icon: GitBranch },
@@ -782,7 +771,7 @@ export function Cockpit() {
     [searchParams, setSearchParams],
   );
 
-  // In-cockpit drill-down: a Live/Batch/Paper row sets `?detail=<name>` (the cockpit owns
+  // In-cockpit drill-down: a Deployments row sets `?detail=<name>` (the cockpit owns
   // `?tab`; `?detail` is an orthogonal param) → the per-target DeploymentDetail opens in a
   // slide-over (chrome-less embed) instead of navigating away to /deployments/:name.
   const detail = searchParams.get("detail");
@@ -809,7 +798,7 @@ export function Cockpit() {
         <div>
           <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">Cockpit</h1>
           <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
-            unified deployment & health observability — health · deploy · live · paper · batch · fleet
+            unified deployment & health observability — health · deploy · deployments · fleet
           </p>
         </div>
       </div>
@@ -833,9 +822,10 @@ export function Cockpit() {
         <TabsContent value="deploy">
           <DeployTab />
         </TabsContent>
-        <TabsContent value="live">
-          <div data-testid="cockpit-live">
-            <DeploymentsContent fixedUmbrella="LIVE" onDrill={openDetail} />
+        <TabsContent value="deployments">
+          <div data-testid="cockpit-deployments">
+            {/* MERGED live/batch/paper — one flat all-modes inventory (Mode is a filter). */}
+            <DeploymentsContent embedded onDrill={openDetail} />
             {/* Fold /ops/live-deployments — the live-mode VM list + WS event/log tail
                 (Phase 0.5 "Fold /ops/live-deployments"). Chrome-less, no ?tab collision. */}
             <div className="mt-6" data-testid="cockpit-live-ops">
@@ -846,16 +836,6 @@ export function Cockpit() {
                 <LiveDeploymentsContent />
               </ErrorBoundary>
             </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="batch">
-          <div data-testid="cockpit-batch">
-            <DeploymentsContent fixedUmbrella="BATCH" onDrill={openDetail} />
-          </div>
-        </TabsContent>
-        <TabsContent value="paper">
-          <div data-testid="cockpit-paper">
-            <DeploymentsContent fixedUmbrella="PAPER" onDrill={openDetail} />
           </div>
         </TabsContent>
         <TabsContent value="fleet">

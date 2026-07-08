@@ -33,12 +33,11 @@ async function mockBase(page: Page) {
   await page.route("**/api/deployments**", (route) => route.fulfill({ json: { deployments: [] } }));
 }
 
+// live/batch/paper collapsed into ONE "deployments" tab (operator 2026-07-08 merge).
 const TAB_IDS = [
   "health",
   "deploy",
-  "live",
-  "batch",
-  "paper",
+  "deployments",
   "fleet",
   "consolidators",
   "ci",
@@ -57,7 +56,7 @@ test.describe("Cockpit — scaffold IA", () => {
     await expect(page.getByTestId("cockpit-page")).toBeVisible();
   });
 
-  test("renders the page with all 12 tabs", async ({ page }) => {
+  test("renders the page with all cockpit tabs (incl. the merged Deployments tab)", async ({ page }) => {
     await mockBase(page);
     await page.goto("/cockpit");
     await page.waitForLoadState("networkidle");
@@ -74,18 +73,7 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByTestId("cockpit-health")).toBeVisible();
-    for (const id of [
-      "live",
-      "batch",
-      "paper",
-      "fleet",
-      "consolidators",
-      "coverage",
-      "ci",
-      "github",
-      "billing",
-      "alerts",
-    ]) {
+    for (const id of ["deployments", "fleet", "consolidators", "coverage", "ci", "github", "billing", "alerts"]) {
       await expect(page.getByTestId(`cockpit-tile-${id}`)).toBeVisible();
     }
     // The landing is wired to GET /api/health/overview — the live rollup banner replaces the
@@ -127,40 +115,65 @@ test.describe("Cockpit — scaffold IA", () => {
     await expect(page.getByTestId("cockpit-consolidator-status-defi")).not.toHaveText("—");
   });
 
-  test("Header Cockpit nav link routes to /cockpit from another page", async ({ page }) => {
+  test("Header nav-menu routes to /cockpit from another page", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/deployments");
+    await page.waitForLoadState("networkidle");
+    // The top-left trigger opens the dropdown (no longer a direct /cockpit link)…
+    await page.getByTestId("nav-cockpit").click();
+    await expect(page.getByTestId("nav-menu")).toBeVisible();
+    // …and the Cockpit item routes there.
+    await page.getByTestId("nav-menu-item-cockpit").click();
+    await expect(page).toHaveURL(/\/cockpit/);
+    await expect(page.getByTestId("cockpit-page")).toBeVisible();
+  });
+
+  test("nav-menu opens then dismisses without navigating (backdrop + Escape)", async ({ page }) => {
     await mockBase(page);
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("nav-cockpit").click();
-    await expect(page).toHaveURL(/\/cockpit/);
-    await expect(page.getByTestId("cockpit-page")).toBeVisible();
+    await expect(page.getByTestId("nav-menu")).toBeVisible();
+    // Backdrop click on empty space (right of the ≤768px top-left panel, inside the
+    // 1280×720 viewport) closes it and leaves us on /deployments.
+    await page.getByTestId("nav-menu-backdrop").click({ position: { x: 1000, y: 400 } });
+    await expect(page.getByTestId("nav-menu")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/deployments/);
+    // Re-open, then Escape closes it (still no navigation).
+    await page.getByTestId("nav-cockpit").click();
+    await expect(page.getByTestId("nav-menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("nav-menu")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/deployments/);
   });
 });
 
 /**
- * Regression: the Live / Batch / Paper / Fleet cockpit tabs are now an EMBEDDED APP
- * (folded Deployments + VM Deployments inventory), not placeholder tables — they render
- * the REAL inventory from the mock API (VITE_MOCK_API=true via the playwright webServer).
- * Guards Phase 0.7 "Fold Deployments + VM Deployments + Live Ops". Note: NO page.route
- * mock here — the dev mock-api serves /api/deployments/inventory + /vm-deployments so the
- * folded components get real-shaped data (the cockpit owns ?tab=; the embedded umbrella is
- * a prop, never ?umbrella=, so there is no query collision).
+ * Regression: the merged Deployments + Fleet cockpit tabs are an EMBEDDED APP (folded
+ * Deployments + VM Deployments inventory), not placeholder tables — they render the REAL
+ * inventory from the mock API (VITE_MOCK_API=true via the playwright webServer). The three
+ * old Live/Batch/Paper tabs were merged into one Deployments tab (operator 2026-07-08); mode
+ * is a FILTER inside the flat all-modes table. Note: NO page.route mock here — the dev
+ * mock-api serves /api/deployments/inventory + /vm-deployments so the folded components get
+ * real-shaped data (the cockpit owns ?tab=; embedded filters are local state, no ?umbrella=).
  */
-test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
-  test("Live tab renders the folded Deployments inventory with a real live row", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () => {
+  test("Deployments tab renders the folded all-modes inventory with a real live row", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-live")).toBeVisible();
-    // The folded DeploymentsContent renders chrome-less (no standalone <main>/umbrella tabs).
-    await expect(page.getByTestId("cockpit-live").getByTestId("umbrella-tabs")).toHaveCount(0);
+    await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
+    // Merged view: mode is a FILTER (no per-mode umbrella tabs).
+    await expect(page.getByTestId("cockpit-deployments").getByTestId("umbrella-tabs")).toHaveCount(0);
+    await expect(page.getByTestId("filter-mode")).toBeVisible();
     await expect(page.getByTestId("deployment-matrix")).toBeVisible();
-    // A real LIVE target row from the mock inventory + the LIVE-preset feed-health column.
+    // A real LIVE target row from the mock inventory + its Mode badge + feed-health cell.
     await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("mode-badge-LIVE").first()).toBeVisible();
     await expect(page.getByTestId("feed-health-defi-live-capture-1")).toBeVisible();
   });
 
   test("Live row drill opens the per-target detail IN the cockpit (Phase 0.5 slide-over)", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
     // Clicking a row opens the chrome-less DeploymentDetail in a slide-over (no nav-away).
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
@@ -175,8 +188,8 @@ test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
     await expect(page.getByTestId("cockpit-detail-panel")).toHaveCount(0);
   });
 
-  test("Live tab rows carry pause/stop/restart VM controls (Phase 6)", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+  test("Deployments tab rows carry pause/stop/restart VM controls (Phase 6)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
     // A running LIVE VM row exposes the operator controls (reuse /api/vm/admin/{vm}/*).
     await expect(page.getByTestId("vm-controls-defi-live-capture-1")).toBeVisible();
@@ -206,20 +219,25 @@ test.describe("Cockpit — Live/Batch/Paper/Fleet embedded inventory", () => {
     await expect(page.getByTestId("deploy-view-history")).toBeVisible();
   });
 
-  test("Batch tab renders the folded inventory with the failed/137 (OOM) row", async ({ page }) => {
-    await page.goto("/cockpit?tab=batch");
+  test("merged table shows the batch failed/137 (OOM) row", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-batch")).toBeVisible();
+    await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     const row = page.getByTestId("deployment-row-sports-backfill-20260621");
     await expect(row).toBeVisible();
     await expect(row).toContainText("137 (OOM)");
+    await expect(row.getByTestId("mode-badge-BATCH")).toBeVisible();
   });
 
-  test("Paper tab renders the folded inventory with a paper row", async ({ page }) => {
-    await page.goto("/cockpit?tab=paper");
+  test("merged table shows paper rows alongside live + batch (all modes in one grid)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-paper")).toBeVisible();
+    await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    // A real PAPER row from the mock inventory renders with its Mode badge.
+    const paperRow = page.getByTestId("deployment-row-defi-paper-trading-1");
+    await expect(paperRow).toBeVisible();
+    await expect(paperRow.getByTestId("mode-badge-PAPER")).toBeVisible();
   });
 
   test("Fleet tab renders the real VM census (every VM accounted for)", async ({ page }) => {
@@ -296,8 +314,10 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
  * defi-live-capture-1 = fresh, cefi-live-trading-1 = stale.
  */
 test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
-  test("Live tab feed-health reads manifest freshness (fresh / stale), not just the heartbeat", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+  test("Deployments tab feed-health reads manifest freshness (fresh / stale), not just the heartbeat", async ({
+    page,
+  }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
     // The fresh live row renders the manifest-derived "fresh" feed-health…
     await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("fresh");
@@ -322,8 +342,8 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
  * /ops/live-deployments + /fleet/infra + /fleet/git into Live/Fleet/Health".
  */
 test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
-  test("Live tab folds the live-ops running-services + event/log surface", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+  test("Deployments tab folds the live-ops running-services + event/log surface", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-live-ops")).toBeVisible();
     await expect(page.getByTestId("live-deployments-content")).toBeVisible();
@@ -454,16 +474,16 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     expect(href).not.toBe("/deployments");
   });
 
-  test("O3: Batch inventory shows status-filter chips with counts that drive the filter", async ({ page }) => {
-    await page.goto("/cockpit?tab=batch");
+  test("O3: merged inventory shows status-filter chips with counts that drive the filter", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-batch")).toBeVisible();
+    await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     const chips = page.getByTestId("status-filter-chips");
     await expect(chips).toBeVisible();
     // All / Running / Succeeded / Failed / Stuck chips with per-status counts (from the summary).
     await expect(page.getByTestId("status-chip-all")).toBeVisible();
     await expect(page.getByTestId("status-chip-failed")).toBeVisible();
-    // BATCH mock: 1 failed (sports-backfill exit 137), ≥1 succeeded.
+    // All-modes aggregate: exactly 1 failed (sports-backfill exit 137), ≥1 succeeded.
     await expect(page.getByTestId("status-chip-count-failed")).toHaveText("1");
     await expect(page.getByTestId("status-chip-count-succeeded")).not.toHaveText("0");
     // Clicking "Failed" isolates the failed row + drops the succeeded one.
@@ -474,7 +494,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O4: deployment drill-down surfaces the alerts + restart/escalation lifecycle card", async ({ page }) => {
-    await page.goto("/cockpit?tab=live");
+    await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
     await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
