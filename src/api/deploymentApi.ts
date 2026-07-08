@@ -391,7 +391,9 @@ export type CloudFilter = "all" | CostCloud;
 
 export interface CloudSummary {
   cloud: CostCloud;
-  total: number;
+  total: number; // NET — what you actually pay (= gross + credit)
+  gross: number; // usage cost before credits
+  credit: number; // credits applied (<= 0)
   delta_pct: number | null;
   daily: number[];
   is_placeholder: boolean;
@@ -399,7 +401,9 @@ export interface CloudSummary {
 
 export interface CostSummaryResponse {
   days: number;
-  total: number;
+  total: number; // NET grand total — what you actually pay
+  gross: number; // usage cost before credits
+  credit: number; // credits applied (<= 0)
   run_rate_daily: number;
   delta_pct: number | null;
   dates: string[];

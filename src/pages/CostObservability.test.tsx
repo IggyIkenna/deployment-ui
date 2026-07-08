@@ -14,14 +14,25 @@ vi.mock("../api/deploymentApi", () => ({
 
 const summary: api.CostSummaryResponse = {
   days: 30,
-  total: 15426.52,
+  total: 15426.52, // net (what you pay) = gross 18000.00 − credits 2573.48
+  gross: 18000.0,
+  credit: -2573.48,
   run_rate_daily: 514.22,
   delta_pct: 8.1,
   dates: ["2026-06-09", "2026-06-10"],
   clouds: [
-    { cloud: "gcp", total: 14914.85, delta_pct: 12.4, daily: [400, 500], is_placeholder: false },
-    { cloud: "aws", total: 218.99, delta_pct: -5.2, daily: [7, 8], is_placeholder: false },
-    { cloud: "github", total: 292.68, delta_pct: 0.1, daily: [9, 9], is_placeholder: true },
+    // gcp carries the promo credit: net 14914.85 = gross 17488.33 − credit 2573.48
+    {
+      cloud: "gcp",
+      total: 14914.85,
+      gross: 17488.33,
+      credit: -2573.48,
+      delta_pct: 12.4,
+      daily: [400, 500],
+      is_placeholder: false,
+    },
+    { cloud: "aws", total: 218.99, gross: 218.99, credit: 0, delta_pct: -5.2, daily: [7, 8], is_placeholder: false },
+    { cloud: "github", total: 292.68, gross: 292.68, credit: 0, delta_pct: 0.1, daily: [9, 9], is_placeholder: true },
   ],
   provisional_days: 2,
   generated_at: "2026-07-08T00:00:00Z",
@@ -104,6 +115,17 @@ describe("CostObservability", () => {
     expect(screen.getAllByText("GCP").length).toBeGreaterThan(0);
     expect(screen.getAllByText("AWS").length).toBeGreaterThan(0);
     expect(screen.getByText("mock")).toBeInTheDocument(); // github placeholder badge (unique)
+  });
+
+  it("shows net as the headline with the gross − credits derivation", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toHaveTextContent("$15,426.52")); // net
+    const bd = screen.getByTestId("cost-total-breakdown");
+    expect(bd).toHaveTextContent("$18,000.00"); // gross
+    expect(bd).toHaveTextContent("$2,573.48"); // credits (shown as magnitude)
+    // The gcp tile carries its own credit line; aws (no credits) renders none.
+    expect(screen.getByTestId("cost-cloud-breakdown-gcp")).toHaveTextContent("$2,573.48");
+    expect(screen.queryByTestId("cost-cloud-breakdown-aws")).toBeNull();
   });
 
   it("renders the breakdown table and the leaf tables split by resource kind", async () => {

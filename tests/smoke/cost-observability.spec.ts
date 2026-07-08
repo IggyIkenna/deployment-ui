@@ -70,4 +70,16 @@ test.describe("Cost Observability page", () => {
     const overflow = await scroller.evaluate((el) => el.scrollHeight - el.clientHeight);
     expect(overflow).toBeGreaterThan(0);
   });
+
+  test("headline shows net with the gross − credits derivation", async ({ page }) => {
+    await page.goto("/ops/costs");
+    // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).
+    const bd = page.getByTestId("cost-total-breakdown");
+    await expect(bd).toBeVisible();
+    await expect(bd).toContainText("gross");
+    await expect(bd).toContainText("credits");
+    // The GCP tile carries its own credit line; AWS (no credits) does not.
+    await expect(page.getByTestId("cost-cloud-breakdown-gcp")).toBeVisible();
+    await expect(page.getByTestId("cost-cloud-breakdown-aws")).toHaveCount(0);
+  });
 });

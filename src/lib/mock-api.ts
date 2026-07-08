@@ -1837,18 +1837,28 @@ function mockCostDaily(cloud: string, days: number): number[] {
 function mockCostSummary(days: number) {
   const clouds = ["gcp", "aws", "github"].map((cloud) => {
     const daily = mockCostDaily(cloud, days);
+    const net = +daily.reduce((a, b) => a + b, 0).toFixed(2);
+    // GCP carries ~20% promotional credit (mirrors the real billing export); AWS/GitHub have none.
+    const credit = cloud === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
+    const gross = +(net - credit).toFixed(2); // net = gross + credit (credit ≤ 0)
     return {
       cloud,
-      total: +daily.reduce((a, b) => a + b, 0).toFixed(2),
+      total: net,
+      gross,
+      credit,
       delta_pct: MOCK_COST_CLOUDS[cloud].delta,
       daily,
       is_placeholder: MOCK_COST_CLOUDS[cloud].placeholder,
     };
   });
   const total = +clouds.reduce((a, c) => a + c.total, 0).toFixed(2);
+  const gross = +clouds.reduce((a, c) => a + c.gross, 0).toFixed(2);
+  const credit = +clouds.reduce((a, c) => a + c.credit, 0).toFixed(2);
   return {
     days,
     total,
+    gross,
+    credit,
     run_rate_daily: +(total / days).toFixed(2),
     delta_pct: 8.1,
     dates: mockCostDates(days),

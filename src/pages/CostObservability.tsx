@@ -159,6 +159,37 @@ function Delta({ pct }: { pct: number | null }) {
   );
 }
 
+// ---------- net → (gross − credits) derivation ----------
+// The headline number is NET — what actually gets invoiced. When credits apply (GCP promotions /
+// CUD / SUD), show how it's derived so the subsidy is visible: net = gross − credits. This
+// doubles as a run-rate signal — when promo credits run out, net rises toward gross. Clouds with
+// no credits (AWS / GitHub) render nothing. `credit` is ≤ 0; we show its magnitude after the minus.
+function GrossCredit({
+  gross,
+  credit,
+  compact = false,
+  testId,
+}: {
+  gross: number;
+  credit: number;
+  compact?: boolean;
+  testId?: string;
+}) {
+  if (!(credit < 0)) return null;
+  return (
+    <div
+      data-testid={testId}
+      className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-[var(--color-text-tertiary)]"
+    >
+      <span className="font-mono">({usd(gross)}</span>
+      {!compact && <span>gross</span>}
+      <span aria-hidden="true">−</span>
+      <span className="font-mono text-[var(--color-accent-green)]">{usd(Math.abs(credit))}</span>
+      <span>credits)</span>
+    </div>
+  );
+}
+
 // ---------- sparkline (KPI corner flourish) ----------
 function Sparkline({ data, color, w = 92, h = 30 }: { data: number[]; color: string; w?: number; h?: number }) {
   if (data.length < 2) return null;
@@ -202,6 +233,7 @@ function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: Clou
           <div data-testid="cost-total" className="mt-2 font-mono text-[34px] font-bold leading-none tracking-tight">
             {usd(summary.total)}
           </div>
+          <GrossCredit gross={summary.gross} credit={summary.credit} testId="cost-total-breakdown" />
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-text-tertiary)]">
             <Delta pct={summary.delta_pct} />
             <span>vs prior {summary.days}d</span>
@@ -221,6 +253,8 @@ function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: Clou
         const cs: CloudSummary = byCloud.get(c) ?? {
           cloud: c,
           total: 0,
+          gross: 0,
+          credit: 0,
           delta_pct: null,
           daily: [],
           is_placeholder: false,
@@ -240,6 +274,7 @@ function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: Clou
                 )}
               </div>
               <div className="mt-2 font-mono text-2xl font-bold leading-none tracking-tight">{usd(cs.total)}</div>
+              <GrossCredit gross={cs.gross} credit={cs.credit} compact testId={`cost-cloud-breakdown-${c}`} />
               <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                 <Delta pct={cs.delta_pct} />
                 <span className="font-mono">{share}% of total</span>
