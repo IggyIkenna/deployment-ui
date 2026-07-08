@@ -343,15 +343,19 @@ export function LiveDeploymentsContent() {
 
       {selectedVmName && (
         <>
-          <div className="flex gap-2 mt-4" role="tablist" aria-label="VM panel view">
+          <div
+            className="inline-flex items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5 mt-4"
+            role="tablist"
+            aria-label="VM panel view"
+          >
             <button
               role="tab"
               aria-selected={activePanel === "events"}
               onClick={() => setActivePanel("events")}
-              className={`px-3 py-1 text-sm rounded border transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 activePanel === "events"
-                  ? "border-blue-400 bg-blue-50 font-medium text-blue-700"
-                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+                  ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               Events
@@ -360,10 +364,10 @@ export function LiveDeploymentsContent() {
               role="tab"
               aria-selected={activePanel === "logs"}
               onClick={() => setActivePanel("logs")}
-              className={`px-3 py-1 text-sm rounded border transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 activePanel === "logs"
-                  ? "border-blue-400 bg-blue-50 font-medium text-blue-700"
-                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+                  ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               Logs

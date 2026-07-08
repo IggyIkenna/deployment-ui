@@ -115,7 +115,7 @@ function Segmented<T extends string | number>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-1"
+      className="inline-flex items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5"
     >
       {options.map((o) => {
         const active = o.value === value;
@@ -125,12 +125,13 @@ function Segmented<T extends string | number>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(o.value)}
-            // Mock-faithful: padded, rounded pills with a gap between them + a filled accent
-            // active pill. The separation comes from padding + the active pill, not dividers.
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            // Mock-faithful segmented control (`.seg` in cost-observability-mockup.html): flush pills
+            // in a 2px-padded track — the separation is the filled accent active pill, NOT a gap
+            // between buttons. Hover brightens the text only (no grey box), matching the mock.
+            className={`rounded-md px-[11px] py-[5px] text-[12.5px] font-medium transition-colors ${
               active
                 ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             }`}
           >
             {o.label}

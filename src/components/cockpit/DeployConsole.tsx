@@ -93,7 +93,7 @@ export function DeployConsole(): React.ReactElement {
         </select>
         {service ? (
           <div
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-1"
+            className="inline-flex items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5"
             role="tablist"
             data-testid="deploy-view-tabs"
           >
@@ -109,8 +109,8 @@ export function DeployConsole(): React.ReactElement {
                   data-testid={`deploy-view-${v.id}`}
                   className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     view === v.id
-                      ? "bg-[var(--color-accent-cyan)]/15 text-[var(--color-accent-cyan)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
+                      ? "bg-[var(--color-accent-dim)] text-[var(--color-accent)]"
+                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />

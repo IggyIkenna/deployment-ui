@@ -67,8 +67,21 @@
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+}
+
+/* Reset default margin + padding inside @layer base so Tailwind's spacing utilities — which live
+ * in @layer utilities and cascade LATER — win over them. Without this wrap the unlayered
+ * `* { margin: 0; padding: 0 }` outranked every layered `m-*`/`p-*` (a Tailwind v4 layer-vs-unlayered
+ * quirk), silently zeroing ALL Tailwind margin + padding app-wide: `space-y-*` / `mt-*` produced no
+ * vertical rhythm (stacked cards/panels touched) and `p-*` left buttons / tabs / cards cramped.
+ * Elements that carry no such utility still get 0; hand-written unlayered rules (.card-content,
+ * .nav-item, select, …) are unlayered NORMAL so they still win over both. The only 2 negative-margin
+ * utilities in the app (dropdown + row separators that bleed to the edge) are intended. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html,

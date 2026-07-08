@@ -17,12 +17,12 @@ const TabsList = React.forwardRef<React.ComponentRef<typeof TabsPrimitive.List>,
       ref={ref}
       className={cn(
         "inline-flex items-center justify-center",
-        // Pill = a segmented control of padded, rounded pills with a gap between them + a filled
-        // accent active pill (matches the design mock + the cost page's Segmented). The active
-        // override is pill-scoped (`[&>[data-state=active]]`) so the `underline` variant — used by
-        // Monitor / DataStatus tabs — keeps its own active treatment.
+        // Pill = a segmented control of padded, rounded pills sitting FLUSH in a 2px track (no gap
+        // between buttons; matches `.seg` in the design mock + the cost page's Segmented) with a
+        // filled accent active pill. The active + inactive-hover overrides are pill-scoped
+        // (`[&>[data-state=…]]`) so the `underline` variant — Monitor / DataStatus — is untouched.
         variant === "pill" &&
-          "gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-1 text-[var(--color-text-muted)] [&>[data-state=active]]:bg-[var(--color-accent-dim)]! [&>[data-state=active]]:text-[var(--color-accent)]! [&>[data-state=active]]:shadow-none!",
+          "rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] p-0.5 text-[var(--color-text-muted)] [&>[data-state=active]]:bg-[var(--color-accent-dim)]! [&>[data-state=active]]:text-[var(--color-accent)]! [&>[data-state=active]]:shadow-none! [&>[data-state=inactive]]:hover:text-[var(--color-text-primary)]",
         variant === "underline" && "border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]",
         className,
       )}
