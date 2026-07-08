@@ -422,6 +422,11 @@ export interface CostBreakdownRow {
   resource_kind: string;
   share_pct: number;
   is_provisional: boolean;
+  // Bucket-only (dimension=bucket rows): avg GB stored over the window, storage-class split, net
+  // cost / storage_gb. null when the row isn't a bucket or carries no storage-volume usage.
+  storage_gb?: number | null;
+  storage_class_gb?: Record<string, number> | null;
+  cost_per_gb?: number | null;
 }
 
 export interface CostBreakdownResponse {

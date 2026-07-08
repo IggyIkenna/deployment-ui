@@ -120,6 +120,34 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByTestId("cost-col-credit")).toHaveCount(0);
   });
 
+  test("By bucket shows storage/class-split/$-per-GB columns formatted in GB, not bytes", async ({ page }) => {
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("central-element-323112-events");
+
+    // Storage column reads in GB (mock fixture sums to 18,500 GB for the top bucket) — never a
+    // raw byte count (which would be ~9-10 digits with no unit for this fixture).
+    const storageCell = table.locator("tbody tr").first().getByTestId("cost-bucket-storage-gb");
+    await expect(storageCell).toContainText("GB");
+    await expect(storageCell).toContainText("18,500");
+
+    // Storage-class split lists the per-class GB breakdown (Standard/Nearline/Coldline/Archive).
+    const classCell = table.locator("tbody tr").first().getByTestId("cost-bucket-storage-class");
+    await expect(classCell).toContainText("Standard");
+    await expect(classCell).toContainText("GB");
+
+    // $/GB column renders a per-GB rate, not the row's raw total cost.
+    const perGbCell = table.locator("tbody tr").first().getByTestId("cost-bucket-cost-per-gb");
+    await expect(perGbCell).toContainText("/GB");
+
+    // These columns are bucket-dimension-only — switching to "By resource" drops them.
+    await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
+    await expect(page.getByTestId("cost-bucket-storage-gb")).toHaveCount(0);
+  });
+
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
     await page.goto("/ops/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).

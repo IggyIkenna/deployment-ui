@@ -1910,12 +1910,21 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     ],
     day: mockCostDates(days).map((d, i) => [d, null, +(510 + 80 * Math.sin(i / 3)).toFixed(2), "", "other"] as Row),
   };
+  // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
+  // it's a window-average, not a sum). cost_per_gb is derived after cost is scaled below.
+  const BUCKET_STORAGE: Record<string, Record<string, number>> = {
+    "central-element-323112-events": { Standard: 12000, Nearline: 4000, Coldline: 2000, Archive: 500 },
+    "market-data-tick-cefi-central-element-323112": { Standard: 6200 },
+    "unified-trading-instruments-defi-427895769566": { Standard: 40 },
+  };
   let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind]) => {
     const net = +(cost * scale).toFixed(2);
     // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
     // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
     const credit = c === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
     const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
+    const storageClassGb = dimension === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
+    const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
     return {
       label,
       cloud: c,
@@ -1926,6 +1935,9 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       resource_kind: kind,
       share_pct: 0,
       is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
+      storage_gb: storageGb,
+      storage_class_gb: storageClassGb,
+      cost_per_gb: storageGb ? +(net / storageGb).toFixed(4) : null,
     };
   });
   if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);

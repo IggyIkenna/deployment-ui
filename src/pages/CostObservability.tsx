@@ -57,6 +57,21 @@ function usdShort(n: number): string {
   if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
   return `$${n.toFixed(0)}`;
 }
+// Bucket storage is already backend-derived to GB (never bytes) — format with thousands
+// separators only, no unit-magnitude conversion (so the label stays legible as "GB").
+function formatGb(n: number): string {
+  return `${n.toLocaleString("en-US", { maximumFractionDigits: n < 10 ? 2 : 0 })} GB`;
+}
+function costPerGb(n: number): string {
+  return `$${n.toFixed(n < 1 ? 4 : 2)}/GB`;
+}
+function storageClassSplit(classes: Record<string, number>): string {
+  return Object.entries(classes)
+    .filter(([, gb]) => gb > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([cls, gb]) => `${cls} ${formatGb(gb)}`)
+    .join(" · ");
+}
 function isoParts(iso: string): { y: number; m: number; d: number } {
   const [y, m, d] = iso.split("-").map(Number);
   return { y: y ?? 0, m: m ?? 1, d: d ?? 1 };
@@ -744,6 +759,27 @@ function BreakdownPanel({
               <tr>
                 <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} sticky />
                 <PlainHead label="Detail" sticky />
+                {dimension === "bucket" && (
+                  <>
+                    <SortHead
+                      label="Storage"
+                      active={key === "storage_gb"}
+                      dir={dir}
+                      onClick={() => toggle("storage_gb")}
+                      align="right"
+                      sticky
+                    />
+                    <PlainHead label="Storage class" sticky />
+                    <SortHead
+                      label="$/GB"
+                      active={key === "cost_per_gb"}
+                      dir={dir}
+                      onClick={() => toggle("cost_per_gb")}
+                      align="right"
+                      sticky
+                    />
+                  </>
+                )}
                 <SortHead
                   label="Cost"
                   active={key === "cost"}
@@ -781,6 +817,28 @@ function BreakdownPanel({
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]">
                       {r.detail}
                     </td>
+                    {dimension === "bucket" && (
+                      <>
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                          data-testid="cost-bucket-storage-gb"
+                        >
+                          {r.storage_gb != null ? formatGb(r.storage_gb) : "—"}
+                        </td>
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"
+                          data-testid="cost-bucket-storage-class"
+                        >
+                          {r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "—"}
+                        </td>
+                        <td
+                          className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
+                          data-testid="cost-bucket-cost-per-gb"
+                        >
+                          {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
+                        </td>
+                      </>
+                    )}
                     <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px]">
                       <div className="flex items-center justify-end gap-2">
                         <div
@@ -819,7 +877,10 @@ function BreakdownPanel({
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={hasCredits ? 6 : 4} className="py-4 text-center text-[var(--color-text-muted)]">
+                  <td
+                    colSpan={4 + (dimension === "bucket" ? 3 : 0) + (hasCredits ? 2 : 0)}
+                    className="py-4 text-center text-[var(--color-text-muted)]"
+                  >
                     No spend in this window.
                   </td>
                 </tr>
