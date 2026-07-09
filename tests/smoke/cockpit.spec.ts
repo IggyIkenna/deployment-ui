@@ -592,4 +592,19 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     // The mock event stream has no restart/escalation events → honest empty state.
     await expect(page.getByTestId("detail-lifecycle-empty")).toBeVisible();
   });
+
+  test("O5: consolidator backlog counts render + the throughput sparkline accumulates", async ({ page }) => {
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    // cefi mock: 47 pending of 48 shards (consolidator behind) — the real "keeping up?" magnitude.
+    const backlog = page.getByTestId("cockpit-consolidator-backlog-cefi");
+    await expect(backlog).toBeVisible();
+    await expect(backlog).toContainText("47");
+    await expect(backlog).toContainText("48");
+    // The sparkline container is present on the first poll (one sample → "collecting"); once a
+    // 2nd poll (15s interval) lands a second sample, the recharts area actually renders (svg).
+    const spark = page.getByTestId("cockpit-consolidator-sparkline-cefi");
+    await expect(spark).toBeVisible();
+    await expect(spark.locator("svg")).toBeVisible({ timeout: 20000 });
+  });
 });

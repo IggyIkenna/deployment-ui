@@ -52,6 +52,10 @@ export interface ConsolidatorAssetGroup {
   staleness_budget_seconds: number;
   per_vm_shard_fallback_active: boolean;
   last_successful_run_at: string | null;
+  /** Per-VM shards written since the last merge (not yet absorbed) — the backlog. */
+  pending_shard_count?: number | null;
+  /** Per-VM shards present (fan-in width). */
+  total_shard_count?: number | null;
   detail: string;
 }
 

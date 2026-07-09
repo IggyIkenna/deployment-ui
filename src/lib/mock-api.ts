@@ -2598,7 +2598,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Manifest-consolidator drill-down — per-asset_group index freshness (Phase 1).
   if (path === "/api/health/consolidator") {
-    const mkAg = (ag: string, status: string, age: number, fallback: boolean, detail: string) => ({
+    const mkAg = (
+      ag: string,
+      status: string,
+      age: number,
+      fallback: boolean,
+      detail: string,
+      pending = 0,
+      total = 0,
+    ) => ({
       asset_group: ag,
       bucket: `market-data-tick-${ag}-prd-mock`,
       status,
@@ -2606,6 +2614,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       staleness_budget_seconds: 120,
       per_vm_shard_fallback_active: fallback,
       last_successful_run_at: "2026-06-24T06:55:00+00:00",
+      pending_shard_count: pending,
+      total_shard_count: total,
       detail,
     });
     return json({
@@ -2618,11 +2628,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           2457,
           true,
           "index 2457s (> 120s budget) while per-VM shards exist — consolidator behind/DOWN",
+          47,
+          48,
         ),
-        mkAg("defi", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
-        mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)"),
-        mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
-        mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)"),
+        mkAg("defi", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)", 2, 6),
+        mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)", 1, 5),
+        mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)", 0, 4),
+        mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)", 1, 3),
       ],
     });
   }

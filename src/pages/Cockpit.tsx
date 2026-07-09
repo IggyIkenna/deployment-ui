@@ -69,6 +69,8 @@ import {
   type HealthStatus,
 } from "../api/health";
 import { getDeploymentInventory, getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
+import { TOOLTIP_STYLE } from "../lib/chart-theme";
 
 // ---------------------------------------------------------------------------
 // Shared status vocabulary — mirrors the Deployments page chip tones so the
@@ -705,11 +707,69 @@ function FreshnessBar({
   );
 }
 
+const BACKLOG_MAX_SAMPLES = 40; // ~10 min of 15s polls
+
+const SPARK_STROKE: Record<TileStatus, string> = {
+  ok: "var(--color-accent-cyan)",
+  degraded: "var(--color-accent-amber)",
+  critical: "var(--color-accent-red)",
+  placeholder: "var(--color-text-muted)",
+};
+
+/** Shards absorbed on the last poll interval — a backlog DROP (inferred, not the job's count). */
+function absorbedLastTick(samples: number[] | undefined): number {
+  if (!samples || samples.length < 2) return 0;
+  return Math.max(0, samples[samples.length - 2] - samples[samples.length - 1]);
+}
+
+/** Session-scoped backlog-over-time sparkline. Drops = shards absorbed (inferred throughput). */
+function BacklogSparkline({ ag, samples, tone }: { ag: string; samples: number[]; tone: TileStatus }) {
+  if (samples.length < 2) {
+    return (
+      <div
+        data-testid={`cockpit-consolidator-sparkline-${ag}`}
+        className="flex h-10 items-center text-[10px] text-[var(--color-text-muted)]"
+      >
+        collecting backlog trend… (needs a 2nd poll)
+      </div>
+    );
+  }
+  const stroke = SPARK_STROKE[tone];
+  const gid = `backlog-grad-${ag}`;
+  const chartData = samples.map((pending, i) => ({ i, pending }));
+  return (
+    <div data-testid={`cockpit-consolidator-sparkline-${ag}`} className="h-10">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 3, right: 0, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="pending"
+            stroke={stroke}
+            strokeWidth={2}
+            fill={`url(#${gid})`}
+            isAnimationActive={false}
+            dot={false}
+          />
+          <RechartsTooltip {...TOOLTIP_STYLE} labelFormatter={() => "backlog"} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function ConsolidatorsTab() {
   const [data, setData] = useState<HealthConsolidatorResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  // Session-scoped rolling backlog history per AG (accumulated from the polls we observe).
+  const [history, setHistory] = useState<Record<string, number[]>>({});
 
   // Poll the endpoint — this is a live monitor, not a one-shot load.
   useEffect(() => {
@@ -720,6 +780,14 @@ function ConsolidatorsTab() {
         if (!cancelled) {
           setData(res);
           setError(null);
+          setHistory((prev) => {
+            const next: Record<string, number[]> = { ...prev };
+            for (const a of res.asset_groups) {
+              if (a.pending_shard_count == null) continue;
+              next[a.asset_group] = [...(next[a.asset_group] ?? []), a.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
+            }
+            return next;
+          });
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "consolidator health unavailable");
@@ -812,6 +880,37 @@ function ConsolidatorsTab() {
                       budgetSeconds={real.staleness_budget_seconds}
                       tone={tone}
                     />
+                    {real.pending_shard_count != null ? (
+                      <div className="space-y-1" data-testid={`cockpit-consolidator-backlog-${ag}`}>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-[var(--color-text-tertiary)]">backlog (pending shards)</span>
+                          <span className="font-mono">
+                            <span
+                              className={
+                                real.pending_shard_count > 0
+                                  ? "text-[var(--color-text-primary)]"
+                                  : "text-[var(--color-text-tertiary)]"
+                              }
+                            >
+                              {real.pending_shard_count}
+                            </span>
+                            {real.total_shard_count != null ? (
+                              <span className="text-[var(--color-text-muted)]"> / {real.total_shard_count}</span>
+                            ) : null}
+                            {absorbedLastTick(history[ag]) > 0 ? (
+                              <span className="text-[var(--color-accent-green)]">
+                                {" "}
+                                · −{absorbedLastTick(history[ag])} absorbed
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                        <BacklogSparkline ag={ag} samples={history[ag] ?? []} tone={tone} />
+                        <p className="text-[9px] text-[var(--color-text-muted)]">
+                          this session · absorbed/tick inferred from backlog deltas
+                        </p>
+                      </div>
+                    ) : null}
                     {real.per_vm_shard_fallback_active ? (
                       <div
                         data-testid={`cockpit-consolidator-fallback-${ag}`}
