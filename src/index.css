@@ -148,6 +148,16 @@ html {
   }
 }
 
+/* Deployments inventory column gutters (operator 2026-07-08). Same reason as the shell
+ * gutter above: Tailwind's `py-*`/`pr-*` are DEAD on the cells because the unlayered
+ * `* { padding: 0 }` reset outranks Tailwind v4's layered utilities. So the row height +
+ * inter-column gap are an explicit unlayered rule (attribute-scoped so it can't leak). */
+table[data-testid="deployment-matrix"] :is(td, th) {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  padding-right: 1rem;
+}
+
 code,
 pre,
 .mono {

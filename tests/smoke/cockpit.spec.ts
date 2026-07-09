@@ -314,15 +314,17 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
  * defi-live-capture-1 = fresh, cefi-live-trading-1 = stale.
  */
 test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
-  test("Deployments tab feed-health reads manifest freshness (fresh / stale), not just the heartbeat", async ({
+  test("Deployments tab Health column shows the composite WORK-health verdict (not just fresh/stale)", async ({
     page,
   }) => {
     await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    // The fresh live row renders the manifest-derived "fresh" feed-health…
-    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("fresh");
-    // …and the stale-index live row renders honest "stale" (NOT a false fresh).
-    await expect(page.getByTestId("feed-health-cefi-live-trading-1")).toHaveText("stale");
+    // The server-derived composite (WS-D.3) wins the Health column over raw freshness:
+    // a genuinely-progressing live VM reads "working"…
+    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("working");
+    // …and a live VM whose websocket is idle (fresh heartbeat but flat progress) reads "stalled",
+    // NOT a false "fresh" — the exact alive-but-idle case liveness alone can't catch.
+    await expect(page.getByTestId("feed-health-cefi-live-trading-1")).toHaveText("stalled");
   });
 
   test("Health Data-Coverage tile overlays the real live-feed freshness summary", async ({ page }) => {

@@ -20,7 +20,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertCircle, Cloud, RefreshCw, Server, Workflow } from "lucide-react";
+import { AlertCircle, Cloud, Container, FunctionSquare, Globe, RefreshCw, Server, Workflow, Zap } from "lucide-react";
 import {
   getDeploymentInventory,
   getUmbrellaSummary,
@@ -30,6 +30,7 @@ import {
   type DeploymentUmbrella,
   type UmbrellaLastFailure,
   type UmbrellaSummaryResponse,
+  type VmHealth,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -66,9 +67,16 @@ function Chip({ tone, children, testId }: { tone: ChipTone; children: React.Reac
   );
 }
 
-/** Mode badge — LIVE (green) / BATCH (blue) / PAPER (amber). EXPERIMENT rides the BATCH badge. */
+/** Mode badge — LIVE (green) / BATCH (blue) / PAPER (amber). EXPERIMENT rides the BATCH badge.
+ *  NONE = an always-on service (no trading phase, Open-Q1) → a muted "—", not a badge. */
 const MODE_TONE: Record<string, ChipTone> = { LIVE: "green", BATCH: "blue", PAPER: "yellow", EXPERIMENT: "blue" };
 function ModeBadge({ umbrella }: { umbrella: DeploymentUmbrella }) {
+  if (umbrella === "NONE")
+    return (
+      <span className="text-[var(--color-text-muted)]" data-testid="mode-badge-NONE">
+        —
+      </span>
+    );
   const label = umbrella === "EXPERIMENT" ? "batch·exp" : umbrella.toLowerCase();
   return (
     <Chip tone={MODE_TONE[umbrella] ?? "gray"} testId={`mode-badge-${umbrella}`}>
@@ -108,16 +116,40 @@ function CloudBadge({ cloud }: { cloud: DeploymentCloud }) {
   );
 }
 
-/** Kind icon — a VM (Server) vs a Cloud Run job (Workflow), so the unit type reads at a glance. */
-function KindIcon({ kind }: { kind: DeploymentItem["kind"] }) {
-  return kind === "VM" ? (
-    <Server className="h-3.5 w-3.5 text-[var(--color-text-muted)]" aria-label="VM" data-testid="kind-icon-VM" />
-  ) : (
-    <Workflow
-      className="h-3.5 w-3.5 text-[var(--color-text-muted)]"
-      aria-label="Cloud Run job"
-      data-testid="kind-icon-CLOUD_RUN_JOB"
-    />
+// Per-kind icon + short label + tone. VM/CLOUD_RUN_JOB are backend-live; the
+// service/function kinds are the estate the inventory doesn't yet census (mocked).
+const KIND_META: Record<
+  DeploymentItem["kind"],
+  { label: string; tone: ChipTone; Icon: React.ComponentType<{ className?: string }> }
+> = {
+  VM: { label: "vm", tone: "gray", Icon: Server },
+  CLOUD_RUN_JOB: { label: "run-job", tone: "blue", Icon: Workflow },
+  CLOUD_RUN_SERVICE: { label: "run-svc", tone: "green", Icon: Globe },
+  ECS_SERVICE: { label: "ecs-svc", tone: "green", Icon: Container },
+  LAMBDA: { label: "lambda", tone: "yellow", Icon: Zap },
+  CLOUD_FUNCTION: { label: "fn", tone: "yellow", Icon: FunctionSquare },
+};
+
+function kindMeta(kind: string) {
+  return (
+    KIND_META[kind as DeploymentItem["kind"]] ?? { label: kind.toLowerCase(), tone: "gray" as ChipTone, Icon: Server }
+  );
+}
+
+const SERVICE_KINDS = new Set(["CLOUD_RUN_SERVICE", "ECS_SERVICE"]);
+const FUNCTION_KINDS = new Set(["LAMBDA", "CLOUD_FUNCTION"]);
+
+/** Kind cell — a compact icon + label chip so VM / job / service / lambda read at a glance. */
+function KindBadge({ kind }: { kind: DeploymentItem["kind"] }) {
+  const { label, tone, Icon } = kindMeta(kind);
+  return (
+    <span
+      data-testid={`kind-badge-${kind}`}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border ${TONE_CLASSES[tone]}`}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
   );
 }
 
@@ -227,6 +259,83 @@ function freshnessFeedLabel(
   }
 }
 
+/** Human uptime — "18h" under a day, "4d" beyond. */
+function uptimeLabel(hours: number | null | undefined): string | null {
+  if (hours == null) return null;
+  return hours < 24 ? `${Math.round(hours)}h` : `${Math.round(hours / 24)}d`;
+}
+
+/** Last-run for a job/VM; uptime for an always-on service (which has no last-run). */
+function lastRunOrUptime(item: DeploymentItem): string {
+  if (item.last_run_at) return lastRunLabel(item.last_run_at);
+  const up = uptimeLabel(item.uptime_hours);
+  return up ? `up ${up}` : "—";
+}
+
+/** Compact USD/day — "$38", "$9.1", "$0.10". */
+function costLabel(cost: number | null | undefined): string | null {
+  if (cost == null) return null;
+  if (cost < 1) return `$${cost.toFixed(2)}`;
+  if (cost < 10) return `$${cost.toFixed(1)}`;
+  return `$${cost.toFixed(0)}`;
+}
+
+/** Service health (Open-Q7 sub-taxonomy) — ECS desired-vs-running; Cloud Run service by status.
+ *  serving (running==desired>0) · scaled-to-zero (desired==0) · dead (desired>0,running==0) ·
+ *  degraded (0<running<desired). A service has no exit_code, so this replaces the exit chip. */
+function serviceHealthLabel(item: DeploymentItem): { label: string; tone: ChipTone; title: string } {
+  const desired = item.desired_count;
+  const running = item.running_count;
+  if (desired != null && running != null) {
+    if (desired === 0) return { label: "scaled-to-zero", tone: "gray", title: "desired=0 — off on purpose" };
+    if (running === 0) return { label: "dead", tone: "red", title: `desired ${desired}, running 0 — should be up` };
+    if (running < desired) return { label: `degraded ${running}/${desired}`, tone: "yellow", title: "some tasks down" };
+    return { label: "serving", tone: "green", title: `${running}/${desired} tasks` };
+  }
+  // Cloud Run service (no task counts) — fall back to status + latest revision.
+  if (item.status === "running" || item.status === "succeeded")
+    return { label: "serving", tone: "green", title: item.revision ? `rev ${item.revision}` : "ready" };
+  if (item.status === "stopped") return { label: "scaled-to-zero", tone: "gray", title: "not serving" };
+  return { label: item.status, tone: "gray", title: "service status" };
+}
+
+// Composite WORK-health (parent D.3) — the server-derived verdict, not just fresh/stale. When a
+// target carries `composite_health_status`, it wins the Health column; otherwise we fall back to
+// the freshness / service signal. Only `working` is green; every failure mode is called out by
+// name, coloured by 3-tier severity (Open-Q2): green=working · amber=degraded · red=broken-now.
+const HEALTH_META: Record<VmHealth, { label: string; tone: ChipTone }> = {
+  working: { label: "working", tone: "green" },
+  stalled: { label: "stalled", tone: "yellow" },
+  "oom-risk": { label: "oom-risk", tone: "red" },
+  "workload-dead": { label: "workload-dead", tone: "red" },
+  "disk-full": { label: "disk-full", tone: "red" },
+  hung: { label: "hung", tone: "red" },
+  dead: { label: "dead", tone: "gray" },
+  unknown: { label: "unknown", tone: "gray" },
+};
+
+/** Tooltip for the Health cell — the resource summary behind the verdict (full vector in the
+ *  detail popover). Only the thin-list summary scalars; io/net/workload_alive live on /detail. */
+function healthTitle(item: DeploymentItem): string | undefined {
+  const parts: string[] = [];
+  if (item.cpu_pct != null) parts.push(`cpu ${item.cpu_pct}%`);
+  if (item.mem_pct != null)
+    parts.push(`mem ${item.mem_pct}%${item.mem_slope != null && item.mem_slope > 0 ? " ↑" : ""}`);
+  if (item.disk_pct != null) parts.push(`disk ${item.disk_pct}%`);
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
+/** The composite Health chip content — inlines the actionable number for oom-risk / disk-full. */
+function compositeHealthLabel(item: DeploymentItem): { label: string; tone: ChipTone; title?: string } | null {
+  const h = item.composite_health_status;
+  if (!h) return null;
+  const meta = HEALTH_META[h];
+  let label = meta.label;
+  if (h === "oom-risk" && item.mem_pct != null) label = `oom-risk ${item.mem_pct}%`;
+  else if (h === "disk-full" && item.disk_pct != null) label = `disk-full ${item.disk_pct}%`;
+  return { label, tone: meta.tone, title: healthTitle(item) };
+}
+
 // LIVE-row feed-health prefers manifest-derived freshness, looked up by row name from this
 // map (populated by DeploymentsContent after the inventory loads). Non-live rows show "—".
 const FreshnessContext = createContext<Record<string, DeploymentFreshnessResponse>>({});
@@ -239,45 +348,82 @@ const DrillContext = createContext<((name: string) => void) | undefined>(undefin
 /** The single unified column set — one shape for every mode (sparse "—" where N/A). */
 const UNIFIED_COLUMNS: { label: string; align?: "right" }[] = [
   { label: "Mode" },
+  { label: "Kind" },
   { label: "Target" },
   { label: "Cloud" },
   { label: "Service" },
   { label: "Asset group" },
   { label: "Status" },
-  { label: "Last run" },
+  { label: "Last run / up" },
   { label: "Progress", align: "right" },
+  { label: "Cost/day", align: "right" },
   { label: "Exit" },
-  { label: "Feed health" },
+  { label: "Resources" },
+  { label: "Health" },
   { label: "Controls" },
 ];
 
+/** One resource metric — a labelled %, coloured only when elevated (amber ≥70) or critical
+ * (red ≥90) so a hot VM's mem/disk jumps out; `↑` marks a sustained climb (OOM slope). */
+function ResourceMetric({ label, pct, up }: { label: string; pct?: number | null; up?: boolean }) {
+  if (pct == null) return null;
+  const tone = pct >= 90 ? "text-red-400" : pct >= 70 ? "text-amber-400" : "text-[var(--color-text-secondary)]";
+  return (
+    <span className="inline-flex items-baseline gap-0.5">
+      <span className="text-[9px] uppercase text-[var(--color-text-muted)]">{label}</span>
+      <span className={`font-mono text-[11px] ${tone}`}>
+        {pct}
+        {up ? "↑" : ""}
+      </span>
+    </span>
+  );
+}
+
+/** Resources cell — cpu / mem / disk utilisation from the edge `/proc` push (WS-D). A wedged
+ * VM (`hung`) has no samples → "—", honestly (never a fake 0). */
+function ResourceCell({ item }: { item: DeploymentItem }) {
+  const hasAny = item.cpu_pct != null || item.mem_pct != null || item.disk_pct != null;
+  if (!hasAny) return <span className="text-[var(--color-text-muted)]">—</span>;
+  return (
+    <div className="flex items-center gap-2.5">
+      <ResourceMetric label="cpu" pct={item.cpu_pct} />
+      <ResourceMetric label="mem" pct={item.mem_pct} up={item.mem_slope != null && item.mem_slope > 0} />
+      <ResourceMetric label="dsk" pct={item.disk_pct} />
+    </div>
+  );
+}
+
+/** machine-type · zone subtitle (Tier-0 placement data), shown muted under the name. */
+function TargetSubtitle({ item }: { item: DeploymentItem }) {
+  const parts = [item.machine_type, item.zone].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <div className="text-[10px] text-[var(--color-text-tertiary)]">{parts.join(" · ")}</div>;
+}
+
 function TargetCell({ item }: { item: DeploymentItem }) {
   const onDrill = useContext(DrillContext);
-  if (onDrill) {
-    return (
-      <td className="py-1.5">
+  const linkCls = "font-mono text-[var(--color-text-primary)] hover:underline";
+  return (
+    <td className="py-1.5">
+      {onDrill ? (
         <button
           type="button"
           onClick={() => onDrill(item.name)}
           data-testid={`deployment-link-${item.name}`}
-          className="inline-flex items-center gap-1.5 font-mono text-[var(--color-text-primary)] hover:underline"
+          className={linkCls}
         >
-          <KindIcon kind={item.kind} />
           {item.name}
         </button>
-      </td>
-    );
-  }
-  return (
-    <td className="py-1.5">
-      <Link
-        to={`/deployments/${encodeURIComponent(item.name)}`}
-        data-testid={`deployment-link-${item.name}`}
-        className="inline-flex items-center gap-1.5 font-mono text-[var(--color-text-primary)] hover:underline"
-      >
-        <KindIcon kind={item.kind} />
-        {item.name}
-      </Link>
+      ) : (
+        <Link
+          to={`/deployments/${encodeURIComponent(item.name)}`}
+          data-testid={`deployment-link-${item.name}`}
+          className={linkCls}
+        >
+          {item.name}
+        </Link>
+      )}
+      <TargetSubtitle item={item} />
     </td>
   );
 }
@@ -300,18 +446,30 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
   const freshnessByName = useContext(FreshnessContext);
   const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
 
-  // Feed-health is a LIVE-mode signal: prefer manifest freshness, fall back to the heartbeat proxy.
-  const isLive = item.umbrella === "LIVE";
+  // Health precedence: the server-derived COMPOSITE (WS-D.3) wins when present; else it's
+  // kind-aware — a service/function reads its 5xx/error rate, a LIVE VM reads manifest
+  // freshness (heartbeat fallback); everything else has no live-health signal.
+  const isService = SERVICE_KINDS.has(item.kind) || FUNCTION_KINDS.has(item.kind);
+  const isVmLive = item.kind === "VM" && item.umbrella === "LIVE";
   const fresh = freshnessByName[item.name];
   const derived = fresh ? freshnessFeedLabel(fresh) : null;
-  const feed = isLive
-    ? (derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" })
-    : null;
+  const feed =
+    compositeHealthLabel(item) ??
+    (isService
+      ? serviceHealthLabel(item)
+      : isVmLive
+        ? (derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" })
+        : null);
+
+  const cost = costLabel(item.cost_per_day_usd);
 
   return (
     <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
       <td className="py-1.5">
         <ModeBadge umbrella={item.umbrella} />
+      </td>
+      <td className="py-1.5">
+        <KindBadge kind={item.kind} />
       </td>
       <TargetCell item={item} />
       <td className="py-1.5">
@@ -320,7 +478,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
       <StatusCell item={item} />
-      <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{lastRunLabel(item.last_run_at)}</td>
+      <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{lastRunOrUptime(item)}</td>
       <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
         {item.captured_progress != null ? (
           item.captured_progress.toLocaleString()
@@ -328,8 +486,14 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
           <span className="text-[var(--color-text-muted)]">—</span>
         )}
       </td>
+      <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
+        {cost ?? <span className="text-[var(--color-text-muted)]">—</span>}
+      </td>
       <td className="py-1.5">
         <ExitCodeCell exitCode={item.exit_code} />
+      </td>
+      <td className="py-1.5" data-testid={`resources-${item.name}`}>
+        <ResourceCell item={item} />
       </td>
       <td className="py-1.5" title={feed?.title}>
         {feed ? (
