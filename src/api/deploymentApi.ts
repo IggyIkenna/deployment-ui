@@ -766,3 +766,10 @@ export async function getUmbrellaSummary(umbrella: DeploymentUmbrella): Promise<
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/umbrella/${encodeURIComponent(umbrella)}/summary`);
   return handleResponse<UmbrellaSummaryResponse>(response);
 }
+
+// GET /api/deployments/{name}/detail — the per-target drill-down (thin item + the deep D.1
+// metric vector). deployment-api DeploymentDetailResponse (deployments_inventory.py:238).
+export async function getDeploymentDetail(name: string): Promise<DeploymentDetail> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/detail`);
+  return handleResponse<DeploymentDetail>(response);
+}

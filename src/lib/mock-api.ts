@@ -1562,7 +1562,10 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     uptime_hours: 240,
     requests_per_min: 60,
     error_rate_pct: 0.3,
-    running_tasks: 2,
+    cluster: "uts-defi-prod",
+    desired_count: 2,
+    running_count: 2,
+    task_definition_revision: 31,
     revision: "uts-execution-service-prod:31",
   },
   {
@@ -1584,7 +1587,10 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     cpu_pct: 18,
     mem_pct: 44,
     uptime_hours: 240,
-    running_tasks: 1,
+    cluster: "uts-defi-prod",
+    desired_count: 2,
+    running_count: 1,
+    task_definition_revision: 27,
     revision: "uts-strategy-service-prod:27",
   },
   // ── AWS Lambda (NOT censused today) ──
@@ -2817,12 +2823,38 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (cloud) items = items.filter((i) => i.cloud === cloud);
     if (status) items = items.filter((i) => i.status === status);
     if (assetGroup) items = items.filter((i) => i.asset_group === assetGroup);
+    const counts_by_kind: Record<string, number> = {};
+    for (const i of items) counts_by_kind[i.kind] = (counts_by_kind[i.kind] ?? 0) + 1;
     return json({
       items,
       total: items.length,
       vm_count: items.filter((i) => i.kind === "VM").length,
       cloud_run_job_count: items.filter((i) => i.kind === "CLOUD_RUN_JOB").length,
+      counts_by_kind,
     });
+  }
+  // GET /api/deployments/{name}/detail — per-target D.1 metric vector + the thin item.
+  // Mirrors deployment-api DeploymentDetailResponse (deployments_inventory.py:238). The metric
+  // fields are null for a kind without /proc capture (services/jobs) — honest absence, never 0.
+  {
+    const detailMatch = path.match(/^\/api\/deployments\/(.+)\/detail$/);
+    if (detailMatch) {
+      const name = decodeURIComponent(detailMatch[1]);
+      const row = MOCK_DEPLOYMENT_INVENTORY.find((i) => i.name === name);
+      if (!row) return json({ detail: `no target ${name}` }, 404);
+      const isVm = row.kind === "VM";
+      const toBytes = (mbps: number | null | undefined) => (mbps == null ? null : Math.round(mbps * 125000));
+      return json({
+        item: row,
+        cpu_pct: isVm ? (row.cpu_pct ?? null) : null,
+        mem_pct: isVm ? (row.mem_pct ?? null) : null,
+        mem_slope: isVm ? (row.mem_slope ?? null) : null,
+        disk_pct: isVm ? (row.disk_pct ?? null) : null,
+        io_write_rate_bytes_sec: isVm && row.object_delta != null ? row.object_delta * 4096 : null,
+        net_recv_rate_bytes_sec: isVm ? toBytes(row.net_recv_mbps) : null,
+        workload_alive: isVm ? (row.workload_alive ?? null) : null,
+      });
+    }
   }
   {
     const summaryMatch = path.match(/^\/api\/deployments\/umbrella\/([^/]+)\/summary$/);

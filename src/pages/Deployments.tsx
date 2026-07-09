@@ -674,6 +674,7 @@ export function DeploymentsContent({
   const [localCloud, setLocalCloud] = useState("");
   const [localStatus, setLocalStatus] = useState("");
   const [localAssetGroup, setLocalAssetGroup] = useState("");
+  const [localKind, setLocalKind] = useState("");
 
   const urlMode = (searchParams.get("umbrella") ?? "").toUpperCase();
   const modeFilter: ModeFilter = embedded
@@ -684,6 +685,9 @@ export function DeploymentsContent({
   const cloudFilter = embedded ? localCloud : (searchParams.get("cloud")?.toUpperCase() ?? "");
   const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "");
   const assetGroupFilter = embedded ? localAssetGroup : (searchParams.get("asset_group") ?? "");
+  // Kind is client-side (not a server filter param) — the way a user isolates services vs jobs
+  // vs VMs (services have Mode="—", so Mode can't find them — Open-Q1).
+  const kindFilter = embedded ? localKind : (searchParams.get("kind")?.toUpperCase() ?? "");
 
   const [items, setItems] = useState<DeploymentItem[]>([]);
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
@@ -698,6 +702,7 @@ export function DeploymentsContent({
         else if (key === "cloud") setLocalCloud(value);
         else if (key === "status") setLocalStatus(value);
         else if (key === "asset_group") setLocalAssetGroup(value);
+        else if (key === "kind") setLocalKind(value);
         return;
       }
       setSearchParams(
@@ -845,6 +850,21 @@ export function DeploymentsContent({
                   onChange={(v) => setParam("asset_group", v)}
                   options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
                 />
+                <FilterSelect
+                  testId="filter-kind"
+                  label="kind"
+                  value={kindFilter}
+                  onChange={(v) => setParam("kind", v)}
+                  options={[
+                    { value: "", label: "all" },
+                    { value: "VM", label: "VM" },
+                    { value: "CLOUD_RUN_JOB", label: "run job" },
+                    { value: "CLOUD_RUN_SERVICE", label: "run service" },
+                    { value: "ECS_SERVICE", label: "ECS service" },
+                    { value: "LAMBDA", label: "Lambda" },
+                    { value: "CLOUD_FUNCTION", label: "cloud function" },
+                  ]}
+                />
               </div>
             </CardHeader>
             <CardContent>
@@ -863,7 +883,7 @@ export function DeploymentsContent({
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
                 </p>
               )}
-              {!error && <DeploymentMatrix items={items} />}
+              {!error && <DeploymentMatrix items={kindFilter ? items.filter((i) => i.kind === kindFilter) : items} />}
             </CardContent>
           </Card>
         </div>
