@@ -1072,13 +1072,15 @@ function json<T>(data: T, status = 200): Response {
 
 // ---- Deployment observability inventory mock data (keep in lockstep with
 // deployment-api deployments_inventory.py — DeploymentItem shape). Covers every
-// umbrella (live/batch/paper/experiment) × cloud (GCP/AWS) × kind (VM / Cloud Run
-// job), incl. a failed exit-137 (OOM) row so the failed badge + exit highlight render. ----
+// umbrella (live/batch/paper/experiment) × cloud (GCP/AWS) × kind — incl. the
+// service/function kinds the backend does NOT yet census (Cloud Run services, ECS
+// services, Lambda, Cloud Functions), mocked here to iterate on the UI before wiring.
+// Names + machine types mirror the REAL live estate (gcloud/aws census 2026-07-08). ----
 
 interface MockDeploymentItem {
   name: string;
-  kind: "VM" | "CLOUD_RUN_JOB";
-  umbrella: "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT";
+  kind: "VM" | "CLOUD_RUN_JOB" | "CLOUD_RUN_SERVICE" | "ECS_SERVICE" | "LAMBDA" | "CLOUD_FUNCTION";
+  umbrella: "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT" | "NONE"; // NONE = a service (Mode="—")
   cloud: "GCP" | "AWS";
   service: string;
   asset_group: string;
@@ -1088,9 +1090,56 @@ interface MockDeploymentItem {
   heartbeat_age_seconds: number | null;
   captured_progress: number | null;
   run_log_uri: string | null;
+  // --- Aligned to deployment-api DeploymentItem (deployments_inventory.py:176) ---
+  machine_type?: string | null;
+  zone?: string | null;
+  cost_per_day_usd?: number | null; // WS-E — nullable until the billing join lands
+  // Resource summary scalars (inline Resources column). Full vector is on /detail.
+  cpu_pct?: number | null;
+  mem_pct?: number | null;
+  mem_slope?: number | null;
+  disk_pct?: number | null;
+  uptime_hours?: number | null;
+  composite_health_status?:
+    | "working"
+    | "stalled"
+    | "oom-risk"
+    | "workload-dead"
+    | "disk-full"
+    | "hung"
+    | "dead"
+    | "unknown"
+    | null;
+  health_status?: string | null; // raw GCE instance status
+  boot_disk_name?: string | null;
+  rows_in?: number | null;
+  rows_error?: number | null;
+  events_emitted?: number | null;
+  // Service structural fields (Open-Q7 sub-taxonomy).
+  cluster?: string | null;
+  desired_count?: number | null;
+  running_count?: number | null;
+  task_definition_revision?: number | null;
+  runtime?: string | null;
+  memory_size_mb?: number | null;
+  package_type?: string | null;
+  revision?: string | null;
+  region?: string | null;
+  // --- Mock-only fields (NOT on the real contract; kept so the /detail popover mock has
+  //     data to show; the UI list no longer reads these). ---
+  net_recv_mbps?: number | null;
+  object_delta?: number | null;
+  workload_alive?: boolean | null;
+  requests_per_min?: number | null;
+  error_rate_pct?: number | null;
+  p99_latency_ms?: number | null;
+  invocations_24h?: number | null;
+  running_tasks?: number | null;
+  health_detail?: string | null;
 }
 
 const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
+  // ── GCP VMs (backend-supported today) ──────────────────────────────────────
   {
     name: "defi-live-capture-1",
     kind: "VM",
@@ -1104,6 +1153,20 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: 42,
     captured_progress: 18234,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-live-capture-1/run.log",
+    machine_type: "n2-highmem-16",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 38.4,
+    cpu_pct: 58,
+    mem_pct: 71,
+    uptime_hours: 52,
+    rows_in: 20100,
+    rows_error: 12,
+    events_emitted: 18234,
+    disk_pct: 41,
+    object_delta: 120,
+    workload_alive: true,
+    composite_health_status: "working",
+    health_detail: "shard advancing · +120 objects/5m · mem stable",
   },
   {
     name: "cefi-live-trading-1",
@@ -1118,6 +1181,18 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: 900,
     captured_progress: null,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/cefi-live-trading-1/run.log",
+    machine_type: "m7i.xlarge",
+    zone: "ap-northeast-1",
+    cost_per_day_usd: 41.2,
+    cpu_pct: 4,
+    mem_pct: 63,
+    disk_pct: 38,
+    net_recv_mbps: 0,
+    uptime_hours: 30,
+    object_delta: 0,
+    workload_alive: true,
+    composite_health_status: "stalled",
+    health_detail: "websocket idle — 0 inbound ticks 12m, no new objects (cpu 4%)",
   },
   {
     name: "cefi-backfill-20260620",
@@ -1132,6 +1207,12 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: null,
     captured_progress: 412000,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/cefi-backfill-20260620/run.log",
+    machine_type: "n2-highmem-16 (SPOT)",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 9.1,
+    cpu_pct: 88,
+    rows_in: 415000,
+    rows_error: 300,
   },
   {
     name: "sports-backfill-20260621",
@@ -1146,20 +1227,11 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: null,
     captured_progress: 0,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/sports-backfill-20260621/run.log",
-  },
-  {
-    name: "manifest-consolidator",
-    kind: "CLOUD_RUN_JOB",
-    umbrella: "BATCH",
-    cloud: "GCP",
-    service: "market-tick-data-service",
-    asset_group: "all",
-    status: "succeeded",
-    last_run_at: "2026-06-22T08:00:00Z",
-    exit_code: 0,
-    heartbeat_age_seconds: null,
-    captured_progress: null,
-    run_log_uri: null,
+    machine_type: "e2-highmem-4 (SPOT)",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 0.6,
+    rows_in: 0,
+    rows_error: 1,
   },
   {
     name: "exp-ml-018f4-20260619",
@@ -1174,6 +1246,10 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: null,
     captured_progress: null,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/exp-ml-018f4-20260619/run.log",
+    machine_type: "a2-highgpu-1g",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 24.5,
+    cpu_pct: 91,
   },
   {
     name: "defi-paper-trading-1",
@@ -1188,6 +1264,131 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: 120,
     captured_progress: null,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-paper-trading-1/run.log",
+    machine_type: "n2-standard-8",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 11.4,
+    cpu_pct: 22,
+    mem_pct: 94,
+    mem_slope: 2.3,
+    disk_pct: 55,
+    uptime_hours: 96,
+    object_delta: 30,
+    workload_alive: true,
+    composite_health_status: "oom-risk",
+    health_detail: "mem 94% climbing +2.3%/min → OOM in ~8m",
+  },
+  {
+    name: "mtds-perp-funding-backfill",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: "2026-07-08T07:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 30,
+    captured_progress: 51000,
+    run_log_uri: null,
+    machine_type: "n2-highmem-16",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 32.0,
+    cpu_pct: 1,
+    mem_pct: 12,
+    disk_pct: 44,
+    uptime_hours: 18,
+    object_delta: 0,
+    workload_alive: false,
+    composite_health_status: "workload-dead",
+    health_detail: "daemon heartbeating (30s) but workload PID gone — OOM-killed, no exit written yet",
+  },
+  {
+    name: "mtds-dex-swaps-backfill",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: "2026-07-08T06:30:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 25,
+    captured_progress: 128000,
+    run_log_uri: null,
+    machine_type: "n2-highmem-16",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 33.5,
+    cpu_pct: 28,
+    mem_pct: 47,
+    disk_pct: 97,
+    net_recv_mbps: 6.2,
+    uptime_hours: 20,
+    object_delta: 0,
+    workload_alive: true,
+    composite_health_status: "disk-full",
+    health_detail: "disk 97% — parquet writes failing; no new objects 14m",
+  },
+  {
+    name: "tradfi-bf-cme-ohlcv-1m-es-2025",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "tradfi",
+    status: "running",
+    last_run_at: "2026-07-08T03:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: 2400,
+    captured_progress: 4200,
+    run_log_uri: null,
+    machine_type: "e2-highmem-4 (SPOT)",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 0.9,
+    cpu_pct: null,
+    mem_pct: null,
+    uptime_hours: 10,
+    object_delta: 0,
+    workload_alive: null,
+    composite_health_status: "hung",
+    health_detail: "heartbeat stale 40m but GCE reports RUNNING — whole-VM wedge (no /proc samples)",
+  },
+  {
+    name: "cefi-instruments-backfill",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "instruments-service",
+    asset_group: "cefi",
+    status: "stopped",
+    last_run_at: "2026-07-07T22:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "e2-standard-4",
+    zone: "asia-northeast1-c",
+    cost_per_day_usd: 0,
+    uptime_hours: null,
+    composite_health_status: "dead",
+    health_detail: "control-plane reports the instance TERMINATED — no live workload",
+  },
+  // ── GCP Cloud Run JOBS (registered ones supported; the last two are OFF-registry → hidden today) ──
+  {
+    name: "manifest-consolidator",
+    kind: "CLOUD_RUN_JOB",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "all",
+    status: "succeeded",
+    last_run_at: "2026-06-22T08:00:00Z",
+    exit_code: 0,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "2Gi·2vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 2.3,
   },
   {
     name: "funding-ensemble-paper-week",
@@ -1202,6 +1403,236 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: null,
     captured_progress: null,
     run_log_uri: null,
+    machine_type: "1Gi·1vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 0.4,
+  },
+  {
+    name: "market-tick-cefi-binance-futures",
+    kind: "CLOUD_RUN_JOB",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "market-tick-data-service",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: "2026-07-08T09:15:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: 88000,
+    run_log_uri: null,
+    machine_type: "4Gi·4vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 5.1,
+    rows_in: 90000,
+    rows_error: 40,
+  },
+  {
+    name: "paper-trading-engine",
+    kind: "CLOUD_RUN_JOB",
+    umbrella: "PAPER",
+    cloud: "GCP",
+    service: "strategy-service",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: "2026-07-08T09:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "2Gi·2vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 1.7,
+  },
+  // ── GCP Cloud Run SERVICES (always-on prod — NOT censused by the backend today) ──
+  {
+    name: "uts-shared-deployment-api",
+    kind: "CLOUD_RUN_SERVICE",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "deployment-api",
+    asset_group: "all",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "512Mi·1vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 3.8,
+    cpu_pct: 12,
+    mem_pct: 34,
+    uptime_hours: 168,
+    requests_per_min: 240,
+    error_rate_pct: 0.2,
+    p99_latency_ms: 85,
+    revision: "deployment-api-00042-abc",
+  },
+  {
+    name: "market-data-query-service",
+    kind: "CLOUD_RUN_SERVICE",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "market-data-query-service",
+    asset_group: "all",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "1Gi·2vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 6.2,
+    cpu_pct: 27,
+    mem_pct: 41,
+    uptime_hours: 720,
+    requests_per_min: 1350,
+    error_rate_pct: 0.1,
+    p99_latency_ms: 42,
+    revision: "mdq-00311-def",
+  },
+  {
+    name: "dp-alerting-subscriber",
+    kind: "CLOUD_RUN_SERVICE",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "alerting",
+    asset_group: "all",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "512Mi·1vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 1.4,
+    cpu_pct: 6,
+    mem_pct: 22,
+    uptime_hours: 500,
+    requests_per_min: 12,
+    error_rate_pct: 0.0,
+    p99_latency_ms: 60,
+    revision: "alerting-00088-aaa",
+  },
+  {
+    name: "quota-broker",
+    kind: "CLOUD_RUN_SERVICE",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "quota-broker",
+    asset_group: "all",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "512Mi·1vCPU",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 1.9,
+    cpu_pct: 19,
+    mem_pct: 38,
+    uptime_hours: 300,
+    requests_per_min: 88,
+    error_rate_pct: 3.4,
+    p99_latency_ms: 210,
+    revision: "quota-broker-00104-zzz",
+  },
+  // ── AWS ECS/Fargate SERVICES (DeFi execution estate — NOT censused today) ──
+  {
+    name: "uts-execution-service-prod",
+    kind: "ECS_SERVICE",
+    umbrella: "NONE",
+    cloud: "AWS",
+    service: "execution-service",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "1vCPU·2GB Fargate",
+    zone: "ap-northeast-1",
+    cost_per_day_usd: 14.6,
+    cpu_pct: 35,
+    mem_pct: 52,
+    uptime_hours: 240,
+    requests_per_min: 60,
+    error_rate_pct: 0.3,
+    cluster: "uts-defi-prod",
+    desired_count: 2,
+    running_count: 2,
+    task_definition_revision: 31,
+    revision: "uts-execution-service-prod:31",
+  },
+  {
+    name: "uts-strategy-service-prod",
+    kind: "ECS_SERVICE",
+    umbrella: "NONE",
+    cloud: "AWS",
+    service: "strategy-service",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "0.5vCPU·1GB Fargate",
+    zone: "ap-northeast-1",
+    cost_per_day_usd: 9.2,
+    cpu_pct: 18,
+    mem_pct: 44,
+    uptime_hours: 240,
+    cluster: "uts-defi-prod",
+    desired_count: 2,
+    running_count: 1,
+    task_definition_revision: 27,
+    revision: "uts-strategy-service-prod:27",
+  },
+  // ── AWS Lambda (NOT censused today) ──
+  {
+    name: "ses-email-forwarder",
+    kind: "LAMBDA",
+    umbrella: "NONE",
+    cloud: "AWS",
+    service: "email",
+    asset_group: "all",
+    status: "running",
+    last_run_at: "2026-07-08T09:40:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "128MB",
+    zone: "us-east-1",
+    cost_per_day_usd: 0.1,
+    invocations_24h: 342,
+    error_rate_pct: 0.0,
+    p99_latency_ms: 210,
+  },
+  // ── GCP Cloud Function gen2 (NOT censused today) ──
+  {
+    name: "trigger-market-tick-cefi-job",
+    kind: "CLOUD_FUNCTION",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "instruments-service",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: "2026-07-08T09:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    machine_type: "256MB gen2",
+    zone: "asia-northeast1",
+    cost_per_day_usd: 0.2,
+    invocations_24h: 24,
+    error_rate_pct: 0.0,
   },
 ];
 
@@ -1935,6 +2366,14 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     "market-data-tick-cefi-central-element-323112": { Standard: 6200 },
     "unified-trading-instruments-defi-427895769566": { Standard: 40 },
   };
+  // Bucket-only: net-cost split weights {storage, egress} (operations = remainder) — mirrors the
+  // backend's _cost_component. The events bucket is operations-dominated (~all Class-A writes on
+  // little storage); cefi is storage-dominated. Parts sum EXACTLY to the row's net cost.
+  const BUCKET_COMPONENT_WEIGHTS: Record<string, { storage: number; egress: number }> = {
+    "central-element-323112-events": { storage: 0.0002, egress: 0.002 },
+    "market-data-tick-cefi-central-element-323112": { storage: 0.75, egress: 0.009 },
+    "unified-trading-instruments-defi-427895769566": { storage: 0.5, egress: 0.1 },
+  };
   // Resource-only: VM machine specs (from GCP system_labels, no Compute API) — AWS carries no
   // machine-spec equivalent, so i-0c9b283b31d6b5ca7 is deliberately absent here.
   const VM_MACHINE_SPECS: Record<string, { machine_type: string; vcpu: number; memory_gb: number }> = {
@@ -1958,6 +2397,14 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     // (the leaf "Top storage buckets" table sources from the latter).
     const storageClassGb = kind === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
     const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
+    // Bucket net-cost composition (storage/operations/egress), summing exactly to `net`.
+    let costByComponent: Record<string, number> | null = null;
+    if (kind === "bucket") {
+      const w = BUCKET_COMPONENT_WEIGHTS[label] ?? { storage: 0.5, egress: 0.05 };
+      const storage = +(net * w.storage).toFixed(2);
+      const egress = +(net * w.egress).toFixed(2);
+      costByComponent = { storage, operations: +(net - storage - egress).toFixed(2), egress };
+    }
     const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
     const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";
     return {
@@ -1972,7 +2419,10 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
       storage_gb: storageGb,
       storage_class_gb: storageClassGb,
-      cost_per_gb: storageGb ? +(net / storageGb).toFixed(4) : null,
+      // $/GB is the STORAGE-component rate over stored GB (matches the backend), not total/GB — an
+      // ops-heavy bucket's total/GB would read a nonsense rate.
+      cost_per_gb: storageGb ? +((costByComponent?.storage ?? net) / storageGb).toFixed(4) : null,
+      cost_by_component: costByComponent,
       machine_type: spec?.machine_type ?? "",
       vcpu: spec?.vcpu ?? null,
       memory_gb: spec?.memory_gb ?? null,
@@ -1985,7 +2435,9 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
   const total = +rows.reduce((a, r) => a + r.cost, 0).toFixed(2);
   rows.forEach((r) => (r.share_pct = total ? +((r.cost / total) * 100).toFixed(1) : 0));
   rows.sort((a, b) => b.cost - a.cost);
-  return { dimension, cloud, days, total, rows };
+  // total_groups = distinct groups before the backend's top-N cap; the mock fixtures are small
+  // (< cap) so nothing is folded, but the field is present so the UI's coverage hint renders.
+  return { dimension, cloud, days, total, total_groups: rows.length, rows };
 }
 
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
@@ -2146,7 +2598,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
   // Manifest-consolidator drill-down — per-asset_group index freshness (Phase 1).
   if (path === "/api/health/consolidator") {
-    const mkAg = (ag: string, status: string, age: number, fallback: boolean, detail: string) => ({
+    const mkAg = (
+      ag: string,
+      status: string,
+      age: number,
+      fallback: boolean,
+      detail: string,
+      pending = 0,
+      total = 0,
+    ) => ({
       asset_group: ag,
       bucket: `market-data-tick-${ag}-prd-mock`,
       status,
@@ -2154,6 +2614,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       staleness_budget_seconds: 120,
       per_vm_shard_fallback_active: fallback,
       last_successful_run_at: "2026-06-24T06:55:00+00:00",
+      pending_shard_count: pending,
+      total_shard_count: total,
       detail,
     });
     return json({
@@ -2166,11 +2628,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           2457,
           true,
           "index 2457s (> 120s budget) while per-VM shards exist — consolidator behind/DOWN",
+          47,
+          48,
         ),
-        mkAg("defi", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
-        mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)"),
-        mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)"),
-        mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)"),
+        mkAg("defi", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)", 2, 6),
+        mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)", 1, 5),
+        mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)", 0, 4),
+        mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)", 1, 3),
       ],
     });
   }
@@ -2392,12 +2856,38 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (cloud) items = items.filter((i) => i.cloud === cloud);
     if (status) items = items.filter((i) => i.status === status);
     if (assetGroup) items = items.filter((i) => i.asset_group === assetGroup);
+    const counts_by_kind: Record<string, number> = {};
+    for (const i of items) counts_by_kind[i.kind] = (counts_by_kind[i.kind] ?? 0) + 1;
     return json({
       items,
       total: items.length,
       vm_count: items.filter((i) => i.kind === "VM").length,
       cloud_run_job_count: items.filter((i) => i.kind === "CLOUD_RUN_JOB").length,
+      counts_by_kind,
     });
+  }
+  // GET /api/deployments/{name}/detail — per-target D.1 metric vector + the thin item.
+  // Mirrors deployment-api DeploymentDetailResponse (deployments_inventory.py:238). The metric
+  // fields are null for a kind without /proc capture (services/jobs) — honest absence, never 0.
+  {
+    const detailMatch = path.match(/^\/api\/deployments\/(.+)\/detail$/);
+    if (detailMatch) {
+      const name = decodeURIComponent(detailMatch[1]);
+      const row = MOCK_DEPLOYMENT_INVENTORY.find((i) => i.name === name);
+      if (!row) return json({ detail: `no target ${name}` }, 404);
+      const isVm = row.kind === "VM";
+      const toBytes = (mbps: number | null | undefined) => (mbps == null ? null : Math.round(mbps * 125000));
+      return json({
+        item: row,
+        cpu_pct: isVm ? (row.cpu_pct ?? null) : null,
+        mem_pct: isVm ? (row.mem_pct ?? null) : null,
+        mem_slope: isVm ? (row.mem_slope ?? null) : null,
+        disk_pct: isVm ? (row.disk_pct ?? null) : null,
+        io_write_rate_bytes_sec: isVm && row.object_delta != null ? row.object_delta * 4096 : null,
+        net_recv_rate_bytes_sec: isVm ? toBytes(row.net_recv_mbps) : null,
+        workload_alive: isVm ? (row.workload_alive ?? null) : null,
+      });
+    }
   }
   {
     const summaryMatch = path.match(/^\/api\/deployments\/umbrella\/([^/]+)\/summary$/);

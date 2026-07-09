@@ -14,12 +14,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ExternalLink, RotateCcw, Server, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, ExternalLink, RotateCcw, Server, Workflow } from "lucide-react";
 import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { StreamingLogsPanel } from "../components/StreamingLogsPanel";
 import {
   fetchVmFilteredEvents,
+  getDeploymentDetail,
   getDeploymentInventory,
+  type DeploymentDetail as DeploymentDetailData,
   type DeploymentItem,
   type VMLifecycleEvent,
 } from "../api/deploymentApi";
@@ -206,6 +208,153 @@ function AlertsLifecycleCard({ name }: { name: string }) {
   );
 }
 
+const GCP_PROJECT = "central-element-323112";
+
+/** Deep-link to the target's page in the GCP/AWS console, built from its identity (Open-Q5).
+ *  Pure URL construction from fields already on the item — no new API call. Returns null for a
+ *  kind we can't address (e.g. a VM with no zone). */
+function consoleUrl(item: DeploymentItem): { href: string; label: string } | null {
+  const region = item.region ?? item.zone ?? "";
+  switch (item.kind) {
+    case "VM":
+      if (item.cloud === "GCP" && item.zone)
+        return {
+          href: `https://console.cloud.google.com/compute/instancesDetail/zones/${item.zone}/instances/${encodeURIComponent(item.name)}?project=${GCP_PROJECT}`,
+          label: "GCP console",
+        };
+      if (item.cloud === "AWS") {
+        const r = region || "ap-northeast-1";
+        return {
+          href: `https://${r}.console.aws.amazon.com/ec2/home?region=${r}#Instances:search=${encodeURIComponent(item.name)}`,
+          label: "EC2 console",
+        };
+      }
+      return null;
+    case "CLOUD_RUN_JOB":
+      return {
+        href: `https://console.cloud.google.com/run/jobs/details/${region || "asia-northeast1"}/${encodeURIComponent(item.name)}?project=${GCP_PROJECT}`,
+        label: "GCP console",
+      };
+    case "CLOUD_RUN_SERVICE":
+      return {
+        href: `https://console.cloud.google.com/run/detail/${region || "asia-northeast1"}/${encodeURIComponent(item.name)}?project=${GCP_PROJECT}`,
+        label: "GCP console",
+      };
+    case "CLOUD_FUNCTION":
+      return {
+        href: `https://console.cloud.google.com/functions/details/${region || "asia-northeast1"}/${encodeURIComponent(item.name)}?project=${GCP_PROJECT}`,
+        label: "GCP console",
+      };
+    case "ECS_SERVICE": {
+      const r = region || "ap-northeast-1";
+      return {
+        href: `https://${r}.console.aws.amazon.com/ecs/v2/clusters/${encodeURIComponent(item.cluster ?? "default")}/services/${encodeURIComponent(item.name)}?region=${r}`,
+        label: "ECS console",
+      };
+    }
+    case "LAMBDA": {
+      const r = region || "us-east-1";
+      return {
+        href: `https://${r}.console.aws.amazon.com/lambda/home?region=${r}#/functions/${encodeURIComponent(item.name)}`,
+        label: "Lambda console",
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+// Composite work-health verdict → chip tone (3-tier severity, Open-Q2).
+const DETAIL_HEALTH_TONE: Record<string, ChipTone> = {
+  working: "green",
+  stalled: "yellow",
+  "oom-risk": "red",
+  "workload-dead": "red",
+  "disk-full": "red",
+  hung: "red",
+  dead: "gray",
+  unknown: "gray",
+};
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[11px] text-[var(--color-text-muted)]">{label}</dt>
+      <dd className="font-mono text-[var(--color-text-primary)]" data-testid={`detail-metric-${label}`}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** Work-health card — the deep D.1 metric vector from GET /{name}/detail (parent D.2). Honest
+ *  point-in-time today (rolling-window persistence pending → sparkline once it lands). null for a
+ *  kind without /proc capture (services/jobs) reads as an explicit "VM-only", never a fake 0. */
+function WorkHealthCard({ name, health }: { name: string; health?: string | null }) {
+  const [detail, setDetail] = useState<DeploymentDetailData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    getDeploymentDetail(name)
+      .then((d) => live && setDetail(d))
+      .catch(() => live && setDetail(null))
+      .finally(() => live && setLoading(false));
+    return () => {
+      live = false;
+    };
+  }, [name]);
+
+  const hasVector = detail != null && (detail.cpu_pct != null || detail.mem_pct != null || detail.disk_pct != null);
+  const fmtPct = (v: number | null) => (v == null ? "—" : `${Math.round(v)}%`);
+  const fmtRate = (v: number | null) =>
+    v == null ? "—" : v >= 1e6 ? `${(v / 1e6).toFixed(1)} MB/s` : `${Math.max(1, Math.round(v / 1e3))} KB/s`;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Activity className="h-4 w-4 text-[var(--color-accent-cyan)]" />
+          Work-health
+          {health && (
+            <Chip tone={DETAIL_HEALTH_TONE[health] ?? "gray"} testId="detail-composite-health">
+              {health}
+            </Chip>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent data-testid="detail-work-health">
+        {loading && !detail ? (
+          <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
+        ) : hasVector && detail ? (
+          <dl className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm">
+            <Metric label="cpu" value={fmtPct(detail.cpu_pct)} />
+            <Metric
+              label="mem"
+              value={`${fmtPct(detail.mem_pct)}${detail.mem_slope != null && detail.mem_slope > 0 ? " ↑" : ""}`}
+            />
+            <Metric label="disk" value={fmtPct(detail.disk_pct)} />
+            <Metric label="io-write" value={fmtRate(detail.io_write_rate_bytes_sec)} />
+            <Metric label="net-recv" value={fmtRate(detail.net_recv_rate_bytes_sec)} />
+            <Metric
+              label="workload"
+              value={detail.workload_alive == null ? "—" : detail.workload_alive ? "alive" : "PID gone"}
+            />
+          </dl>
+        ) : (
+          <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-work-health-na">
+            No /proc metric vector for this kind (VM-only today).
+          </p>
+        )}
+        <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+          Point-in-time sample — rolling-window persistence pending (sparklines once it lands).
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; embedded?: boolean } = {}) {
   // Standalone route reads :name from the URL; the cockpit passes it as a prop (chrome-less embed).
   const params = useParams<{ name: string }>();
@@ -241,6 +390,7 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
   }
 
   const KindIcon = item?.kind === "CLOUD_RUN_JOB" ? Workflow : Server;
+  const consoleLink = item ? consoleUrl(item) : null;
   // Embedded (cockpit drill panel): a chrome-less <div>, no standalone <main>/back-link.
   const Wrapper = embedded ? "div" : "main";
   const wrapperClass = embedded ? "space-y-6" : "mx-auto px-4 lg:px-6 py-6 max-w-[1280px] space-y-6";
@@ -269,11 +419,24 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
           </div>
           {item && (
             <div className="sm:ml-auto flex flex-wrap items-center gap-2">
-              <Chip tone="gray">{item.umbrella}</Chip>
+              <Chip tone="gray">{item.umbrella === "NONE" ? "service" : item.umbrella}</Chip>
               <Chip tone={item.cloud === "GCP" ? "blue" : "yellow"}>{item.cloud}</Chip>
               <Chip tone={statusTone(item.status)} testId="detail-status">
                 {item.status}
               </Chip>
+              {/* Deep-link to the target's page in the GCP/AWS console (Open-Q5) — built from the
+                  target identity, no new API call; absent for a kind we can't address. */}
+              {consoleLink && (
+                <a
+                  href={consoleLink.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid="detail-console-link"
+                  className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-accent-cyan)]/40"
+                >
+                  <ExternalLink className="h-3 w-3" /> {consoleLink.label}
+                </a>
+              )}
               {/* Close the alert → cockpit → logs → REDEPLOY walk: route to the Deploy console
                   (the embedded DeployForm, service pre-selectable) to relaunch this target. */}
               <Link
@@ -335,6 +498,41 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
                 <dt className="text-[11px] text-[var(--color-text-muted)]">Captured progress</dt>
                 <dd className="font-mono text-[var(--color-text-primary)]">{item.captured_progress ?? "—"}</dd>
               </div>
+              {/* Structural fields — surfaced per kind (ECS/Cloud Run/Lambda), honest-absent otherwise. */}
+              {item.machine_type && (
+                <div>
+                  <dt className="text-[11px] text-[var(--color-text-muted)]">Machine</dt>
+                  <dd className="font-mono text-[var(--color-text-primary)]">{item.machine_type}</dd>
+                </div>
+              )}
+              {(item.desired_count != null || item.running_count != null) && (
+                <div>
+                  <dt className="text-[11px] text-[var(--color-text-muted)]">Tasks (running/desired)</dt>
+                  <dd className="font-mono text-[var(--color-text-primary)]" data-testid="detail-tasks">
+                    {item.running_count ?? "—"}/{item.desired_count ?? "—"}
+                  </dd>
+                </div>
+              )}
+              {item.revision && (
+                <div>
+                  <dt className="text-[11px] text-[var(--color-text-muted)]">Revision</dt>
+                  <dd className="font-mono text-[var(--color-text-primary)]" data-testid="detail-revision">
+                    {item.revision}
+                  </dd>
+                </div>
+              )}
+              {item.runtime != null && (
+                <div>
+                  <dt className="text-[11px] text-[var(--color-text-muted)]">Runtime</dt>
+                  <dd className="font-mono text-[var(--color-text-primary)]">{item.runtime || "container"}</dd>
+                </div>
+              )}
+              {item.memory_size_mb != null && (
+                <div>
+                  <dt className="text-[11px] text-[var(--color-text-muted)]">Memory</dt>
+                  <dd className="font-mono text-[var(--color-text-primary)]">{item.memory_size_mb}MB</dd>
+                </div>
+              )}
               <div className="col-span-2">
                 <dt className="text-[11px] text-[var(--color-text-muted)]">Durable run log</dt>
                 <dd data-testid="detail-run-log">
@@ -365,6 +563,10 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
           )}
         </CardContent>
       </Card>
+
+      {/* Work-health — the deep D.1 metric vector (cpu/mem/disk/io/net/workload) from /detail,
+          alongside the composite verdict (parent D.2 API layer). VM-only until Cloud Run cgroup. */}
+      <WorkHealthCard name={name} health={item?.composite_health_status} />
 
       {/* Alerts + restart/escalation lifecycle — the end-to-end "what happened" answer
           (composes /api/alerts + the deployment event stream; no new endpoint). */}

@@ -31,6 +31,7 @@ import {
   BarChart2,
   Boxes,
   CircleDollarSign,
+  Clock,
   Database,
   GitBranch,
   Github,
@@ -68,6 +69,8 @@ import {
   type HealthStatus,
 } from "../api/health";
 import { getDeploymentInventory, getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
+import { TOOLTIP_STYLE } from "../lib/chart-theme";
 
 // ---------------------------------------------------------------------------
 // Shared status vocabulary — mirrors the Deployments page chip tones so the
@@ -634,11 +637,18 @@ function FleetTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Consolidators — per-asset_group manifest-consolidator health drill-down.
-// Wires to GET /api/health/consolidator in Phase 1.
+// Consolidators — per-asset_group manifest-consolidator health MONITOR.
+// Live view over GET /api/health/consolidator: index-freshness vs the staleness
+// budget per asset_group, worst-first, auto-refreshing every 15s. The MACRO
+// altitude of the write-path truth ("is the index fresh per asset_group?");
+// the Deployments tab health is the MICRO ("is THIS shard advancing?").
 // ---------------------------------------------------------------------------
 
 const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
+
+// Consolidation runs every ~1–5 min per AG, so a 30s poll is responsive without
+// re-fetching faster than the data actually changes (was 15s — unnecessarily busy).
+const CONSOLIDATOR_POLL_MS = 30_000;
 
 function fmtAge(seconds: number | null): string {
   if (seconds === null) return "—";
@@ -647,31 +657,172 @@ function fmtAge(seconds: number | null): string {
   return `${(seconds / 3600).toFixed(1)}h`;
 }
 
+/** Relative "…ago" from an ISO instant vs a supplied now (ms) so it ticks live. */
+function relTime(iso: string | null, nowMs: number): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "—";
+  return `${fmtAge(Math.max(0, (nowMs - then) / 1000))} ago`;
+}
+
+/** Backend status string → cockpit chip tone (unknown/other → muted). */
+function toTile(status: string): TileStatus {
+  return status === "ok" || status === "degraded" || status === "critical" ? status : "placeholder";
+}
+
+/** Worst-first ordering so degraded/critical asset_groups float to the top. */
+const TILE_RANK: Record<TileStatus, number> = { critical: 0, degraded: 1, placeholder: 2, ok: 3 };
+
+const BAR_FILL: Record<TileStatus, string> = {
+  ok: "bg-emerald-500",
+  degraded: "bg-amber-500",
+  critical: "bg-red-500",
+  placeholder: "bg-zinc-500",
+};
+
+/** Index age as a fraction of its staleness budget — the at-a-glance freshness. */
+function FreshnessBar({
+  ageSeconds,
+  budgetSeconds,
+  tone,
+}: {
+  ageSeconds: number | null;
+  budgetSeconds: number;
+  tone: TileStatus;
+}) {
+  const ratio = ageSeconds === null || budgetSeconds <= 0 ? null : ageSeconds / budgetSeconds;
+  const over = ratio !== null && ratio > 1;
+  const width = ratio === null ? 100 : Math.min(ratio, 1) * 100;
+  return (
+    <div className="space-y-1" data-testid="consolidator-freshness-bar">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-[var(--color-text-tertiary)]">index age / budget</span>
+        <span className="font-mono text-[var(--color-text-secondary)]">
+          {fmtAge(ageSeconds)} / {fmtAge(budgetSeconds)}
+          {over ? <span className="text-red-400"> · over</span> : null}
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-border-default)]">
+        <div className={`h-full rounded-full ${BAR_FILL[tone]} transition-[width]`} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const BACKLOG_MAX_SAMPLES = 40; // ~10 min of 15s polls
+
+const SPARK_STROKE: Record<TileStatus, string> = {
+  ok: "var(--color-accent-cyan)",
+  degraded: "var(--color-accent-amber)",
+  critical: "var(--color-accent-red)",
+  placeholder: "var(--color-text-muted)",
+};
+
+/** Shards absorbed on the last poll interval — a backlog DROP (inferred, not the job's count). */
+function absorbedLastTick(samples: number[] | undefined): number {
+  if (!samples || samples.length < 2) return 0;
+  return Math.max(0, samples[samples.length - 2] - samples[samples.length - 1]);
+}
+
+/** Session-scoped backlog-over-time sparkline. Drops = shards absorbed (inferred throughput). */
+function BacklogSparkline({ ag, samples, tone }: { ag: string; samples: number[]; tone: TileStatus }) {
+  if (samples.length < 2) {
+    return (
+      <div
+        data-testid={`cockpit-consolidator-sparkline-${ag}`}
+        className="flex h-10 items-center text-[10px] text-[var(--color-text-muted)]"
+      >
+        collecting backlog trend… (needs a 2nd poll)
+      </div>
+    );
+  }
+  const stroke = SPARK_STROKE[tone];
+  const gid = `backlog-grad-${ag}`;
+  const chartData = samples.map((pending, i) => ({ i, pending }));
+  return (
+    <div data-testid={`cockpit-consolidator-sparkline-${ag}`} className="h-10">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 3, right: 0, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="pending"
+            stroke={stroke}
+            strokeWidth={2}
+            fill={`url(#${gid})`}
+            isAnimationActive={false}
+            dot={false}
+          />
+          <RechartsTooltip {...TOOLTIP_STYLE} labelFormatter={() => "backlog"} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function ConsolidatorsTab() {
   const [data, setData] = useState<HealthConsolidatorResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  // Session-scoped rolling backlog history per AG (accumulated from the polls we observe).
+  const [history, setHistory] = useState<Record<string, number[]>>({});
 
+  // Poll the endpoint — this is a live monitor, not a one-shot load.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void (async () => {
+    async function tick() {
       try {
         const res = await getHealthConsolidator();
-        if (!cancelled) setData(res);
+        if (!cancelled) {
+          setData(res);
+          setError(null);
+          setHistory((prev) => {
+            const next: Record<string, number[]> = { ...prev };
+            for (const a of res.asset_groups) {
+              if (a.pending_shard_count == null) continue;
+              next[a.asset_group] = [...(next[a.asset_group] ?? []), a.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
+            }
+            return next;
+          });
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "consolidator health unavailable");
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    }
+    void tick();
+    const id = setInterval(() => void tick(), CONSOLIDATOR_POLL_MS);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
   }, []);
 
+  // 1s clock so "updated …ago" / "last run …ago" stay live between polls.
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const byAg = new Map((data?.asset_groups ?? []).map((a) => [a.asset_group, a]));
+  const rank = (ag: string): number => {
+    const r = byAg.get(ag);
+    return r ? TILE_RANK[toTile(r.status)] : TILE_RANK.placeholder;
+  };
+  const ordered = [...ASSET_GROUPS].sort((a, b) => rank(a) - rank(b));
+
+  const counts: Record<TileStatus, number> = { ok: 0, degraded: 0, critical: 0, placeholder: 0 };
+  for (const ag of ASSET_GROUPS) {
+    const r = byAg.get(ag);
+    counts[r ? toTile(r.status) : "placeholder"] += 1;
+  }
 
   return (
     <div data-testid="cockpit-consolidators">
@@ -689,11 +840,18 @@ function ConsolidatorsTab() {
       ) : data ? (
         <div
           data-testid="cockpit-consolidators-overall"
-          className={`mb-4 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs ${OVERALL_TONE[data.overall]}`}
+          className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs ${OVERALL_TONE[data.overall]}`}
         >
-          <span className="font-semibold tracking-wide">{OVERALL_LABEL[data.overall]}</span>
-          <span className="text-[var(--color-text-tertiary)]">
-            per-asset_group manifest-index freshness · updated {new Date(data.generated_at).toLocaleTimeString()}
+          <span className="flex items-center gap-2">
+            <span className="font-semibold tracking-wide">{OVERALL_LABEL[data.overall]}</span>
+            <span className="text-[var(--color-text-tertiary)]">
+              {counts.ok} ok · {counts.degraded} degraded · {counts.critical} critical
+              {counts.placeholder ? ` · ${counts.placeholder} unknown` : ""}
+            </span>
+          </span>
+          <span className="flex items-center gap-1 text-[var(--color-text-tertiary)]">
+            <Clock className="h-3 w-3" />
+            per-asset_group manifest-index freshness · updated {relTime(data.generated_at, nowMs)}
           </span>
         </div>
       ) : (
@@ -702,9 +860,9 @@ function ConsolidatorsTab() {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ASSET_GROUPS.map((ag) => {
+        {ordered.map((ag) => {
           const real = byAg.get(ag);
-          const status: TileStatus = real ? real.status : "placeholder";
+          const tone: TileStatus = real ? toTile(real.status) : "placeholder";
           return (
             <Card key={ag} data-testid={`cockpit-consolidator-${ag}`}>
               <CardHeader className="pb-2">
@@ -713,22 +871,77 @@ function ConsolidatorsTab() {
                     <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                     {ag}
                   </span>
-                  <StatusChip status={status} testId={`cockpit-consolidator-status-${ag}`} />
+                  <StatusChip status={tone} testId={`cockpit-consolidator-status-${ag}`} />
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-1">
-                <p>
-                  index age:{" "}
-                  <span className="text-[var(--color-text-secondary)]">
-                    {real ? `${fmtAge(real.index_age_seconds)} (budget ${fmtAge(real.staleness_budget_seconds)})` : "—"}
-                  </span>
-                </p>
-                <p>per-VM shard fallback: {real ? (real.per_vm_shard_fallback_active ? "ACTIVE ⚠️" : "no") : "—"}</p>
-                <p>
-                  last successful run:{" "}
-                  {real?.last_successful_run_at ? new Date(real.last_successful_run_at).toLocaleTimeString() : "—"}
-                </p>
-                {real?.detail ? <p className="pt-1 text-[var(--color-text-tertiary)]/80">{real.detail}</p> : null}
+              <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
+                {real ? (
+                  <>
+                    <FreshnessBar
+                      ageSeconds={real.index_age_seconds}
+                      budgetSeconds={real.staleness_budget_seconds}
+                      tone={tone}
+                    />
+                    {real.pending_shard_count != null ? (
+                      <div className="space-y-1" data-testid={`cockpit-consolidator-backlog-${ag}`}>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-[var(--color-text-tertiary)]">backlog (pending shards)</span>
+                          <span className="font-mono">
+                            <span
+                              className={
+                                real.pending_shard_count > 0
+                                  ? "text-[var(--color-text-primary)]"
+                                  : "text-[var(--color-text-tertiary)]"
+                              }
+                            >
+                              {real.pending_shard_count}
+                            </span>
+                            {real.total_shard_count != null ? (
+                              <span className="text-[var(--color-text-muted)]"> / {real.total_shard_count}</span>
+                            ) : null}
+                            {absorbedLastTick(history[ag]) > 0 ? (
+                              <span className="text-[var(--color-accent-green)]">
+                                {" "}
+                                · −{absorbedLastTick(history[ag])} absorbed
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                        <BacklogSparkline ag={ag} samples={history[ag] ?? []} tone={tone} />
+                        <p className="text-[9px] text-[var(--color-text-muted)]">
+                          this session · absorbed/tick inferred from backlog deltas
+                        </p>
+                      </div>
+                    ) : null}
+                    {real.per_vm_shard_fallback_active ? (
+                      <div
+                        data-testid={`cockpit-consolidator-fallback-${ag}`}
+                        className="flex items-start gap-1.5 rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] text-red-300"
+                      >
+                        <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                        <span>recovery-merge active — consolidator behind/DOWN (per-VM shards unabsorbed)</span>
+                      </div>
+                    ) : null}
+                    <p className="flex items-center justify-between">
+                      <span>last run</span>
+                      <span
+                        className="text-[var(--color-text-secondary)]"
+                        title={real.last_successful_run_at ?? undefined}
+                      >
+                        {relTime(real.last_successful_run_at, nowMs)}
+                      </span>
+                    </p>
+                    <p
+                      className="truncate font-mono text-[10px] text-[var(--color-text-tertiary)]/70"
+                      title={real.bucket}
+                    >
+                      {real.bucket}
+                    </p>
+                    {real.detail ? <p className="pt-0.5 text-[var(--color-text-tertiary)]/80">{real.detail}</p> : null}
+                  </>
+                ) : (
+                  <p className="text-[var(--color-text-tertiary)]">awaiting data…</p>
+                )}
               </CardContent>
             </Card>
           );

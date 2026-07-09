@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database, DollarSign, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database, DollarSign, Info, Lock, RefreshCw } from "lucide-react";
 import {
   fetchCostBreakdown,
   fetchCostSummary,
@@ -43,7 +43,7 @@ const DIMENSIONS: { value: CostDimension; label: string }[] = [
 const DIM_NOTE: Record<CostDimension, string> = {
   service: "Google / AWS service · GitHub product",
   resource: "individual VMs, buckets & build workers",
-  bucket: "GCS + S3 object stores",
+  bucket: "GCS + S3 · cost split into storage / operations / egress",
   region: "billing location",
   day: "daily totals across selected clouds",
   sku: "Google/AWS SKU",
@@ -109,6 +109,18 @@ function WasteCell({ r }: { r: CostBreakdownRow }) {
     </span>
   );
 }
+// Bucket cost-component cell (storage / operations / egress / other $). A component is present
+// only when it rounds to non-zero, so an absent one dashes rather than showing a false $0.00.
+function CompCell({ v, testId }: { v: number | undefined; testId: string }) {
+  return (
+    <td
+      data-testid={testId}
+      className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
+    >
+      {v != null ? usd(v) : <span className="text-[var(--color-text-muted)]">—</span>}
+    </td>
+  );
+}
 function isoParts(iso: string): { y: number; m: number; d: number } {
   const [y, m, d] = iso.split("-").map(Number);
   return { y: y ?? 0, m: m ?? 1, d: d ?? 1 };
@@ -148,6 +160,24 @@ function PanelHeader({
       <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{title}</h2>
       {hint != null && <span className="ml-auto text-[11px] text-[var(--color-text-tertiary)]">{hint}</span>}
     </div>
+  );
+}
+
+// ---------- inline help tooltip (hover/focus reveals a readable explanation) ----------
+function InfoTip({ text, testId }: { text: string; testId?: string }) {
+  return (
+    <span className="group relative inline-flex focus:outline-none" data-testid={testId} tabIndex={0} aria-label={text}>
+      <Info
+        aria-hidden="true"
+        className="h-3.5 w-3.5 cursor-help text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
+      />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-30 mt-1.5 hidden w-64 rounded-md border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] px-2.5 py-2 text-left text-[11px] font-normal normal-case leading-relaxed text-[var(--color-text-secondary)] shadow-xl group-hover:block group-focus:block"
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 
@@ -674,15 +704,57 @@ function DonutPanel({ summary, clouds }: { summary: CostSummaryResponse; clouds:
 }
 
 // ---------- sortable helper ----------
+// EVERY breakdown/leaf column is sortable. A column maps to a string sort key — either a real
+// CostBreakdownRow field, or a VIRTUAL key for a derived column: "storage_class" sorts by the
+// rendered class-split string; "waste" sorts by the waste amount (an idle row's gross), non-idle
+// rows sinking to -1. `sortValue` resolves a key to a comparable value so one comparator serves
+// both tables; missing numeric values sink via -1 so populated rows lead on a descending sort.
 type SortDir = "asc" | "desc";
-function useSort<T>(rows: T[], initialKey: keyof T, initialDir: SortDir = "desc") {
-  const [key, setKey] = useState<keyof T>(initialKey);
+function sortValue(r: CostBreakdownRow, key: string): number | string {
+  switch (key) {
+    case "detail":
+      return r.detail;
+    case "purchase_option":
+      return r.purchase_option ?? "";
+    case "machine_type":
+      return r.machine_type ?? "";
+    case "storage_gb":
+      return r.storage_gb ?? -1;
+    case "storage_class":
+      return r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "";
+    case "cost_per_gb":
+      return r.cost_per_gb ?? -1;
+    case "comp_storage":
+      return r.cost_by_component?.storage ?? -1;
+    case "comp_operations":
+      return r.cost_by_component?.operations ?? -1;
+    case "comp_egress":
+      return r.cost_by_component?.egress ?? -1;
+    case "comp_other":
+      return r.cost_by_component?.other ?? -1;
+    case "waste":
+      return r.is_idle ? r.gross : -1;
+    case "gross":
+      return r.gross;
+    case "credit":
+      return r.credit;
+    case "share_pct":
+      return r.share_pct;
+    case "label":
+      return r.label;
+    case "cost":
+    default:
+      return r.cost;
+  }
+}
+function useSort(rows: CostBreakdownRow[], initialKey: string, initialDir: SortDir = "desc") {
+  const [key, setKey] = useState<string>(initialKey);
   const [dir, setDir] = useState<SortDir>(initialDir);
   const sorted = useMemo(() => {
     const copy = [...rows];
     copy.sort((a, b) => {
-      const av = a[key];
-      const bv = b[key];
+      const av = sortValue(a, key);
+      const bv = sortValue(b, key);
       let cmp = 0;
       if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
       else cmp = String(av).localeCompare(String(bv));
@@ -691,11 +763,12 @@ function useSort<T>(rows: T[], initialKey: keyof T, initialDir: SortDir = "desc"
     return copy;
   }, [rows, key, dir]);
   const toggle = useCallback(
-    (k: keyof T) => {
+    (k: string) => {
       if (k === key) setDir((d) => (d === "asc" ? "desc" : "asc"));
       else {
         setKey(k);
-        setDir(typeof rows[0]?.[k] === "number" ? "desc" : "asc");
+        // Default direction on a fresh column: numeric → desc (biggest first), text → asc (A→Z).
+        setDir(typeof (rows[0] ? sortValue(rows[0], k) : "") === "number" ? "desc" : "asc");
       }
     },
     [key, rows],
@@ -709,6 +782,7 @@ function SortHead({
   onClick,
   align = "left",
   sticky = false,
+  testId,
 }: {
   label: string;
   active: boolean;
@@ -716,10 +790,13 @@ function SortHead({
   onClick: () => void;
   align?: "left" | "right";
   sticky?: boolean;
+  testId?: string;
 }) {
   return (
     <th
       onClick={onClick}
+      data-testid={testId}
+      aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : "none"}
       // `sticky` keeps the header visible while a long breakdown (up to 90 daily rows) scrolls
       // inside its max-height container; the opaque panel bg hides rows sliding underneath.
       className={`cursor-pointer select-none whitespace-nowrap border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] ${
@@ -728,28 +805,6 @@ function SortHead({
     >
       {label}
       {active && <span className="ml-1 text-[9px] opacity-60">{dir === "desc" ? "▼" : "▲"}</span>}
-    </th>
-  );
-}
-function PlainHead({
-  label,
-  align = "left",
-  sticky = false,
-  testId,
-}: {
-  label: string;
-  align?: "left" | "right";
-  sticky?: boolean;
-  testId?: string;
-}) {
-  return (
-    <th
-      data-testid={testId}
-      className={`border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] ${
-        sticky ? "sticky top-0 z-10 bg-[var(--color-bg-secondary)]" : ""
-      } ${align === "right" ? "text-right" : "text-left"}`}
-    >
-      {label}
     </th>
   );
 }
@@ -769,29 +824,80 @@ function BreakdownPanel({
   // new column header. See CostObservability() `breakdownFresh`.
   stale: boolean;
 }) {
-  const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(data.rows, "cost");
-  const max = Math.max(...data.rows.map((r) => r.cost), 1);
+  // Synthetic roll-up rows ("Other (N more)", "Unattributed") are pinned to the bottom and excluded
+  // from sort — they're summaries, not comparable groups; sorting them into the middle by cost would
+  // be wrong. Only the real groups are sortable / bar-scaled.
+  const realRows = useMemo(() => data.rows.filter((r) => !r.is_aggregate), [data.rows]);
+  const aggRows = useMemo(() => data.rows.filter((r) => r.is_aggregate), [data.rows]);
+  const { sorted, key, dir, toggle } = useSort(realRows, "cost");
+  const max = Math.max(...realRows.map((r) => r.cost), 1);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
+  // Cap note: the backend shows the top _BREAKDOWN_LIMIT groups + an "Other" roll-up so the header
+  // total stays the TRUE total. When more groups exist than are shown, tell the user exactly what's
+  // hidden and that it's rolled into the last row(s) — else the total looks mismatched again.
+  const totalGroups = data.total_groups ?? realRows.length;
+  const capped = totalGroups > realRows.length;
+  const shownSum = realRows.reduce((s, r) => s + r.cost, 0);
+  const remainingSum = data.total - shownSum;
   // Gross/credit columns mirror the KPI band's net-primary treatment down into the table, but only
   // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
   // would otherwise show two columns of "—" for no reason.
   const hasCredits = data.rows.some((r) => r.credit < 0);
+  // Bucket rows carry a net cost split {storage, operations, egress[, other]}. "Other" is rare
+  // (retrieval/misc) — show its column only when something in view actually has it, so the split
+  // always reconciles to Cost without a permanent all-dash column (mirrors the hasCredits pattern).
+  const hasOther = data.rows.some((r) => (r.cost_by_component?.other ?? 0) !== 0);
   // Spot/on-demand only applies to compute SKUs — the backend folds it onto resource + service
   // rows (spot wins if any underlying line is spot-priced); other dimensions never carry it.
   const showPurchase = dimension === "resource" || dimension === "service";
   const colCount =
     4 +
-    (dimension === "bucket" ? 3 : 0) +
+    (dimension === "bucket" ? 6 + (hasOther ? 1 : 0) : 0) +
     (dimension === "resource" ? 2 : 0) +
     (hasCredits ? 2 : 0) +
     (showPurchase ? 1 : 0);
+  // Columns an aggregate row's label spans = everything left of the Cost column (label, detail, and
+  // the dimension-specific columns) — its Cost / Gross / Credit / Share render as their own cells.
+  const leadCols = colCount - 2 - (hasCredits ? 2 : 0);
   return (
     <Panel>
       <PanelHeader
         title="Breakdown"
-        hint={`${data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · ${data.days}d · ${usd(
-          data.total,
-        )} · ${data.rows.length} ${data.rows.length === 1 ? "row" : "rows"}`}
+        hint={
+          <span className="inline-flex items-center gap-1.5">
+            <span>
+              {data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · {data.days}d ·{" "}
+              <b className="font-mono text-[var(--color-text-primary)]">{usd(data.total)}</b> total
+              {capped && (
+                <>
+                  {" · "}
+                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(shownSum)}</span>
+                  <span className="text-[var(--color-text-muted)]"> + </span>
+                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(remainingSum)}</span>
+                  {" · "}
+                  <b className="font-mono text-[var(--color-text-primary)]">{realRows.length}</b>
+                  <b className="font-mono text-[var(--color-text-primary)]">/</b>
+                  <b className="font-mono text-[var(--color-text-primary)]">
+                    {totalGroups.toLocaleString("en-US")}
+                  </b>{" "}
+                  rows
+                </>
+              )}
+              {!capped && (
+                <>
+                  {" · "}
+                  {totalGroups.toLocaleString("en-US")} {totalGroups === 1 ? "row" : "rows"}
+                </>
+              )}
+            </span>
+            {capped && (
+              <InfoTip
+                testId="cost-breakdown-cap-note"
+                text={`Top ${realRows.length} ${dimLabel}s by cost are shown. ${usd(shownSum)} is those ${realRows.length}; ${usd(remainingSum)} is the other ${(totalGroups - realRows.length).toLocaleString("en-US")} rows${aggRows.some((r) => !r.label.startsWith("Other")) ? " (plus unattributed cost)" : ""}, rolled into the "Other" row at the bottom of the table. The two add up to the true total, ${usd(data.total)}.`}
+              />
+            )}
+          </span>
+        }
       />
       <div className="p-4 pt-3">
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -816,8 +922,17 @@ function BreakdownPanel({
             <thead>
               <tr>
                 <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} sticky />
-                <PlainHead label="Detail" sticky />
-                {showPurchase && <PlainHead label="Purchase" sticky testId="cost-col-purchase" />}
+                <SortHead label="Detail" active={key === "detail"} dir={dir} onClick={() => toggle("detail")} sticky />
+                {showPurchase && (
+                  <SortHead
+                    label="Purchase"
+                    active={key === "purchase_option"}
+                    dir={dir}
+                    onClick={() => toggle("purchase_option")}
+                    sticky
+                    testId="cost-col-purchase"
+                  />
+                )}
                 {dimension === "bucket" && (
                   <>
                     <SortHead
@@ -828,7 +943,13 @@ function BreakdownPanel({
                       align="right"
                       sticky
                     />
-                    <PlainHead label="Storage class" sticky />
+                    <SortHead
+                      label="Storage class"
+                      active={key === "storage_class"}
+                      dir={dir}
+                      onClick={() => toggle("storage_class")}
+                      sticky
+                    />
                     <SortHead
                       label="$/GB"
                       active={key === "cost_per_gb"}
@@ -837,12 +958,59 @@ function BreakdownPanel({
                       align="right"
                       sticky
                     />
+                    <SortHead
+                      label="Storage $"
+                      active={key === "comp_storage"}
+                      dir={dir}
+                      onClick={() => toggle("comp_storage")}
+                      align="right"
+                      sticky
+                    />
+                    <SortHead
+                      label="Ops $"
+                      active={key === "comp_operations"}
+                      dir={dir}
+                      onClick={() => toggle("comp_operations")}
+                      align="right"
+                      sticky
+                    />
+                    <SortHead
+                      label="Egress $"
+                      active={key === "comp_egress"}
+                      dir={dir}
+                      onClick={() => toggle("comp_egress")}
+                      align="right"
+                      sticky
+                    />
+                    {hasOther && (
+                      <SortHead
+                        label="Other $"
+                        active={key === "comp_other"}
+                        dir={dir}
+                        onClick={() => toggle("comp_other")}
+                        align="right"
+                        sticky
+                      />
+                    )}
                   </>
                 )}
                 {dimension === "resource" && (
                   <>
-                    <PlainHead label="Machine" sticky />
-                    <PlainHead label="Waste" align="right" sticky />
+                    <SortHead
+                      label="Machine"
+                      active={key === "machine_type"}
+                      dir={dir}
+                      onClick={() => toggle("machine_type")}
+                      sticky
+                    />
+                    <SortHead
+                      label="Waste"
+                      active={key === "waste"}
+                      dir={dir}
+                      onClick={() => toggle("waste")}
+                      align="right"
+                      sticky
+                    />
                   </>
                 )}
                 <SortHead
@@ -853,9 +1021,36 @@ function BreakdownPanel({
                   align="right"
                   sticky
                 />
-                {hasCredits && <PlainHead label="Gross" align="right" sticky testId="cost-col-gross" />}
-                {hasCredits && <PlainHead label="Credit" align="right" sticky testId="cost-col-credit" />}
-                <PlainHead label="Share" align="right" sticky />
+                {hasCredits && (
+                  <SortHead
+                    label="Gross"
+                    active={key === "gross"}
+                    dir={dir}
+                    onClick={() => toggle("gross")}
+                    align="right"
+                    sticky
+                    testId="cost-col-gross"
+                  />
+                )}
+                {hasCredits && (
+                  <SortHead
+                    label="Credit"
+                    active={key === "credit"}
+                    dir={dir}
+                    onClick={() => toggle("credit")}
+                    align="right"
+                    sticky
+                    testId="cost-col-credit"
+                  />
+                )}
+                <SortHead
+                  label="Share"
+                  active={key === "share_pct"}
+                  dir={dir}
+                  onClick={() => toggle("share_pct")}
+                  align="right"
+                  sticky
+                />
               </tr>
             </thead>
             <tbody>
@@ -930,6 +1125,10 @@ function BreakdownPanel({
                           >
                             {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
                           </td>
+                          <CompCell v={r.cost_by_component?.storage} testId="cost-bucket-comp-storage" />
+                          <CompCell v={r.cost_by_component?.operations} testId="cost-bucket-comp-operations" />
+                          <CompCell v={r.cost_by_component?.egress} testId="cost-bucket-comp-egress" />
+                          {hasOther && <CompCell v={r.cost_by_component?.other} testId="cost-bucket-comp-other" />}
                         </>
                       )}
                       {dimension === "resource" && (
@@ -984,7 +1183,38 @@ function BreakdownPanel({
                     </tr>
                   );
                 })}
-              {!stale && sorted.length === 0 && (
+              {/* Roll-up rows ("Other (N more)", "Unattributed") — pinned last, no bar, distinct
+                  background: they're the honest tail so the shown rows sum to the header total. */}
+              {!stale &&
+                aggRows.map((r) => (
+                  <tr
+                    key={`agg-${r.label}`}
+                    data-testid="cost-row-aggregate"
+                    className="border-t-2 border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]/40"
+                  >
+                    <td colSpan={leadCols} className="px-2.5 py-[7px]">
+                      <span className="font-semibold text-[var(--color-text-primary)]">{r.label}</span>
+                      {r.detail && <span className="ml-2 text-[11px] text-[var(--color-text-muted)]">{r.detail}</span>}
+                    </td>
+                    <td className="px-2.5 py-[7px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
+                      {usd(r.cost)}
+                    </td>
+                    {hasCredits && (
+                      <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                        {usd(r.gross)}
+                      </td>
+                    )}
+                    {hasCredits && (
+                      <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]">
+                        {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                      </td>
+                    )}
+                    <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                      {r.share_pct.toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              {!stale && sorted.length === 0 && aggRows.length === 0 && (
                 <tr>
                   <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
                     No spend in this window.
@@ -1014,7 +1244,7 @@ function LeafPanel({
   rows: CostBreakdownRow[];
   kind: "vm" | "bucket";
 }) {
-  const { sorted, key, dir, toggle } = useSort<CostBreakdownRow>(rows, "cost");
+  const { sorted, key, dir, toggle } = useSort(rows, "cost");
   const colCount = 3 + (kind === "vm" ? 2 : 3);
   return (
     <Panel>
@@ -1032,9 +1262,24 @@ function LeafPanel({
           <thead>
             <tr>
               <SortHead label="Name" active={key === "label"} dir={dir} onClick={() => toggle("label")} />
-              <PlainHead label="Type" />
-              {kind === "vm" && <PlainHead label="Machine" />}
-              {kind === "vm" && <PlainHead label="Waste" align="right" />}
+              <SortHead label="Type" active={key === "detail"} dir={dir} onClick={() => toggle("detail")} />
+              {kind === "vm" && (
+                <SortHead
+                  label="Machine"
+                  active={key === "machine_type"}
+                  dir={dir}
+                  onClick={() => toggle("machine_type")}
+                />
+              )}
+              {kind === "vm" && (
+                <SortHead
+                  label="Waste"
+                  active={key === "waste"}
+                  dir={dir}
+                  onClick={() => toggle("waste")}
+                  align="right"
+                />
+              )}
               {kind === "bucket" && (
                 <SortHead
                   label="Storage"
@@ -1044,7 +1289,14 @@ function LeafPanel({
                   align="right"
                 />
               )}
-              {kind === "bucket" && <PlainHead label="Storage class" />}
+              {kind === "bucket" && (
+                <SortHead
+                  label="Storage class"
+                  active={key === "storage_class"}
+                  dir={dir}
+                  onClick={() => toggle("storage_class")}
+                />
+              )}
               {kind === "bucket" && (
                 <SortHead
                   label="$/GB"
@@ -1299,7 +1551,12 @@ export function CostObservability() {
   );
 
   return (
-    <main data-testid="cost-observability-page" className="mx-auto max-w-[1440px] space-y-4 px-4 py-6 lg:px-6">
+    /* Full-width — adapt to the monitor, no fixed max-w cap (matches the App.tsx `*` shell decision,
+       operator 2026-06-22: a 1440/1920px cap wasted the right third of a >=2560px monitor). Every
+       panel inside is already fluid (responsive card grids, w-full tables, a ResizeObserver-driven
+       chart), so dropping the page cap makes the whole page adapt. The two leaf tables keep their
+       own `overflow-x-auto`, so their horizontal scrollbars still appear when NOT full-screen. */
+    <main data-testid="cost-observability-page" className="w-full space-y-4 px-4 py-6 lg:px-6">
       {/* page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -1394,7 +1651,11 @@ export function CostObservability() {
                 stale={!breakdownFresh}
               />
             )}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Two-up ONLY when each half is wide enough to show every column of the wider (bucket)
+                table without a scrollbar (~1020px inner ⇒ ~2200px viewport, e.g. a full-screen 2560px
+                monitor). Below that they stack full-width so all columns stay visible — e.g. at half
+                of a 2560px monitor. Each still keeps its own overflow-x-auto for genuinely narrow widths. */}
+            <div className="grid grid-cols-1 gap-4 min-[2200px]:grid-cols-2">
               <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} kind="vm" />
               <LeafPanel title="Top storage buckets" hint="GCS + S3" rows={bucketRows} kind="bucket" />
             </div>

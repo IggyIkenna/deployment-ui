@@ -110,8 +110,8 @@ test.describe("Cockpit — scaffold IA", () => {
     // Consolidators wires to GET /api/health/consolidator — real per-AG status, not placeholder.
     await expect(page.getByTestId("cockpit-consolidators-overall")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // cefi is DOWN with per-VM shard fallback active in the mock rollup.
-    await expect(page.getByTestId("cockpit-consolidator-cefi")).toContainText("ACTIVE");
+    // cefi is DOWN with per-VM shard fallback active in the mock rollup → the recovery-merge alarm banner renders.
+    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidator-status-defi")).not.toHaveText("—");
   });
 
@@ -249,6 +249,90 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
     // … plus the REAL active/archive VM census is folded in (chrome-less).
     await expect(page.getByTestId("vm-deployments-content")).toBeVisible();
   });
+
+  // ── Deployment-observability expansion (plan deployment_obs_ui_popover_health_2026_07_09) ──
+
+  test("all 6 compute kinds render kind badges; services show Mode='—' (Open-Q1)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    for (const kind of ["VM", "CLOUD_RUN_JOB", "CLOUD_RUN_SERVICE", "ECS_SERVICE", "LAMBDA", "CLOUD_FUNCTION"]) {
+      await expect(page.getByTestId(`kind-badge-${kind}`).first()).toBeVisible();
+    }
+    // A service (umbrella NONE) shows a muted "—" in Mode, not a mode badge.
+    const svcRow = page.getByTestId("deployment-row-uts-shared-deployment-api");
+    await expect(svcRow.getByTestId("mode-badge-NONE")).toHaveText("—");
+  });
+
+  test("composite Health column names each VM state + the service sub-taxonomy (Open-Q2/Q7)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("working");
+    await expect(page.getByTestId("feed-health-defi-paper-trading-1")).toContainText("oom-risk");
+    await expect(page.getByTestId("feed-health-mtds-perp-funding-backfill")).toHaveText("workload-dead");
+    await expect(page.getByTestId("feed-health-mtds-dex-swaps-backfill")).toContainText("disk-full");
+    await expect(page.getByTestId("feed-health-tradfi-bf-cme-ohlcv-1m-es-2025")).toHaveText("hung");
+    await expect(page.getByTestId("feed-health-cefi-instruments-backfill")).toHaveText("dead");
+    // Service sub-taxonomy: healthy serves; a desired>running one is degraded.
+    await expect(page.getByTestId("feed-health-uts-execution-service-prod")).toHaveText("serving");
+    await expect(page.getByTestId("feed-health-uts-strategy-service-prod")).toContainText("degraded");
+  });
+
+  test("Resources column shows cpu/mem/disk for VMs; honest '—' for a no-sample row", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    const vm = page.getByTestId("resources-defi-live-capture-1");
+    await expect(vm).toContainText("58"); // cpu
+    await expect(vm).toContainText("71"); // mem
+    // A hung VM with no /proc sample renders an explicit em-dash, never a fabricated 0.
+    await expect(page.getByTestId("resources-tradfi-bf-cme-ohlcv-1m-es-2025")).toHaveText("—");
+  });
+
+  test("name-click detail panel shows the /detail work-health vector for a VM", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("deployment-link-defi-live-capture-1").click();
+    await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
+    await expect(page.getByTestId("detail-composite-health")).toHaveText("working");
+    await expect(page.getByTestId("detail-work-health")).toBeVisible();
+    await expect(page.getByTestId("detail-metric-cpu")).toHaveText("58%");
+    await expect(page.getByTestId("detail-metric-mem")).toContainText("71%");
+  });
+
+  test("detail panel: a service shows structural task counts + no /proc vector", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("deployment-link-uts-execution-service-prod").click();
+    await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
+    await expect(page.getByTestId("detail-tasks")).toHaveText("2/2");
+    // VM-only metric vector → an explicit "VM-only" note, not fabricated metrics.
+    await expect(page.getByTestId("detail-work-health-na")).toBeVisible();
+  });
+
+  test("detail panel: console deep-link is built per kind (GCE VM vs ECS service)", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("deployment-link-defi-live-capture-1").click();
+    await expect(page.getByTestId("detail-console-link")).toHaveAttribute(
+      "href",
+      /console\.cloud\.google\.com\/compute\/instancesDetail\/zones\/asia-northeast1-c\/instances\/defi-live-capture-1/,
+    );
+    await page.getByTestId("cockpit-detail-close").click();
+    await page.getByTestId("deployment-link-uts-execution-service-prod").click();
+    await expect(page.getByTestId("detail-console-link")).toHaveAttribute(
+      "href",
+      /console\.aws\.amazon\.com\/ecs\/v2\/clusters\/uts-defi-prod\/services\/uts-execution-service-prod/,
+    );
+  });
+
+  test("Kind filter isolates a single kind (services found despite Mode='—')", async ({ page }) => {
+    await page.goto("/cockpit?tab=deployments");
+    await page.waitForLoadState("networkidle");
+    const before = await page.getByTestId("deployment-matrix").locator("tbody tr").count();
+    expect(before).toBeGreaterThan(4);
+    await page.getByTestId("filter-kind").selectOption("CLOUD_RUN_SERVICE");
+    await expect(page.getByTestId("deployment-matrix").locator("tbody tr")).toHaveCount(4);
+  });
 });
 
 /**
@@ -314,15 +398,17 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
  * defi-live-capture-1 = fresh, cefi-live-trading-1 = stale.
  */
 test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
-  test("Deployments tab feed-health reads manifest freshness (fresh / stale), not just the heartbeat", async ({
+  test("Deployments tab Health column shows the composite WORK-health verdict (not just fresh/stale)", async ({
     page,
   }) => {
     await page.goto("/cockpit?tab=deployments");
     await page.waitForLoadState("networkidle");
-    // The fresh live row renders the manifest-derived "fresh" feed-health…
-    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("fresh");
-    // …and the stale-index live row renders honest "stale" (NOT a false fresh).
-    await expect(page.getByTestId("feed-health-cefi-live-trading-1")).toHaveText("stale");
+    // The server-derived composite (WS-D.3) wins the Health column over raw freshness:
+    // a genuinely-progressing live VM reads "working"…
+    await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("working");
+    // …and a live VM whose websocket is idle (fresh heartbeat but flat progress) reads "stalled",
+    // NOT a false "fresh" — the exact alive-but-idle case liveness alone can't catch.
+    await expect(page.getByTestId("feed-health-cefi-live-trading-1")).toHaveText("stalled");
   });
 
   test("Health Data-Coverage tile overlays the real live-feed freshness summary", async ({ page }) => {
@@ -451,14 +537,14 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // The defi card (mock: 25s old) renders a concrete index age, NOT the placeholder dash.
+    // The defi card (mock: 25s old) renders a concrete index age vs budget, NOT the placeholder dash.
     const defiCard = page.getByTestId("cockpit-consolidator-defi");
-    await expect(defiCard).toContainText("index age:");
+    await expect(defiCard).toContainText("index age / budget");
     await expect(defiCard).toContainText("25s");
-    // The cefi card (mock: 2457s, fallback active) shows the budget + the ACTIVE fallback flag.
+    // The cefi card (mock: 2457s, fallback active) shows the budget + the recovery-merge fallback alarm.
     const cefiCard = page.getByTestId("cockpit-consolidator-cefi");
     await expect(cefiCard).toContainText("budget");
-    await expect(cefiCard).toContainText("ACTIVE");
+    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidator-status-cefi")).toHaveText("CRITICAL");
   });
 
@@ -505,5 +591,21 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     await expect(page.getByTestId("detail-alerts-empty")).toBeVisible();
     // The mock event stream has no restart/escalation events → honest empty state.
     await expect(page.getByTestId("detail-lifecycle-empty")).toBeVisible();
+  });
+
+  test("O5: consolidator backlog counts render + the throughput sparkline accumulates", async ({ page }) => {
+    test.setTimeout(60_000); // waits for a 2nd 30s poll to accumulate the sparkline
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    // cefi mock: 47 pending of 48 shards (consolidator behind) — the real "keeping up?" magnitude.
+    const backlog = page.getByTestId("cockpit-consolidator-backlog-cefi");
+    await expect(backlog).toBeVisible();
+    await expect(backlog).toContainText("47");
+    await expect(backlog).toContainText("48");
+    // The sparkline container is present on the first poll (one sample → "collecting"); once a
+    // 2nd poll (30s interval) lands a second sample, the recharts area actually renders (svg).
+    const spark = page.getByTestId("cockpit-consolidator-sparkline-cefi");
+    await expect(spark).toBeVisible();
+    await expect(spark.locator("svg")).toBeVisible({ timeout: 40000 });
   });
 });

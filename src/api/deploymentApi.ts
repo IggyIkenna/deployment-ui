@@ -427,6 +427,10 @@ export interface CostBreakdownRow {
   storage_gb?: number | null;
   storage_class_gb?: Record<string, number> | null;
   cost_per_gb?: number | null;
+  // Bucket-only: net cost split by SKU component so an operations-dominated bucket (e.g. an
+  // event-log bucket that's ~all Class-A writes on a few GB) reads honestly. Keys present only
+  // when non-zero: storage | operations | egress | other; they sum to ~`cost`.
+  cost_by_component?: Record<string, number> | null;
   // Resource-only (dimension=resource rows): cost-waste flags — a row IS an idle static/elastic IP
   // or an orphaned disk when is_idle is true (its own `cost` is the waste amount); "" when not
   // flagged (never a false-positive orphan when the running-VM cross-ref is unavailable).
@@ -439,13 +443,17 @@ export interface CostBreakdownRow {
   // Resource/service-only: "spot" | "on-demand" | "other" (a group shows "spot" if any of its
   // underlying SKU lines is spot-priced). "" / undefined on dimensions the axis doesn't apply to.
   purchase_option?: string;
+  // True for a synthetic roll-up row — the "Other (N more)" capped-tail sum or the "Unattributed
+  // (no resource id)" sum. The UI pins it to the bottom, excludes it from sort, and skips its bar.
+  is_aggregate?: boolean;
 }
 
 export interface CostBreakdownResponse {
   dimension: CostDimension;
   cloud: CloudFilter;
   days: number;
-  total: number;
+  total: number; // TRUE window total for this dimension (all groups, pre-cap) — consistent across tabs
+  total_groups?: number; // distinct real groups before the top-N cap (excludes synthetic aggregate rows)
   rows: CostBreakdownRow[];
 }
 
@@ -627,16 +635,38 @@ export async function fetchVenueTardisWindows(): Promise<VenueTardisWindowsRespo
 // Plan: deployment_observability_parity_live_batch_paper_2026_06_22.md Phase 2.
 // -------------------------------------------------------------------------
 
-export type DeploymentUmbrella = "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT";
-export type DeploymentKind = "VM" | "CLOUD_RUN_JOB";
+// NONE = an always-on service (Cloud Run service / ECS / Lambda / Cloud Function) — no
+// live/batch/paper phase, so the Mode column renders "—" and it's found via the Kind filter.
+export type DeploymentUmbrella = "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT" | "NONE";
+// All 6 kinds are backend-live as of the deployment-obs backend plan (2026-07-09):
+// VM · CLOUD_RUN_JOB · CLOUD_RUN_SERVICE · ECS_SERVICE · LAMBDA · CLOUD_FUNCTION.
+export type DeploymentKind = "VM" | "CLOUD_RUN_JOB" | "CLOUD_RUN_SERVICE" | "ECS_SERVICE" | "LAMBDA" | "CLOUD_FUNCTION";
 export type DeploymentCloud = "GCP" | "AWS";
 /** Status taxonomy mirrored from the inventory route — color-coded like RepoCi. */
 export type DeploymentStatus = "succeeded" | "failed" | "running" | "stale" | "unknown" | string;
 
+// Composite WORK-health — server-derived (`DeploymentItem.composite_health_status`) from the
+// metric vector + manifest write-truth + control-plane existence (parent D.3). Distinguishes
+// "alive but doing nothing" from genuinely working. Backend currently emits working/oom-risk/
+// disk-full/hung/unknown; `stalled` + `workload-dead` land when the open backend P1 finishes.
+export type VmHealth =
+  | "working" // resource in-band AND objects landing / bytes flowing
+  | "stalled" // fresh heartbeat but flat progress + idle cpu/net (e.g. dead websocket)
+  | "oom-risk" // mem climbing toward the limit — alert BEFORE the kill
+  | "workload-dead" // daemon still heartbeating but the workload PID is gone (OOM-killed)
+  | "disk-full" // disk >90% — writes failing silently
+  | "hung" // heartbeat stale but the control-plane still says RUNNING (whole-VM wedge)
+  | "dead" // control-plane reports the instance not running
+  | "unknown"; // no derivable verdict for this kind/target
+
+// Service (Cloud Run service / ECS) health — desired-vs-running / ready-state (parent D.3).
+export type ServiceHealth = "serving" | "scaled-to-zero" | "dead" | "degraded" | "unknown";
+
+// Mirrors deployment-api `DeploymentItem` (deployments_inventory.py:176) — the thin list row.
 export interface DeploymentItem {
   name: string;
   kind: DeploymentKind;
-  umbrella: DeploymentUmbrella;
+  umbrella: DeploymentUmbrella; // NONE → services; Mode column shows "—"
   cloud: DeploymentCloud;
   service: string;
   asset_group: string;
@@ -646,6 +676,55 @@ export interface DeploymentItem {
   heartbeat_age_seconds: number | null;
   captured_progress: number | null;
   run_log_uri: string | null;
+  // Tier-0 free wins — GCE aggregated-list / registry entry (on the thin list).
+  rows_in?: number | null;
+  rows_error?: number | null;
+  events_emitted?: number | null;
+  uptime_hours?: number | null;
+  machine_type?: string | null; // e2-highmem-8 · m7i.xlarge
+  zone?: string | null; // asia-northeast1-c · ap-northeast-1
+  health_status?: string | null; // raw GCE instance status (RUNNING/TERMINATED/…)
+  boot_disk_name?: string | null;
+  labels?: Record<string, string> | null;
+  // Composite work-health — the Health column.
+  composite_health_status?: VmHealth | null;
+  // Resource summary scalars for the INLINE Resources column. The full D.1 vector
+  // (io/net/workload_alive) lives on DeploymentDetail (/detail); these summary scalars
+  // need surfacing on the thin list — recommended backend addition (plan Progress Log
+  // 2026-07-09). mem_slope>0 drives the inline "↑" climbing indicator.
+  cpu_pct?: number | null;
+  mem_pct?: number | null;
+  disk_pct?: number | null;
+  mem_slope?: number | null; // %/min trend → OOM prediction (sustained climb)
+  // AWS ECS_SERVICE structural fields (Open-Q7 desired-vs-running).
+  cluster?: string | null;
+  desired_count?: number | null;
+  running_count?: number | null;
+  task_definition_revision?: number | null;
+  // AWS LAMBDA structural fields.
+  runtime?: string | null; // "" for a container-image function
+  memory_size_mb?: number | null;
+  package_type?: string | null; // "Zip" | "Image"
+  // Cloud Run service.
+  revision?: string | null; // latest ready/created revision
+  region?: string | null; // serving region
+  // Cost-per-target — WS-E billing join, not yet landed; nullable until it ships.
+  cost_per_day_usd?: number | null;
+}
+
+// GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`
+// (deployments_inventory.py:237): the thin item + the deep D.1 metric vector. All metric
+// fields are null for a kind without /proc capture (Cloud Run/ECS/Lambda) or a target
+// absent from this census cycle (honest absence, never a fabricated 0.0).
+export interface DeploymentDetail {
+  item: DeploymentItem;
+  cpu_pct: number | null;
+  mem_pct: number | null;
+  mem_slope: number | null;
+  disk_pct: number | null;
+  io_write_rate_bytes_sec: number | null;
+  net_recv_rate_bytes_sec: number | null;
+  workload_alive: boolean | null;
 }
 
 export interface DeploymentInventoryResponse {
@@ -694,4 +773,11 @@ export async function getDeploymentInventory(
 export async function getUmbrellaSummary(umbrella: DeploymentUmbrella): Promise<UmbrellaSummaryResponse> {
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/umbrella/${encodeURIComponent(umbrella)}/summary`);
   return handleResponse<UmbrellaSummaryResponse>(response);
+}
+
+// GET /api/deployments/{name}/detail — the per-target drill-down (thin item + the deep D.1
+// metric vector). deployment-api DeploymentDetailResponse (deployments_inventory.py:238).
+export async function getDeploymentDetail(name: string): Promise<DeploymentDetail> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/detail`);
+  return handleResponse<DeploymentDetail>(response);
 }
