@@ -13,15 +13,15 @@ export default defineConfig(({ mode }) => ({
     alias:
       mode === "development"
         ? [
-          {
-            find: "@unified-trading/ui-kit/globals.css",
-            replacement: path.join(uiKitSrc, "globals.css"),
-          },
-          {
-            find: "@unified-trading/ui-kit",
-            replacement: path.join(uiKitSrc, "index.ts"),
-          },
-        ]
+            {
+              find: "@unified-trading/ui-kit/globals.css",
+              replacement: path.join(uiKitSrc, "globals.css"),
+            },
+            {
+              find: "@unified-trading/ui-kit",
+              replacement: path.join(uiKitSrc, "index.ts"),
+            },
+          ]
         : undefined,
   },
   plugins: [react(), tailwindcss()],
@@ -38,7 +38,10 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:8004",  // SSOT: ui-api-mapping.json — deployment-api port
+        // Default: local deployment-api (SSOT: ui-api-mapping.json — deployment-api port).
+        // Override VITE_PROXY_TARGET to point dev at a live backend (e.g. the deployed
+        // Cloud Run API) without hitting browser CORS — the proxy fetches server-side.
+        target: process.env.VITE_PROXY_TARGET ?? "http://localhost:8004",
         changeOrigin: true,
       },
     },

@@ -110,8 +110,8 @@ test.describe("Cockpit — scaffold IA", () => {
     // Consolidators wires to GET /api/health/consolidator — real per-AG status, not placeholder.
     await expect(page.getByTestId("cockpit-consolidators-overall")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // cefi is DOWN with per-VM shard fallback active in the mock rollup.
-    await expect(page.getByTestId("cockpit-consolidator-cefi")).toContainText("ACTIVE");
+    // cefi is DOWN with per-VM shard fallback active in the mock rollup → the recovery-merge alarm banner renders.
+    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidator-status-defi")).not.toHaveText("—");
   });
 
@@ -451,14 +451,14 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // The defi card (mock: 25s old) renders a concrete index age, NOT the placeholder dash.
+    // The defi card (mock: 25s old) renders a concrete index age vs budget, NOT the placeholder dash.
     const defiCard = page.getByTestId("cockpit-consolidator-defi");
-    await expect(defiCard).toContainText("index age:");
+    await expect(defiCard).toContainText("index age / budget");
     await expect(defiCard).toContainText("25s");
-    // The cefi card (mock: 2457s, fallback active) shows the budget + the ACTIVE fallback flag.
+    // The cefi card (mock: 2457s, fallback active) shows the budget + the recovery-merge fallback alarm.
     const cefiCard = page.getByTestId("cockpit-consolidator-cefi");
     await expect(cefiCard).toContainText("budget");
-    await expect(cefiCard).toContainText("ACTIVE");
+    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidator-status-cefi")).toHaveText("CRITICAL");
   });
 
