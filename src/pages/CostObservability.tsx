@@ -876,7 +876,7 @@ function BreakdownPanel({
                   <span className="font-mono text-[var(--color-text-secondary)]">{usd(remainingSum)}</span>
                   {" · "}
                   <b className="font-mono text-[var(--color-text-primary)]">{realRows.length}</b>
-                  <span className="text-[var(--color-text-muted)]">/</span>
+                  <b className="font-mono text-[var(--color-text-primary)]">/</b>
                   <b className="font-mono text-[var(--color-text-primary)]">
                     {totalGroups.toLocaleString("en-US")}
                   </b>{" "}
