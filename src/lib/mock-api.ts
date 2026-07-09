@@ -2435,7 +2435,9 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
   const total = +rows.reduce((a, r) => a + r.cost, 0).toFixed(2);
   rows.forEach((r) => (r.share_pct = total ? +((r.cost / total) * 100).toFixed(1) : 0));
   rows.sort((a, b) => b.cost - a.cost);
-  return { dimension, cloud, days, total, rows };
+  // total_groups = distinct groups before the backend's top-N cap; the mock fixtures are small
+  // (< cap) so nothing is folded, but the field is present so the UI's coverage hint renders.
+  return { dimension, cloud, days, total, total_groups: rows.length, rows };
 }
 
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {

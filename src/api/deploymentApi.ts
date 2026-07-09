@@ -443,13 +443,17 @@ export interface CostBreakdownRow {
   // Resource/service-only: "spot" | "on-demand" | "other" (a group shows "spot" if any of its
   // underlying SKU lines is spot-priced). "" / undefined on dimensions the axis doesn't apply to.
   purchase_option?: string;
+  // True for a synthetic roll-up row — the "Other (N more)" capped-tail sum or the "Unattributed
+  // (no resource id)" sum. The UI pins it to the bottom, excludes it from sort, and skips its bar.
+  is_aggregate?: boolean;
 }
 
 export interface CostBreakdownResponse {
   dimension: CostDimension;
   cloud: CloudFilter;
   days: number;
-  total: number;
+  total: number; // TRUE window total for this dimension (all groups, pre-cap) — consistent across tabs
+  total_groups?: number; // distinct real groups before the top-N cap (excludes synthetic aggregate rows)
   rows: CostBreakdownRow[];
 }
 

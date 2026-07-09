@@ -186,6 +186,65 @@ const timeseries: api.CostTimeseriesResponse = {
   points: [{ date: "2026-07-08", values: { gcp: 400, aws: 7, github: 9 } }],
 };
 
+// A capped dimension: 4,783 groups but only the top 2 shown, the rest folded into "Other" +
+// an "Unattributed" row. The four shown rows reconcile to the true total (2423.05 + 216.52 +
+// 9588.60 + 365.15 = 12593.32) so the header total matches the KPI, not the shrunk top-N sum.
+const cappedBreakdown: api.CostBreakdownResponse = {
+  dimension: "service",
+  cloud: "all",
+  days: 30,
+  total: 12593.32,
+  total_groups: 4783,
+  rows: [
+    {
+      label: "Compute Engine",
+      cloud: "gcp",
+      cost: 2423.05,
+      gross: 2522.62,
+      credit: -99.57,
+      detail: "GCP",
+      resource_kind: "other",
+      share_pct: 19.2,
+      is_provisional: false,
+    },
+    {
+      label: "Cloud Storage",
+      cloud: "gcp",
+      cost: 216.52,
+      gross: 286.61,
+      credit: -70.09,
+      detail: "GCP",
+      resource_kind: "other",
+      share_pct: 1.7,
+      is_provisional: false,
+    },
+    {
+      label: "Other (4,675 more)",
+      cloud: null,
+      cost: 9588.6,
+      gross: 10000,
+      credit: -411.4,
+      detail: "rows beyond the top 100",
+      resource_kind: "other",
+      share_pct: 76.1,
+      is_provisional: false,
+      is_aggregate: true,
+    },
+    {
+      label: "Unattributed (no resource id)",
+      cloud: null,
+      cost: 365.15,
+      gross: 365.15,
+      credit: 0,
+      detail: "cost the provider doesn't tag to a resource (Cloud Run, networking, …)",
+      resource_kind: "other",
+      share_pct: 2.9,
+      is_provisional: false,
+      is_aggregate: true,
+    },
+  ],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.fetchCostSummary).mockResolvedValue(summary);
@@ -231,6 +290,25 @@ describe("CostObservability", () => {
     // resource breakdown feeds the leaf tables: VM row + bucket row
     expect(screen.getByText("mtds-perp-funding-backfill")).toBeInTheDocument();
     expect(screen.getByText("central-element-323112-events")).toBeInTheDocument();
+  });
+
+  it("caps a high-cardinality dimension: fraction hint, Other + Unattributed roll-ups, help tooltip", async () => {
+    vi.mocked(api.fetchCostBreakdown).mockResolvedValue(cappedBreakdown);
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    const panel = screen.getByTestId("cost-breakdown-table").closest("section") as HTMLElement;
+    // Hint carries the TRUE total (matches the KPI, not the shrunk top-N sum) + the group count.
+    expect(within(panel).getByText("$12,593.32")).toBeInTheDocument();
+    expect(within(panel).getByText("4,783")).toBeInTheDocument();
+    // The tail is folded into pinned "Other" + "Unattributed" roll-up rows, not dropped.
+    const aggRows = screen.getAllByTestId("cost-row-aggregate");
+    expect(aggRows.some((r) => r.textContent?.includes("Other (4,675 more)"))).toBe(true);
+    expect(aggRows.some((r) => r.textContent?.includes("Unattributed"))).toBe(true);
+    // A help tooltip carries the plain-language explanation.
+    expect(screen.getByTestId("cost-breakdown-cap-note")).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("true total"),
+    );
   });
 
   it("refetches the breakdown when the dimension changes", async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database, DollarSign, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database, DollarSign, Info, Lock, RefreshCw } from "lucide-react";
 import {
   fetchCostBreakdown,
   fetchCostSummary,
@@ -160,6 +160,24 @@ function PanelHeader({
       <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{title}</h2>
       {hint != null && <span className="ml-auto text-[11px] text-[var(--color-text-tertiary)]">{hint}</span>}
     </div>
+  );
+}
+
+// ---------- inline help tooltip (hover/focus reveals a readable explanation) ----------
+function InfoTip({ text, testId }: { text: string; testId?: string }) {
+  return (
+    <span className="group relative inline-flex focus:outline-none" data-testid={testId} tabIndex={0} aria-label={text}>
+      <Info
+        aria-hidden="true"
+        className="h-3.5 w-3.5 cursor-help text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
+      />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-30 mt-1.5 hidden w-64 rounded-md border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] px-2.5 py-2 text-left text-[11px] font-normal normal-case leading-relaxed text-[var(--color-text-secondary)] shadow-xl group-hover:block group-focus:block"
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 
@@ -806,9 +824,21 @@ function BreakdownPanel({
   // new column header. See CostObservability() `breakdownFresh`.
   stale: boolean;
 }) {
-  const { sorted, key, dir, toggle } = useSort(data.rows, "cost");
-  const max = Math.max(...data.rows.map((r) => r.cost), 1);
+  // Synthetic roll-up rows ("Other (N more)", "Unattributed") are pinned to the bottom and excluded
+  // from sort — they're summaries, not comparable groups; sorting them into the middle by cost would
+  // be wrong. Only the real groups are sortable / bar-scaled.
+  const realRows = useMemo(() => data.rows.filter((r) => !r.is_aggregate), [data.rows]);
+  const aggRows = useMemo(() => data.rows.filter((r) => r.is_aggregate), [data.rows]);
+  const { sorted, key, dir, toggle } = useSort(realRows, "cost");
+  const max = Math.max(...realRows.map((r) => r.cost), 1);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
+  // Cap note: the backend shows the top _BREAKDOWN_LIMIT groups + an "Other" roll-up so the header
+  // total stays the TRUE total. When more groups exist than are shown, tell the user exactly what's
+  // hidden and that it's rolled into the last row(s) — else the total looks mismatched again.
+  const totalGroups = data.total_groups ?? realRows.length;
+  const capped = totalGroups > realRows.length;
+  const shownSum = realRows.reduce((s, r) => s + r.cost, 0);
+  const remainingSum = data.total - shownSum;
   // Gross/credit columns mirror the KPI band's net-primary treatment down into the table, but only
   // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
   // would otherwise show two columns of "—" for no reason.
@@ -826,13 +856,48 @@ function BreakdownPanel({
     (dimension === "resource" ? 2 : 0) +
     (hasCredits ? 2 : 0) +
     (showPurchase ? 1 : 0);
+  // Columns an aggregate row's label spans = everything left of the Cost column (label, detail, and
+  // the dimension-specific columns) — its Cost / Gross / Credit / Share render as their own cells.
+  const leadCols = colCount - 2 - (hasCredits ? 2 : 0);
   return (
     <Panel>
       <PanelHeader
         title="Breakdown"
-        hint={`${data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · ${data.days}d · ${usd(
-          data.total,
-        )} · ${data.rows.length} ${data.rows.length === 1 ? "row" : "rows"}`}
+        hint={
+          <span className="inline-flex items-center gap-1.5">
+            <span>
+              {data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · {data.days}d ·{" "}
+              <b className="font-mono text-[var(--color-text-primary)]">{usd(data.total)}</b> total
+              {capped && (
+                <>
+                  {" · "}
+                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(shownSum)}</span>
+                  <span className="text-[var(--color-text-muted)]"> + </span>
+                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(remainingSum)}</span>
+                  {" · "}
+                  <b className="font-mono text-[var(--color-text-primary)]">{realRows.length}</b>
+                  <span className="text-[var(--color-text-muted)]">/</span>
+                  <b className="font-mono text-[var(--color-text-primary)]">
+                    {totalGroups.toLocaleString("en-US")}
+                  </b>{" "}
+                  rows
+                </>
+              )}
+              {!capped && (
+                <>
+                  {" · "}
+                  {totalGroups.toLocaleString("en-US")} {totalGroups === 1 ? "row" : "rows"}
+                </>
+              )}
+            </span>
+            {capped && (
+              <InfoTip
+                testId="cost-breakdown-cap-note"
+                text={`Top ${realRows.length} ${dimLabel}s by cost are shown. ${usd(shownSum)} is those ${realRows.length}; ${usd(remainingSum)} is the other ${(totalGroups - realRows.length).toLocaleString("en-US")} rows${aggRows.some((r) => !r.label.startsWith("Other")) ? " (plus unattributed cost)" : ""}, rolled into the "Other" row at the bottom of the table. The two add up to the true total, ${usd(data.total)}.`}
+              />
+            )}
+          </span>
+        }
       />
       <div className="p-4 pt-3">
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -1118,7 +1183,38 @@ function BreakdownPanel({
                     </tr>
                   );
                 })}
-              {!stale && sorted.length === 0 && (
+              {/* Roll-up rows ("Other (N more)", "Unattributed") — pinned last, no bar, distinct
+                  background: they're the honest tail so the shown rows sum to the header total. */}
+              {!stale &&
+                aggRows.map((r) => (
+                  <tr
+                    key={`agg-${r.label}`}
+                    data-testid="cost-row-aggregate"
+                    className="border-t-2 border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]/40"
+                  >
+                    <td colSpan={leadCols} className="px-2.5 py-[7px]">
+                      <span className="font-semibold text-[var(--color-text-primary)]">{r.label}</span>
+                      {r.detail && <span className="ml-2 text-[11px] text-[var(--color-text-muted)]">{r.detail}</span>}
+                    </td>
+                    <td className="px-2.5 py-[7px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
+                      {usd(r.cost)}
+                    </td>
+                    {hasCredits && (
+                      <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                        {usd(r.gross)}
+                      </td>
+                    )}
+                    {hasCredits && (
+                      <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]">
+                        {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                      </td>
+                    )}
+                    <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
+                      {r.share_pct.toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              {!stale && sorted.length === 0 && aggRows.length === 0 && (
                 <tr>
                   <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
                     No spend in this window.
