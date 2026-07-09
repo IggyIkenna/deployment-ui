@@ -646,7 +646,9 @@ function FleetTab() {
 
 const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 
-const CONSOLIDATOR_POLL_MS = 15_000;
+// Consolidation runs every ~1–5 min per AG, so a 30s poll is responsive without
+// re-fetching faster than the data actually changes (was 15s — unnecessarily busy).
+const CONSOLIDATOR_POLL_MS = 30_000;
 
 function fmtAge(seconds: number | null): string {
   if (seconds === null) return "—";

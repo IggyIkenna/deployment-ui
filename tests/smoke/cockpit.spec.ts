@@ -594,6 +594,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O5: consolidator backlog counts render + the throughput sparkline accumulates", async ({ page }) => {
+    test.setTimeout(60_000); // waits for a 2nd 30s poll to accumulate the sparkline
     await page.goto("/cockpit?tab=consolidators");
     await page.waitForLoadState("networkidle");
     // cefi mock: 47 pending of 48 shards (consolidator behind) — the real "keeping up?" magnitude.
@@ -602,9 +603,9 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     await expect(backlog).toContainText("47");
     await expect(backlog).toContainText("48");
     // The sparkline container is present on the first poll (one sample → "collecting"); once a
-    // 2nd poll (15s interval) lands a second sample, the recharts area actually renders (svg).
+    // 2nd poll (30s interval) lands a second sample, the recharts area actually renders (svg).
     const spark = page.getByTestId("cockpit-consolidator-sparkline-cefi");
     await expect(spark).toBeVisible();
-    await expect(spark.locator("svg")).toBeVisible({ timeout: 20000 });
+    await expect(spark.locator("svg")).toBeVisible({ timeout: 40000 });
   });
 });
