@@ -164,11 +164,15 @@ test.describe("Cost Observability page", () => {
     // Scoped to `table` — the "Top compute instances" leaf table renders the same text.
     await expect(table.getByText(/e2-highmem-8.*8 vCPU.*64 GB/)).toBeVisible();
 
-    // The orphaned-disk mock resource carries a waste badge + its own cost as the waste amount —
-    // not a separate/hidden sub-amount, the row's cost IS the waste.
+    // The orphaned-disk mock resource carries a waste badge + the GROSS cost as the waste amount —
+    // the mock's ikenna disk is net $68.62 but gross $82.34 (a ~20% promo credit); the waste column
+    // must show the gross ($82.34), the honest "what the idle resource costs / what you'll pay when
+    // the promo ends", NOT the credit-masked net (which for a fully-credited idle IP rounds to ~$0
+    // and would read as "not waste").
     const wasteCells = table.locator("tbody tr").getByTestId("cost-resource-waste");
     await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => /orphaned/i.test(t))).toBe(true);
-    await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t.includes("68.62"))).toBe(true);
+    await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t.includes("82.34"))).toBe(true);
+    await expect.poll(async () => (await wasteCells.allTextContents()).every((t) => !t.includes("68.62"))).toBe(true);
     // Non-waste resource rows dash instead of a false "$0.00" waste amount.
     await expect.poll(async () => (await wasteCells.allTextContents()).some((t) => t === "—")).toBe(true);
 

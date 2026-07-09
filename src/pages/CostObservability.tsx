@@ -87,9 +87,11 @@ const WASTE_LABEL: Record<string, string> = {
   idle_elastic_ip: "idle IP",
   orphaned_disk: "orphaned",
 };
-// Resource rows only — a row IS the idle/orphaned resource (its own cost is the waste amount).
-// Shared by the breakdown table's resource-dimension column and the leaf "Top compute instances"
-// table so both surfaces render cost-waste identically.
+// Resource rows only — a row IS the idle/orphaned resource, and its own GROSS cost is the waste
+// amount: what the idle thing actually costs, pre-credit. NET can round to ~$0 when a promo credit
+// masks it (an idle IP is ~$2/mo gross, fully credited today), which would read as "not waste" —
+// the gross is the honest "what you'd save / will pay when the promo ends". Shared by the breakdown
+// table's resource column and the leaf "Top compute instances" table so both render waste identically.
 function WasteCell({ r }: { r: CostBreakdownRow }) {
   if (!r.is_idle) return <span className="text-[var(--color-text-tertiary)]">—</span>;
   return (
@@ -103,7 +105,7 @@ function WasteCell({ r }: { r: CostBreakdownRow }) {
       >
         {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
       </span>
-      <span className="font-mono text-[var(--color-text-primary)]">{usd(r.cost)}</span>
+      <span className="font-mono text-[var(--color-text-primary)]">{usd(r.gross)}</span>
     </span>
   );
 }
