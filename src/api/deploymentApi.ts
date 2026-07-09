@@ -427,6 +427,10 @@ export interface CostBreakdownRow {
   storage_gb?: number | null;
   storage_class_gb?: Record<string, number> | null;
   cost_per_gb?: number | null;
+  // Bucket-only: net cost split by SKU component so an operations-dominated bucket (e.g. an
+  // event-log bucket that's ~all Class-A writes on a few GB) reads honestly. Keys present only
+  // when non-zero: storage | operations | egress | other; they sum to ~`cost`.
+  cost_by_component?: Record<string, number> | null;
   // Resource-only (dimension=resource rows): cost-waste flags — a row IS an idle static/elastic IP
   // or an orphaned disk when is_idle is true (its own `cost` is the waste amount); "" when not
   // flagged (never a false-positive orphan when the running-VM cross-ref is unavailable).

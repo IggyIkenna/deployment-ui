@@ -2366,6 +2366,14 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     "market-data-tick-cefi-central-element-323112": { Standard: 6200 },
     "unified-trading-instruments-defi-427895769566": { Standard: 40 },
   };
+  // Bucket-only: net-cost split weights {storage, egress} (operations = remainder) — mirrors the
+  // backend's _cost_component. The events bucket is operations-dominated (~all Class-A writes on
+  // little storage); cefi is storage-dominated. Parts sum EXACTLY to the row's net cost.
+  const BUCKET_COMPONENT_WEIGHTS: Record<string, { storage: number; egress: number }> = {
+    "central-element-323112-events": { storage: 0.0002, egress: 0.002 },
+    "market-data-tick-cefi-central-element-323112": { storage: 0.75, egress: 0.009 },
+    "unified-trading-instruments-defi-427895769566": { storage: 0.5, egress: 0.1 },
+  };
   // Resource-only: VM machine specs (from GCP system_labels, no Compute API) — AWS carries no
   // machine-spec equivalent, so i-0c9b283b31d6b5ca7 is deliberately absent here.
   const VM_MACHINE_SPECS: Record<string, { machine_type: string; vcpu: number; memory_gb: number }> = {
@@ -2389,6 +2397,14 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     // (the leaf "Top storage buckets" table sources from the latter).
     const storageClassGb = kind === "bucket" ? (BUCKET_STORAGE[label] ?? null) : null;
     const storageGb = storageClassGb ? Object.values(storageClassGb).reduce((a, gb) => a + gb, 0) : null;
+    // Bucket net-cost composition (storage/operations/egress), summing exactly to `net`.
+    let costByComponent: Record<string, number> | null = null;
+    if (kind === "bucket") {
+      const w = BUCKET_COMPONENT_WEIGHTS[label] ?? { storage: 0.5, egress: 0.05 };
+      const storage = +(net * w.storage).toFixed(2);
+      const egress = +(net * w.egress).toFixed(2);
+      costByComponent = { storage, operations: +(net - storage - egress).toFixed(2), egress };
+    }
     const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
     const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";
     return {
@@ -2403,7 +2419,10 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       is_provisional: dimension === "day" && label >= mockCostDates(days)[days - 2],
       storage_gb: storageGb,
       storage_class_gb: storageClassGb,
-      cost_per_gb: storageGb ? +(net / storageGb).toFixed(4) : null,
+      // $/GB is the STORAGE-component rate over stored GB (matches the backend), not total/GB — an
+      // ops-heavy bucket's total/GB would read a nonsense rate.
+      cost_per_gb: storageGb ? +((costByComponent?.storage ?? net) / storageGb).toFixed(4) : null,
+      cost_by_component: costByComponent,
       machine_type: spec?.machine_type ?? "",
       vcpu: spec?.vcpu ?? null,
       memory_gb: spec?.memory_gb ?? null,

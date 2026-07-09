@@ -150,6 +150,41 @@ test.describe("Cost Observability page", () => {
     await expect(table.getByTestId("cost-bucket-storage-gb")).toHaveCount(0);
   });
 
+  test("By bucket splits cost into storage/operations/egress columns reflecting each bucket's real driver", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    const pageRoot = page.getByTestId("cost-observability-page");
+    await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // The three cost-component columns render for bucket rows.
+    await expect(table.getByTestId("cost-bucket-comp-storage").first()).toBeVisible();
+    await expect(table.getByTestId("cost-bucket-comp-operations").first()).toBeVisible();
+    await expect(table.getByTestId("cost-bucket-comp-egress").first()).toBeVisible();
+
+    const num = (t: string | null) => parseFloat((t ?? "").replace(/[^0-9.]/g, "")) || 0;
+
+    // The event-log bucket is operations-dominated — ops must exceed storage. This is the whole
+    // point of the split: a bare total next to 95 GB looked wrong; the columns show it's ~all
+    // Class-A operations, not storage.
+    const events = table.locator("tbody tr", { hasText: "central-element-323112-events" }).first();
+    expect(num(await events.getByTestId("cost-bucket-comp-operations").textContent())).toBeGreaterThan(
+      num(await events.getByTestId("cost-bucket-comp-storage").textContent()),
+    );
+
+    // The market-data bucket is storage-dominated — storage exceeds operations.
+    const cefi = table.locator("tbody tr", { hasText: "market-data-tick-cefi-central-element-323112" }).first();
+    expect(num(await cefi.getByTestId("cost-bucket-comp-storage").textContent())).toBeGreaterThan(
+      num(await cefi.getByTestId("cost-bucket-comp-operations").textContent()),
+    );
+
+    // The columns are bucket-dimension-only — switching to "By resource" drops them.
+    await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
+    await expect(table.getByTestId("cost-bucket-comp-storage")).toHaveCount(0);
+  });
+
   test("By resource shows machine specs + cost-waste badges (idle IP / orphaned disk) made visually obvious", async ({
     page,
   }) => {
