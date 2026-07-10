@@ -2272,6 +2272,8 @@ function mockCostSummary(days: number) {
     // GCP carries ~20% promotional credit (mirrors the real billing export); AWS/GitHub have none.
     const credit = cloud === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
     const gross = +(net - credit).toFixed(2); // net = gross + credit (credit ≤ 0)
+    // GCP bills in GBP; mock native at a fixed 0.75 rate. USD-native clouds mirror the USD values.
+    const rate = cloud === "gcp" ? 0.75 : 1;
     return {
       cloud,
       total: net,
@@ -2280,6 +2282,10 @@ function mockCostSummary(days: number) {
       delta_pct: MOCK_COST_CLOUDS[cloud].delta,
       daily,
       is_placeholder: MOCK_COST_CLOUDS[cloud].placeholder,
+      currency: cloud === "gcp" ? "GBP" : "USD",
+      total_native: +(net * rate).toFixed(2),
+      gross_native: +(gross * rate).toFixed(2),
+      credit_native: +(credit * rate).toFixed(2),
     };
   });
   const total = +clouds.reduce((a, c) => a + c.total, 0).toFixed(2);
@@ -2392,6 +2398,7 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
     // export); AWS/GitHub/cross-cloud (day, cloud=null) rows have none.
     const credit = c === "gcp" ? -+(net * 0.2).toFixed(2) : 0;
     const gross = +(net - credit).toFixed(2); // net = gross + credit (credit <= 0)
+    const rate = c === "gcp" ? 0.75 : 1; // GCP bills in GBP; native at a fixed mock rate
     // Keyed by resource_kind, not the query dimension — the real backend's `_by_resource` attaches
     // storage detail to bucket rows whether the caller asked for dimension=bucket or dimension=resource
     // (the leaf "Top storage buckets" table sources from the latter).
@@ -2429,6 +2436,10 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       is_idle: wasteKind !== "",
       waste_kind: wasteKind,
       purchase_option: purchase ?? "other",
+      currency: c === "gcp" ? "GBP" : "USD",
+      cost_native: +(net * rate).toFixed(2),
+      gross_native: +(gross * rate).toFixed(2),
+      credit_native: +(credit * rate).toFixed(2),
     };
   });
   if (cloud !== "all") rows = rows.filter((r) => r.cloud === cloud || r.cloud === null);

@@ -30,9 +30,37 @@ const summary: api.CostSummaryResponse = {
       delta_pct: 12.4,
       daily: [400, 500],
       is_placeholder: false,
+      currency: "GBP",
+      total_native: 11186.14,
+      gross_native: 13116.25,
+      credit_native: -1930.11,
     },
-    { cloud: "aws", total: 218.99, gross: 218.99, credit: 0, delta_pct: -5.2, daily: [7, 8], is_placeholder: false },
-    { cloud: "github", total: 292.68, gross: 292.68, credit: 0, delta_pct: 0.1, daily: [9, 9], is_placeholder: true },
+    {
+      cloud: "aws",
+      total: 218.99,
+      gross: 218.99,
+      credit: 0,
+      delta_pct: -5.2,
+      daily: [7, 8],
+      is_placeholder: false,
+      currency: "USD",
+      total_native: 218.99,
+      gross_native: 218.99,
+      credit_native: 0,
+    },
+    {
+      cloud: "github",
+      total: 292.68,
+      gross: 292.68,
+      credit: 0,
+      delta_pct: 0.1,
+      daily: [9, 9],
+      is_placeholder: true,
+      currency: "USD",
+      total_native: 292.68,
+      gross_native: 292.68,
+      credit_native: 0,
+    },
   ],
   provisional_days: 2,
   generated_at: "2026-07-08T00:00:00Z",
@@ -270,6 +298,17 @@ describe("CostObservability", () => {
     expect(screen.getAllByText("GCP").length).toBeGreaterThan(0);
     expect(screen.getAllByText("AWS").length).toBeGreaterThan(0);
     expect(screen.getByText("mock")).toBeInTheDocument(); // github placeholder badge (unique)
+  });
+
+  it("USD⇄GBP toggle re-denominates GCP to native £ while AWS stays USD", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-cloud-total-gcp")).toHaveTextContent("$14,914.85"));
+    // AWS is USD-native (no GBP figure exists) — stays $ regardless of the toggle.
+    expect(screen.getByTestId("cost-cloud-total-aws")).toHaveTextContent("$218.99");
+    fireEvent.click(screen.getByRole("button", { name: "GBP" }));
+    // GCP (GBP-native) re-denominates to its raw £ invoice figure; AWS unchanged.
+    await waitFor(() => expect(screen.getByTestId("cost-cloud-total-gcp")).toHaveTextContent("£11,186.14"));
+    expect(screen.getByTestId("cost-cloud-total-aws")).toHaveTextContent("$218.99");
   });
 
   it("shows net as the headline with the gross − credits derivation", async () => {

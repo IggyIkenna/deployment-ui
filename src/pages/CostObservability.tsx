@@ -59,6 +59,21 @@ function usdShort(n: number): string {
   if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
   return `$${n.toFixed(0)}`;
 }
+function gbp(n: number): string {
+  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+// Currency toggle. USD is the default cross-cloud view (GCP already converted from GBP; AWS native
+// USD). "GBP" is a per-cloud invoice-tally view: it re-denominates GBP-native rows (GCP) to their
+// raw £ while everything else — USD-native clouds (AWS/GitHub) and cross-cloud aggregates — stays
+// USD, because no GBP figure exists for it. So it's most useful paired with the GCP cloud filter.
+type Ccy = "USD" | "GBP";
+const CURRENCIES: { value: Ccy; label: string }[] = [
+  { value: "USD", label: "USD" },
+  { value: "GBP", label: "GBP" },
+];
+function money(mode: Ccy, usdVal: number, nativeVal: number | null | undefined, rowCcy: string | undefined): string {
+  return mode === "GBP" && rowCcy === "GBP" ? gbp(nativeVal ?? usdVal) : usd(usdVal);
+}
 // Bucket storage is already backend-derived to GB (never bytes) — format with thousands
 // separators only, no unit-magnitude conversion (so the label stays legible as "GB").
 function formatGb(n: number): string {
@@ -66,6 +81,15 @@ function formatGb(n: number): string {
 }
 function costPerGb(n: number): string {
   return `$${n.toFixed(n < 1 ? 4 : 2)}/GB`;
+}
+// $/GB (or £/GB in GBP mode for a GBP-native bucket, re-denominated at the row's own billed rate).
+function perGb(mode: Ccy, r: CostBreakdownRow): string {
+  const n = r.cost_per_gb ?? 0;
+  if (mode === "GBP" && r.currency === "GBP") {
+    const v = n * nativeFactor(r);
+    return `£${v.toFixed(v < 1 ? 4 : 2)}/GB`;
+  }
+  return costPerGb(n);
 }
 function storageClassSplit(classes: Record<string, number>): string {
   return Object.entries(classes)
@@ -92,7 +116,7 @@ const WASTE_LABEL: Record<string, string> = {
 // masks it (an idle IP is ~$2/mo gross, fully credited today), which would read as "not waste" —
 // the gross is the honest "what you'd save / will pay when the promo ends". Shared by the breakdown
 // table's resource column and the leaf "Top compute instances" table so both render waste identically.
-function WasteCell({ r }: { r: CostBreakdownRow }) {
+function WasteCell({ r, currency }: { r: CostBreakdownRow; currency: Ccy }) {
   if (!r.is_idle) return <span className="text-[var(--color-text-tertiary)]">—</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -105,19 +129,40 @@ function WasteCell({ r }: { r: CostBreakdownRow }) {
       >
         {WASTE_LABEL[r.waste_kind ?? ""] ?? "waste"}
       </span>
-      <span className="font-mono text-[var(--color-text-primary)]">{usd(r.gross)}</span>
+      <span className="font-mono text-[var(--color-text-primary)]">
+        {money(currency, r.gross, r.gross_native, r.currency)}
+      </span>
     </span>
   );
 }
-// Bucket cost-component cell (storage / operations / egress / other $). A component is present
-// only when it rounds to non-zero, so an absent one dashes rather than showing a false $0.00.
-function CompCell({ v, testId }: { v: number | undefined; testId: string }) {
+// Effective native/USD factor for a row (its own billed FX rate); 1 for USD-native rows. Used to
+// re-denominate derived figures (component split, $/GB) that have no separate native field.
+function nativeFactor(r: CostBreakdownRow): number {
+  return r.currency === "GBP" && r.cost ? (r.cost_native ?? r.cost) / r.cost : 1;
+}
+// Bucket cost-component cell (storage / operations / egress / other). A component is present
+// only when it rounds to non-zero, so an absent one dashes rather than showing a false 0.00.
+function CompCell({
+  v,
+  r,
+  currency,
+  testId,
+}: {
+  v: number | undefined;
+  r: CostBreakdownRow;
+  currency: Ccy;
+  testId: string;
+}) {
   return (
     <td
       data-testid={testId}
       className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
     >
-      {v != null ? usd(v) : <span className="text-[var(--color-text-muted)]">—</span>}
+      {v != null ? (
+        money(currency, v, v * nativeFactor(r), r.currency)
+      ) : (
+        <span className="text-[var(--color-text-muted)]">—</span>
+      )}
     </td>
   );
 }
@@ -249,11 +294,19 @@ function Delta({ pct }: { pct: number | null }) {
 function GrossCredit({
   gross,
   credit,
+  grossNative,
+  creditNative,
+  ccy,
+  mode = "USD",
   compact = false,
   testId,
 }: {
   gross: number;
   credit: number;
+  grossNative?: number;
+  creditNative?: number;
+  ccy?: string;
+  mode?: Ccy;
   compact?: boolean;
   testId?: string;
 }) {
@@ -263,10 +316,12 @@ function GrossCredit({
       data-testid={testId}
       className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-[var(--color-text-tertiary)]"
     >
-      <span className="font-mono">({usd(gross)}</span>
+      <span className="font-mono">({money(mode, gross, grossNative, ccy)}</span>
       {!compact && <span>gross</span>}
       <span aria-hidden="true">−</span>
-      <span className="font-mono text-[var(--color-accent-green)]">{usd(Math.abs(credit))}</span>
+      <span className="font-mono text-[var(--color-accent-green)]">
+        {money(mode, Math.abs(credit), creditNative != null ? Math.abs(creditNative) : undefined, ccy)}
+      </span>
       <span>credits)</span>
     </div>
   );
@@ -304,7 +359,7 @@ function Sparkline({ data, color, w = 92, h = 30 }: { data: number[]; color: str
 }
 
 // ---------- KPI band ----------
-function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: CloudFilter }) {
+function KpiBand({ summary, cloud, currency }: { summary: CostSummaryResponse; cloud: CloudFilter; currency: Ccy }) {
   const byCloud = new Map(summary.clouds.map((c) => [c.cloud, c]));
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -340,6 +395,10 @@ function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: Clou
           delta_pct: null,
           daily: [],
           is_placeholder: false,
+          currency: "USD",
+          total_native: 0,
+          gross_native: 0,
+          credit_native: 0,
         };
         const dim = cloud !== "all" && cloud !== c ? "opacity-40" : "";
         const share = summary.total ? ((cs.total / summary.total) * 100).toFixed(1) : "0.0";
@@ -355,8 +414,22 @@ function KpiBand({ summary, cloud }: { summary: CostSummaryResponse; cloud: Clou
                   </span>
                 )}
               </div>
-              <div className="mt-2 font-mono text-2xl font-bold leading-none tracking-tight">{usd(cs.total)}</div>
-              <GrossCredit gross={cs.gross} credit={cs.credit} compact testId={`cost-cloud-breakdown-${c}`} />
+              <div
+                data-testid={`cost-cloud-total-${c}`}
+                className="mt-2 font-mono text-2xl font-bold leading-none tracking-tight"
+              >
+                {money(currency, cs.total, cs.total_native, cs.currency)}
+              </div>
+              <GrossCredit
+                gross={cs.gross}
+                credit={cs.credit}
+                grossNative={cs.gross_native}
+                creditNative={cs.credit_native}
+                ccy={cs.currency}
+                mode={currency}
+                compact
+                testId={`cost-cloud-breakdown-${c}`}
+              />
               <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                 <Delta pct={cs.delta_pct} />
                 <span className="font-mono">{share}% of total</span>
@@ -815,6 +888,7 @@ function BreakdownPanel({
   onDimension,
   data,
   stale,
+  currency,
 }: {
   dimension: CostDimension;
   onDimension: (d: CostDimension) => void;
@@ -823,6 +897,7 @@ function BreakdownPanel({
   // the new request hasn't resolved yet) — gates the body so the old rows never render under the
   // new column header. See CostObservability() `breakdownFresh`.
   stale: boolean;
+  currency: Ccy;
 }) {
   // Synthetic roll-up rows ("Other (N more)", "Unattributed") are pinned to the bottom and excluded
   // from sort — they're summaries, not comparable groups; sorting them into the middle by cost would
@@ -839,6 +914,14 @@ function BreakdownPanel({
   const capped = totalGroups > realRows.length;
   const shownSum = realRows.reduce((s, r) => s + r.cost, 0);
   const remainingSum = data.total - shownSum;
+  // Native (GBP-tally) figures for the hint. Native is shown only when the WHOLE view is one
+  // non-USD currency (i.e. cloud=gcp → every row GBP); a mixed cloud=all view has no single native
+  // total, so scopeCcy stays USD. The "Other"/"Unattributed" rows carry the native residual, so
+  // nativeShown + nativeRemaining == the native window total to the penny.
+  const scopeCcy = data.rows.length > 0 && data.rows.every((r) => r.currency === "GBP") ? "GBP" : "USD";
+  const nativeShown = realRows.reduce((s, r) => s + (r.cost_native ?? r.cost), 0);
+  const nativeRemaining = aggRows.reduce((s, r) => s + (r.cost_native ?? r.cost), 0);
+  const nativeTotal = nativeShown + nativeRemaining;
   // Gross/credit columns mirror the KPI band's net-primary treatment down into the table, but only
   // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
   // would otherwise show two columns of "—" for no reason.
@@ -867,13 +950,20 @@ function BreakdownPanel({
           <span className="inline-flex items-center gap-1.5">
             <span>
               {data.cloud === "all" ? "all clouds" : CLOUDS[data.cloud as CostCloud]?.label} · {data.days}d ·{" "}
-              <b className="font-mono text-[var(--color-text-primary)]">{usd(data.total)}</b> total
+              <b className="font-mono text-[var(--color-text-primary)]">
+                {money(currency, data.total, nativeTotal, scopeCcy)}
+              </b>{" "}
+              total
               {capped && (
                 <>
                   {" · "}
-                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(shownSum)}</span>
+                  <span className="font-mono text-[var(--color-text-secondary)]">
+                    {money(currency, shownSum, nativeShown, scopeCcy)}
+                  </span>
                   <span className="text-[var(--color-text-muted)]"> + </span>
-                  <span className="font-mono text-[var(--color-text-secondary)]">{usd(remainingSum)}</span>
+                  <span className="font-mono text-[var(--color-text-secondary)]">
+                    {money(currency, remainingSum, nativeRemaining, scopeCcy)}
+                  </span>
                   {" · "}
                   <b className="font-mono text-[var(--color-text-primary)]">{realRows.length}</b>
                   <b className="font-mono text-[var(--color-text-primary)]">/</b>
@@ -893,7 +983,7 @@ function BreakdownPanel({
             {capped && (
               <InfoTip
                 testId="cost-breakdown-cap-note"
-                text={`Top ${realRows.length} ${dimLabel}s by cost are shown. ${usd(shownSum)} is those ${realRows.length}; ${usd(remainingSum)} is the other ${(totalGroups - realRows.length).toLocaleString("en-US")} rows${aggRows.some((r) => !r.label.startsWith("Other")) ? " (plus unattributed cost)" : ""}, rolled into the "Other" row at the bottom of the table. The two add up to the true total, ${usd(data.total)}.`}
+                text={`Top ${realRows.length} ${dimLabel}s by cost are shown. ${money(currency, shownSum, nativeShown, scopeCcy)} is those ${realRows.length}; ${money(currency, remainingSum, nativeRemaining, scopeCcy)} is the other ${(totalGroups - realRows.length).toLocaleString("en-US")} rows${aggRows.some((r) => !r.label.startsWith("Other")) ? " (plus unattributed cost)" : ""}, rolled into the "Other" row at the bottom of the table. The two add up to the true total, ${money(currency, data.total, nativeTotal, scopeCcy)}.`}
               />
             )}
           </span>
@@ -1123,12 +1213,34 @@ function BreakdownPanel({
                             className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
                             data-testid="cost-bucket-cost-per-gb"
                           >
-                            {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
+                            {r.cost_per_gb != null ? perGb(currency, r) : "—"}
                           </td>
-                          <CompCell v={r.cost_by_component?.storage} testId="cost-bucket-comp-storage" />
-                          <CompCell v={r.cost_by_component?.operations} testId="cost-bucket-comp-operations" />
-                          <CompCell v={r.cost_by_component?.egress} testId="cost-bucket-comp-egress" />
-                          {hasOther && <CompCell v={r.cost_by_component?.other} testId="cost-bucket-comp-other" />}
+                          <CompCell
+                            v={r.cost_by_component?.storage}
+                            r={r}
+                            currency={currency}
+                            testId="cost-bucket-comp-storage"
+                          />
+                          <CompCell
+                            v={r.cost_by_component?.operations}
+                            r={r}
+                            currency={currency}
+                            testId="cost-bucket-comp-operations"
+                          />
+                          <CompCell
+                            v={r.cost_by_component?.egress}
+                            r={r}
+                            currency={currency}
+                            testId="cost-bucket-comp-egress"
+                          />
+                          {hasOther && (
+                            <CompCell
+                              v={r.cost_by_component?.other}
+                              r={r}
+                              currency={currency}
+                              testId="cost-bucket-comp-other"
+                            />
+                          )}
                         </>
                       )}
                       {dimension === "resource" && (
@@ -1143,7 +1255,7 @@ function BreakdownPanel({
                             className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
                             data-testid="cost-resource-waste"
                           >
-                            <WasteCell r={r} />
+                            <WasteCell r={r} currency={currency} />
                           </td>
                         </>
                       )}
@@ -1160,13 +1272,13 @@ function BreakdownPanel({
                             />
                           </div>
                           <span className="w-[74px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
-                            {usd(r.cost)}
+                            {money(currency, r.cost, r.cost_native, r.currency)}
                           </span>
                         </div>
                       </td>
                       {hasCredits && (
                         <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
-                          {usd(r.gross)}
+                          {money(currency, r.gross, r.gross_native, r.currency)}
                         </td>
                       )}
                       {hasCredits && (
@@ -1174,7 +1286,9 @@ function BreakdownPanel({
                           className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]"
                           data-testid="cost-row-credit"
                         >
-                          {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                          {r.credit < 0
+                            ? `−${money(currency, Math.abs(r.credit), r.credit_native != null ? Math.abs(r.credit_native) : undefined, r.currency)}`
+                            : "—"}
                         </td>
                       )}
                       <td className="border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
@@ -1197,16 +1311,18 @@ function BreakdownPanel({
                       {r.detail && <span className="ml-2 text-[11px] text-[var(--color-text-muted)]">{r.detail}</span>}
                     </td>
                     <td className="px-2.5 py-[7px] text-right font-mono font-semibold text-[var(--color-text-primary)]">
-                      {usd(r.cost)}
+                      {money(currency, r.cost, r.cost_native, r.currency)}
                     </td>
                     {hasCredits && (
                       <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
-                        {usd(r.gross)}
+                        {money(currency, r.gross, r.gross_native, r.currency)}
                       </td>
                     )}
                     {hasCredits && (
                       <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-accent-green)]">
-                        {r.credit < 0 ? `−${usd(Math.abs(r.credit))}` : "—"}
+                        {r.credit < 0
+                          ? `−${money(currency, Math.abs(r.credit), r.credit_native != null ? Math.abs(r.credit_native) : undefined, r.currency)}`
+                          : "—"}
                       </td>
                     )}
                     <td className="px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]">
@@ -1238,11 +1354,13 @@ function LeafPanel({
   hint,
   rows,
   kind,
+  currency,
 }: {
   title: string;
   hint: string;
   rows: CostBreakdownRow[];
   kind: "vm" | "bucket";
+  currency: Ccy;
 }) {
   const { sorted, key, dir, toggle } = useSort(rows, "cost");
   const colCount = 3 + (kind === "vm" ? 2 : 3);
@@ -1337,7 +1455,7 @@ function LeafPanel({
                     className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right"
                     data-testid="cost-resource-waste"
                   >
-                    <WasteCell r={r} />
+                    <WasteCell r={r} currency={currency} />
                   </td>
                 )}
                 {kind === "bucket" && (
@@ -1361,11 +1479,11 @@ function LeafPanel({
                     className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-tertiary)]"
                     data-testid="cost-bucket-cost-per-gb"
                   >
-                    {r.cost_per_gb != null ? costPerGb(r.cost_per_gb) : "—"}
+                    {r.cost_per_gb != null ? perGb(currency, r) : "—"}
                   </td>
                 )}
                 <td className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]">
-                  {usd(r.cost)}
+                  {money(currency, r.cost, r.cost_native, r.currency)}
                 </td>
               </tr>
             ))}
@@ -1468,6 +1586,7 @@ function SourceFooter({ generatedAt }: { generatedAt: string | undefined }) {
 export function CostObservability() {
   const [days, setDays] = useState<number>(30);
   const [cloud, setCloud] = useState<CloudFilter>("all");
+  const [currency, setCurrency] = useState<Ccy>("USD");
   const [dimension, setDimension] = useState<CostDimension>("service");
 
   const [summary, setSummary] = useState<CostSummaryResponse | null>(null);
@@ -1584,6 +1703,7 @@ export function CostObservability() {
             label="Time range"
           />
           <Segmented options={CLOUD_FILTERS} value={cloud} onChange={setCloud} label="Cloud filter" />
+          <Segmented options={CURRENCIES} value={currency} onChange={setCurrency} label="Currency" />
           <button
             type="button"
             onClick={refresh}
@@ -1633,7 +1753,7 @@ export function CostObservability() {
       ) : (
         summary && (
           <>
-            <KpiBand summary={summary} cloud={cloud} />
+            <KpiBand summary={summary} cloud={cloud} currency={currency} />
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="lg:col-span-2">
                 {ts && (
@@ -1655,6 +1775,7 @@ export function CostObservability() {
                 onDimension={setDimension}
                 data={breakdown}
                 stale={!breakdownFresh}
+                currency={currency}
               />
             )}
             {/* Two-up ONLY when each half is wide enough to show every column of the wider (bucket)
@@ -1662,8 +1783,14 @@ export function CostObservability() {
                 monitor). Below that they stack full-width so all columns stay visible — e.g. at half
                 of a 2560px monitor. Each still keeps its own overflow-x-auto for genuinely narrow widths. */}
             <div className="grid grid-cols-1 gap-4 min-[2200px]:grid-cols-2">
-              <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} kind="vm" />
-              <LeafPanel title="Top storage buckets" hint="GCS + S3" rows={bucketRows} kind="bucket" />
+              <LeafPanel title="Top compute instances" hint="GCE + EC2" rows={vmRows} kind="vm" currency={currency} />
+              <LeafPanel
+                title="Top storage buckets"
+                hint="GCS + S3"
+                rows={bucketRows}
+                kind="bucket"
+                currency={currency}
+              />
             </div>
             {(cloud === "all" || cloud === "github") && githubRows.length > 0 && <GithubPanel rows={githubRows} />}
             <SourceFooter generatedAt={summary.generated_at} />
