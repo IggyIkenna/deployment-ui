@@ -1079,8 +1079,29 @@ function json<T>(data: T, status = 200): Response {
 
 interface MockDeploymentItem {
   name: string;
-  kind: "VM" | "CLOUD_RUN_JOB" | "CLOUD_RUN_SERVICE" | "ECS_SERVICE" | "LAMBDA" | "CLOUD_FUNCTION";
+  kind:
+    | "VM"
+    | "CLOUD_RUN_JOB"
+    | "CLOUD_RUN_SERVICE"
+    | "ECS_SERVICE"
+    | "LAMBDA"
+    | "CLOUD_FUNCTION"
+    | "DISK"
+    | "STATIC_IP"
+    | "SCHEDULER";
   umbrella: "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT" | "NONE"; // NONE = a service (Mode="—")
+  // WS-D full-estate additions.
+  launched_by?: string | null;
+  last_modified_at?: string | null;
+  has_unreleased_resources?: boolean | null;
+  unreleased_resources?: {
+    type: string;
+    name: string;
+    size_gb?: number | null;
+    disk_type?: string | null;
+    est_monthly_usd: number;
+    cost_basis?: string | null;
+  }[];
   cloud: "GCP" | "AWS";
   service: string;
   asset_group: string;
@@ -1108,6 +1129,13 @@ interface MockDeploymentItem {
     | "disk-full"
     | "hung"
     | "dead"
+    | "overdue"
+    | "on-time"
+    | "paused"
+    // Service (Cloud Run / ECS) verdicts — the live inventory folds these into the same field.
+    | "serving"
+    | "scaled-to-zero"
+    | "degraded"
     | "unknown"
     | null;
   health_status?: string | null; // raw GCE instance status
@@ -1467,6 +1495,9 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     error_rate_pct: 0.2,
     p99_latency_ms: 85,
     revision: "deployment-api-00042-abc",
+    // Service-only composite verdict — regression guard for the crash on a health value outside the
+    // VM/scheduler vocabulary (deployment_full_estate_cost_provenance: live serving Cloud Run svc).
+    composite_health_status: "serving",
   },
   {
     name: "market-data-query-service",
@@ -1592,6 +1623,8 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     running_count: 1,
     task_definition_revision: 27,
     revision: "uts-strategy-service-prod:27",
+    // desired 2 / running 1 → genuinely degraded; another service-only verdict the row must render.
+    composite_health_status: "degraded",
   },
   // ── AWS Lambda (NOT censused today) ──
   {
@@ -1633,6 +1666,134 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     cost_per_day_usd: 0.2,
     invocations_24h: 24,
     error_rate_pct: 0.0,
+  },
+  // ── WS-D full-estate fixtures — unmanaged / leaked / orphaned / scheduled / lambda ──
+  {
+    // A 16-day zombie: unmanaged (adhoc) + stopped + still holding a data disk (leaked cost).
+    name: "wsd-zombie-adhoc-vm",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "wsd-zombie-adhoc-vm",
+    asset_group: "cefi",
+    status: "stopped",
+    last_run_at: "2026-06-23T17:16:12Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "adhoc",
+    health_status: "TERMINATED",
+    has_unreleased_resources: true,
+    unreleased_resources: [
+      {
+        type: "DISK",
+        name: "wsd-zombie-data",
+        size_gb: 200,
+        disk_type: "pd-ssd",
+        est_monthly_usd: 44,
+        cost_basis: "inferred",
+      },
+    ],
+  },
+  {
+    // A running ad-hoc launch (a second adhoc row so the launched-by filter isolates >1).
+    name: "wsd-onchain-canon-vm",
+    kind: "VM",
+    umbrella: "BATCH",
+    cloud: "GCP",
+    service: "wsd-onchain-canon-vm",
+    asset_group: "defi",
+    status: "running",
+    last_run_at: "2026-07-09T12:30:56Z",
+    exit_code: null,
+    heartbeat_age_seconds: 40,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "adhoc",
+    health_status: "RUNNING",
+  },
+  {
+    // A truly-orphaned persistent disk (no owning VM) — a first-class DISK row.
+    name: "wsd-orphan-disk-01",
+    kind: "DISK",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "wsd-orphan-disk-01",
+    asset_group: "",
+    status: "stopped",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "unknown",
+    has_unreleased_resources: true,
+    unreleased_resources: [
+      {
+        type: "DISK",
+        name: "wsd-orphan-disk-01",
+        size_gb: 500,
+        disk_type: "pd-standard",
+        est_monthly_usd: 26,
+        cost_basis: "inferred",
+      },
+    ],
+  },
+  {
+    // A reserved static IP with no owner — a first-class STATIC_IP row.
+    name: "wsd-orphan-ip-01",
+    kind: "STATIC_IP",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "wsd-orphan-ip-01",
+    asset_group: "",
+    status: "stopped",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "unknown",
+    region: "asia-northeast1",
+    has_unreleased_resources: true,
+    unreleased_resources: [{ type: "STATIC_IP", name: "wsd-orphan-ip-01", est_monthly_usd: 7, cost_basis: "inferred" }],
+  },
+  {
+    // A Cloud Scheduler job that is OVERDUE (fired late / last attempt failed).
+    name: "wsd-consolidator-cron",
+    kind: "SCHEDULER",
+    umbrella: "NONE",
+    cloud: "GCP",
+    service: "prd-manifest-consolidator-cefi",
+    asset_group: "cefi",
+    status: "failed",
+    last_run_at: "2026-07-10T10:00:00Z",
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "control-plane",
+    composite_health_status: "overdue",
+  },
+  {
+    // AWS Lambda — last_run_at honestly-absent; last-MODIFIED shown with a tooltip.
+    name: "wsd-webhook-lambda",
+    kind: "LAMBDA",
+    umbrella: "BATCH",
+    cloud: "AWS",
+    service: "wsd-webhook-lambda",
+    asset_group: "cefi",
+    status: "running",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    launched_by: "unknown",
+    last_modified_at: "2026-06-22T09:00:00Z",
+    runtime: "python3.13",
+    memory_size_mb: 256,
   },
 ];
 
@@ -3133,6 +3294,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       counts_by_kind,
     });
   }
+  // Region options for the selector (WS-D reconciliation) — default pinned first + the "all" sentinel.
+  if (path === "/api/deployments/regions") {
+    return json({
+      default: "asia-northeast1",
+      regions: ["asia-northeast1", "europe-west1", "europe-west3", "us-central1", "us-east1"],
+      all_value: "all",
+    });
+  }
   // GET /api/deployments/{name}/detail — per-target D.1 metric vector + the thin item.
   // Mirrors deployment-api DeploymentDetailResponse (deployments_inventory.py:238). The metric
   // fields are null for a kind without /proc capture (services/jobs) — honest absence, never 0.
@@ -3143,6 +3312,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       const row = MOCK_DEPLOYMENT_INVENTORY.find((i) => i.name === name);
       if (!row) return json({ detail: `no target ${name}` }, 404);
       const isVm = row.kind === "VM";
+      const isJob = row.kind === "CLOUD_RUN_JOB";
       const toBytes = (mbps: number | null | undefined) => (mbps == null ? null : Math.round(mbps * 125000));
       return json({
         item: row,
@@ -3153,6 +3323,33 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         io_write_rate_bytes_sec: isVm && row.object_delta != null ? row.object_delta * 4096 : null,
         net_recv_rate_bytes_sec: isVm ? toBytes(row.net_recv_mbps) : null,
         workload_alive: isVm ? (row.workload_alive ?? null) : null,
+        // WS-D #11/#12 — Cloud Run job run-history (last N executions) + the manifest object-delta hint.
+        run_history: isJob
+          ? [
+              {
+                name: `${name}-exec-3`,
+                status: row.status,
+                started_at: "2026-07-10T06:00:00Z",
+                completed_at: "2026-07-10T06:05:00Z",
+                duration_seconds: 300,
+              },
+              {
+                name: `${name}-exec-2`,
+                status: "succeeded",
+                started_at: "2026-07-09T06:00:00Z",
+                completed_at: "2026-07-09T06:04:30Z",
+                duration_seconds: 270,
+              },
+              {
+                name: `${name}-exec-1`,
+                status: "succeeded",
+                started_at: "2026-07-08T06:00:00Z",
+                completed_at: "2026-07-08T06:06:00Z",
+                duration_seconds: 360,
+              },
+            ]
+          : [],
+        object_delta: isJob ? (row.object_delta ?? null) : null,
       });
     }
   }

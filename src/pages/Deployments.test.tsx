@@ -14,6 +14,8 @@ const mockGetSummary = vi.fn();
 vi.mock("../api/deploymentApi", () => ({
   getDeploymentInventory: (filters?: DeploymentInventoryFilters) => mockGetInventory(filters),
   getUmbrellaSummary: (umbrella: DeploymentUmbrella) => mockGetSummary(umbrella),
+  getDeploymentRegions: () =>
+    Promise.resolve({ default: "asia-northeast1", regions: ["asia-northeast1", "europe-west1"], all_value: "all" }),
 }));
 
 // Feed-health freshness is additive (LIVE rows only) — a rejection is swallowed by allSettled.
@@ -148,7 +150,8 @@ describe("Deployments page (unified all-modes table)", () => {
   });
 
   it("renders every mode in ONE flat table with a Mode badge per row (no umbrella tabs)", async () => {
-    renderAt("/deployments");
+    // status=all — the default is now `running` (live-first), so the completed/failed batch row needs it.
+    renderAt("/deployments?status=all");
     await waitFor(() => {
       // A live row AND a batch row in the same table.
       expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument();
@@ -176,7 +179,7 @@ describe("Deployments page (unified all-modes table)", () => {
   });
 
   it("a failed/137 row shows the failed badge + the 137 (OOM) exit code + the summary last failure", async () => {
-    renderAt("/deployments");
+    renderAt("/deployments?status=all"); // the failed row is non-running → needs the all view
     await waitFor(() => expect(screen.getByTestId("deployment-row-sports-backfill-20260621")).toBeInTheDocument());
     expect(screen.getByTestId("status-sports-backfill-20260621").textContent).toContain("failed");
     expect(screen.getAllByTestId("exit-code").some((el) => el.textContent?.includes("137 (OOM)"))).toBe(true);
@@ -185,7 +188,7 @@ describe("Deployments page (unified all-modes table)", () => {
   });
 
   it("the mode filter (umbrella URL param) scopes the table to a single mode", async () => {
-    renderAt("/deployments?umbrella=batch");
+    renderAt("/deployments?umbrella=batch&status=all"); // batch rows are failed/succeeded → not running
     await waitFor(() => expect(screen.getByTestId("deployment-row-sports-backfill-20260621")).toBeInTheDocument());
     // Live rows are excluded when scoped to batch.
     expect(screen.queryByTestId("deployment-row-defi-live-capture-1")).not.toBeInTheDocument();

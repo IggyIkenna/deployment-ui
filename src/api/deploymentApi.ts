@@ -657,7 +657,17 @@ export async function fetchVenueTardisWindows(): Promise<VenueTardisWindowsRespo
 export type DeploymentUmbrella = "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT" | "NONE";
 // All 6 kinds are backend-live as of the deployment-obs backend plan (2026-07-09):
 // VM · CLOUD_RUN_JOB · CLOUD_RUN_SERVICE · ECS_SERVICE · LAMBDA · CLOUD_FUNCTION.
-export type DeploymentKind = "VM" | "CLOUD_RUN_JOB" | "CLOUD_RUN_SERVICE" | "ECS_SERVICE" | "LAMBDA" | "CLOUD_FUNCTION";
+export type DeploymentKind =
+  | "VM"
+  | "CLOUD_RUN_JOB"
+  | "CLOUD_RUN_SERVICE"
+  | "ECS_SERVICE"
+  | "LAMBDA"
+  | "CLOUD_FUNCTION"
+  // WS-D full-estate additions: orphaned resources + scheduled-job liveness.
+  | "DISK" // an unattached persistent disk with no owning VM (still billing)
+  | "STATIC_IP" // a reserved static IP with no owner (idle-billed)
+  | "SCHEDULER"; // a Cloud Scheduler job — the "fired on time?" signal
 export type DeploymentCloud = "GCP" | "AWS";
 /** Status taxonomy mirrored from the inventory route — color-coded like RepoCi. */
 export type DeploymentStatus = "succeeded" | "failed" | "running" | "stale" | "unknown" | string;
@@ -674,12 +684,28 @@ export type VmHealth =
   | "disk-full" // disk >90% — writes failing silently
   | "hung" // heartbeat stale but the control-plane still says RUNNING (whole-VM wedge)
   | "dead" // control-plane reports the instance not running
+  // Cloud Scheduler verdicts (WS-D #9) — the "fired on time?" signal on SCHEDULER rows.
+  | "overdue" // next fire is past + grace, or the last attempt failed
+  | "on-time" // firing on cadence, last attempt ok
+  | "paused" // paused/disabled — intentionally not firing
   | "unknown"; // no derivable verdict for this kind/target
 
 // Service (Cloud Run service / ECS) health — desired-vs-running / ready-state (parent D.3).
 export type ServiceHealth = "serving" | "scaled-to-zero" | "dead" | "degraded" | "unknown";
 
 // Mirrors deployment-api `DeploymentItem` (deployments_inventory.py:176) — the thin list row.
+/** One billable resource a non-running VM / orphaned row still holds (WS-D leaked cost). The
+ *  `est_monthly_usd` is an inferred list-rate estimate (principle 8), never a billing figure —
+ *  `cost_basis` labels it so the UI renders the "est. / refresh periodically" marker. */
+export interface UnreleasedResource {
+  type: "DISK" | "STATIC_IP";
+  name: string;
+  size_gb?: number | null;
+  disk_type?: string | null; // pd-standard / pd-ssd / … (DISK only)
+  est_monthly_usd: number;
+  cost_basis?: string | null; // "inferred" — always a list-rate estimate, never billing-derived
+}
+
 export interface DeploymentItem {
   name: string;
   kind: DeploymentKind;
@@ -700,6 +726,15 @@ export interface DeploymentItem {
   // "unknown" = no provenance signal yet (the AWS estate until the managed-by tag lands). Nullable
   // on legacy rows until the census populates it.
   launched_by?: string | null;
+  // Last DEPLOY/modify time — distinct from last_run_at (last INVOKE). Carries fn.last_modified for
+  // AWS Lambda (whose last_run_at is honestly-absent — no paid CloudWatch), so the UI shows
+  // last-*modified* + a tooltip, never a mislabelled last-run (WS-D #10). None for other kinds.
+  last_modified_at?: string | null;
+  // Leaked/unreleased resources (WS-D) — a NON-running VM (or an orphaned DISK/STATIC_IP row) still
+  // holding billable resources. has_unreleased_resources is null when it couldn't be determined
+  // (honest absence, never a false "clean"); each unreleased item carries an inferred est_monthly_usd.
+  has_unreleased_resources?: boolean | null;
+  unreleased_resources?: UnreleasedResource[] | null;
   // Tier-0 free wins — GCE aggregated-list / registry entry (on the thin list).
   rows_in?: number | null;
   rows_error?: number | null;
@@ -711,7 +746,7 @@ export interface DeploymentItem {
   boot_disk_name?: string | null;
   labels?: Record<string, string> | null;
   // Composite work-health — the Health column.
-  composite_health_status?: VmHealth | null;
+  composite_health_status?: VmHealth | ServiceHealth | null;
   // Resource summary scalars for the INLINE Resources column. The full D.1 vector
   // (io/net/workload_alive) lives on DeploymentDetail (/detail); these summary scalars
   // need surfacing on the thin list — recommended backend addition (plan Progress Log
@@ -740,6 +775,14 @@ export interface DeploymentItem {
 // (deployments_inventory.py:237): the thin item + the deep D.1 metric vector. All metric
 // fields are null for a kind without /proc capture (Cloud Run/ECS/Lambda) or a target
 // absent from this census cycle (honest absence, never a fabricated 0.0).
+export interface JobExecutionRecord {
+  name: string;
+  status: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
+}
+
 export interface DeploymentDetail {
   item: DeploymentItem;
   cpu_pct: number | null;
@@ -749,6 +792,13 @@ export interface DeploymentDetail {
   io_write_rate_bytes_sec: number | null;
   net_recv_rate_bytes_sec: number | null;
   workload_alive: boolean | null;
+  // Cloud Run job run-history — last ~10 executions (newest first), for "did it fire on cadence"
+  // (WS-D #11). [] for non-job kinds.
+  run_history?: JobExecutionRecord[];
+  // Job → manifest bridge HINT — rows since the last manifest snapshot for the job's asset_group
+  // ("rows since last run", WS-D #12). A link + hint; the authoritative "did it produce data"
+  // verdict lives on the consolidator page. null for non-jobs.
+  object_delta?: number | null;
 }
 
 export interface DeploymentInventoryResponse {
@@ -778,6 +828,17 @@ export interface DeploymentInventoryFilters {
   service?: string;
   asset_group?: string;
   status?: string;
+  /** GCP region to census (empty/default = configured region; "all" = every region). */
+  region?: string;
+}
+
+export interface DeploymentRegionsResponse {
+  /** The region the selector opens on. */
+  default: string;
+  /** Selectable GCP regions (default pinned first), dynamic from the live compute region list. */
+  regions: string[];
+  /** The sentinel to pass as `region` to sweep every region. */
+  all_value: string;
 }
 
 export async function getDeploymentInventory(
@@ -789,9 +850,15 @@ export async function getDeploymentInventory(
   if (filters.service) params.set("service", filters.service);
   if (filters.asset_group) params.set("asset_group", filters.asset_group);
   if (filters.status) params.set("status", filters.status);
+  if (filters.region) params.set("region", filters.region);
   const qs = params.toString() ? `?${params.toString()}` : "";
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/inventory${qs}`);
   return handleResponse<DeploymentInventoryResponse>(response);
+}
+
+export async function getDeploymentRegions(): Promise<DeploymentRegionsResponse> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/regions`);
+  return handleResponse<DeploymentRegionsResponse>(response);
 }
 
 export async function getUmbrellaSummary(umbrella: DeploymentUmbrella): Promise<UmbrellaSummaryResponse> {
