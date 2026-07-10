@@ -26,6 +26,14 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByText("GCP").first()).toBeVisible();
     await expect(page.getByText("AWS").first()).toBeVisible();
     await expect(page.getByText(/Dummy data/i)).toBeVisible();
+
+    // Header currency/timezone note: USD-everywhere + GCP GBP→USD conversion + UTC-vs-Pacific caveat,
+    // hover-revealed (regression: the currency mislabel + TZ-boundary reconciliation findings).
+    const tzNote = page.getByTestId("cost-currency-tz-note");
+    await expect(tzNote).toBeVisible();
+    await tzNote.hover();
+    await expect(page.getByRole("tooltip").filter({ hasText: /converted at Google's own daily rate/i })).toBeVisible();
+    await expect(page.getByRole("tooltip").filter({ hasText: /US Pacific time/i })).toBeVisible();
   });
 
   test("dimension switch re-renders the breakdown (resource shows VM/bucket rows)", async ({ page }) => {

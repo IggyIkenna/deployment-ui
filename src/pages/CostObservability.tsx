@@ -1565,8 +1565,14 @@ export function CostObservability() {
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Cost Observability</h1>
-            <p className="text-xs text-[var(--color-text-tertiary)]">
-              GCP · AWS · GitHub&nbsp;&nbsp;/&nbsp;&nbsp;<span className="font-mono">/ops/costs</span>
+            <p className="flex items-center gap-1 text-xs text-[var(--color-text-tertiary)]">
+              <span>
+                GCP · AWS · GitHub&nbsp;&nbsp;/&nbsp;&nbsp;<span className="font-mono">/ops/costs</span>
+              </span>
+              <InfoTip
+                testId="cost-currency-tz-note"
+                text="All spend is shown in USD. GCP bills in GBP and is converted at Google's own daily rate (currency_conversion_rate); AWS is native USD. Days follow UTC (usage_start_time) — the GCP billing console groups by US Pacific time, so a console export for the same dates can differ by a few percent at the window edges."
+              />
             </p>
           </div>
         </div>
