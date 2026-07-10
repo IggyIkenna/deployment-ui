@@ -1501,21 +1501,21 @@ function LeafPanel({
   );
 }
 
-// ---------- github placeholder ----------
-function GithubPanel({ rows }: { rows: CostBreakdownRow[] }) {
+// ---------- github by-product panel (live Enhanced Billing, or the labelled dummy fallback) ----------
+function GithubPanel({ rows, placeholder }: { rows: CostBreakdownRow[]; placeholder: boolean }) {
   const max = Math.max(...rows.map((r) => r.cost), 1);
   return (
-    <Panel className="border-dashed border-[var(--color-accent-purple)]/40">
+    <Panel className={placeholder ? "border-dashed border-[var(--color-accent-purple)]/40" : undefined}>
       <PanelHeader
         title="GitHub billing"
         icon={<span className="h-2.5 w-2.5 rounded-sm" style={{ background: CLOUDS.github.color }} />}
-        hint="placeholder"
+        hint={placeholder ? "placeholder" : "Enhanced Billing API"}
       />
       <div className="p-4 pt-3">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div>
             <div className="mb-2.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              By product (dummy)
+              By product{placeholder ? " (dummy)" : ""}
             </div>
             <div className="flex flex-col gap-2.5">
               {rows.map((r) => (
@@ -1537,15 +1537,23 @@ function GithubPanel({ rows }: { rows: CostBreakdownRow[] }) {
               {rows.length === 0 && <p className="text-xs text-[var(--color-text-muted)]">No GitHub products.</p>}
             </div>
           </div>
-          <div className="flex items-start gap-2 rounded-md bg-[var(--color-accent-purple)]/10 p-3 text-xs text-[var(--color-text-secondary)]">
-            <Lock className="mt-0.5 h-3.5 w-3.5 flex-none text-[var(--color-accent-purple)]" />
-            <span>
-              <b className="text-[var(--color-text-primary)]">Dummy data.</b> Org/user billing (and repo-level Actions
-              minutes) needs a classic PAT with <span className="font-mono">user</span> scope — not yet issued. This
-              panel wires to the real Enhanced Billing API the moment the token lands; the layout and shape won&apos;t
-              change.
-            </span>
-          </div>
+          {placeholder ? (
+            <div className="flex items-start gap-2 rounded-md bg-[var(--color-accent-purple)]/10 p-3 text-xs text-[var(--color-text-secondary)]">
+              <Lock className="mt-0.5 h-3.5 w-3.5 flex-none text-[var(--color-accent-purple)]" />
+              <span>
+                <b className="text-[var(--color-text-primary)]">Dummy data.</b> Real GitHub billing needs a token with
+                the <span className="font-mono">Plan</span> permission (Enhanced Billing API) — not yet reachable. This
+                panel wires to the real data the moment the token lands; the layout and shape won&apos;t change.
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 rounded-md bg-[var(--color-bg-tertiary)] p-3 text-xs text-[var(--color-text-secondary)]">
+              <span>
+                <b className="text-[var(--color-text-primary)]">Live.</b> GitHub Actions / Copilot / Packages usage from
+                the Enhanced Billing API, shown net of each product&apos;s included allowances.
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </Panel>
@@ -1553,11 +1561,19 @@ function GithubPanel({ rows }: { rows: CostBreakdownRow[] }) {
 }
 
 // ---------- source-attribution footer ----------
-function SourceFooter({ generatedAt }: { generatedAt: string | undefined }) {
+function SourceFooter({
+  generatedAt,
+  githubPlaceholder,
+}: {
+  generatedAt: string | undefined;
+  githubPlaceholder: boolean;
+}) {
   const sources: { cloud: CostCloud; label: string; code: string }[] = [
     { cloud: "gcp", label: "GCP — BigQuery", code: "billing_export.gcp_billing_export_resource_v1" },
     { cloud: "aws", label: "AWS — Athena", code: "aws_billing.cur_uts_cost_usage" },
-    { cloud: "github", label: "GitHub — dummy (pending PAT)", code: "" },
+    githubPlaceholder
+      ? { cloud: "github", label: "GitHub — dummy (pending PAT)", code: "" }
+      : { cloud: "github", label: "GitHub — Enhanced Billing", code: "settings/billing/usage" },
   ];
   let updated = "";
   if (generatedAt) {
@@ -1668,6 +1684,8 @@ export function CostObservability() {
     () => (breakdown?.dimension === "service" ? breakdown.rows.filter((r) => r.cloud === "github") : []),
     [breakdown],
   );
+  // GitHub is real (Enhanced Billing API) unless the provider fell back to the labelled dummy.
+  const githubPlaceholder = summary?.clouds.find((c) => c.cloud === "github")?.is_placeholder ?? false;
 
   return (
     /* Full-width — adapt to the monitor, no fixed max-w cap (matches the App.tsx `*` shell decision,
@@ -1792,8 +1810,10 @@ export function CostObservability() {
                 currency={currency}
               />
             </div>
-            {(cloud === "all" || cloud === "github") && githubRows.length > 0 && <GithubPanel rows={githubRows} />}
-            <SourceFooter generatedAt={summary.generated_at} />
+            {(cloud === "all" || cloud === "github") && githubRows.length > 0 && (
+              <GithubPanel rows={githubRows} placeholder={githubPlaceholder} />
+            )}
+            <SourceFooter generatedAt={summary.generated_at} githubPlaceholder={githubPlaceholder} />
           </>
         )
       )}
