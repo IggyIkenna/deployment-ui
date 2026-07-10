@@ -2364,6 +2364,18 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       ["EC2 Compute - Compute Instance", "aws", 62, "Amazon EC2", "vm"],
       ["GitHub Actions Linux minutes", "github", 180, "GitHub Actions", "other"],
     ],
+    // "By label" (GCP business labels). A large set so pagination + filter are exercisable; the named
+    // values ("(unlabeled)", "manifest-consolidator", "market-data-raw") mirror the live purpose split
+    // and let the filter regression match a known row.
+    label: [
+      ["(unlabeled)", "gcp", 8956, "GCP label", "other"],
+      ["manifest-consolidator", "gcp", 3685, "GCP label", "other"],
+      ["market-data-raw", "gcp", 945, "GCP label", "other"],
+      ...Array.from(
+        { length: 125 },
+        (_, i): Row => [`purpose-${i + 1}`, "gcp", +(400 - i * 2.5).toFixed(2), "GCP label", "other"],
+      ),
+    ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
   // it's a window-average, not a sum). cost_per_gb is derived after cost is scaled below.

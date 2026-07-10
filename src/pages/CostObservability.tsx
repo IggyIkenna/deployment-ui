@@ -10,6 +10,7 @@ import {
   type CostBreakdownRow,
   type CostCloud,
   type CostDimension,
+  type CostLabelKey,
   type CostSummaryResponse,
   type CostTimeseriesPoint,
   type CostTimeseriesResponse,
@@ -39,6 +40,7 @@ const DIMENSIONS: { value: CostDimension; label: string }[] = [
   { value: "region", label: "By region" },
   { value: "day", label: "By day" },
   { value: "sku", label: "By SKU" },
+  { value: "label", label: "By label" },
 ];
 const DIM_NOTE: Record<CostDimension, string> = {
   service: "Google / AWS service · GitHub product",
@@ -47,7 +49,15 @@ const DIM_NOTE: Record<CostDimension, string> = {
   region: "billing location",
   day: "daily totals across selected clouds",
   sku: "Google/AWS SKU",
+  label: "GCP business label · pick a key → (AWS/GitHub have no labels)",
 };
+// The GCP labels the "By label" dimension can group by (matches the backend LabelKey).
+const LABEL_KEYS: { value: CostLabelKey; label: string }[] = [
+  { value: "purpose", label: "purpose" },
+  { value: "category", label: "category" },
+  { value: "venue", label: "venue" },
+  { value: "asset_group", label: "asset_group" },
+];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -886,12 +896,16 @@ function SortHead({
 function BreakdownPanel({
   dimension,
   onDimension,
+  labelKey,
+  onLabelKey,
   data,
   stale,
   currency,
 }: {
   dimension: CostDimension;
   onDimension: (d: CostDimension) => void;
+  labelKey: CostLabelKey;
+  onLabelKey: (k: CostLabelKey) => void;
   data: CostBreakdownResponse;
   // True while `data` is still the PRIOR fetch's response (dimension/cloud/range just changed and
   // the new request hasn't resolved yet) — gates the body so the old rows never render under the
@@ -904,7 +918,27 @@ function BreakdownPanel({
   // be wrong. Only the real groups are sortable / bar-scaled.
   const realRows = useMemo(() => data.rows.filter((r) => !r.is_aggregate), [data.rows]);
   const aggRows = useMemo(() => data.rows.filter((r) => r.is_aggregate), [data.rows]);
-  const { sorted, key, dir, toggle } = useSort(realRows, "cost");
+  // Per-tab text filter (client-side, over the rows already fetched — no re-query) on label + detail.
+  const [filter, setFilter] = useState("");
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return realRows;
+    return realRows.filter((r) => r.label.toLowerCase().includes(q) || (r.detail ?? "").toLowerCase().includes(q));
+  }, [realRows, filter]);
+  const { sorted, key, dir, toggle } = useSort(filtered, "cost");
+  // Pagination — the backend now returns up to 1000 real groups; page through them 100 at a time so a
+  // big dimension (e.g. ~565 buckets) is fully reachable without an unbounded scroll.
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = useMemo(
+    () => sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [sorted, safePage],
+  );
+  const onLastPage = safePage >= pageCount - 1;
+  // Reset to the first page whenever the row set or ordering changes (dimension/data/filter/sort).
+  useEffect(() => setPage(0), [data, filter, key, dir]);
   const max = Math.max(...realRows.map((r) => r.cost), 1);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
   // Cap note: the backend shows the top _BREAKDOWN_LIMIT groups + an "Other" roll-up so the header
@@ -992,6 +1026,18 @@ function BreakdownPanel({
       <div className="p-4 pt-3">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <Segmented options={DIMENSIONS} value={dimension} onChange={onDimension} label="Breakdown dimension" />
+          {dimension === "label" && (
+            <Segmented options={LABEL_KEYS} value={labelKey} onChange={onLabelKey} label="Label key" />
+          )}
+          <input
+            type="search"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={`Filter ${dimLabel}…`}
+            data-testid="cost-breakdown-filter"
+            aria-label={`Filter breakdown by ${dimLabel}`}
+            className="min-w-[140px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2.5 py-1 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-cyan)] focus:outline-none"
+          />
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
             {DIM_NOTE[dimension]}
           </span>
@@ -1001,11 +1047,13 @@ function BreakdownPanel({
             cost / max across the full dataset) instead of a separate top-12 bar chart, freeing
             horizontal space for detail columns and removing the label+cost duplication. */}
         {/* tabIndex + role make the scroll region keyboard-reachable (axe scrollable-region-focusable) */}
+        {/* Resizable: drag the bottom-right handle (resize-y) to make the table taller/shorter.
+            overflow-auto is required for the resize handle to appear + for the sticky header scroll. */}
         <div
-          className="max-h-[400px] overflow-auto"
+          className="h-[420px] min-h-[160px] max-h-[85vh] resize-y overflow-auto"
           data-testid="cost-breakdown-scroll"
           role="region"
-          aria-label="Cost breakdown table, scrollable"
+          aria-label="Cost breakdown table, scrollable and resizable"
           tabIndex={0}
         >
           <table className="w-full text-xs" data-testid="cost-breakdown-table">
@@ -1156,7 +1204,7 @@ function BreakdownPanel({
                 </tr>
               )}
               {!stale &&
-                sorted.map((r) => {
+                pageRows.map((r) => {
                   const col = r.cloud ? CLOUDS[r.cloud].color : "var(--color-accent-cyan)";
                   return (
                     <tr key={`${r.cloud}-${r.label}`} className="hover:bg-[var(--color-bg-tertiary)]">
@@ -1298,8 +1346,11 @@ function BreakdownPanel({
                   );
                 })}
               {/* Roll-up rows ("Other (N more)", "Unattributed") — pinned last, no bar, distinct
-                  background: they're the honest tail so the shown rows sum to the header total. */}
+                  background: they're the honest tail so the shown rows sum to the header total. Shown
+                  only on the last page, and hidden while a filter is active (they aren't filterable). */}
               {!stale &&
+                onLastPage &&
+                !filter.trim() &&
                 aggRows.map((r) => (
                   <tr
                     key={`agg-${r.label}`}
@@ -1330,16 +1381,58 @@ function BreakdownPanel({
                     </td>
                   </tr>
                 ))}
-              {!stale && sorted.length === 0 && aggRows.length === 0 && (
+              {!stale && sorted.length === 0 && (filter.trim() !== "" || aggRows.length === 0) && (
                 <tr>
                   <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
-                    No spend in this window.
+                    {filter.trim() ? `No ${dimLabel}s match “${filter.trim()}”.` : "No spend in this window."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {pageCount > 1 && (
+          <div
+            className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-text-tertiary)]"
+            data-testid="cost-breakdown-pagination"
+          >
+            <span>
+              Showing{" "}
+              <b className="font-mono text-[var(--color-text-secondary)]">
+                {(safePage * PAGE_SIZE + 1).toLocaleString("en-US")}
+              </b>
+              –
+              <b className="font-mono text-[var(--color-text-secondary)]">
+                {Math.min((safePage + 1) * PAGE_SIZE, sorted.length).toLocaleString("en-US")}
+              </b>{" "}
+              of <b className="font-mono text-[var(--color-text-secondary)]">{sorted.length.toLocaleString("en-US")}</b>
+              {filter.trim() && ` (filtered from ${realRows.length.toLocaleString("en-US")})`}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                data-testid="cost-breakdown-prev"
+                className="rounded border border-[var(--color-border-default)] px-2 py-0.5 text-[var(--color-text-secondary)] enabled:hover:border-[var(--color-accent-cyan)] enabled:hover:text-[var(--color-text-primary)] disabled:opacity-40"
+              >
+                ‹ Prev
+              </button>
+              <span className="font-mono">
+                {safePage + 1} / {pageCount}
+              </span>
+              <button
+                type="button"
+                disabled={safePage >= pageCount - 1}
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                data-testid="cost-breakdown-next"
+                className="rounded border border-[var(--color-border-default)] px-2 py-0.5 text-[var(--color-text-secondary)] enabled:hover:border-[var(--color-accent-cyan)] enabled:hover:text-[var(--color-text-primary)] disabled:opacity-40"
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Panel>
   );
@@ -1604,6 +1697,7 @@ export function CostObservability() {
   const [cloud, setCloud] = useState<CloudFilter>("all");
   const [currency, setCurrency] = useState<Ccy>("USD");
   const [dimension, setDimension] = useState<CostDimension>("service");
+  const [labelKey, setLabelKey] = useState<CostLabelKey>("purpose");
 
   const [summary, setSummary] = useState<CostSummaryResponse | null>(null);
   const [ts, setTs] = useState<CostTimeseriesResponse | null>(null);
@@ -1633,10 +1727,10 @@ export function CostObservability() {
   const loadBreakdown = useCallback(
     async (force: boolean) => {
       const reqId = ++breakdownReqId.current;
-      const result = await fetchCostBreakdown(dimension, cloud, days, force);
+      const result = await fetchCostBreakdown(dimension, cloud, days, force, labelKey);
       if (reqId === breakdownReqId.current) setBreakdown(result);
     },
-    [dimension, cloud, days],
+    [dimension, cloud, days, labelKey],
   );
   // True once `breakdown` actually reflects the CURRENTLY selected dimension/cloud/range — false
   // during the gap between changing a filter and its fetch resolving, so the table body never
@@ -1664,7 +1758,7 @@ export function CostObservability() {
   useEffect(() => {
     loadBreakdown(false).catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load breakdown"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimension]);
+  }, [dimension, labelKey]);
 
   const refresh = useCallback(() => {
     setRefreshing(true);
@@ -1791,6 +1885,8 @@ export function CostObservability() {
               <BreakdownPanel
                 dimension={dimension}
                 onDimension={setDimension}
+                labelKey={labelKey}
+                onLabelKey={setLabelKey}
                 data={breakdown}
                 stale={!breakdownFresh}
                 currency={currency}

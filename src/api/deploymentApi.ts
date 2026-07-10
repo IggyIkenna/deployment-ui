@@ -386,7 +386,9 @@ export async function fetchVmHealth(vmName: string, scanHours = 24): Promise<VmH
 // Cost observability — GET /api/costs/{summary,breakdown,timeseries}
 // Comprehensive cross-cloud billing (GCP BigQuery + AWS CUR/Athena; GitHub dummy until PAT).
 export type CostCloud = "gcp" | "aws" | "github";
-export type CostDimension = "service" | "resource" | "bucket" | "region" | "day" | "sku";
+export type CostDimension = "service" | "resource" | "bucket" | "region" | "day" | "sku" | "label";
+// GCP business label the `label` dimension groups by (GCP-only; AWS/GitHub → "(unlabeled)").
+export type CostLabelKey = "purpose" | "category" | "venue" | "asset_group";
 export type CloudFilter = "all" | CostCloud;
 
 export interface CloudSummary {
@@ -491,8 +493,10 @@ export async function fetchCostBreakdown(
   cloud: CloudFilter = "all",
   days = 30,
   refresh = false,
+  labelKey: CostLabelKey = "purpose",
 ): Promise<CostBreakdownResponse> {
-  const qs = `?dimension=${dimension}&cloud=${cloud}&days=${days}&refresh=${refresh}`;
+  const label = dimension === "label" ? `&label_key=${labelKey}` : "";
+  const qs = `?dimension=${dimension}&cloud=${cloud}&days=${days}&refresh=${refresh}${label}`;
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/breakdown${qs}`);
   return handleResponse<CostBreakdownResponse>(response);
 }

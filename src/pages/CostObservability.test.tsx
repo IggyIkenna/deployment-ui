@@ -354,7 +354,9 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
-    await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false));
+    await waitFor(() =>
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false, "purpose"),
+    );
   });
 
   it("shows machine specs + a cost-waste badge only under the resource dimension", async () => {
@@ -445,7 +447,9 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By SKU" }));
-    await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false));
+    await waitFor(() =>
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false, "purpose"),
+    );
     // The SKU dimension's note + the top-driver SKU fixture row both render.
     expect(screen.getByText("Google/AWS SKU")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Regional Coldline Class A Operations")).toBeInTheDocument());

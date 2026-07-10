@@ -334,4 +334,37 @@ test.describe("Cost Observability page", () => {
     const overflow = await scroller.evaluate((el) => el.scrollWidth - el.clientWidth);
     expect(overflow).toBeGreaterThan(0);
   });
+
+  test("By-label dimension: label-key selector + per-tab filter + pagination + resizable container", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    await page.getByRole("button", { name: "By label", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // The label-key sub-selector shows only for this dimension (purpose/category/venue/asset_group).
+    await expect(page.getByRole("button", { name: "category", exact: true })).toBeVisible();
+    await expect(table).toContainText("manifest-consolidator");
+
+    // Pagination: the mock label set is >100 rows, so a pager renders and Next advances the page.
+    const pager = page.getByTestId("cost-breakdown-pagination");
+    await expect(pager).toContainText("1 / 2");
+    const rows = table.locator("tbody tr");
+    const firstRowP1 = await rows.first().innerText();
+    await page.getByTestId("cost-breakdown-next").click();
+    await expect(pager).toContainText("2 / 2");
+    expect(await rows.first().innerText()).not.toEqual(firstRowP1);
+
+    // Per-tab filter narrows client-side to the matching row (and to a no-match message otherwise).
+    const filter = page.getByTestId("cost-breakdown-filter");
+    await filter.fill("manifest");
+    await expect(rows).toHaveCount(1);
+    await expect(table).toContainText("manifest-consolidator");
+    await filter.fill("no-such-label-xyz");
+    await expect(table).toContainText(/No .* match/i);
+
+    // The breakdown container is user-resizable (resize-y drag handle at the bottom edge).
+    await expect(page.getByTestId("cost-breakdown-scroll")).toHaveClass(/resize-y/);
+  });
 });
