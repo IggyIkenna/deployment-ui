@@ -397,6 +397,13 @@ export interface CloudSummary {
   delta_pct: number | null;
   daily: number[];
   is_placeholder: boolean;
+  // Native-currency figures for the USD⇄GBP tally toggle. GCP bills in GBP ("currency":"GBP");
+  // USD-native clouds (AWS/GitHub) repeat the USD values. The USD fields above stay the primary,
+  // cross-cloud-summable view; native is a per-cloud tally against that cloud's own invoice.
+  currency: string;
+  total_native: number;
+  gross_native: number;
+  credit_native: number;
 }
 
 export interface CostSummaryResponse {
@@ -418,6 +425,12 @@ export interface CostBreakdownRow {
   cost: number; // NET — primary (matches the summary net total)
   gross: number; // usage cost before credits (Σcost for this group)
   credit: number; // credits applied to this group (<= 0); cost == gross + credit
+  // Native-currency figures for the USD⇄GBP tally toggle (GCP="GBP"; USD-native clouds repeat USD).
+  // Aggregate rows carry the scope currency (GBP only when the whole view is one non-USD cloud).
+  currency?: string;
+  cost_native?: number;
+  gross_native?: number;
+  credit_native?: number;
   detail: string;
   resource_kind: string;
   share_pct: number;

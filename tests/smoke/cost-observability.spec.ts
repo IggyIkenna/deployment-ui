@@ -26,6 +26,30 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByText("GCP").first()).toBeVisible();
     await expect(page.getByText("AWS").first()).toBeVisible();
     await expect(page.getByText(/Dummy data/i)).toBeVisible();
+
+    // Header currency/timezone note: USD-everywhere + GCP GBP→USD conversion + the per-cloud day-boundary
+    // convention (GCP grouped in US Pacific to match its console; AWS in UTC to match Cost Explorer),
+    // hover-revealed (regression: the currency mislabel + TZ-alignment reconciliation findings).
+    const tzNote = page.getByTestId("cost-currency-tz-note");
+    await expect(tzNote).toBeVisible();
+    await tzNote.hover();
+    await expect(page.getByRole("tooltip").filter({ hasText: /converted at Google's own daily rate/i })).toBeVisible();
+    await expect(page.getByRole("tooltip").filter({ hasText: /US Pacific time/i })).toBeVisible();
+    await expect(page.getByRole("tooltip").filter({ hasText: /AWS days follow UTC/i })).toBeVisible();
+  });
+
+  test("USD⇄GBP toggle re-denominates GCP to £, leaves AWS in $ (GCP-invoice tally view)", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-cloud-total-gcp")).toContainText("$");
+    await page.getByRole("button", { name: "GBP", exact: true }).click();
+    // GCP (GBP-native) switches to its raw £; AWS has no GBP figure so stays $.
+    await expect(page.getByTestId("cost-cloud-total-gcp")).toContainText("£");
+    await expect(page.getByTestId("cost-cloud-total-aws")).toContainText("$");
+    // The breakdown table's GCP rows re-denominate too (not just the KPI band).
+    await expect(page.getByTestId("cost-breakdown-table")).toContainText("£");
+    // Toggling back to USD restores $ everywhere.
+    await page.getByRole("button", { name: "USD", exact: true }).click();
+    await expect(page.getByTestId("cost-cloud-total-gcp")).toContainText("$");
   });
 
   test("dimension switch re-renders the breakdown (resource shows VM/bucket rows)", async ({ page }) => {
