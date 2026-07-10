@@ -59,11 +59,44 @@ export interface ConsolidatorAssetGroup {
   detail: string;
 }
 
+/** Data-correctness lens: did this consolidator run PRODUCE its data (derived from freshness + backlog). */
+export type ConsolidatorVerdict = "produced" | "producing" | "stale_output" | "empty" | "unknown";
+
+/** Per-CONSOLIDATOR posture — one per (kind, asset_group) in the terraform estate (~25 jobs). */
+export interface ConsolidatorHealth {
+  /** Terraform key + Cloud Run job suffix, e.g. "market-data-cefi". */
+  category: string;
+  /** Grouping axis: market-data / instruments / features-* / execution / strategy / ml / gas-fees. */
+  kind: string;
+  /** null for flat consolidators (strategy / gas-fees / ml-…). */
+  asset_group: string | null;
+  /** Cloud Run job short-name — the join key the deployments detail popover cross-links on. */
+  job_name: string;
+  bucket: string;
+  status: HealthStatus;
+  verdict: ConsolidatorVerdict;
+  index_age_seconds: number | null;
+  staleness_budget_seconds: number;
+  last_successful_run_at: string | null;
+  /** Backlog: per-VM shards written since the last merge (not yet absorbed). */
+  pending_shard_count?: number | null;
+  /** Fan-in width: per-VM shards currently feeding this index (active writers). */
+  total_shard_count?: number | null;
+  /** Absolute rows in the consolidated availability_index.parquet (its parquet num_rows). */
+  index_row_count?: number | null;
+  /** Absolute size of the consolidated index file in bytes (a large index is what OOMs a consolidator). */
+  index_size_bytes?: number | null;
+  detail: string;
+}
+
 /** GET /api/health/consolidator response envelope. */
 export interface HealthConsolidatorResponse {
   generated_at: string;
   overall: HealthStatus;
+  /** Legacy per-AG view (the 5 market-data buckets) — kept for back-compat. */
   asset_groups: ConsolidatorAssetGroup[];
+  /** The full per-consolidator estate (~25 jobs), catalog-driven. */
+  consolidators?: ConsolidatorHealth[];
 }
 
 export async function getHealthConsolidator(): Promise<HealthConsolidatorResponse> {

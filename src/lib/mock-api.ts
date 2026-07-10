@@ -2463,6 +2463,18 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
   return { dimension, cloud, days, total, total_groups: rows.length, rows };
 }
 
+// ── Consolidator mock: animate the backlog so the sparklines actually move in dev ──
+// Driven by a per-request tick (NOT Date.now) so it stays deterministic per poll count.
+let _consolidatorPollTick = 0;
+/** Producing: pending sawtooths up then drops to 0 (accumulate → merge → repeat). */
+function _sawtooth(tick: number, peak: number): number {
+  return tick % (peak + 1);
+}
+/** Stale/behind: pending climbs monotonically and sticks near the cap (never drains). */
+function _climb(tick: number, start: number, cap: number): number {
+  return Math.min(start + tick, cap);
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay();
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -2641,6 +2653,47 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       total_shard_count: total,
       detail,
     });
+    const mkC = (
+      category: string,
+      kind: string,
+      asset_group: string | null,
+      status: string,
+      verdict: string,
+      age: number | null,
+      pending: number,
+      total: number,
+      detail: string,
+      rows?: number | null,
+      sizeBytes?: number | null,
+    ) => {
+      // Empty/unknown buckets have no readable index → null absolutes; otherwise derive a
+      // plausible size/row-count from the fan-in width, overridable per row (e.g. defi's 442 MB).
+      const noIndex = verdict === "empty" || verdict === "unknown";
+      return {
+        category,
+        kind,
+        asset_group,
+        job_name: `uts-prod-manifest-consolidator-${category}`,
+        bucket: `${category}-prd-mock`,
+        status,
+        verdict,
+        index_age_seconds: age,
+        staleness_budget_seconds: asset_group === "cefi" ? 86400 : 120,
+        last_successful_run_at: age === null ? null : "2026-06-24T06:55:00+00:00",
+        pending_shard_count: pending,
+        total_shard_count: total,
+        index_row_count: noIndex ? null : (rows ?? (total + 1) * 5200 + 4000),
+        index_size_bytes: noIndex ? null : (sizeBytes ?? (total + 1) * 240_000 + 160_000),
+        detail,
+      };
+    };
+    // Per-poll animation state (deterministic per poll count, no Date.now):
+    // producing cards sawtooth, stale cards climb-and-stick, so sparklines move.
+    const tick = ++_consolidatorPollTick;
+    const defiAge = 2600 + tick * 30;
+    const defiPending = _climb(tick, 6, 14);
+    const onchainAge = 900 + tick * 30;
+    const onchainPending = _climb(tick, 3, 8);
     return json({
       generated_at: "2026-06-24T07:00:00+00:00",
       overall: "critical",
@@ -2658,6 +2711,197 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         mkAg("tradfi", "ok", 20, false, "index heartbeat 20s old (<= 120s budget)", 1, 5),
         mkAg("sports", "ok", 25, false, "index heartbeat 25s old (<= 120s budget)", 0, 4),
         mkAg("prediction", "ok", 11, false, "index heartbeat 11s old (<= 120s budget)", 1, 3),
+      ],
+      consolidators: [
+        mkC(
+          "market-data-defi",
+          "market-data",
+          "defi",
+          "critical",
+          "stale_output",
+          defiAge,
+          defiPending,
+          defiPending,
+          `index ${defiAge}s (> 120s budget) while ${defiPending} per-VM shards wait — 442 MB index OOMs the merge, consolidator behind/DOWN`,
+          12_400_000,
+          463_470_592,
+        ),
+        mkC(
+          "market-data-cefi",
+          "market-data",
+          "cefi",
+          "ok",
+          "producing",
+          242,
+          _sawtooth(tick, 6),
+          9,
+          "index heartbeat 242s old (<= 86400s budget) — absorbing a live shard backlog",
+          3_100_000,
+          92_000_000,
+        ),
+        mkC(
+          "market-data-tradfi",
+          "market-data",
+          "tradfi",
+          "ok",
+          "producing",
+          52,
+          _sawtooth(tick, 3),
+          4,
+          "index heartbeat 52s old (<= 120s budget) — absorbing a live shard backlog",
+          840_000,
+          23_000_000,
+        ),
+        mkC(
+          "market-data-sports",
+          "market-data",
+          "sports",
+          "ok",
+          "produced",
+          6,
+          0,
+          0,
+          "index heartbeat 6s old (<= 120s budget)",
+          128_000,
+          4_200_000,
+        ),
+        mkC(
+          "market-data-prediction",
+          "market-data",
+          "prediction",
+          "ok",
+          "produced",
+          13,
+          0,
+          0,
+          "index heartbeat 13s old (<= 120s budget)",
+          96_000,
+          3_100_000,
+        ),
+        mkC(
+          "instruments-cefi",
+          "instruments",
+          "cefi",
+          "ok",
+          "producing",
+          40,
+          _sawtooth(tick, 4),
+          12,
+          "index heartbeat 40s old (<= 86400s budget) — absorbing a reference-data refresh",
+        ),
+        mkC(
+          "instruments-defi",
+          "instruments",
+          "defi",
+          "ok",
+          "produced",
+          7,
+          0,
+          0,
+          "index heartbeat 7s old (<= 120s budget)",
+        ),
+        mkC(
+          "instruments-sports",
+          "instruments",
+          "sports",
+          "ok",
+          "produced",
+          14,
+          0,
+          0,
+          "index heartbeat 14s old (<= 120s budget)",
+        ),
+        mkC(
+          "features-delta-one-cefi",
+          "features-delta-one",
+          "cefi",
+          "ok",
+          "produced",
+          14,
+          0,
+          0,
+          "index heartbeat 14s old (<= 86400s budget)",
+        ),
+        mkC(
+          "features-onchain-defi",
+          "features-onchain",
+          "defi",
+          "critical",
+          "stale_output",
+          onchainAge,
+          onchainPending,
+          onchainPending,
+          `index ${onchainAge}s (> 120s budget) while ${onchainPending} per-VM shards wait — consolidator behind/DOWN`,
+          6_200_000,
+          214_000_000,
+        ),
+        mkC(
+          "features-volatility-cefi",
+          "features-volatility",
+          "cefi",
+          "degraded",
+          "unknown",
+          null,
+          0,
+          0,
+          "could not read _index/availability_index.parquet — transient read error, not necessarily unhealthy",
+        ),
+        mkC(
+          "features-sports",
+          "features",
+          "sports",
+          "ok",
+          "produced",
+          14,
+          0,
+          0,
+          "index heartbeat 14s old (<= 120s budget)",
+        ),
+        mkC("gas-fees", "gas-fees", null, "ok", "produced", 17, 0, 3, "index heartbeat 17s old (<= 120s budget)"),
+        mkC(
+          "execution-cefi",
+          "execution",
+          "cefi",
+          "degraded",
+          "empty",
+          null,
+          0,
+          0,
+          "index missing; no per-VM shards — genuinely empty bucket, not an outage",
+        ),
+        mkC(
+          "execution-defi",
+          "execution",
+          "defi",
+          "degraded",
+          "empty",
+          null,
+          0,
+          0,
+          "index missing; no per-VM shards — genuinely empty bucket, not an outage",
+        ),
+        mkC(
+          "strategy",
+          "strategy",
+          null,
+          "degraded",
+          "empty",
+          null,
+          0,
+          0,
+          "index missing; no per-VM shards — genuinely empty bucket, not an outage",
+        ),
+        mkC(
+          "ml-training-artifacts",
+          "ml-training-artifacts",
+          null,
+          "degraded",
+          "empty",
+          null,
+          0,
+          0,
+          "index missing; no per-VM shards — genuinely empty bucket, not an outage",
+        ),
       ],
     });
   }
