@@ -322,11 +322,14 @@ function HealthTab() {
       if (ciRes.status === "fulfilled") setCi(ciRes.value);
       setLoading(false);
       // Enrich the Data Coverage tile with REAL per-deployment manifest-derived freshness
-      // (NOT the health-ping): pull the LIVE inventory, then each deployment's /freshness.
+      // (NOT the health-ping): pull the LIVE inventory, then each VM's /freshness. Only VM kinds
+      // are data producers with a manifest — Cloud Run/ECS/Lambda/Cloud-Function services carry
+      // no manifest freshness (they'd only return liveness_only), so don't fetch it for them.
       try {
         const inv = await getDeploymentInventory({ umbrella: "LIVE" });
         if (cancelled) return;
-        const fr = await Promise.allSettled(inv.items.map((i) => getDeploymentFreshness(i.name)));
+        const vmRows = inv.items.filter((i) => i.kind === "VM");
+        const fr = await Promise.allSettled(vmRows.map((i) => getDeploymentFreshness(i.name)));
         if (cancelled) return;
         setFreshness(fr.flatMap((r) => (r.status === "fulfilled" ? [r.value] : [])));
       } catch {
