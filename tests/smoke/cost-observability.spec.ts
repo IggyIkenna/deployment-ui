@@ -370,4 +370,19 @@ test.describe("Cost Observability page", () => {
     // The breakdown container is user-resizable (resize-y drag handle at the bottom edge).
     await expect(page.getByTestId("cost-breakdown-scroll")).toHaveClass(/resize-y/);
   });
+
+  test("help guide: opens from the top bar, carries the moved provisional note, closes on Escape", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-breakdown-table")).toBeVisible();
+
+    await page.getByTestId("cost-help-button").click();
+    await expect(page.getByText(/quick guide/i)).toBeVisible();
+    await expect(page.getByText(/What you actually pay/i)).toBeVisible();
+    // The provisional note is no longer a standing page banner — it lives in the guide now.
+    await expect(page.getByText(/Recent days are provisional/i)).toBeVisible();
+    await expect(page.getByText(/The breakdown table/i)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByText(/quick guide/i)).toHaveCount(0);
+  });
 });

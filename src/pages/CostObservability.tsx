@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Database, DollarSign, Info, Lock, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Database,
+  DollarSign,
+  HelpCircle,
+  Info,
+  Lock,
+  RefreshCw,
+} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import {
   fetchCostBreakdown,
   fetchCostSummary,
@@ -204,15 +215,21 @@ function PanelHeader({
   title,
   hint,
   icon,
+  center,
 }: {
   title: React.ReactNode;
   hint?: React.ReactNode;
   icon?: React.ReactNode;
+  // Optional middle slot (e.g. the breakdown's dimension tabs) placed between title and the
+  // right-aligned hint, so controls share the title row instead of taking their own. flex-wrap keeps
+  // it from overflowing on a narrow panel.
+  center?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 px-4 pt-3.5">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5">
       {icon}
       <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{title}</h2>
+      {center}
       {hint != null && <span className="ml-auto text-[11px] text-[var(--color-text-tertiary)]">{hint}</span>}
     </div>
   );
@@ -337,132 +354,96 @@ function GrossCredit({
   );
 }
 
-// ---------- sparkline (KPI corner flourish) ----------
-function Sparkline({ data, color, w = 92, h = 30 }: { data: number[]; color: string; w?: number; h?: number }) {
-  if (data.length < 2) return null;
-  // Anchor to a $0 baseline (magnitude-from-zero), NOT to the series min: a near-flat
-  // series (e.g. GitHub ~$9.7/day) must read flat, not as a full-height zig-zag that
-  // amplifies cents of noise into fake volatility. Real spikes (GCP) still tower.
-  const max = Math.max(...data, 0);
-  const pad = 2;
-  const pts = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * (w - pad * 2) + pad;
-      const y = h - pad - (max > 0 ? v / max : 0) * (h - pad * 2);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const last = pts.split(" ").slice(-1)[0].split(",");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="opacity-80">
-      <polyline
-        points={pts}
-        fill="none"
-        style={{ stroke: color }}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx={last[0]} cy={last[1]} r="2.2" style={{ fill: color }} />
-    </svg>
-  );
-}
-
 // ---------- KPI band ----------
-function KpiBand({ summary, cloud, currency }: { summary: CostSummaryResponse; cloud: CloudFilter; currency: Ccy }) {
+function KpiBand({
+  summary,
+  cloud,
+  currency,
+  clouds,
+}: {
+  summary: CostSummaryResponse;
+  cloud: CloudFilter;
+  currency: Ccy;
+  clouds: CostCloud[];
+}) {
   const byCloud = new Map(summary.clouds.map((c) => [c.cloud, c]));
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-      {/* total */}
+    <div className="flex flex-col gap-4">
+      {/* total — the cloud-share donut folds in here (its own "Cloud share" card was removed) */}
       <Panel className="relative overflow-hidden">
-        <div className="p-4">
-          <div className="text-xs text-[var(--color-text-secondary)]">Total spend · last {summary.days} days</div>
-          <div data-testid="cost-total" className="mt-2 font-mono text-[34px] font-bold leading-none tracking-tight">
-            {usd(summary.total)}
+        <div className="flex items-center justify-between gap-4 p-4">
+          <div className="min-w-0">
+            <div className="text-xs text-[var(--color-text-secondary)]">Total spend · last {summary.days} days</div>
+            <div data-testid="cost-total" className="mt-2 font-mono text-[34px] font-bold leading-none tracking-tight">
+              {usd(summary.total)}
+            </div>
+            <GrossCredit gross={summary.gross} credit={summary.credit} testId="cost-total-breakdown" />
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-text-tertiary)]">
+              <Delta pct={summary.delta_pct} />
+              <span>vs prior {summary.days}d</span>
+              <span className="font-mono text-[var(--color-text-tertiary)]">≈ {usd(summary.run_rate_daily)}/day</span>
+            </div>
           </div>
-          <GrossCredit gross={summary.gross} credit={summary.credit} testId="cost-total-breakdown" />
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-text-tertiary)]">
-            <Delta pct={summary.delta_pct} />
-            <span>vs prior {summary.days}d</span>
-            <span className="font-mono text-[var(--color-text-tertiary)]">≈ {usd(summary.run_rate_daily)}/day</span>
-          </div>
-        </div>
-        <div className="pointer-events-none absolute bottom-3 right-3">
-          <Sparkline
-            data={summary.dates.length ? mergeDaily(summary) : [0, 0]}
-            color="var(--color-accent)"
-            w={132}
-            h={34}
-          />
+          <CloudDonut summary={summary} clouds={clouds} size={112} />
         </div>
       </Panel>
-      {CLOUD_ORDER.map((c) => {
-        const cs: CloudSummary = byCloud.get(c) ?? {
-          cloud: c,
-          total: 0,
-          gross: 0,
-          credit: 0,
-          delta_pct: null,
-          daily: [],
-          is_placeholder: false,
-          currency: "USD",
-          total_native: 0,
-          gross_native: 0,
-          credit_native: 0,
-        };
-        const dim = cloud !== "all" && cloud !== c ? "opacity-40" : "";
-        const share = summary.total ? ((cs.total / summary.total) * 100).toFixed(1) : "0.0";
-        return (
-          <Panel key={c} className={`relative overflow-hidden ${dim}`}>
-            <div className="p-4">
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CLOUDS[c].color }} />
-                {CLOUDS[c].label}
-                {cs.is_placeholder && (
-                  <span className="rounded border border-[var(--color-accent-purple)]/50 px-1 text-[9px] font-bold uppercase tracking-wide text-[var(--color-accent-purple)]">
-                    mock
-                  </span>
-                )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {CLOUD_ORDER.map((c) => {
+          const cs: CloudSummary = byCloud.get(c) ?? {
+            cloud: c,
+            total: 0,
+            gross: 0,
+            credit: 0,
+            delta_pct: null,
+            daily: [],
+            is_placeholder: false,
+            currency: "USD",
+            total_native: 0,
+            gross_native: 0,
+            credit_native: 0,
+          };
+          const dim = cloud !== "all" && cloud !== c ? "opacity-40" : "";
+          const share = summary.total ? ((cs.total / summary.total) * 100).toFixed(1) : "0.0";
+          return (
+            <Panel key={c} className={`relative overflow-hidden ${dim}`}>
+              <div className="p-4">
+                <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CLOUDS[c].color }} />
+                  {CLOUDS[c].label}
+                  {cs.is_placeholder && (
+                    <span className="rounded border border-[var(--color-accent-purple)]/50 px-1 text-[9px] font-bold uppercase tracking-wide text-[var(--color-accent-purple)]">
+                      mock
+                    </span>
+                  )}
+                </div>
+                <div
+                  data-testid={`cost-cloud-total-${c}`}
+                  className="mt-2 font-mono text-2xl font-bold leading-none tracking-tight"
+                >
+                  {money(currency, cs.total, cs.total_native, cs.currency)}
+                </div>
+                <GrossCredit
+                  gross={cs.gross}
+                  credit={cs.credit}
+                  grossNative={cs.gross_native}
+                  creditNative={cs.credit_native}
+                  ccy={cs.currency}
+                  mode={currency}
+                  compact
+                  testId={`cost-cloud-breakdown-${c}`}
+                />
+                <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                  <Delta pct={cs.delta_pct} />
+                  <span className="font-mono">{share}% of total</span>
+                </div>
               </div>
-              <div
-                data-testid={`cost-cloud-total-${c}`}
-                className="mt-2 font-mono text-2xl font-bold leading-none tracking-tight"
-              >
-                {money(currency, cs.total, cs.total_native, cs.currency)}
-              </div>
-              <GrossCredit
-                gross={cs.gross}
-                credit={cs.credit}
-                grossNative={cs.gross_native}
-                creditNative={cs.credit_native}
-                ccy={cs.currency}
-                mode={currency}
-                compact
-                testId={`cost-cloud-breakdown-${c}`}
-              />
-              <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                <Delta pct={cs.delta_pct} />
-                <span className="font-mono">{share}% of total</span>
-              </div>
-            </div>
-            <div className="pointer-events-none absolute bottom-3 right-3">
-              <Sparkline data={cs.daily.length ? cs.daily : [0, 0]} color={CLOUDS[c].color} />
-            </div>
-          </Panel>
-        );
-      })}
+            </Panel>
+          );
+        })}
+      </div>
     </div>
   );
 }
-function mergeDaily(summary: CostSummaryResponse): number[] {
-  const n = summary.dates.length;
-  const out = new Array(n).fill(0) as number[];
-  for (const c of summary.clouds) {
-    for (let i = 0; i < n; i++) out[i] += c.daily[i] ?? 0;
-  }
-  return out;
-}
-
 // ---------- floating chart tooltip ----------
 function ChartTooltip({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {
   const flip = typeof window !== "undefined" && x > window.innerWidth * 0.62;
@@ -696,18 +677,26 @@ function TrendPanel({
   );
 }
 
-// ---------- donut (cloud share) ----------
-function DonutPanel({ summary, clouds }: { summary: CostSummaryResponse; clouds: CostCloud[] }) {
+// ---------- cloud-share donut (folded into the Total-spend card; no longer its own panel) ----------
+function CloudDonut({
+  summary,
+  clouds,
+  size = 120,
+}: {
+  summary: CostSummaryResponse;
+  clouds: CostCloud[];
+  size?: number;
+}) {
   const [hover, setHover] = useState<{ c: CostCloud; x: number; y: number } | null>(null);
   const data = clouds
     .map((c) => ({ cloud: c, value: summary.clouds.find((x) => x.cloud === c)?.total ?? 0 }))
     .filter((d) => d.value > 0);
   const total = data.reduce((s, d) => s + d.value, 0);
 
-  const R = 62;
-  const r = 42;
-  const cx = 70;
-  const cy = 70;
+  const cx = size / 2;
+  const cy = size / 2;
+  const R = size / 2 - 4;
+  const r = R - 16;
   const TAU = Math.PI * 2;
   let ang = -Math.PI / 2;
   const segs = data.map((d) => {
@@ -728,44 +717,40 @@ function DonutPanel({ summary, clouds }: { summary: CostSummaryResponse; clouds:
   });
 
   return (
-    <Panel>
-      <PanelHeader title="Cloud share" hint="of total" />
-      <div className="p-4">
-        <div className="flex items-center gap-5">
-          <div className="relative flex-none" style={{ width: 140, height: 140 }}>
-            <svg width={140} height={140} viewBox="0 0 140 140">
-              {segs.map((s) => (
-                <path
-                  key={s.cloud}
-                  d={s.path}
-                  style={{ fill: CLOUDS[s.cloud].color, cursor: "pointer" }}
-                  stroke="var(--color-bg-secondary)"
-                  strokeWidth={2}
-                  onMouseMove={(e) => setHover({ c: s.cloud, x: e.clientX, y: e.clientY })}
-                  onMouseLeave={() => setHover(null)}
-                />
-              ))}
-            </svg>
-            <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Total</div>
-                <div className="font-mono text-lg font-bold">{usdShort(total)}</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-1 flex-col gap-3">
-            {data.map((d) => (
-              <div key={d.cloud} className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CLOUDS[d.cloud].color }} />
-                {CLOUDS[d.cloud].label}
-                <span className="ml-auto font-mono font-semibold text-[var(--color-text-primary)]">
-                  {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
-                </span>
-              </div>
-            ))}
-            {data.length === 0 && <span className="text-xs text-[var(--color-text-muted)]">No spend in window.</span>}
+    <div className="flex flex-none items-center gap-3">
+      <div className="relative flex-none" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {segs.map((s) => (
+            <path
+              key={s.cloud}
+              d={s.path}
+              style={{ fill: CLOUDS[s.cloud].color, cursor: "pointer" }}
+              stroke="var(--color-bg-secondary)"
+              strokeWidth={2}
+              onMouseMove={(e) => setHover({ c: s.cloud, x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setHover(null)}
+            />
+          ))}
+        </svg>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+          <div className="text-[9px] font-semibold uppercase leading-tight tracking-wide text-[var(--color-text-muted)]">
+            cloud
+            <br />
+            share
           </div>
         </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {data.map((d) => (
+          <div key={d.cloud} className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)]">
+            <span className="h-2 w-2 rounded-sm" style={{ background: CLOUDS[d.cloud].color }} />
+            <span className="whitespace-nowrap">{CLOUDS[d.cloud].label}</span>
+            <span className="ml-auto pl-2 font-mono font-semibold text-[var(--color-text-primary)]">
+              {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
+            </span>
+          </div>
+        ))}
+        {data.length === 0 && <span className="text-[11px] text-[var(--color-text-muted)]">No spend in window.</span>}
       </div>
       {hover && (
         <ChartTooltip x={hover.x} y={hover.y}>
@@ -773,7 +758,7 @@ function DonutPanel({ summary, clouds }: { summary: CostSummaryResponse; clouds:
           <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
             <span className="h-2 w-2 rounded-sm" style={{ background: CLOUDS[hover.c].color }} />
             {usd(summary.clouds.find((x) => x.cloud === hover.c)?.total ?? 0)}
-            <span className="ml-auto font-mono font-semibold text-[var(--color-text-primary)]">
+            <span className="ml-auto pl-2 font-mono font-semibold text-[var(--color-text-primary)]">
               {total > 0
                 ? (((summary.clouds.find((x) => x.cloud === hover.c)?.total ?? 0) / total) * 100).toFixed(1)
                 : "0.0"}
@@ -782,7 +767,7 @@ function DonutPanel({ summary, clouds }: { summary: CostSummaryResponse; clouds:
           </div>
         </ChartTooltip>
       )}
-    </Panel>
+    </div>
   );
 }
 
@@ -866,6 +851,7 @@ function SortHead({
   align = "left",
   sticky = false,
   testId,
+  filter,
 }: {
   label: string;
   active: boolean;
@@ -874,6 +860,9 @@ function SortHead({
   align?: "left" | "right";
   sticky?: boolean;
   testId?: string;
+  // Optional per-column filter control rendered UNDER the sort label, in the same header cell — so
+  // categorical columns carry their dropdown inline instead of needing a second (data-hiding) row.
+  filter?: React.ReactNode;
 }) {
   return (
     <th
@@ -881,13 +870,25 @@ function SortHead({
       data-testid={testId}
       aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : "none"}
       // `sticky` keeps the header visible while a long breakdown (up to 90 daily rows) scrolls
-      // inside its max-height container; the opaque panel bg hides rows sliding underneath.
-      className={`cursor-pointer select-none whitespace-nowrap border-b border-[var(--color-border-default)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] ${
+      // inside its max-height container; the opaque panel bg hides rows sliding underneath. Only ONE
+      // sticky row now (label + optional filter stacked), so nothing pins mid-table over the data.
+      className={`cursor-pointer select-none border-b border-[var(--color-border-default)] px-2.5 py-1.5 align-middle text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] ${
         sticky ? "sticky top-0 z-10 bg-[var(--color-bg-secondary)]" : ""
       } ${align === "right" ? "text-right" : "text-left"}`}
     >
-      {label}
-      {active && <span className="ml-1 text-[9px] opacity-60">{dir === "desc" ? "▼" : "▲"}</span>}
+      <div className={`flex items-center gap-1.5 ${align === "right" ? "justify-end" : "justify-start"}`}>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+          {label}
+          {active && <span className="text-[9px] opacity-60">{dir === "desc" ? "▼" : "▲"}</span>}
+        </span>
+        {/* Filter sits BESIDE the label (same line) so it adds no header height. stopPropagation so
+            opening/using it never triggers this column's sort. */}
+        {filter != null && (
+          <div onClick={(e) => e.stopPropagation()} className="font-normal normal-case tracking-normal">
+            {filter}
+          </div>
+        )}
+      </div>
     </th>
   );
 }
@@ -1014,6 +1015,26 @@ function BreakdownPanel({
             : k === "machine_type"
               ? "Machine"
               : k;
+  // Compact filter dropdown rendered INSIDE a categorical column's header cell (under its sort label).
+  // Options are the distinct values present in the fetched rows (dynamic); hidden while `stale` so a
+  // refetch never surfaces the prior dimension's values. Returns null for columns with no options.
+  const colSelect = (colKey: string): React.ReactNode =>
+    !stale && (colOptions[colKey]?.length ?? 0) > 0 ? (
+      <select
+        value={colFilters[colKey] ?? ""}
+        onChange={(e) => setColFilters((f) => ({ ...f, [colKey]: e.target.value }))}
+        data-testid={`cost-breakdown-colfilter-${colKey}`}
+        aria-label={`Filter by ${colLabel(colKey)}`}
+        className="min-w-[56px] max-w-[130px] cursor-pointer rounded border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-1 py-0.5 text-[10px] text-[var(--color-text-primary)] focus:border-[var(--color-accent-cyan)] focus:outline-none"
+      >
+        <option value="">All ({colOptions[colKey].length})</option>
+        {colOptions[colKey].map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    ) : null;
   // Cap note: the backend shows the top _BREAKDOWN_LIMIT groups + an "Other" roll-up so the header
   // total stays the TRUE total. When more groups exist than are shown, tell the user exactly what's
   // hidden and that it's rolled into the last row(s) — else the total looks mismatched again.
@@ -1041,6 +1062,27 @@ function BreakdownPanel({
     <Panel>
       <PanelHeader
         title="Breakdown"
+        center={
+          <>
+            <Segmented options={DIMENSIONS} value={dimension} onChange={onDimension} label="Breakdown dimension" />
+            {dimension === "label" && (
+              <Segmented options={LABEL_KEYS} value={labelKey} onChange={onLabelKey} label="Label key" />
+            )}
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              {DIM_NOTE[dimension]}
+            </span>
+            {activeFilters.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setColFilters({})}
+                data-testid="cost-breakdown-clear-filters"
+                className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+              >
+                Clear filters ({activeFilters.length})
+              </button>
+            )}
+          </>
+        }
         hint={
           <span className="inline-flex items-center gap-1.5">
             <span>
@@ -1085,27 +1127,6 @@ function BreakdownPanel({
         }
       />
       <div className="p-4 pt-3">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Segmented options={DIMENSIONS} value={dimension} onChange={onDimension} label="Breakdown dimension" />
-          {dimension === "label" && (
-            <Segmented options={LABEL_KEYS} value={labelKey} onChange={onLabelKey} label="Label key" />
-          )}
-          {/* Per-column filters live as dropdowns in the table header (one per categorical column);
-              this only surfaces a reset once any are active. */}
-          {activeFilters.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setColFilters({})}
-              data-testid="cost-breakdown-clear-filters"
-              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
-            >
-              Clear filters ({activeFilters.length})
-            </button>
-          )}
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-            {DIM_NOTE[dimension]}
-          </span>
-        </div>
         {/* single table — every row the backend returned (up to 90 daily / 50 grouped), inside a
             fixed-height scroll region. The Cost column carries an inline proportional bar (width =
             cost / max across the full dataset) instead of a separate top-12 bar chart, freeing
@@ -1123,8 +1144,22 @@ function BreakdownPanel({
           <table className="w-full text-xs" data-testid="cost-breakdown-table">
             <thead>
               <tr>
-                <SortHead label={dimLabel} active={key === "label"} dir={dir} onClick={() => toggle("label")} sticky />
-                <SortHead label="Detail" active={key === "detail"} dir={dir} onClick={() => toggle("detail")} sticky />
+                <SortHead
+                  label={dimLabel}
+                  active={key === "label"}
+                  dir={dir}
+                  onClick={() => toggle("label")}
+                  sticky
+                  filter={colSelect("label")}
+                />
+                <SortHead
+                  label="Detail"
+                  active={key === "detail"}
+                  dir={dir}
+                  onClick={() => toggle("detail")}
+                  sticky
+                  filter={colSelect("detail")}
+                />
                 {showPurchase && (
                   <SortHead
                     label="Purchase"
@@ -1133,6 +1168,7 @@ function BreakdownPanel({
                     onClick={() => toggle("purchase_option")}
                     sticky
                     testId="cost-col-purchase"
+                    filter={colSelect("purchase_option")}
                   />
                 )}
                 {dimension === "bucket" && (
@@ -1151,6 +1187,7 @@ function BreakdownPanel({
                       dir={dir}
                       onClick={() => toggle("storage_class")}
                       sticky
+                      filter={colSelect("storage_class")}
                     />
                     <SortHead
                       label="$/GB"
@@ -1204,6 +1241,7 @@ function BreakdownPanel({
                       dir={dir}
                       onClick={() => toggle("machine_type")}
                       sticky
+                      filter={colSelect("machine_type")}
                     />
                     <SortHead
                       label="Waste"
@@ -1253,34 +1291,6 @@ function BreakdownPanel({
                   align="right"
                   sticky
                 />
-              </tr>
-              {/* Per-column filter row — one <select> per categorical column, options computed live
-                  from the fetched rows (dynamic). One cell per column so it aligns with the header
-                  regardless of which dimension-specific columns are showing; numeric cells stay empty. */}
-              <tr data-testid="cost-breakdown-filter-row">
-                {cols.map((c) => (
-                  <td
-                    key={c.key}
-                    className="sticky top-[29px] z-10 border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-1.5 py-1 align-top"
-                  >
-                    {!stale && c.cat && (colOptions[c.key]?.length ?? 0) > 0 ? (
-                      <select
-                        value={colFilters[c.key] ?? ""}
-                        onChange={(e) => setColFilters((f) => ({ ...f, [c.key]: e.target.value }))}
-                        data-testid={`cost-breakdown-colfilter-${c.key}`}
-                        aria-label={`Filter by ${colLabel(c.key)}`}
-                        className="w-full max-w-[170px] cursor-pointer rounded border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[11px] text-[var(--color-text-primary)] focus:border-[var(--color-accent-cyan)] focus:outline-none"
-                      >
-                        <option value="">All ({colOptions[c.key].length})</option>
-                        {colOptions[c.key].map((v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
-                        ))}
-                      </select>
-                    ) : null}
-                  </td>
-                ))}
               </tr>
             </thead>
             <tbody>
@@ -1784,6 +1794,112 @@ function SourceFooter({
 }
 
 // ==================== page ====================
+// ---------- "what is this page" help dialog ----------
+function HelpTerm({ term, children }: { term: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-[104px] flex-none font-semibold text-[var(--color-text-primary)]">{term}</span>
+      <span className="flex-1 text-[var(--color-text-secondary)]">{children}</span>
+    </div>
+  );
+}
+
+function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function CostHelpDialog({
+  open,
+  onClose,
+  provisionalDays,
+}: {
+  open: boolean;
+  onClose: () => void;
+  provisionalDays: number;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogHeader onClose={onClose}>
+        <DialogTitle>Cost Observability — quick guide</DialogTitle>
+      </DialogHeader>
+      <DialogContent className="space-y-4 text-[13px] leading-relaxed">
+        <p className="text-[var(--color-text-secondary)]">
+          Your daily cloud spend across <b className="text-[var(--color-text-primary)]">GCP, AWS, and GitHub</b>, pulled
+          straight from the billing exports — these are real invoiced costs, not estimates. The top bar sets the{" "}
+          <b className="text-[var(--color-text-primary)]">time range</b> (7 / 30 / 90 days), filters to one{" "}
+          <b className="text-[var(--color-text-primary)]">cloud</b>, switches{" "}
+          <b className="text-[var(--color-text-primary)]">currency</b>, and forces a{" "}
+          <b className="text-[var(--color-text-primary)]">refresh</b> (data caches ~1h and updates daily on its own).
+        </p>
+
+        <HelpSection title="Reading the numbers">
+          <HelpTerm term="Net / Total">
+            What you actually pay = Gross minus Credits. The headline figure everywhere.
+          </HelpTerm>
+          <HelpTerm term="Gross">List price before any discount.</HelpTerm>
+          <HelpTerm term="Credit">Discounts, committed-use and promos (shown negative). Net = Gross + Credit.</HelpTerm>
+          <HelpTerm term="Share">That row as a percent of the window net total.</HelpTerm>
+          <HelpTerm term="Run-rate">Recent average spend per day.</HelpTerm>
+          <HelpTerm term="Change">Up / down percent versus the previous window of the same length.</HelpTerm>
+          <HelpTerm term="Cloud share">The donut in the total card — each cloud as a slice of net spend.</HelpTerm>
+        </HelpSection>
+
+        <section className="space-y-1 rounded-md border border-[var(--color-accent-amber)]/30 bg-[var(--color-accent-amber)]/10 p-3">
+          <h3 className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-accent-amber)]">
+            <AlertTriangle className="h-3.5 w-3.5 flex-none" />
+            Recent days are provisional
+            {provisionalDays > 0 ? ` · ${provisionalDays} day${provisionalDays !== 1 ? "s" : ""}` : ""}
+          </h3>
+          <p className="text-[var(--color-text-secondary)]">
+            GCP reconciles credits for about 2 days and the current-day export lands overnight; AWS re-trues the current
+            month on the 6th–7th. So the last couple of days can still move — treat them as not-yet-final.
+          </p>
+        </section>
+
+        <HelpSection title="The breakdown table">
+          <p className="text-[var(--color-text-secondary)]">
+            Splits the same spend by a chosen axis — pick it with the tabs; it re-groups instantly, no new query.
+          </p>
+          <HelpTerm term="Dimensions">
+            By service · resource (individual VMs / buckets / build workers) · bucket · region · day · SKU · label (your
+            own resource tags).
+          </HelpTerm>
+          <HelpTerm term="1st column">
+            The grouping value; <b className="text-[var(--color-text-primary)]">Detail</b> is a secondary descriptor
+            (provider / parent service / kind).
+          </HelpTerm>
+          <HelpTerm term="Cost">Net for the row; the inline bar shows its size versus the largest row.</HelpTerm>
+          <HelpTerm term="Gross / Credit">
+            Pre-discount price and the discount — shown only when a row in view carries credits.
+          </HelpTerm>
+          <HelpTerm term="Purchase">Spot versus on-demand, on compute rows.</HelpTerm>
+          <HelpTerm term="Bucket cols">
+            Storage (GB), Storage class, $/GB, and the net split Storage $ / Ops $ / Egress $.
+          </HelpTerm>
+          <HelpTerm term="Resource cols">Machine (type · vCPU · RAM) and Waste (idle or orphaned cost).</HelpTerm>
+          <p className="text-[var(--color-text-tertiary)]">
+            Filter any column from its header dropdown · click a header to sort · 100 rows per page · drag the
+            bottom-right corner to resize.
+          </p>
+        </HelpSection>
+
+        <HelpSection title="Where the data comes from">
+          <p className="text-[var(--color-text-secondary)]">
+            GCP → BigQuery billing export · AWS → Cost and Usage Report via Athena · GitHub → Enhanced Billing API. GCP
+            bills in GBP (converted at the daily Google rate); GCP days follow US-Pacific to match the console, AWS days
+            follow UTC.
+          </p>
+        </HelpSection>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CostObservability() {
   const [days, setDays] = useState<number>(30);
   const [cloud, setCloud] = useState<CloudFilter>("all");
@@ -1797,6 +1913,7 @@ export function CostObservability() {
   const [resources, setResources] = useState<CostBreakdownRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadCore = useCallback(
@@ -1917,23 +2034,23 @@ export function CostObservability() {
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            aria-label="What is this page? Quick guide & definitions"
+            data-testid="cost-help-button"
+            className="grid h-[34px] w-[34px] place-items-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-primary)]"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      {/* provisional notice */}
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-accent-amber)]/30 bg-[var(--color-accent-amber)]/10 px-3 py-2.5 text-xs text-[var(--color-text-secondary)]">
-        <AlertTriangle className="h-3.5 w-3.5 flex-none text-[var(--color-accent-amber)]" />
-        <span>
-          Recent days are <b className="text-[var(--color-text-primary)]">provisional</b> — GCP reconciles credits for
-          ~2 days and today&apos;s export lands overnight; AWS re-trues the current month on the 6th–7th. Figures update
-          daily from the billing exports.
-        </span>
-        {summary && summary.provisional_days > 0 && (
-          <span className="ml-auto font-mono text-[var(--color-accent-amber)]">
-            {summary.provisional_days} provisional day{summary.provisional_days !== 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
+      <CostHelpDialog
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        provisionalDays={summary?.provisional_days ?? 0}
+      />
 
       {error && (
         <div
@@ -1957,21 +2074,19 @@ export function CostObservability() {
       ) : (
         summary && (
           <>
-            <KpiBand summary={summary} cloud={cloud} currency={currency} />
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                {ts && (
-                  <TrendPanel
-                    points={ts.points}
-                    clouds={trendClouds}
-                    provisionalDays={summary.provisional_days}
-                    rangeDays={summary.days}
-                  />
-                )}
-              </div>
-              <div>
-                <DonutPanel summary={summary} clouds={activeClouds} />
-              </div>
+            {/* Top = 2 parts: the bigger daily chart on the left, all 4 KPI cards (total + 3
+                sources) stacked on the right. Sparklines dropped from the cards — the left chart
+                already shows that trend. */}
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
+              {ts && (
+                <TrendPanel
+                  points={ts.points}
+                  clouds={trendClouds}
+                  provisionalDays={summary.provisional_days}
+                  rangeDays={summary.days}
+                />
+              )}
+              <KpiBand summary={summary} cloud={cloud} currency={currency} clouds={activeClouds} />
             </div>
             {breakdown && (
               <BreakdownPanel
