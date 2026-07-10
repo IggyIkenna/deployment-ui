@@ -335,7 +335,7 @@ test.describe("Cost Observability page", () => {
     expect(overflow).toBeGreaterThan(0);
   });
 
-  test("By-label dimension: label-key selector + per-tab filter + pagination + resizable container", async ({
+  test("By-label dimension: label-key selector + per-column filter + pagination + resizable container", async ({
     page,
   }) => {
     await page.goto("/ops/costs");
@@ -356,13 +356,16 @@ test.describe("Cost Observability page", () => {
     await expect(pager).toContainText("2 / 2");
     expect(await rows.first().innerText()).not.toEqual(firstRowP1);
 
-    // Per-tab filter narrows client-side to the matching row (and to a no-match message otherwise).
-    const filter = page.getByTestId("cost-breakdown-filter");
-    await filter.fill("manifest");
+    // Per-column filter: each categorical column header carries a dropdown of the DISTINCT values
+    // present in the cached rows (dynamic). Selecting one narrows client-side to matching rows.
+    const labelFilter = page.getByTestId("cost-breakdown-colfilter-label");
+    await expect(labelFilter).toBeVisible();
+    await labelFilter.selectOption("manifest-consolidator");
     await expect(rows).toHaveCount(1);
     await expect(table).toContainText("manifest-consolidator");
-    await filter.fill("no-such-label-xyz");
-    await expect(table).toContainText(/No .* match/i);
+    // Clearing restores the full (paginated) set.
+    await page.getByTestId("cost-breakdown-clear-filters").click();
+    await expect(pager).toContainText("1 / 2");
 
     // The breakdown container is user-resizable (resize-y drag handle at the bottom edge).
     await expect(page.getByTestId("cost-breakdown-scroll")).toHaveClass(/resize-y/);

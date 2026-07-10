@@ -918,13 +918,73 @@ function BreakdownPanel({
   // be wrong. Only the real groups are sortable / bar-scaled.
   const realRows = useMemo(() => data.rows.filter((r) => !r.is_aggregate), [data.rows]);
   const aggRows = useMemo(() => data.rows.filter((r) => r.is_aggregate), [data.rows]);
-  // Per-tab text filter (client-side, over the rows already fetched — no re-query) on label + detail.
-  const [filter, setFilter] = useState("");
+  // Which categorical columns exist depends on the dimension (mirrors the <thead> below). Compute the
+  // credit/other/purchase flags first — both the column model and those columns key off them.
+  const hasCredits = data.rows.some((r) => r.credit < 0);
+  const hasOther = data.rows.some((r) => (r.cost_by_component?.other ?? 0) !== 0);
+  const showPurchase = dimension === "resource" || dimension === "service";
+  // Ordered column model — the SINGLE source of truth for the header row, the per-column filter row,
+  // and the colSpan maths, so they can never drift. `cat` marks a categorical column that gets a value
+  // dropdown; numeric columns (cost/share/components/…) are sort-only. Order MUST match the <thead>.
+  const cols = useMemo<{ key: string; cat: boolean }[]>(
+    () => [
+      { key: "label", cat: true },
+      { key: "detail", cat: true },
+      ...(showPurchase ? [{ key: "purchase_option", cat: true }] : []),
+      ...(dimension === "bucket"
+        ? [
+            { key: "storage_gb", cat: false },
+            { key: "storage_class", cat: true },
+            { key: "cost_per_gb", cat: false },
+            { key: "comp_storage", cat: false },
+            { key: "comp_operations", cat: false },
+            { key: "comp_egress", cat: false },
+            ...(hasOther ? [{ key: "comp_other", cat: false }] : []),
+          ]
+        : []),
+      ...(dimension === "resource"
+        ? [
+            { key: "machine_type", cat: true },
+            { key: "waste", cat: false },
+          ]
+        : []),
+      { key: "cost", cat: false },
+      ...(hasCredits
+        ? [
+            { key: "gross", cat: false },
+            { key: "credit", cat: false },
+          ]
+        : []),
+      { key: "share_pct", cat: false },
+    ],
+    [dimension, showPurchase, hasOther, hasCredits],
+  );
+  // Per-column filters (client-side, over the rows already fetched — no re-query). Each categorical
+  // column's dropdown options are the DISTINCT values PRESENT in the current rows, derived live via the
+  // same `sortValue` accessor the header sorts by — so the options track the data (dynamic, not fixed).
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+  const colOptions = useMemo(() => {
+    const opts: Record<string, string[]> = {};
+    for (const c of cols) {
+      if (!c.cat) continue;
+      const seen = new Set<string>();
+      for (const r of realRows) {
+        const v = String(sortValue(r, c.key) ?? "").trim();
+        if (v && v !== "—") seen.add(v);
+      }
+      opts[c.key] = [...seen].sort((a, b) => a.localeCompare(b));
+    }
+    return opts;
+  }, [realRows, cols]);
+  // Drop a column's filter if its selected value no longer exists in the new rows (dimension switch).
+  const activeFilters = useMemo(
+    () => Object.entries(colFilters).filter(([k, v]) => v && (colOptions[k]?.includes(v) ?? false)),
+    [colFilters, colOptions],
+  );
   const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return realRows;
-    return realRows.filter((r) => r.label.toLowerCase().includes(q) || (r.detail ?? "").toLowerCase().includes(q));
-  }, [realRows, filter]);
+    if (activeFilters.length === 0) return realRows;
+    return realRows.filter((r) => activeFilters.every(([k, v]) => String(sortValue(r, k) ?? "") === v));
+  }, [realRows, activeFilters]);
   const { sorted, key, dir, toggle } = useSort(filtered, "cost");
   // Pagination — the backend now returns up to 1000 real groups; page through them 100 at a time so a
   // big dimension (e.g. ~565 buckets) is fully reachable without an unbounded scroll.
@@ -938,9 +998,22 @@ function BreakdownPanel({
   );
   const onLastPage = safePage >= pageCount - 1;
   // Reset to the first page whenever the row set or ordering changes (dimension/data/filter/sort).
-  useEffect(() => setPage(0), [data, filter, key, dir]);
+  useEffect(() => setPage(0), [data, colFilters, key, dir]);
   const max = Math.max(...realRows.map((r) => r.cost), 1);
   const dimLabel = DIMENSIONS.find((d) => d.value === dimension)?.label.replace("By ", "") ?? dimension;
+  // Human label for a categorical column key — backs the per-column filter dropdowns' aria-labels.
+  const colLabel = (k: string): string =>
+    k === "label"
+      ? dimLabel
+      : k === "detail"
+        ? "Detail"
+        : k === "purchase_option"
+          ? "Purchase"
+          : k === "storage_class"
+            ? "Storage class"
+            : k === "machine_type"
+              ? "Machine"
+              : k;
   // Cap note: the backend shows the top _BREAKDOWN_LIMIT groups + an "Other" roll-up so the header
   // total stays the TRUE total. When more groups exist than are shown, tell the user exactly what's
   // hidden and that it's rolled into the last row(s) — else the total looks mismatched again.
@@ -956,23 +1029,11 @@ function BreakdownPanel({
   const nativeShown = realRows.reduce((s, r) => s + (r.cost_native ?? r.cost), 0);
   const nativeRemaining = aggRows.reduce((s, r) => s + (r.cost_native ?? r.cost), 0);
   const nativeTotal = nativeShown + nativeRemaining;
-  // Gross/credit columns mirror the KPI band's net-primary treatment down into the table, but only
-  // when something in the current view actually carries a credit (GCP) — an AWS/GitHub-only filter
-  // would otherwise show two columns of "—" for no reason.
-  const hasCredits = data.rows.some((r) => r.credit < 0);
-  // Bucket rows carry a net cost split {storage, operations, egress[, other]}. "Other" is rare
-  // (retrieval/misc) — show its column only when something in view actually has it, so the split
-  // always reconciles to Cost without a permanent all-dash column (mirrors the hasCredits pattern).
-  const hasOther = data.rows.some((r) => (r.cost_by_component?.other ?? 0) !== 0);
-  // Spot/on-demand only applies to compute SKUs — the backend folds it onto resource + service
-  // rows (spot wins if any underlying line is spot-priced); other dimensions never carry it.
-  const showPurchase = dimension === "resource" || dimension === "service";
-  const colCount =
-    4 +
-    (dimension === "bucket" ? 6 + (hasOther ? 1 : 0) : 0) +
-    (dimension === "resource" ? 2 : 0) +
-    (hasCredits ? 2 : 0) +
-    (showPurchase ? 1 : 0);
+  // colCount drives the loading + aggregate-row colSpans — derived from the column model so the header
+  // row, the filter row, and the spans can never disagree. (Credit cols appear only when a row carries
+  // a GCP credit; bucket "Other $" only when non-zero; Purchase only on resource/service — all encoded
+  // in `cols`.)
+  const colCount = cols.length;
   // Columns an aggregate row's label spans = everything left of the Cost column (label, detail, and
   // the dimension-specific columns) — its Cost / Gross / Credit / Share render as their own cells.
   const leadCols = colCount - 2 - (hasCredits ? 2 : 0);
@@ -1029,15 +1090,18 @@ function BreakdownPanel({
           {dimension === "label" && (
             <Segmented options={LABEL_KEYS} value={labelKey} onChange={onLabelKey} label="Label key" />
           )}
-          <input
-            type="search"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder={`Filter ${dimLabel}…`}
-            data-testid="cost-breakdown-filter"
-            aria-label={`Filter breakdown by ${dimLabel}`}
-            className="min-w-[140px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2.5 py-1 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-cyan)] focus:outline-none"
-          />
+          {/* Per-column filters live as dropdowns in the table header (one per categorical column);
+              this only surfaces a reset once any are active. */}
+          {activeFilters.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setColFilters({})}
+              data-testid="cost-breakdown-clear-filters"
+              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+            >
+              Clear filters ({activeFilters.length})
+            </button>
+          )}
           <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
             {DIM_NOTE[dimension]}
           </span>
@@ -1189,6 +1253,34 @@ function BreakdownPanel({
                   align="right"
                   sticky
                 />
+              </tr>
+              {/* Per-column filter row — one <select> per categorical column, options computed live
+                  from the fetched rows (dynamic). One cell per column so it aligns with the header
+                  regardless of which dimension-specific columns are showing; numeric cells stay empty. */}
+              <tr data-testid="cost-breakdown-filter-row">
+                {cols.map((c) => (
+                  <td
+                    key={c.key}
+                    className="sticky top-[29px] z-10 border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-1.5 py-1 align-top"
+                  >
+                    {!stale && c.cat && (colOptions[c.key]?.length ?? 0) > 0 ? (
+                      <select
+                        value={colFilters[c.key] ?? ""}
+                        onChange={(e) => setColFilters((f) => ({ ...f, [c.key]: e.target.value }))}
+                        data-testid={`cost-breakdown-colfilter-${c.key}`}
+                        aria-label={`Filter by ${colLabel(c.key)}`}
+                        className="w-full max-w-[170px] cursor-pointer rounded border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[11px] text-[var(--color-text-primary)] focus:border-[var(--color-accent-cyan)] focus:outline-none"
+                      >
+                        <option value="">All ({colOptions[c.key].length})</option>
+                        {colOptions[c.key].map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                  </td>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -1350,7 +1442,7 @@ function BreakdownPanel({
                   only on the last page, and hidden while a filter is active (they aren't filterable). */}
               {!stale &&
                 onLastPage &&
-                !filter.trim() &&
+                activeFilters.length === 0 &&
                 aggRows.map((r) => (
                   <tr
                     key={`agg-${r.label}`}
@@ -1381,10 +1473,10 @@ function BreakdownPanel({
                     </td>
                   </tr>
                 ))}
-              {!stale && sorted.length === 0 && (filter.trim() !== "" || aggRows.length === 0) && (
+              {!stale && sorted.length === 0 && (activeFilters.length > 0 || aggRows.length === 0) && (
                 <tr>
                   <td colSpan={colCount} className="py-4 text-center text-[var(--color-text-muted)]">
-                    {filter.trim() ? `No ${dimLabel}s match “${filter.trim()}”.` : "No spend in this window."}
+                    {activeFilters.length > 0 ? "No rows match the selected filters." : "No spend in this window."}
                   </td>
                 </tr>
               )}
@@ -1406,7 +1498,7 @@ function BreakdownPanel({
                 {Math.min((safePage + 1) * PAGE_SIZE, sorted.length).toLocaleString("en-US")}
               </b>{" "}
               of <b className="font-mono text-[var(--color-text-secondary)]">{sorted.length.toLocaleString("en-US")}</b>
-              {filter.trim() && ` (filtered from ${realRows.length.toLocaleString("en-US")})`}
+              {activeFilters.length > 0 && ` (filtered from ${realRows.length.toLocaleString("en-US")})`}
             </span>
             <div className="flex items-center gap-2">
               <button
