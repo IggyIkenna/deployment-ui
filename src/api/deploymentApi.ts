@@ -689,6 +689,13 @@ export interface DeploymentItem {
   heartbeat_age_seconds: number | null;
   captured_progress: number | null;
   run_log_uri: string | null;
+  // Provenance (WS-D full-estate) — who launched this compute unit. "deployment-api" = has a
+  // deployment registry entry / registered Cloud Run job; "control-plane" = long-lived managed
+  // infra with no registry entry (control-plane VMs, Cloud Run services, Cloud Functions);
+  // "adhoc" = live but unaccounted (an ad-hoc/stranded launch — reconciliation's UNKNOWN set);
+  // "unknown" = no provenance signal yet (the AWS estate until the managed-by tag lands). Nullable
+  // on legacy rows until the census populates it.
+  launched_by?: string | null;
   // Tier-0 free wins — GCE aggregated-list / registry entry (on the thin list).
   rows_in?: number | null;
   rows_error?: number | null;
