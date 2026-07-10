@@ -20,9 +20,24 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertCircle, Cloud, Container, FunctionSquare, Globe, RefreshCw, Server, Workflow, Zap } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Clock,
+  Cloud,
+  Container,
+  FunctionSquare,
+  Globe,
+  HardDrive,
+  Network,
+  RefreshCw,
+  Server,
+  Workflow,
+  Zap,
+} from "lucide-react";
 import {
   getDeploymentInventory,
+  getDeploymentRegions,
   getUmbrellaSummary,
   type DeploymentCloud,
   type DeploymentItem,
@@ -30,20 +45,26 @@ import {
   type DeploymentUmbrella,
   type UmbrellaLastFailure,
   type UmbrellaSummaryResponse,
+  type ServiceHealth,
   type VmHealth,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
-type ModeFilter = "" | "LIVE" | "BATCH" | "PAPER";
+type ModeFilter = "" | "LIVE" | "BATCH" | "PAPER" | "EXPERIMENT" | "NONE";
 const MODE_OPTIONS: { value: ModeFilter; label: string }[] = [
   { value: "", label: "all" },
   { value: "LIVE", label: "Live" },
   { value: "BATCH", label: "Batch" },
   { value: "PAPER", label: "Paper" },
+  { value: "EXPERIMENT", label: "Experiment" },
+  // NONE = infra with no trading umbrella (Cloud Run services, functions, schedulers, orphaned
+  // disks/IPs) — 187 rows incl. every scheduler. Without this option they're unreachable by Mode.
+  { value: "NONE", label: "Infra (none)" },
 ];
 
 type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
@@ -128,6 +149,10 @@ const KIND_META: Record<
   ECS_SERVICE: { label: "ecs-svc", tone: "green", Icon: Container },
   LAMBDA: { label: "lambda", tone: "yellow", Icon: Zap },
   CLOUD_FUNCTION: { label: "fn", tone: "yellow", Icon: FunctionSquare },
+  // WS-D full-estate kinds: orphaned resources (leaked cost) + scheduled-job liveness.
+  DISK: { label: "disk", tone: "red", Icon: HardDrive },
+  STATIC_IP: { label: "static-ip", tone: "red", Icon: Network },
+  SCHEDULER: { label: "scheduler", tone: "blue", Icon: Clock },
 };
 
 function kindMeta(kind: string) {
@@ -138,6 +163,179 @@ function kindMeta(kind: string) {
 
 const SERVICE_KINDS = new Set(["CLOUD_RUN_SERVICE", "ECS_SERVICE"]);
 const FUNCTION_KINDS = new Set(["LAMBDA", "CLOUD_FUNCTION"]);
+
+// Provenance chip (WS-D #14) — who launched this compute unit. `adhoc` = a stranded / ad-hoc launch
+// (amber — the findable ones an operator should pull into the stack or kill); `deployment-api` =
+// managed via the registry; `control-plane` = managed infra with no registry entry; `unknown` = no
+// provenance signal yet (the AWS estate until the managed-by tag lands).
+const LAUNCHED_BY_META: Record<string, { label: string; tone: ChipTone }> = {
+  "deployment-api": { label: "deployment-api", tone: "green" },
+  "control-plane": { label: "control-plane", tone: "blue" },
+  adhoc: { label: "adhoc", tone: "yellow" },
+  unknown: { label: "unknown", tone: "gray" },
+};
+
+/** Provenance cell — the launched-by chip; "—" when the census hasn't populated it (legacy row). */
+function LaunchedByBadge({ value }: { value?: string | null }) {
+  if (!value) return <span className="text-[var(--color-text-muted)]">—</span>;
+  const meta = LAUNCHED_BY_META[value] ?? { label: value, tone: "gray" as ChipTone };
+  return <Chip tone={meta.tone}>{meta.label}</Chip>;
+}
+
+/** Total inferred $/month a row's unreleased resources are still billing (0 when none / unknown). */
+function leakedMonthlyUsd(item: DeploymentItem): number {
+  return (item.unreleased_resources ?? []).reduce((sum, r) => sum + (r.est_monthly_usd ?? 0), 0);
+}
+
+/** Red "unreleased resources" badge (WS-D #5) — a non-running VM (or an orphaned DISK/STATIC_IP row)
+ *  still holding billable resources, with its INFERRED est. monthly cost (principle 8 — labelled
+ *  "est" + a "refresh periodically" tooltip, never presented as exact). null when nothing leaked. */
+function LeakedBadge({ item }: { item: DeploymentItem }) {
+  if (!item.has_unreleased_resources || !item.unreleased_resources?.length) return null;
+  const total = leakedMonthlyUsd(item);
+  const detail = item.unreleased_resources
+    .map((r) => `${r.type} ${r.name}${r.size_gb ? ` ${r.size_gb}GB` : ""} ~$${(r.est_monthly_usd ?? 0).toFixed(0)}/mo`)
+    .join(", ");
+  return (
+    <span
+      data-testid={`leaked-${item.name}`}
+      title={`Unreleased (est. / refresh periodically): ${detail}`}
+      className="inline-flex w-fit items-center gap-1 rounded bg-[var(--color-danger)] px-1 text-[10px] font-medium text-white"
+    >
+      <AlertTriangle className="h-3 w-3" />
+      {item.unreleased_resources.length} leaked · ~${total.toFixed(0)}/mo est
+    </span>
+  );
+}
+
+// ── Default sort hierarchy + per-column sort (operator's semantic ordering, 2026-07-10) ──
+//
+// KIND band — long-running compute first (VMs), then long-running services, then batch jobs, then
+// scheduled, then event/one-time functions, then orphaned resources last.
+const KIND_RANK: Record<string, number> = {
+  VM: 0,
+  CLOUD_RUN_SERVICE: 1,
+  ECS_SERVICE: 1,
+  CLOUD_RUN_JOB: 2,
+  SCHEDULER: 3,
+  CLOUD_FUNCTION: 4,
+  LAMBDA: 4,
+  DISK: 5,
+  STATIC_IP: 5,
+};
+const kindRank = (kind: string): number => KIND_RANK[kind] ?? 9;
+
+// STATUS band — what's running / active on top, what's completed / terminal below.
+const STATUS_RANK: Record<string, number> = {
+  running: 0,
+  pending: 1,
+  stale: 2,
+  succeeded: 3,
+  failed: 4,
+  stopped: 5,
+  unknown: 6,
+};
+const statusRank = (status: string): number => STATUS_RANK[status] ?? 7;
+
+// The DEFAULT ordering when no column sort is active: liveness (running above completed), then kind
+// (long-running above one-time / scheduled), then recency (newest run first), then name (stable).
+function defaultHierarchyCmp(a: DeploymentItem, b: DeploymentItem): number {
+  return (
+    statusRank(a.status) - statusRank(b.status) ||
+    kindRank(a.kind) - kindRank(b.kind) ||
+    (b.last_run_at ?? "").localeCompare(a.last_run_at ?? "") ||
+    a.name.localeCompare(b.name)
+  );
+}
+
+type SortKey =
+  | "mode"
+  | "kind"
+  | "target"
+  | "cloud"
+  | "launched_by"
+  | "service"
+  | "asset_group"
+  | "status"
+  | "last_run"
+  | "progress"
+  | "cost"
+  | "exit"
+  | "resources"
+  | "health";
+
+/** The comparable value for a column — number or string; null sorts last regardless of direction. */
+function columnSortValue(item: DeploymentItem, key: SortKey): string | number | null {
+  switch (key) {
+    case "mode":
+      return item.umbrella;
+    case "kind":
+      return kindRank(item.kind);
+    case "target":
+      return item.name.toLowerCase();
+    case "cloud":
+      return item.cloud;
+    case "launched_by":
+      return item.launched_by ?? "";
+    case "service":
+      return item.service ?? "";
+    case "asset_group":
+      return item.asset_group ?? "";
+    case "status":
+      return statusRank(item.status);
+    case "last_run":
+      return item.last_run_at ?? item.last_modified_at ?? null;
+    case "progress":
+      return item.captured_progress ?? null;
+    case "cost":
+      return item.cost_per_day_usd ?? null;
+    case "exit":
+      return item.exit_code ?? null;
+    case "resources":
+      return leakedMonthlyUsd(item);
+    case "health":
+      return item.composite_health_status ?? null;
+  }
+}
+
+/** Compare two rows by an active column sort — nulls last, ties broken by the default hierarchy. */
+function compareByColumn(a: DeploymentItem, b: DeploymentItem, key: SortKey, dir: "asc" | "desc"): number {
+  const av = columnSortValue(a, key);
+  const bv = columnSortValue(b, key);
+  if (av === null || bv === null) {
+    if (av === null && bv === null) return defaultHierarchyCmp(a, b);
+    return av === null ? 1 : -1; // nulls always last, regardless of direction
+  }
+  const c = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+  if (c === 0) return defaultHierarchyCmp(a, b);
+  return dir === "asc" ? c : -c;
+}
+
+/** Lambda's Last-run cell (WS-D #10): the last-MODIFIED (deploy) time — NEVER mislabelled as
+ *  last-invoked. last_run_at is honestly-absent (we avoid the paid CloudWatch metric); a tooltip on
+ *  the cell explains the "—" so the operator knows it isn't a bug. */
+function lambdaLastLabel(item: DeploymentItem): string {
+  if (!item.last_modified_at) return "—";
+  return `mod ${item.last_modified_at.slice(0, 16).replace("T", " ")}`;
+}
+
+/** Estate-total stranded cost (WS-D #17) — the sum of every row's INFERRED leaked $/mo (leaked
+ *  disks/IPs on non-running VMs + orphaned DISK/STATIC_IP rows). Marked "est. / refresh
+ *  periodically" (principle 8, never exact); hidden when nothing is leaked. */
+function StrandedCostBadge({ items }: { items: DeploymentItem[] }) {
+  const total = items.reduce((sum, i) => sum + leakedMonthlyUsd(i), 0);
+  const count = items.filter((i) => i.has_unreleased_resources).length;
+  if (total <= 0) return null;
+  return (
+    <div className="pt-2" data-testid="stranded-cost-total">
+      <span className="inline-flex items-center gap-1 rounded bg-[var(--color-danger)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--color-danger)]">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        ~${total.toFixed(0)}/mo stranded across {count} resource
+        {count === 1 ? "" : "s"} (est. — refresh periodically)
+      </span>
+    </div>
+  );
+}
 
 /** Kind cell — a compact icon + label chip so VM / job / service / lambda read at a glance. */
 function KindBadge({ kind }: { kind: DeploymentItem["kind"] }) {
@@ -303,7 +501,7 @@ function serviceHealthLabel(item: DeploymentItem): { label: string; tone: ChipTo
 // target carries `composite_health_status`, it wins the Health column; otherwise we fall back to
 // the freshness / service signal. Only `working` is green; every failure mode is called out by
 // name, coloured by 3-tier severity (Open-Q2): green=working · amber=degraded · red=broken-now.
-const HEALTH_META: Record<VmHealth, { label: string; tone: ChipTone }> = {
+const HEALTH_META: Record<VmHealth | ServiceHealth, { label: string; tone: ChipTone }> = {
   working: { label: "working", tone: "green" },
   stalled: { label: "stalled", tone: "yellow" },
   "oom-risk": { label: "oom-risk", tone: "red" },
@@ -311,6 +509,15 @@ const HEALTH_META: Record<VmHealth, { label: string; tone: ChipTone }> = {
   "disk-full": { label: "disk-full", tone: "red" },
   hung: { label: "hung", tone: "red" },
   dead: { label: "dead", tone: "gray" },
+  // Cloud Scheduler verdicts (WS-D #9) — the "fired on time?" signal on SCHEDULER rows.
+  overdue: { label: "overdue", tone: "red" },
+  "on-time": { label: "on-time", tone: "green" },
+  paused: { label: "paused", tone: "gray" },
+  // Service verdicts (Cloud Run service / ECS, D.3) — the live inventory folds these into
+  // composite_health_status too, so the map must cover the service vocabulary, not just VM/scheduler.
+  serving: { label: "serving", tone: "green" },
+  "scaled-to-zero": { label: "scaled-to-zero", tone: "gray" },
+  degraded: { label: "degraded", tone: "yellow" },
   unknown: { label: "unknown", tone: "gray" },
 };
 
@@ -325,11 +532,18 @@ function healthTitle(item: DeploymentItem): string | undefined {
   return parts.length ? parts.join(" · ") : undefined;
 }
 
+/** Health-chip meta, defensive against a verdict the backend emits before the UI knows it — the live
+ *  `composite_health_status` folds the VM + scheduler + service vocabularies, so an unknown value must
+ *  degrade to a gray chip, never crash the row render (mirror of kindMeta / LaunchedByBadge). */
+function healthMeta(h: string): { label: string; tone: ChipTone } {
+  return HEALTH_META[h as VmHealth | ServiceHealth] ?? { label: h, tone: "gray" as ChipTone };
+}
+
 /** The composite Health chip content — inlines the actionable number for oom-risk / disk-full. */
 function compositeHealthLabel(item: DeploymentItem): { label: string; tone: ChipTone; title?: string } | null {
   const h = item.composite_health_status;
   if (!h) return null;
-  const meta = HEALTH_META[h];
+  const meta = healthMeta(h);
   let label = meta.label;
   if (h === "oom-risk" && item.mem_pct != null) label = `oom-risk ${item.mem_pct}%`;
   else if (h === "disk-full" && item.disk_pct != null) label = `disk-full ${item.disk_pct}%`;
@@ -345,21 +559,23 @@ const FreshnessContext = createContext<Record<string, DeploymentFreshnessRespons
 // Standalone (no provider) → the row is a Link to the detail page.
 const DrillContext = createContext<((name: string) => void) | undefined>(undefined);
 
-/** The single unified column set — one shape for every mode (sparse "—" where N/A). */
-const UNIFIED_COLUMNS: { label: string; align?: "right" }[] = [
-  { label: "Mode" },
-  { label: "Kind" },
-  { label: "Target" },
-  { label: "Cloud" },
-  { label: "Service" },
-  { label: "Asset group" },
-  { label: "Status" },
-  { label: "Last run / up" },
-  { label: "Progress", align: "right" },
-  { label: "Cost/day", align: "right" },
-  { label: "Exit" },
-  { label: "Resources" },
-  { label: "Health" },
+/** The single unified column set — one shape for every mode (sparse "—" where N/A). Every column
+ *  except Controls carries a `sortKey` so its header can drive a click-to-sort (WS-D, 2026-07-10). */
+const UNIFIED_COLUMNS: { label: string; align?: "right"; sortKey?: SortKey }[] = [
+  { label: "Mode", sortKey: "mode" },
+  { label: "Kind", sortKey: "kind" },
+  { label: "Target", sortKey: "target" },
+  { label: "Cloud", sortKey: "cloud" },
+  { label: "Launched by", sortKey: "launched_by" },
+  { label: "Service", sortKey: "service" },
+  { label: "Asset group", sortKey: "asset_group" },
+  { label: "Status", sortKey: "status" },
+  { label: "Last run / up", sortKey: "last_run" },
+  { label: "Progress", align: "right", sortKey: "progress" },
+  { label: "Cost/day", align: "right", sortKey: "cost" },
+  { label: "Exit", sortKey: "exit" },
+  { label: "Resources", sortKey: "resources" },
+  { label: "Health", sortKey: "health" },
   { label: "Controls" },
 ];
 
@@ -464,7 +680,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
   const cost = costLabel(item.cost_per_day_usd);
 
   return (
-    <tr data-testid={`deployment-row-${item.name}`} className={rowCls}>
+    <tr data-testid={`deployment-row-${item.name}`} data-launched-by={item.launched_by ?? "unknown"} className={rowCls}>
       <td className="py-1.5">
         <ModeBadge umbrella={item.umbrella} />
       </td>
@@ -475,10 +691,22 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
       <td className="py-1.5">
         <CloudBadge cloud={item.cloud} />
       </td>
+      <td className="py-1.5" data-testid={`launched-by-cell-${item.name}`}>
+        <LaunchedByBadge value={item.launched_by} />
+      </td>
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.service || "—"}</td>
       <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{item.asset_group || "—"}</td>
       <StatusCell item={item} />
-      <td className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]">{lastRunOrUptime(item)}</td>
+      <td
+        className="py-1.5 font-mono text-xs text-[var(--color-text-secondary)]"
+        title={
+          item.kind === "LAMBDA"
+            ? "Lambda shows last-MODIFIED (deploy), not last-invoked — we deliberately avoid the paid CloudWatch metric (Athena/BigQuery instead), so a '—' last-run isn't a bug."
+            : undefined
+        }
+      >
+        {item.kind === "LAMBDA" ? lambdaLastLabel(item) : lastRunOrUptime(item)}
+      </td>
       <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
         {item.captured_progress != null ? (
           item.captured_progress.toLocaleString()
@@ -493,7 +721,10 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
         <ExitCodeCell exitCode={item.exit_code} />
       </td>
       <td className="py-1.5" data-testid={`resources-${item.name}`}>
-        <ResourceCell item={item} />
+        <div className="flex flex-col gap-0.5">
+          <ResourceCell item={item} />
+          <LeakedBadge item={item} />
+        </div>
       </td>
       <td className="py-1.5" title={feed?.title}>
         {feed ? (
@@ -516,6 +747,23 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
 }
 
 function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
+  // null → the default semantic hierarchy; else an explicit column sort. A header click cycles that
+  // column asc → desc → back to the default hierarchy.
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+  const onHeaderClick = useCallback((key: SortKey | undefined) => {
+    if (!key) return;
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  }, []);
+  const sorted = useMemo(() => {
+    const arr = [...items];
+    arr.sort(sort ? (a, b) => compareByColumn(a, b, sort.key, sort.dir) : defaultHierarchyCmp);
+    return arr;
+  }, [items, sort]);
+
   if (items.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-muted)] py-3" data-testid="deployment-matrix-empty">
@@ -528,15 +776,28 @@ function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
       <table className="w-full text-sm" data-testid="deployment-matrix">
         <thead>
           <tr className="border-b border-[var(--color-border-default)] text-[var(--color-text-muted)] text-left">
-            {UNIFIED_COLUMNS.map((c) => (
-              <th key={c.label} className={`py-1.5 font-medium${c.align === "right" ? " text-right" : ""}`}>
-                {c.label}
-              </th>
-            ))}
+            {UNIFIED_COLUMNS.map((c) => {
+              const dir = c.sortKey != null && sort?.key === c.sortKey ? sort.dir : undefined;
+              return (
+                <th
+                  key={c.label}
+                  scope="col"
+                  className={`py-1.5 font-medium${c.align === "right" ? " text-right" : ""}${
+                    c.sortKey ? " cursor-pointer select-none hover:text-[var(--color-text-primary)]" : ""
+                  }${dir ? " text-[var(--color-text-primary)]" : ""}`}
+                  onClick={c.sortKey ? () => onHeaderClick(c.sortKey) : undefined}
+                  aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
+                  data-testid={`col-${c.sortKey ?? "controls"}`}
+                >
+                  {c.label}
+                  {dir === "asc" ? " ▲" : dir === "desc" ? " ▼" : ""}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
+          {sorted.map((item) => (
             <DeploymentRow key={`${item.kind}-${item.name}`} item={item} />
           ))}
         </tbody>
@@ -585,7 +846,7 @@ function FilterSelect({
  * summary's `counts_by_status` (the authoritative tally aggregated across every mode in view).
  */
 const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
-  { value: "", label: "All", tone: "gray", countKey: null },
+  { value: "all", label: "All", tone: "gray", countKey: null },
   { value: "running", label: "Running", tone: "blue", countKey: "running" },
   { value: "succeeded", label: "Succeeded", tone: "green", countKey: "succeeded" },
   { value: "failed", label: "Failed", tone: "red", countKey: "failed" },
@@ -672,28 +933,45 @@ export function DeploymentsContent({
   // Embedded filters live in local state (no URL writes); standalone reads/writes the URL.
   const [localMode, setLocalMode] = useState<ModeFilter>("");
   const [localCloud, setLocalCloud] = useState("");
-  const [localStatus, setLocalStatus] = useState("");
+  const [localStatus, setLocalStatus] = useState("running");
   const [localAssetGroup, setLocalAssetGroup] = useState("");
   const [localKind, setLocalKind] = useState("");
+  const [localLaunchedBy, setLocalLaunchedBy] = useState("");
+  const [localRegion, setLocalRegion] = useState("asia-northeast1");
 
   const urlMode = (searchParams.get("umbrella") ?? "").toUpperCase();
+  // Validate the URL value against the SAME option list the dropdown renders, so the two can never
+  // drift — the old hardcoded ["LIVE","BATCH","PAPER"] silently dropped EXPERIMENT / NONE selections
+  // (the dropdown would snap back to "all"), which is why the Mode filter appeared not to stick.
   const modeFilter: ModeFilter = embedded
     ? localMode
-    : ["LIVE", "BATCH", "PAPER"].includes(urlMode)
+    : MODE_OPTIONS.some((o) => o.value !== "" && o.value === urlMode)
       ? (urlMode as ModeFilter)
       : "";
   const cloudFilter = embedded ? localCloud : (searchParams.get("cloud")?.toUpperCase() ?? "");
-  const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "");
+  // Status defaults to `running` (live-first) — the operator opens on what's actually running; the
+  // "all" option reveals the completed / historical rows. Absent param → running (never "all").
+  const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "running");
   const assetGroupFilter = embedded ? localAssetGroup : (searchParams.get("asset_group") ?? "");
   // Kind is client-side (not a server filter param) — the way a user isolates services vs jobs
   // vs VMs (services have Mode="—", so Mode can't find them — Open-Q1).
   const kindFilter = embedded ? localKind : (searchParams.get("kind")?.toUpperCase() ?? "");
+  // Launched-by is client-side (WS-D #14) — how an operator isolates every ad-hoc / unmanaged
+  // resource so stranded compute is immediately findable.
+  const launchedByFilter = embedded ? localLaunchedBy : (searchParams.get("launched_by") ?? "");
+  // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
+  // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
+  const regionFilter = embedded ? localRegion : (searchParams.get("region") ?? "asia-northeast1");
 
   const [items, setItems] = useState<DeploymentItem[]>([]);
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [freshness, setFreshness] = useState<Record<string, DeploymentFreshnessResponse>>({});
+  const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([
+    { value: "asia-northeast1", label: "asia-northeast1 (default)" },
+    { value: "all", label: "all regions" },
+  ]);
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -703,6 +981,8 @@ export function DeploymentsContent({
         else if (key === "status") setLocalStatus(value);
         else if (key === "asset_group") setLocalAssetGroup(value);
         else if (key === "kind") setLocalKind(value);
+        else if (key === "launched_by") setLocalLaunchedBy(value);
+        else if (key === "region") setLocalRegion(value);
         return;
       }
       setSearchParams(
@@ -731,8 +1011,10 @@ export function DeploymentsContent({
       getDeploymentInventory({
         umbrella: mode,
         cloud,
-        status: statusFilter || undefined,
+        // "all" (or empty) = no status filter; the default `running` narrows to live rows server-side.
+        status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
         asset_group: assetGroupFilter || undefined,
+        region: regionFilter || undefined,
       }),
       summaryP,
     ])
@@ -755,13 +1037,33 @@ export function DeploymentsContent({
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
-  }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter]);
+  }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter, regionFilter]);
 
   useEffect(() => {
     load();
     const timer = setInterval(load, 60_000);
     return () => clearInterval(timer);
   }, [load]);
+
+  // Region options for the selector — dynamic from the API (default pinned first), so a new region
+  // appears the moment infra lands there. Fetched once; on failure the seeded default + "all" remain.
+  useEffect(() => {
+    let cancelled = false;
+    void getDeploymentRegions()
+      .then((r) => {
+        if (cancelled) return;
+        setRegionOptions([
+          ...r.regions.map((n) => ({ value: n, label: n === r.default ? `${n} (default)` : n })),
+          { value: r.all_value, label: "all regions" },
+        ]);
+      })
+      .catch(() => {
+        /* keep the seeded fallback options */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Asset-group options derive from the loaded items (plus any active filter value).
   const assetGroupOptions = useMemo(() => {
@@ -788,15 +1090,18 @@ export function DeploymentsContent({
                 </span>
               </h1>
             )}
-            <button
-              onClick={load}
-              disabled={loading}
-              aria-label="Refresh deployments"
-              data-testid="deployments-refresh"
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
+            <div className="flex items-center gap-3">
+              <DeploymentsHelpButton />
+              <button
+                onClick={load}
+                disabled={loading}
+                aria-label="Refresh deployments"
+                data-testid="deployments-refresh"
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
 
           <Card>
@@ -805,6 +1110,7 @@ export function DeploymentsContent({
               <div className="pt-2">
                 <DeploymentsSummaryHeader summary={summary} />
               </div>
+              <StrandedCostBadge items={items} />
               {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
               <div className="pt-3">
                 <StatusFilterChips summary={summary} active={statusFilter} onSelect={(v) => setParam("status", v)} />
@@ -830,16 +1136,25 @@ export function DeploymentsContent({
                   ]}
                 />
                 <FilterSelect
+                  testId="filter-region"
+                  label="region"
+                  value={regionFilter}
+                  onChange={(v) => setParam("region", v)}
+                  options={regionOptions}
+                />
+                <FilterSelect
                   testId="filter-status"
                   label="status"
                   value={statusFilter}
                   onChange={(v) => setParam("status", v)}
                   options={[
-                    { value: "", label: "all" },
-                    { value: "succeeded", label: "succeeded" },
+                    { value: "all", label: "all" },
                     { value: "running", label: "running" },
+                    { value: "pending", label: "pending" },
+                    { value: "succeeded", label: "succeeded" },
                     { value: "failed", label: "failed" },
                     { value: "stale", label: "stale" },
+                    { value: "stopped", label: "stopped" },
                     { value: "unknown", label: "unknown" },
                   ]}
                 />
@@ -863,6 +1178,22 @@ export function DeploymentsContent({
                     { value: "ECS_SERVICE", label: "ECS service" },
                     { value: "LAMBDA", label: "Lambda" },
                     { value: "CLOUD_FUNCTION", label: "cloud function" },
+                    { value: "SCHEDULER", label: "scheduler" },
+                    { value: "DISK", label: "disk (orphaned)" },
+                    { value: "STATIC_IP", label: "static IP (orphaned)" },
+                  ]}
+                />
+                <FilterSelect
+                  testId="filter-launched-by"
+                  label="launched by"
+                  value={launchedByFilter}
+                  onChange={(v) => setParam("launched_by", v)}
+                  options={[
+                    { value: "", label: "all" },
+                    { value: "adhoc", label: "adhoc (unmanaged)" },
+                    { value: "deployment-api", label: "deployment-api" },
+                    { value: "control-plane", label: "control-plane" },
+                    { value: "unknown", label: "unknown" },
                   ]}
                 />
               </div>
@@ -883,7 +1214,15 @@ export function DeploymentsContent({
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
                 </p>
               )}
-              {!error && <DeploymentMatrix items={kindFilter ? items.filter((i) => i.kind === kindFilter) : items} />}
+              {!error && (
+                <DeploymentMatrix
+                  items={items.filter(
+                    (i) =>
+                      (!kindFilter || i.kind === kindFilter) &&
+                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter),
+                  )}
+                />
+              )}
             </CardContent>
           </Card>
         </div>

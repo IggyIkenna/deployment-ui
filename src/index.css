@@ -126,6 +126,31 @@ html {
   background: var(--color-text-muted);
 }
 
+/* Cost-breakdown resize handle (operator 2026-07-10). The global 6px `::-webkit-scrollbar`
+ * makes the native bottom-right resize corner a ~6px target that's hard to see and grab, so
+ * scope a 12px scrollbar to THIS scroll region — the resizer nub inherits the scrollbar
+ * thickness, becoming a comfortable 12px square — and paint a 2-line diagonal grip on it so
+ * it reads as a drag handle. The `#71717a` grip line is legible on both the dark and light
+ * chart surfaces; it brightens to the accent on hover (light-theme accent overridden below). */
+[data-testid="cost-breakdown-scroll"]::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+[data-testid="cost-breakdown-scroll"]::-webkit-resizer {
+  background-color: var(--color-bg-tertiary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cg stroke='%2371717a' stroke-width='1.4' stroke-linecap='round'%3E%3Cline x1='10' y1='3' x2='3' y2='10'/%3E%3Cline x1='10' y1='7' x2='7' y2='10'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: bottom right;
+}
+[data-testid="cost-breakdown-scroll"]:hover::-webkit-resizer {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cg stroke='%2322d3ee' stroke-width='1.6' stroke-linecap='round'%3E%3Cline x1='10' y1='3' x2='3' y2='10'/%3E%3Cline x1='10' y1='7' x2='7' y2='10'/%3E%3C/g%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: light) {
+  [data-testid="cost-breakdown-scroll"]:hover::-webkit-resizer {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cg stroke='%230891b2' stroke-width='1.6' stroke-linecap='round'%3E%3Cline x1='10' y1='3' x2='3' y2='10'/%3E%3Cline x1='10' y1='7' x2='7' y2='10'/%3E%3C/g%3E%3C/svg%3E");
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;

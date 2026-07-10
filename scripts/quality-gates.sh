@@ -20,6 +20,11 @@ BASE_UI="${WORKSPACE_ROOT}/unified-trading-pm/scripts/quality-gates-base/base-ui
 # Raise test timeout: 75+ test files × jsdom env overhead (~60s) pushes past the 120s default on CI.
 STEP_TIMEOUT_TEST=300
 
+# Bump total-runtime budget: unit-test suite has organically grown to ~184s, breaching the
+# 180s base default (run 29113061555, 2026-07-10). Per codex/06-coding-standards/quality-gates.md
+# "bump MAX_DURATION when a suite organically outgrows the budget" — never skip/deselect tests.
+MAX_DURATION=300
+
 # ── Per-repo QG exclusions ─────────────────────────────────────────────────
 
 # Hardcoded-colour exclusions: pre-existing violations.

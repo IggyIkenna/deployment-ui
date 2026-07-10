@@ -354,7 +354,9 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
-    await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false));
+    await waitFor(() =>
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false, "purpose"),
+    );
   });
 
   it("shows machine specs + a cost-waste badge only under the resource dimension", async () => {
@@ -368,7 +370,11 @@ describe("CostObservability", () => {
     expect(within(breakdownTable).queryByTestId("cost-resource-waste")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "By resource" }));
-    await waitFor(() => expect(within(breakdownTable).getByText("ikenna-windows-tokyo-restored")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(breakdownTable.querySelector("tbody")!).getByText("ikenna-windows-tokyo-restored"),
+      ).toBeInTheDocument(),
+    );
 
     // The VM row's machine spec renders; the bucket row (no spec) shows a dash.
     expect(within(breakdownTable).getByText("e2-highmem-8 · 8 vCPU · 64 GB")).toBeInTheDocument();
@@ -413,7 +419,11 @@ describe("CostObservability", () => {
     expect(purchaseCells.some((c) => c.textContent === "spot")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
-    await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("cost-breakdown-table").querySelector("tbody")!).getByText("ap-northeast-1"),
+      ).toBeInTheDocument(),
+    );
     expect(screen.queryByTestId("cost-col-purchase")).toBeNull();
     expect(screen.queryAllByTestId("cost-row-purchase")).toHaveLength(0);
   });
@@ -422,7 +432,11 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
-    await waitFor(() => expect(screen.getByText("ap-northeast-1")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("cost-breakdown-table").querySelector("tbody")!).getByText("ap-northeast-1"),
+      ).toBeInTheDocument(),
+    );
     expect(screen.queryByTestId("cost-col-gross")).toBeNull();
     expect(screen.queryByTestId("cost-col-credit")).toBeNull();
   });
@@ -445,10 +459,18 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By SKU" }));
-    await waitFor(() => expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false));
+    await waitFor(() =>
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false, "purpose"),
+    );
     // The SKU dimension's note + the top-driver SKU fixture row both render.
     expect(screen.getByText("Google/AWS SKU")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Regional Coldline Class A Operations")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("cost-breakdown-table").querySelector("tbody")!).getByText(
+          "Regional Coldline Class A Operations",
+        ),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("refetches with a new window when the range changes", async () => {

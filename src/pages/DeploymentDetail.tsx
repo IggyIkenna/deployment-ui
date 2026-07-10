@@ -355,6 +355,105 @@ function WorkHealthCard({ name, health }: { name: string; health?: string | null
   );
 }
 
+/** Cloud Run job run-history (WS-D #11) + the manifest bridge HINT (#12). Fetches /detail; renders
+ *  the last-N executions so "did it fire on its cadence" is answerable by eye, plus a "rows since
+ *  last run" delta and a deep-link to the consolidator page (which owns the AUTHORITATIVE
+ *  did-it-produce-data verdict — this is a link + hint only). Null for non-job kinds. */
+function JobRunHistoryCard({ name, item }: { name: string; item: DeploymentItem | null }) {
+  const [detail, setDetail] = useState<DeploymentDetailData | null>(null);
+  useEffect(() => {
+    let live = true;
+    getDeploymentDetail(name)
+      .then((d) => live && setDetail(d))
+      .catch(() => live && setDetail(null));
+    return () => {
+      live = false;
+    };
+  }, [name]);
+  if (item?.kind !== "CLOUD_RUN_JOB") return null;
+  const history = detail?.run_history ?? [];
+  const delta = detail?.object_delta ?? null;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Workflow className="h-4 w-4 text-[var(--color-accent-cyan)]" /> Run history
+        </CardTitle>
+      </CardHeader>
+      <CardContent data-testid="detail-run-history">
+        {(delta != null || item.asset_group) && (
+          <p className="mb-2 text-[11px] text-[var(--color-text-muted)]" data-testid="detail-object-delta">
+            {delta != null ? (
+              <>
+                rows since last run:{" "}
+                <span className="font-mono text-[var(--color-text-primary)]">{delta.toLocaleString()}</span> ·{" "}
+              </>
+            ) : null}
+            <Link
+              to={`/cockpit?tab=consolidators${item.asset_group ? `&asset_group=${encodeURIComponent(item.asset_group)}` : ""}`}
+              className="text-[var(--color-accent-cyan)] hover:underline"
+              data-testid="detail-consolidator-link"
+            >
+              did it produce its data? → consolidator
+            </Link>
+          </p>
+        )}
+        {history.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)]">No execution history.</p>
+        ) : (
+          <ul className="space-y-1 text-xs" data-testid="detail-run-history-list">
+            {history.map((r) => (
+              <li key={r.name} className="flex items-center gap-2 font-mono">
+                <Chip tone={statusTone(r.status)}>{r.status}</Chip>
+                <span className="text-[var(--color-text-secondary)]">{r.completed_at ?? r.started_at ?? "—"}</span>
+                {r.duration_seconds != null && (
+                  <span className="text-[var(--color-text-muted)]">{Math.round(r.duration_seconds)}s</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Unreleased-resources card (WS-D #5/#17) — a non-running VM (or an orphaned DISK/STATIC_IP row)
+ *  still holding billable resources, itemised with each resource's INFERRED est. monthly cost
+ *  (principle 8, marked "est / refresh periodically"). Null when nothing leaked. */
+function UnreleasedResourcesCard({ item }: { item: DeploymentItem | null }) {
+  if (!item?.has_unreleased_resources || !item.unreleased_resources?.length) return null;
+  const total = item.unreleased_resources.reduce((s, r) => s + (r.est_monthly_usd ?? 0), 0);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-[var(--color-danger)]">
+          <AlertTriangle className="h-4 w-4" /> Unreleased resources · ~${total.toFixed(0)}/mo est
+        </CardTitle>
+      </CardHeader>
+      <CardContent data-testid="detail-unreleased">
+        <p className="mb-2 text-[10px] text-[var(--color-text-muted)]">
+          Inferred list-rate estimate — refresh periodically (not a billing figure).
+        </p>
+        <ul className="space-y-1 text-xs font-mono" data-testid="detail-unreleased-list">
+          {item.unreleased_resources.map((r) => (
+            <li key={`${r.type}-${r.name}`} className="flex items-center gap-2">
+              <Chip tone="red">{r.type}</Chip>
+              <span className="text-[var(--color-text-secondary)]">{r.name}</span>
+              {r.size_gb != null && (
+                <span className="text-[var(--color-text-muted)]">
+                  {r.size_gb}GB {r.disk_type}
+                </span>
+              )}
+              <span className="ml-auto text-[var(--color-danger)]">~${(r.est_monthly_usd ?? 0).toFixed(0)}/mo est</span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; embedded?: boolean } = {}) {
   // Standalone route reads :name from the URL; the cockpit passes it as a prop (chrome-less embed).
   const params = useParams<{ name: string }>();
@@ -567,6 +666,11 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
       {/* Work-health — the deep D.1 metric vector (cpu/mem/disk/io/net/workload) from /detail,
           alongside the composite verdict (parent D.2 API layer). VM-only until Cloud Run cgroup. */}
       <WorkHealthCard name={name} health={item?.composite_health_status} />
+
+      {/* Unreleased-resource leak (WS-D #5/#17) + Cloud Run job run-history / manifest bridge
+          (WS-D #11/#12) — both null-render for kinds they don't apply to. */}
+      <UnreleasedResourcesCard item={item} />
+      <JobRunHistoryCard name={name} item={item} />
 
       {/* Alerts + restart/escalation lifecycle — the end-to-end "what happened" answer
           (composes /api/alerts + the deployment event stream; no new endpoint). */}

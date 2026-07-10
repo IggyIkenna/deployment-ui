@@ -35,6 +35,7 @@ import {
   Database,
   GitBranch,
   Github,
+  HelpCircle,
   Layers,
   Radio,
   Rocket,
@@ -42,7 +43,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Markdown } from "../components/Markdown";
+import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
 import { DeploymentsContent } from "./Deployments";
 import { DeploymentDetail } from "./DeploymentDetail";
 import { VmDeploymentsContent } from "./VmDeployments";
@@ -64,12 +68,14 @@ import {
   getHealthOverview,
   type DeploymentFreshnessResponse,
   type FleetReconciliationResponse,
+  type ConsolidatorHealth,
+  type ConsolidatorVerdict,
   type HealthConsolidatorResponse,
   type HealthOverviewResponse,
   type HealthStatus,
 } from "../api/health";
 import { getDeploymentInventory, getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
-import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, YAxis } from "recharts";
 import { TOOLTIP_STYLE } from "../lib/chart-theme";
 
 // ---------------------------------------------------------------------------
@@ -647,17 +653,33 @@ function FleetTab() {
 // the Deployments tab health is the MICRO ("is THIS shard advancing?").
 // ---------------------------------------------------------------------------
 
-const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
-
 // Consolidation runs every ~1–5 min per AG, so a 30s poll is responsive without
 // re-fetching faster than the data actually changes (was 15s — unnecessarily busy).
-const CONSOLIDATOR_POLL_MS = 30_000;
+// In mock mode poll fast so the animated backlog sparklines fill in seconds, not minutes.
+const CONSOLIDATOR_POLL_MS = import.meta.env.VITE_MOCK_API === "true" ? 2_000 : 30_000;
 
 function fmtAge(seconds: number | null): string {
   if (seconds === null) return "—";
   if (seconds < 90) return `${Math.round(seconds)}s`;
   if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
   return `${(seconds / 3600).toFixed(1)}h`;
+}
+
+/** Compact absolute count: 12_400_000 → "12.4M", 96_000 → "96.0k", 9 → "9". */
+function fmtCount(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return `${n}`;
+}
+
+/** Compact byte size: 463_470_592 → "442 MB", 92_000_000 → "88 MB". */
+function fmtBytes(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  if (n >= 1_000_000_000) return `${(n / 1_073_741_824).toFixed(1)} GB`;
+  if (n >= 1_000_000) return `${Math.round(n / 1_048_576)} MB`;
+  if (n >= 1_000) return `${Math.round(n / 1024)} KB`;
+  return `${n} B`;
 }
 
 /** Relative "…ago" from an ISO instant vs a supplied now (ms) so it ticks live. */
@@ -668,45 +690,36 @@ function relTime(iso: string | null, nowMs: number): string {
   return `${fmtAge(Math.max(0, (nowMs - then) / 1000))} ago`;
 }
 
-/** Backend status string → cockpit chip tone (unknown/other → muted). */
-function toTile(status: string): TileStatus {
-  return status === "ok" || status === "degraded" || status === "critical" ? status : "placeholder";
-}
-
 /** Worst-first ordering so degraded/critical asset_groups float to the top. */
 const TILE_RANK: Record<TileStatus, number> = { critical: 0, degraded: 1, placeholder: 2, ok: 3 };
 
-const BAR_FILL: Record<TileStatus, string> = {
-  ok: "bg-emerald-500",
-  degraded: "bg-amber-500",
-  critical: "bg-red-500",
-  placeholder: "bg-zinc-500",
+/** Colour for the index-age text: neutral when fine, amber/red to grab attention when behind budget. */
+const AGE_COLOR: Record<TileStatus, string> = {
+  ok: "text-[var(--color-text-secondary)]",
+  degraded: "text-amber-400",
+  critical: "text-red-400",
+  placeholder: "text-[var(--color-text-secondary)]",
 };
 
-/** Index age as a fraction of its staleness budget — the at-a-glance freshness. */
-function FreshnessBar({
-  ageSeconds,
-  budgetSeconds,
-  tone,
+/** One compact labelled stat cell (absolute snapshot — rows / size / fan-in). */
+function Stat({
+  label,
+  value,
+  title,
+  valueClass,
 }: {
-  ageSeconds: number | null;
-  budgetSeconds: number;
-  tone: TileStatus;
+  label: string;
+  value: string;
+  title?: string;
+  valueClass?: string;
 }) {
-  const ratio = ageSeconds === null || budgetSeconds <= 0 ? null : ageSeconds / budgetSeconds;
-  const over = ratio !== null && ratio > 1;
-  const width = ratio === null ? 100 : Math.min(ratio, 1) * 100;
   return (
-    <div className="space-y-1" data-testid="consolidator-freshness-bar">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-[var(--color-text-tertiary)]">index age / budget</span>
-        <span className="font-mono text-[var(--color-text-secondary)]">
-          {fmtAge(ageSeconds)} / {fmtAge(budgetSeconds)}
-          {over ? <span className="text-red-400"> · over</span> : null}
-        </span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-border-default)]">
-        <div className={`h-full rounded-full ${BAR_FILL[tone]} transition-[width]`} style={{ width: `${width}%` }} />
+    <div className={`min-w-0 ${title ? "cursor-help" : ""}`} title={title}>
+      <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</div>
+      <div
+        className={`truncate font-mono text-[15px] leading-tight ${valueClass ?? "text-[var(--color-text-secondary)]"}`}
+      >
+        {value}
       </div>
     </div>
   );
@@ -727,13 +740,17 @@ function absorbedLastTick(samples: number[] | undefined): number {
   return Math.max(0, samples[samples.length - 2] - samples[samples.length - 1]);
 }
 
-/** Session-scoped backlog-over-time sparkline. Drops = shards absorbed (inferred throughput). */
-function BacklogSparkline({ ag, samples, tone }: { ag: string; samples: number[]; tone: TileStatus }) {
+/**
+ * Session-scoped backlog-over-time chart — the card's hero element. Drops = shards absorbed.
+ * A real Y-axis (domain 0→peak) makes magnitude legible so a 0–8 backlog and a 0–100 backlog
+ * no longer look identical — the axis labels tell you the scale.
+ */
+function BacklogChart({ ag, samples, tone }: { ag: string; samples: number[]; tone: TileStatus }) {
   if (samples.length < 2) {
     return (
       <div
         data-testid={`cockpit-consolidator-sparkline-${ag}`}
-        className="flex h-10 items-center text-[10px] text-[var(--color-text-muted)]"
+        className="flex h-32 items-center justify-center text-[10px] text-[var(--color-text-muted)]"
       >
         collecting backlog trend… (needs a 2nd poll)
       </div>
@@ -742,16 +759,26 @@ function BacklogSparkline({ ag, samples, tone }: { ag: string; samples: number[]
   const stroke = SPARK_STROKE[tone];
   const gid = `backlog-grad-${ag}`;
   const chartData = samples.map((pending, i) => ({ i, pending }));
+  const peak = Math.max(1, ...samples); // >=1 so the axis domain is never [0,0]
   return (
-    <div data-testid={`cockpit-consolidator-sparkline-${ag}`} className="h-10">
+    <div data-testid={`cockpit-consolidator-sparkline-${ag}`} className="h-32">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 3, right: 0, bottom: 0, left: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
               <stop offset="100%" stopColor={stroke} stopOpacity={0.03} />
             </linearGradient>
           </defs>
+          <YAxis
+            width={28}
+            domain={[0, peak]}
+            tickCount={3}
+            allowDecimals={false}
+            tick={{ fontSize: 11, fill: "var(--color-text-muted)" }}
+            tickLine={false}
+            axisLine={false}
+          />
           <Area
             type="monotone"
             dataKey="pending"
@@ -768,11 +795,252 @@ function BacklogSparkline({ ag, samples, tone }: { ag: string; samples: number[]
   );
 }
 
+// ── The full consolidator estate (~25 jobs) — grouped, with the data-correctness verdict ──
+
+const VERDICT_META: Record<ConsolidatorVerdict, { label: string; tone: TileStatus; cls: string; tip: string }> = {
+  produced: {
+    label: "produced",
+    tone: "ok",
+    cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    tip: "Index is fresh and caught up — the last run produced its data, no backlog waiting.",
+  },
+  producing: {
+    label: "producing",
+    tone: "ok",
+    cls: "border-cyan-500/40 bg-cyan-500/10 text-cyan-300",
+    tip: "Index is fresh and actively absorbing a backlog of newly-written per-VM shards.",
+  },
+  stale_output: {
+    label: "stale output",
+    tone: "critical",
+    cls: "border-red-500/40 bg-red-500/10 text-red-300",
+    tip: "Index is older than its staleness budget while per-VM shards wait — the consolidator is behind/down; its output is stale.",
+  },
+  empty: {
+    label: "empty",
+    tone: "placeholder",
+    cls: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
+    tip: "No consolidated index and no per-VM shards — the bucket is genuinely empty (nothing to consolidate yet), not an outage.",
+  },
+  unknown: {
+    label: "unknown",
+    tone: "placeholder",
+    cls: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
+    tip: "Could not read this consolidator's index (a transient read error) — not necessarily unhealthy.",
+  },
+};
+
+/** Human label for a top-level consolidator group. */
+function kindLabel(kind: string): string {
+  const map: Record<string, string> = {
+    instruments: "Instruments",
+    "market-data": "Market data",
+    features: "Features",
+    "ml-training-artifacts": "ML artifacts",
+    strategy: "Strategy",
+    execution: "Execution",
+    "gas-fees": "Gas fees", // not a group of its own (rolls into Market data) — used for that card's title
+  };
+  return map[kind] ?? kind;
+}
+
+/** Fold a consolidator's kind into its top-level group: every features-* is one "Features"
+ *  group, and gas-fees rolls up into "Market data" (operator request). */
+function groupKey(kind: string): string {
+  if (kind === "gas-fees") return "market-data";
+  if (kind.startsWith("features")) return "features";
+  return kind;
+}
+
+/** Fixed pipeline order for the groups: instruments → market data → features → ml → strategy → execution. */
+const CATEGORY_ORDER = ["instruments", "market-data", "features", "ml-training-artifacts", "strategy", "execution"];
+function categoryRank(groupKind: string): number {
+  const i = CATEGORY_ORDER.indexOf(groupKind);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
+
+/** Card title. Inside the merged Features group asset_group alone is ambiguous (delta-one-cefi
+ *  and volatility-cefi both = "cefi"), so features cards also show their sub-type. */
+function cardTitle(c: ConsolidatorHealth): string {
+  if (c.kind.startsWith("features")) {
+    const sub = c.kind === "features" ? (c.asset_group ?? "features") : c.kind.slice("features-".length);
+    return c.asset_group && c.asset_group !== sub ? `${sub} · ${c.asset_group}` : sub;
+  }
+  return c.asset_group ?? kindLabel(c.kind);
+}
+
+/** Card tone for a consolidator = its data-correctness verdict (empty reads NEUTRAL, not amber). */
+function verdictTone(c: ConsolidatorHealth): TileStatus {
+  return VERDICT_META[c.verdict]?.tone ?? "placeholder";
+}
+
+interface ConsolidatorGroup {
+  kind: string;
+  items: ConsolidatorHealth[];
+}
+
+/** Group into the top-level categories, ordered by the fixed pipeline sequence; within a group,
+ *  worst-verdict-first (broken floats up), then by sub-kind + asset_group for a stable order. */
+function groupConsolidators(list: ConsolidatorHealth[]): ConsolidatorGroup[] {
+  const groups = new Map<string, ConsolidatorHealth[]>();
+  for (const c of list) {
+    const key = groupKey(c.kind);
+    const arr = groups.get(key) ?? [];
+    arr.push(c);
+    groups.set(key, arr);
+  }
+  const out: ConsolidatorGroup[] = [];
+  for (const [kind, items] of groups) {
+    items.sort(
+      (a, b) =>
+        TILE_RANK[verdictTone(a)] - TILE_RANK[verdictTone(b)] ||
+        a.kind.localeCompare(b.kind) ||
+        (a.asset_group ?? "").localeCompare(b.asset_group ?? ""),
+    );
+    out.push({ kind, items });
+  }
+  out.sort((a, b) => categoryRank(a.kind) - categoryRank(b.kind) || a.kind.localeCompare(b.kind));
+  return out;
+}
+
+/** Verdict pill — hover shows what the verdict means PLUS this consolidator's live detail line. */
+function VerdictBadge({ verdict, detail, testId }: { verdict: ConsolidatorVerdict; detail?: string; testId?: string }) {
+  const m = VERDICT_META[verdict] ?? VERDICT_META.unknown;
+  // Generic verdict meanings live in the "?" help doc; the badge hover shows this card's LIVE detail.
+  const title = detail || m.tip;
+  return (
+    <span
+      data-testid={testId}
+      title={title}
+      className={`rounded px-1.5 py-0.5 text-[11px] font-medium border ${m.cls}`}
+    >
+      {m.label}
+    </span>
+  );
+}
+
+/**
+ * One consolidator card, tuned for a 3-up (soon 4-up) grid: identity + verdict header,
+ * a compact ABSOLUTE snapshot (rows / size / fan-in), the live index age, then the
+ * full-width backlog chart as the hero, and a job/bucket footer.
+ */
+function ConsolidatorCard({
+  c,
+  nowMs,
+  fetchedAtMs,
+  samples,
+}: {
+  c: ConsolidatorHealth;
+  nowMs: number;
+  fetchedAtMs: number;
+  samples: number[];
+}) {
+  const tone = verdictTone(c);
+  const absorbed = absorbedLastTick(samples);
+  const pending = c.pending_shard_count ?? 0;
+  const total = c.total_shard_count ?? 0;
+  // Tick the backend's authoritative index_age_seconds forward by wall-time elapsed
+  // since this poll arrived, so it counts up every second — without depending on
+  // last_successful_run_at being a real-recent instant (mock freezes it) or on the
+  // browser clock agreeing with the API server's.
+  const age0 = c.index_age_seconds ?? null;
+  const liveAge = age0 === null ? null : age0 + Math.max(0, (nowMs - fetchedAtMs) / 1000);
+  const over = liveAge !== null && c.staleness_budget_seconds > 0 && liveAge > c.staleness_budget_seconds;
+  return (
+    <Card data-testid={`cockpit-consolidator-${c.category}`}>
+      <CardHeader className="pb-1.5">
+        <CardTitle className="text-base flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 min-w-0">
+            <Database className="h-4 w-4 shrink-0 text-[var(--color-accent-cyan)]" />
+            <span className="truncate" title={c.category}>
+              {cardTitle(c)}
+            </span>
+          </span>
+          <VerdictBadge verdict={c.verdict} detail={c.detail} testId={`cockpit-consolidator-verdict-${c.category}`} />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
+        {/* All metrics on one row — absolute snapshot (rows / size / fan-in) + live freshness + backlog.
+            What each one means lives in the "?" help doc, not per-cell tooltips. */}
+        <div className="grid grid-cols-5 gap-x-3">
+          <Stat label="rows" value={fmtCount(c.index_row_count)} />
+          <Stat label="size" value={fmtBytes(c.index_size_bytes)} />
+          <Stat label="fed by" value={String(total)} />
+          {/* index age — colored, live-ticking, grabs attention when behind. */}
+          <div className="min-w-0" data-testid="consolidator-index-age">
+            <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">index age</div>
+            <div className={`truncate font-mono text-[15px] leading-tight ${AGE_COLOR[tone]}`}>
+              {fmtAge(liveAge)}
+              <span className="text-[var(--color-text-muted)]"> / {fmtAge(c.staleness_budget_seconds)}</span>
+              {over ? <span className="text-red-400"> · over</span> : null}
+            </div>
+          </div>
+          {/* backlog pending / total (its trend is the chart below). */}
+          <div className="min-w-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
+            <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">backlog</div>
+            <div className="truncate font-mono text-[15px] leading-tight">
+              <span className={pending > 0 ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}>
+                {pending}
+              </span>
+              <span className="text-[var(--color-text-muted)]"> / {total}</span>
+              {absorbed > 0 ? <span className="text-[var(--color-accent-green)]"> · −{absorbed}</span> : null}
+            </div>
+          </div>
+        </div>
+        {/* Hero chart — this session's backlog trend, full width. */}
+        <BacklogChart ag={c.category} samples={samples} tone={tone} />
+        {/* Footer: job + bucket, both shown, truncating with the FULL value on hover. */}
+        <div className="space-y-0.5 pt-0.5 font-mono text-[12px] text-[var(--color-text-tertiary)]/70">
+          <p className="truncate cursor-help" title={c.job_name}>
+            <span className="text-[var(--color-text-muted)]">job </span>
+            {c.job_name}
+          </p>
+          <p className="truncate cursor-help" title={c.bucket}>
+            <span className="text-[var(--color-text-muted)]">bkt </span>
+            {c.bucket}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** "?" toggle in the tab header → a dialog rendering the single source-of-truth help doc. */
+function ConsolidatorsHelp() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="cockpit-consolidators-help"
+        onClick={() => setOpen(true)}
+        aria-label="What am I looking at?"
+        className="inline-flex items-center gap-1 rounded border border-[var(--color-border-default)] px-1.5 py-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+        help
+      </button>
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogHeader onClose={() => setOpen(false)}>
+          <DialogTitle>Consolidators — what am I looking at?</DialogTitle>
+        </DialogHeader>
+        <DialogContent>
+          <Markdown src={consolidatorsHelpDoc} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function ConsolidatorsTab() {
   const [data, setData] = useState<HealthConsolidatorResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  // Wall-clock anchor captured when the latest poll arrived, so index age can tick
+  // forward locally between polls — correct in mock (frozen timestamps) and live,
+  // and immune to browser-vs-API-server clock skew.
+  const [fetchedAtMs, setFetchedAtMs] = useState<number>(() => Date.now());
   // Session-scoped rolling backlog history per AG (accumulated from the polls we observe).
   const [history, setHistory] = useState<Record<string, number[]>>({});
 
@@ -784,12 +1052,13 @@ function ConsolidatorsTab() {
         const res = await getHealthConsolidator();
         if (!cancelled) {
           setData(res);
+          setFetchedAtMs(Date.now());
           setError(null);
           setHistory((prev) => {
             const next: Record<string, number[]> = { ...prev };
-            for (const a of res.asset_groups) {
-              if (a.pending_shard_count == null) continue;
-              next[a.asset_group] = [...(next[a.asset_group] ?? []), a.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
+            for (const c of res.consolidators ?? []) {
+              if (c.pending_shard_count == null) continue;
+              next[c.category] = [...(next[c.category] ?? []), c.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
             }
             return next;
           });
@@ -814,21 +1083,23 @@ function ConsolidatorsTab() {
     return () => clearInterval(id);
   }, []);
 
-  const byAg = new Map((data?.asset_groups ?? []).map((a) => [a.asset_group, a]));
-  const rank = (ag: string): number => {
-    const r = byAg.get(ag);
-    return r ? TILE_RANK[toTile(r.status)] : TILE_RANK.placeholder;
+  const consolidators = data?.consolidators ?? [];
+  const groups = groupConsolidators(consolidators);
+  const vcounts: Record<ConsolidatorVerdict, number> = {
+    produced: 0,
+    producing: 0,
+    stale_output: 0,
+    empty: 0,
+    unknown: 0,
   };
-  const ordered = [...ASSET_GROUPS].sort((a, b) => rank(a) - rank(b));
-
-  const counts: Record<TileStatus, number> = { ok: 0, degraded: 0, critical: 0, placeholder: 0 };
-  for (const ag of ASSET_GROUPS) {
-    const r = byAg.get(ag);
-    counts[r ? toTile(r.status) : "placeholder"] += 1;
-  }
+  for (const c of consolidators) vcounts[c.verdict] = (vcounts[c.verdict] ?? 0) + 1;
 
   return (
     <div data-testid="cockpit-consolidators">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-[var(--color-text-secondary)]">Manifest consolidators</h2>
+        <ConsolidatorsHelp />
+      </div>
       {error ? (
         <div
           data-testid="cockpit-consolidators-error"
@@ -848,13 +1119,18 @@ function ConsolidatorsTab() {
           <span className="flex items-center gap-2">
             <span className="font-semibold tracking-wide">{OVERALL_LABEL[data.overall]}</span>
             <span className="text-[var(--color-text-tertiary)]">
-              {counts.ok} ok · {counts.degraded} degraded · {counts.critical} critical
-              {counts.placeholder ? ` · ${counts.placeholder} unknown` : ""}
+              {consolidators.length} consolidators · {vcounts.produced + vcounts.producing} healthy ·{" "}
+              {vcounts.stale_output ? (
+                <span className="text-red-300">{vcounts.stale_output} stale output</span>
+              ) : (
+                "0 stale"
+              )}{" "}
+              · {vcounts.empty} empty{vcounts.unknown ? ` · ${vcounts.unknown} unknown` : ""}
             </span>
           </span>
           <span className="flex items-center gap-1 text-[var(--color-text-tertiary)]">
             <Clock className="h-3 w-3" />
-            per-asset_group manifest-index freshness · updated {relTime(data.generated_at, nowMs)}
+            manifest-consolidator estate · updated {relTime(data.generated_at, nowMs)}
           </span>
         </div>
       ) : (
@@ -862,93 +1138,32 @@ function ConsolidatorsTab() {
           {loading ? "Loading consolidator health…" : "—"}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ordered.map((ag) => {
-          const real = byAg.get(ag);
-          const tone: TileStatus = real ? toTile(real.status) : "placeholder";
-          return (
-            <Card key={ag} data-testid={`cockpit-consolidator-${ag}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Database className="h-4 w-4 text-[var(--color-accent-cyan)]" />
-                    {ag}
-                  </span>
-                  <StatusChip status={tone} testId={`cockpit-consolidator-status-${ag}`} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
-                {real ? (
-                  <>
-                    <FreshnessBar
-                      ageSeconds={real.index_age_seconds}
-                      budgetSeconds={real.staleness_budget_seconds}
-                      tone={tone}
-                    />
-                    {real.pending_shard_count != null ? (
-                      <div className="space-y-1" data-testid={`cockpit-consolidator-backlog-${ag}`}>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-[var(--color-text-tertiary)]">backlog (pending shards)</span>
-                          <span className="font-mono">
-                            <span
-                              className={
-                                real.pending_shard_count > 0
-                                  ? "text-[var(--color-text-primary)]"
-                                  : "text-[var(--color-text-tertiary)]"
-                              }
-                            >
-                              {real.pending_shard_count}
-                            </span>
-                            {real.total_shard_count != null ? (
-                              <span className="text-[var(--color-text-muted)]"> / {real.total_shard_count}</span>
-                            ) : null}
-                            {absorbedLastTick(history[ag]) > 0 ? (
-                              <span className="text-[var(--color-accent-green)]">
-                                {" "}
-                                · −{absorbedLastTick(history[ag])} absorbed
-                              </span>
-                            ) : null}
-                          </span>
-                        </div>
-                        <BacklogSparkline ag={ag} samples={history[ag] ?? []} tone={tone} />
-                        <p className="text-[9px] text-[var(--color-text-muted)]">
-                          this session · absorbed/tick inferred from backlog deltas
-                        </p>
-                      </div>
-                    ) : null}
-                    {real.per_vm_shard_fallback_active ? (
-                      <div
-                        data-testid={`cockpit-consolidator-fallback-${ag}`}
-                        className="flex items-start gap-1.5 rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] text-red-300"
-                      >
-                        <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                        <span>recovery-merge active — consolidator behind/DOWN (per-VM shards unabsorbed)</span>
-                      </div>
-                    ) : null}
-                    <p className="flex items-center justify-between">
-                      <span>last run</span>
-                      <span
-                        className="text-[var(--color-text-secondary)]"
-                        title={real.last_successful_run_at ?? undefined}
-                      >
-                        {relTime(real.last_successful_run_at, nowMs)}
-                      </span>
-                    </p>
-                    <p
-                      className="truncate font-mono text-[10px] text-[var(--color-text-tertiary)]/70"
-                      title={real.bucket}
-                    >
-                      {real.bucket}
-                    </p>
-                    {real.detail ? <p className="pt-0.5 text-[var(--color-text-tertiary)]/80">{real.detail}</p> : null}
-                  </>
-                ) : (
-                  <p className="text-[var(--color-text-tertiary)]">awaiting data…</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+      {data && groups.length === 0 ? (
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          No consolidators in the catalog — regenerate{" "}
+          <code className="font-mono">consolidator_catalog.generated.json</code>.
+        </p>
+      ) : null}
+      <div className="space-y-6">
+        {groups.map((g) => (
+          <section key={g.kind} data-testid={`cockpit-consolidator-group-${g.kind}`}>
+            <div className="mb-2 flex items-center gap-2 text-xs">
+              <span className="font-semibold text-[var(--color-text-secondary)]">{kindLabel(g.kind)}</span>
+              <span className="text-[var(--color-text-muted)]">{g.items.length}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {g.items.map((c) => (
+                <ConsolidatorCard
+                  key={c.category}
+                  c={c}
+                  nowMs={nowMs}
+                  fetchedAtMs={fetchedAtMs}
+                  samples={history[c.category] ?? []}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );

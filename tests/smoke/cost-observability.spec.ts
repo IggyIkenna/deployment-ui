@@ -334,4 +334,55 @@ test.describe("Cost Observability page", () => {
     const overflow = await scroller.evaluate((el) => el.scrollWidth - el.clientWidth);
     expect(overflow).toBeGreaterThan(0);
   });
+
+  test("By-label dimension: label-key selector + per-column filter + pagination + resizable container", async ({
+    page,
+  }) => {
+    await page.goto("/ops/costs");
+    await page.getByRole("button", { name: "By label", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+
+    // The label-key sub-selector shows only for this dimension (purpose/category/venue/asset_group).
+    await expect(page.getByRole("button", { name: "category", exact: true })).toBeVisible();
+    await expect(table).toContainText("manifest-consolidator");
+
+    // Pagination: the mock label set is >100 rows, so a pager renders and Next advances the page.
+    const pager = page.getByTestId("cost-breakdown-pagination");
+    await expect(pager).toContainText("1 / 2");
+    const rows = table.locator("tbody tr");
+    const firstRowP1 = await rows.first().innerText();
+    await page.getByTestId("cost-breakdown-next").click();
+    await expect(pager).toContainText("2 / 2");
+    expect(await rows.first().innerText()).not.toEqual(firstRowP1);
+
+    // Per-column filter: each categorical column header carries a dropdown of the DISTINCT values
+    // present in the cached rows (dynamic). Selecting one narrows client-side to matching rows.
+    const labelFilter = page.getByTestId("cost-breakdown-colfilter-label");
+    await expect(labelFilter).toBeVisible();
+    await labelFilter.selectOption("manifest-consolidator");
+    await expect(rows).toHaveCount(1);
+    await expect(table).toContainText("manifest-consolidator");
+    // Clearing restores the full (paginated) set.
+    await page.getByTestId("cost-breakdown-clear-filters").click();
+    await expect(pager).toContainText("1 / 2");
+
+    // The breakdown container is user-resizable (resize-y drag handle at the bottom edge).
+    await expect(page.getByTestId("cost-breakdown-scroll")).toHaveClass(/resize-y/);
+  });
+
+  test("help guide: opens from the top bar, carries the moved provisional note, closes on Escape", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-breakdown-table")).toBeVisible();
+
+    await page.getByTestId("cost-help-button").click();
+    await expect(page.getByText(/quick guide/i)).toBeVisible();
+    await expect(page.getByText(/What you actually pay/i)).toBeVisible();
+    // The provisional note is no longer a standing page banner — it lives in the guide now.
+    await expect(page.getByText(/Recent days are provisional/i)).toBeVisible();
+    await expect(page.getByText(/The breakdown table/i)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByText(/quick guide/i)).toHaveCount(0);
+  });
 });
