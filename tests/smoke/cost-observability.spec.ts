@@ -27,13 +27,15 @@ test.describe("Cost Observability page", () => {
     await expect(page.getByText("AWS").first()).toBeVisible();
     await expect(page.getByText(/Dummy data/i)).toBeVisible();
 
-    // Header currency/timezone note: USD-everywhere + GCP GBP→USD conversion + UTC-vs-Pacific caveat,
-    // hover-revealed (regression: the currency mislabel + TZ-boundary reconciliation findings).
+    // Header currency/timezone note: USD-everywhere + GCP GBP→USD conversion + the per-cloud day-boundary
+    // convention (GCP grouped in US Pacific to match its console; AWS in UTC to match Cost Explorer),
+    // hover-revealed (regression: the currency mislabel + TZ-alignment reconciliation findings).
     const tzNote = page.getByTestId("cost-currency-tz-note");
     await expect(tzNote).toBeVisible();
     await tzNote.hover();
     await expect(page.getByRole("tooltip").filter({ hasText: /converted at Google's own daily rate/i })).toBeVisible();
     await expect(page.getByRole("tooltip").filter({ hasText: /US Pacific time/i })).toBeVisible();
+    await expect(page.getByRole("tooltip").filter({ hasText: /AWS days follow UTC/i })).toBeVisible();
   });
 
   test("USD⇄GBP toggle re-denominates GCP to £, leaves AWS in $ (GCP-invoice tally view)", async ({ page }) => {

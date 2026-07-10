@@ -1690,7 +1690,7 @@ export function CostObservability() {
               </span>
               <InfoTip
                 testId="cost-currency-tz-note"
-                text="All spend is shown in USD. GCP bills in GBP and is converted at Google's own daily rate (currency_conversion_rate); AWS is native USD. Days follow UTC (usage_start_time) — the GCP billing console groups by US Pacific time, so a console export for the same dates can differ by a few percent at the window edges."
+                text="All spend is shown in USD. GCP bills in GBP and is converted at Google's own daily rate (currency_conversion_rate); AWS is native USD. GCP days are grouped in US Pacific time to match the GCP billing console; AWS days follow UTC to match AWS Cost Explorer."
               />
             </p>
           </div>
