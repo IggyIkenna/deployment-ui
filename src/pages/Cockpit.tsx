@@ -714,7 +714,7 @@ function Stat({
   valueClass?: string;
 }) {
   return (
-    <div className={`min-w-0 ${title ? "cursor-help" : ""}`} title={title}>
+    <div className={`shrink-0 ${title ? "cursor-help" : ""}`} title={title}>
       <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</div>
       <div
         className={`truncate font-mono text-[15px] leading-tight ${valueClass ?? "text-[var(--color-text-secondary)]"}`}
@@ -1014,12 +1014,12 @@ function ConsolidatorCard({
       <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
         {/* All metrics on one row — absolute snapshot (rows / size / fan-in) + live freshness + backlog.
             What each one means lives in the "?" help doc, not per-cell tooltips. */}
-        <div className="grid grid-cols-5 gap-x-3">
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Stat label="rows" value={fmtCount(c.index_row_count)} />
           <Stat label="size" value={fmtBytes(c.index_size_bytes)} />
           <Stat label="fed by" value={String(total)} />
           {/* index age — colored, live-ticking, grabs attention when behind. */}
-          <div className="min-w-0" data-testid="consolidator-index-age">
+          <div className="shrink-0" data-testid="consolidator-index-age">
             <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">index age</div>
             <div className={`truncate font-mono text-[15px] leading-tight ${AGE_COLOR[tone]}`}>
               {fmtAge(liveAge)}
@@ -1028,7 +1028,7 @@ function ConsolidatorCard({
             </div>
           </div>
           {/* backlog pending / total (its trend is the chart below) + the oldest un-absorbed shard's age. */}
-          <div className="min-w-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
+          <div className="shrink-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
             <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">backlog</div>
             <div className="truncate font-mono text-[15px] leading-tight">
               <span className={pending > 0 ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}>
