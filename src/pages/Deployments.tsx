@@ -288,7 +288,7 @@ function columnSortValue(item: DeploymentItem, key: SortKey): string | number | 
     case "progress":
       return item.captured_progress ?? null;
     case "cost":
-      return item.cost_per_day_usd ?? null;
+      return item.cost_actual_usd ?? null;
     case "exit":
       return item.exit_code ?? null;
     case "resources":
@@ -476,6 +476,33 @@ function costLabel(cost: number | null | undefined): string | null {
   if (cost < 1) return `$${cost.toFixed(2)}`;
   if (cost < 10) return `$${cost.toFixed(1)}`;
   return `$${cost.toFixed(0)}`;
+}
+
+/** Cost/day cell — three USD figures from the billing exports (all USD; GCP is GBP→USD-converted
+ *  server-side, so no toggle here). Primary = actual (most recent complete billing day); beneath it
+ *  the trailing 7-day average and the projected "$/day if it runs 24h". "—" when the resource has no
+ *  billing row yet (export lag / no resource granularity). */
+function CostCell({ item }: { item: DeploymentItem }): React.ReactElement {
+  const actual = costLabel(item.cost_actual_usd);
+  const avg = costLabel(item.cost_avg_7d_usd);
+  const proj = costLabel(item.cost_projected_24h_usd);
+  if (actual == null && avg == null && proj == null) {
+    return <span className="text-[var(--color-text-muted)]">—</span>;
+  }
+  const title = [
+    item.cost_actual_usd != null ? `Actual (last full day): $${item.cost_actual_usd}` : null,
+    item.cost_avg_7d_usd != null ? `7-day avg/day: $${item.cost_avg_7d_usd}` : null,
+    item.cost_projected_24h_usd != null ? `Projected if it runs 24h: $${item.cost_projected_24h_usd}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const sub = [avg != null ? `7d ${avg}` : null, proj != null ? `24h ${proj}` : null].filter(Boolean).join(" · ");
+  return (
+    <span title={title} data-testid={`cost-${item.name}`}>
+      <span className="text-[var(--color-text-primary)]">{actual ?? avg ?? proj}</span>
+      {sub ? <span className="block text-[10px] text-[var(--color-text-muted)]">{sub}</span> : null}
+    </span>
+  );
 }
 
 /** Service health (Open-Q7 sub-taxonomy) — ECS desired-vs-running; Cloud Run service by status.
@@ -677,8 +704,6 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
         ? (derived ?? { ...feedHealthLabel(item.heartbeat_age_seconds), title: "heartbeat proxy" })
         : null);
 
-  const cost = costLabel(item.cost_per_day_usd);
-
   return (
     <tr data-testid={`deployment-row-${item.name}`} data-launched-by={item.launched_by ?? "unknown"} className={rowCls}>
       <td className="py-1.5">
@@ -715,7 +740,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
         )}
       </td>
       <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
-        {cost ?? <span className="text-[var(--color-text-muted)]">—</span>}
+        <CostCell item={item} />
       </td>
       <td className="py-1.5">
         <ExitCodeCell exitCode={item.exit_code} />
