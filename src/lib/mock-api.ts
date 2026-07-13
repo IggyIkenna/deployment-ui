@@ -2882,6 +2882,19 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         execution_status: execStatus,
         execution_last_run_at: execStatus === "pending" ? null : "2026-06-24T06:59:30+00:00",
         execution_exit_code: execExit,
+        // Self-reported run summary — every mkC consolidator is LIVE (reporting a latest.json). The
+        // run verdict maps the endpoint verdict back to produced/empty/failed.
+        run_reporting: true,
+        run_verdict:
+          verdict === "fired_but_empty" || verdict === "empty"
+            ? "empty"
+            : verdict === "stale_output"
+              ? "failed"
+              : "produced",
+        run_last_run_at: "2026-06-24T06:59:35+00:00",
+        run_shards_changed: pending,
+        run_rows_added: pending * 1000,
+        run_duration_ms: 8400,
         detail,
       };
     };
@@ -3099,6 +3112,35 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           0,
           "index missing; no per-VM shards — genuinely empty bucket, not an outage",
         ),
+        // A DEAD consolidator — declared in the catalog but never fired up, so it publishes no
+        // latest.json → run_reporting:false. The card shows "not reporting", never a fake all-clear.
+        {
+          category: "instruments-prediction",
+          kind: "instruments",
+          asset_group: "prediction",
+          job_name: "uts-prod-manifest-consolidator-instruments-prediction",
+          bucket: "instruments-store-prediction-prd-mock",
+          status: "degraded",
+          verdict: "empty",
+          index_age_seconds: null,
+          staleness_budget_seconds: 86400,
+          last_successful_run_at: null,
+          pending_shard_count: 0,
+          total_shard_count: 0,
+          oldest_pending_shard_age_seconds: null,
+          index_row_count: null,
+          index_size_bytes: null,
+          execution_status: "pending",
+          execution_last_run_at: null,
+          execution_exit_code: null,
+          run_reporting: false,
+          run_verdict: null,
+          run_last_run_at: null,
+          run_shards_changed: null,
+          run_rows_added: null,
+          run_duration_ms: null,
+          detail: "no index and no shards — consolidator not yet fired up (not reporting)",
+        },
       ],
     });
   }

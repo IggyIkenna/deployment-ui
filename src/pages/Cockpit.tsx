@@ -925,10 +925,51 @@ function VerdictBadge({ verdict, detail, testId }: { verdict: ConsolidatorVerdic
   );
 }
 
+/** The consolidator's self-reported last-run summary (from its latest.json). A live consolidator
+ *  shows "last run {age} · merged N · +M rows · {duration}"; a dead / never-fired one publishes no
+ *  latest.json → "not reporting" so the tab never reads a dead job as a silent all-clear. */
+function RunSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
+  if (!c.run_reporting) {
+    return (
+      <div
+        data-testid={`cockpit-consolidator-run-${c.category}`}
+        className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]"
+        title="This consolidator publishes no latest.json — it has not run under the summary-reporting code (dead / never fired up). It will start reporting the moment it is fired."
+      >
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-500/60" />
+        not reporting — consolidator not live yet
+      </div>
+    );
+  }
+  const dur =
+    c.run_duration_ms == null
+      ? null
+      : c.run_duration_ms >= 1000
+        ? `${(c.run_duration_ms / 1000).toFixed(1)}s`
+        : `${Math.round(c.run_duration_ms)}ms`;
+  return (
+    <div
+      data-testid={`cockpit-consolidator-run-${c.category}`}
+      className="truncate text-[11px] text-[var(--color-text-tertiary)]"
+      title="Self-reported by the consolidator's last run (latest.json): when it ran, how many shards it merged, rows added, and how long it took."
+    >
+      <span className="text-[var(--color-text-muted)]">last run </span>
+      {relTime(c.run_last_run_at ?? null, nowMs)}
+      {c.run_shards_changed != null ? (
+        <span className="text-[var(--color-text-muted)]"> · merged {c.run_shards_changed}</span>
+      ) : null}
+      {c.run_rows_added != null && c.run_rows_added > 0 ? (
+        <span className="text-[var(--color-accent-green)]"> · +{fmtCount(c.run_rows_added)} rows</span>
+      ) : null}
+      {dur ? <span className="text-[var(--color-text-muted)]"> · {dur}</span> : null}
+    </div>
+  );
+}
+
 /**
  * One consolidator card, tuned for a 3-up (soon 4-up) grid: identity + verdict header,
  * a compact ABSOLUTE snapshot (rows / size / fan-in), the live index age, then the
- * full-width backlog chart as the hero, and a job/bucket footer.
+ * full-width backlog chart as the hero, a self-reported run summary, and a job/bucket footer.
  */
 function ConsolidatorCard({
   c,
@@ -1010,6 +1051,9 @@ function ConsolidatorCard({
         </div>
         {/* Hero chart — this session's backlog trend, full width. */}
         <BacklogChart ag={c.category} samples={samples} tone={tone} />
+        {/* Self-reported run summary (from the consolidator's latest.json). A dead consolidator that
+            never fired publishes none → shown honestly as "not reporting", never a fake all-clear. */}
+        <RunSummary c={c} nowMs={nowMs} />
         {/* Footer: job + bucket, both shown, truncating with the FULL value on hover. */}
         <div className="space-y-0.5 pt-0.5 font-mono text-[12px] text-[var(--color-text-tertiary)]/70">
           <p className="truncate cursor-help" title={c.job_name}>

@@ -94,6 +94,19 @@ export interface ConsolidatorHealth {
   execution_last_run_at?: string | null;
   /** 0 succeeded / 1 failed (synthesised from Cloud Run counts). */
   execution_exit_code?: number | null;
+  /** Does this consolidator publish a latest.json run summary — i.e. is it live/reporting? A
+   *  dead / never-fired consolidator is false (no latest.json), shown honestly as "not reporting". */
+  run_reporting?: boolean;
+  /** Self-reported production verdict from the last run: produced | empty | failed. */
+  run_verdict?: string | null;
+  /** ISO-8601 of the last self-reported run. */
+  run_last_run_at?: string | null;
+  /** Shards merged in the last run. */
+  run_shards_changed?: number | null;
+  /** Rows added to the index in the last run. */
+  run_rows_added?: number | null;
+  /** The last run's duration in milliseconds. */
+  run_duration_ms?: number | null;
   detail: string;
 }
 

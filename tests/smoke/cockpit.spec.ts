@@ -621,4 +621,18 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     // The estate summary counts the fired-but-empty consolidator.
     await expect(page.getByTestId("cockpit-consolidators-overall")).toContainText("fired-but-empty");
   });
+
+  test("O7: consolidator run-summary + not-reporting states render (WS-3 latest.json)", async ({ page }) => {
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    // A LIVE consolidator self-reports its last run (from latest.json).
+    const run = page.getByTestId("cockpit-consolidator-run-market-data-cefi");
+    await expect(run).toBeVisible();
+    await expect(run).toContainText("last run");
+    // The DEAD 'instruments-prediction' consolidator publishes no latest.json → honest
+    // "not reporting", never a fabricated all-clear.
+    const dead = page.getByTestId("cockpit-consolidator-run-instruments-prediction");
+    await expect(dead).toBeVisible();
+    await expect(dead).toContainText("not reporting");
+  });
 });
