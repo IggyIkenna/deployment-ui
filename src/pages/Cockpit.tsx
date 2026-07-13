@@ -714,7 +714,7 @@ function Stat({
   valueClass?: string;
 }) {
   return (
-    <div className={`min-w-0 ${title ? "cursor-help" : ""}`} title={title}>
+    <div className={`shrink-0 ${title ? "cursor-help" : ""}`} title={title}>
       <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</div>
       <div
         className={`truncate font-mono text-[15px] leading-tight ${valueClass ?? "text-[var(--color-text-secondary)]"}`}
@@ -966,6 +966,76 @@ function RunSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
   );
 }
 
+// A phantom audit older than this is itself a signal — the reconcile runs ~weekly, so past a
+// week+grace the count is stale; the re-probe runs ~daily.
+const PHANTOM_STALE_DAYS = 8;
+const REPROBE_STALE_DAYS = 2;
+
+/**
+ * Dark data-correctness actors — the last phantom audit + last empty re-probe for this AG,
+ * self-published by the reconcile/re-probe scripts to the same bucket. Renders NOTHING when
+ * neither summary exists (the card simply has no audit row — honest, no fabricated all-clear).
+ * A problem count (phantoms > 0, reprobe disagreements > 0) turns amber; a stale audit age turns
+ * the timestamp red (an overdue audit is itself worth surfacing loudly).
+ */
+function AuditSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
+  const hasPhantom = c.phantom_audit_at != null;
+  const hasReprobe = c.reprobe_audit_at != null;
+  if (!hasPhantom && !hasReprobe) return null;
+  const ageDays = (iso: string) => (nowMs - Date.parse(iso)) / 86_400_000;
+  const phantomCount = c.phantom_count ?? 0;
+  const disagreements = c.reprobe_disagreements ?? 0;
+  const reclassified = c.reprobe_reclassified ?? 0;
+  return (
+    <div
+      data-testid={`cockpit-consolidator-audit-${c.category}`}
+      className="space-y-0.5 text-[11px] text-[var(--color-text-tertiary)]"
+    >
+      {hasPhantom ? (
+        <div
+          className="truncate"
+          title="Last phantom audit — manifest rows claiming 'captured' with no parquet on disk. Amber when phantoms were found; the age turns red when the ~weekly audit is overdue."
+        >
+          <span className="text-[var(--color-text-muted)]">phantoms </span>
+          <span className={phantomCount > 0 ? "text-amber-400" : "text-[var(--color-accent-green)]"}>
+            {phantomCount}
+          </span>
+          <span
+            className={
+              ageDays(c.phantom_audit_at ?? "") > PHANTOM_STALE_DAYS ? "text-red-400" : "text-[var(--color-text-muted)]"
+            }
+          >
+            {" · "}
+            {relTime(c.phantom_audit_at ?? null, nowMs)}
+          </span>
+        </div>
+      ) : null}
+      {hasReprobe ? (
+        <div
+          className="truncate"
+          title="Last empty re-probe — does a 'confirmed empty' cell actually have data? Amber when the oracle/re-fetch disagreed (candidate misclassification bugs); reclassified = proven empties auto-flipped to re-attempt."
+        >
+          <span className="text-[var(--color-text-muted)]">reprobe </span>
+          <span className={disagreements > 0 ? "text-amber-400" : "text-[var(--color-text-secondary)]"}>
+            {disagreements} disagree
+          </span>
+          {reclassified > 0 ? (
+            <span className="text-[var(--color-accent-green)]"> · {reclassified} reclassified</span>
+          ) : null}
+          <span
+            className={
+              ageDays(c.reprobe_audit_at ?? "") > REPROBE_STALE_DAYS ? "text-red-400" : "text-[var(--color-text-muted)]"
+            }
+          >
+            {" · "}
+            {relTime(c.reprobe_audit_at ?? null, nowMs)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * One consolidator card, tuned for a 3-up (soon 4-up) grid: identity + verdict header,
  * a compact ABSOLUTE snapshot (rows / size / fan-in), the live index age, then the
@@ -1014,12 +1084,12 @@ function ConsolidatorCard({
       <CardContent className="text-xs text-[var(--color-text-tertiary)] space-y-2">
         {/* All metrics on one row — absolute snapshot (rows / size / fan-in) + live freshness + backlog.
             What each one means lives in the "?" help doc, not per-cell tooltips. */}
-        <div className="grid grid-cols-5 gap-x-3">
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Stat label="rows" value={fmtCount(c.index_row_count)} />
           <Stat label="size" value={fmtBytes(c.index_size_bytes)} />
           <Stat label="fed by" value={String(total)} />
           {/* index age — colored, live-ticking, grabs attention when behind. */}
-          <div className="min-w-0" data-testid="consolidator-index-age">
+          <div className="shrink-0" data-testid="consolidator-index-age">
             <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">index age</div>
             <div className={`truncate font-mono text-[15px] leading-tight ${AGE_COLOR[tone]}`}>
               {fmtAge(liveAge)}
@@ -1028,7 +1098,7 @@ function ConsolidatorCard({
             </div>
           </div>
           {/* backlog pending / total (its trend is the chart below) + the oldest un-absorbed shard's age. */}
-          <div className="min-w-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
+          <div className="shrink-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
             <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">backlog</div>
             <div className="truncate font-mono text-[15px] leading-tight">
               <span className={pending > 0 ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}>
@@ -1054,6 +1124,8 @@ function ConsolidatorCard({
         {/* Self-reported run summary (from the consolidator's latest.json). A dead consolidator that
             never fired publishes none → shown honestly as "not reporting", never a fake all-clear. */}
         <RunSummary c={c} nowMs={nowMs} />
+        {/* Dark data-correctness actors — last phantom audit + empty re-probe (only where an audit runs). */}
+        <AuditSummary c={c} nowMs={nowMs} />
         {/* Footer: job + bucket, both shown, truncating with the FULL value on hover. */}
         <div className="space-y-0.5 pt-0.5 font-mono text-[12px] text-[var(--color-text-tertiary)]/70">
           <p className="truncate cursor-help" title={c.job_name}>

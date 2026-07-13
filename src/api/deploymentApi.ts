@@ -767,8 +767,12 @@ export interface DeploymentItem {
   // Cloud Run service.
   revision?: string | null; // latest ready/created revision
   region?: string | null; // serving region
-  // Cost-per-target — WS-E billing join, not yet landed; nullable until it ships.
-  cost_per_day_usd?: number | null;
+  // Cost-per-target (WS-E) — three USD figures joined from the billing exports (all USD; GCP is
+  // GBP→USD-converted server-side, so no currency toggle here). Null when the resource has no
+  // billing row yet (export lag / no resource granularity — honest absence, never a fabricated 0).
+  cost_actual_usd?: number | null; // net cost on the most recent complete billing day
+  cost_avg_7d_usd?: number | null; // trailing-7-day average daily net cost
+  cost_projected_24h_usd?: number | null; // projected $/day if it runs 24h (peak observed day)
 }
 
 // GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`

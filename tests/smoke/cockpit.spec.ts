@@ -635,4 +635,19 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     await expect(dead).toBeVisible();
     await expect(dead).toContainText("not reporting");
   });
+
+  test("O8: phantom/reprobe audit summary renders on market-data cards, absent on non-audit kinds (WS-3)", async ({
+    page,
+  }) => {
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    // A market-data AG carries the dark-actor audits — cefi has phantoms (amber) + a re-probe line.
+    const audit = page.getByTestId("cockpit-consolidator-audit-market-data-cefi");
+    await expect(audit).toBeVisible();
+    await expect(audit).toContainText("phantoms");
+    await expect(audit).toContainText("reprobe");
+    // A features-* consolidator has no phantom/reprobe audit → NO audit row at all (honest absence,
+    // never a fabricated "0 phantoms" for a bucket no audit ever scanned).
+    await expect(page.getByTestId("cockpit-consolidator-audit-features-onchain-defi")).toHaveCount(0);
+  });
 });
