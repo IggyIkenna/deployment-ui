@@ -2855,6 +2855,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       // Empty/unknown buckets have no readable index → null absolutes; otherwise derive a
       // plausible size/row-count from the fan-in width, overridable per row (e.g. defi's 442 MB).
       const noIndex = verdict === "empty" || verdict === "unknown";
+      // Execution truth: fired_but_empty = a recent SUCCEEDED run against a stale index; stale_output
+      // = the run itself failed/old; everything else = a healthy recent success.
+      const execStatus = verdict === "stale_output" ? "failed" : noIndex ? "pending" : "succeeded";
+      const execExit = execStatus === "succeeded" ? 0 : execStatus === "failed" ? 1 : null;
       return {
         category,
         kind,
@@ -2864,12 +2868,20 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         status,
         verdict,
         index_age_seconds: age,
-        staleness_budget_seconds: asset_group === "cefi" ? 86400 : 120,
+        // Cadence-matched budget (mirrors the backend catalog): live market-data ticks
+        // (defi/tradfi/sports/prediction) = 120s; every other consolidator = 86400s.
+        staleness_budget_seconds:
+          kind === "market-data" && asset_group !== null && asset_group !== "cefi" ? 120 : 86400,
         last_successful_run_at: age === null ? null : "2026-06-24T06:55:00+00:00",
         pending_shard_count: pending,
         total_shard_count: total,
+        // Oldest un-absorbed shard ≈ the index age when a backlog is waiting (merge-stuck-for).
+        oldest_pending_shard_age_seconds: pending > 0 && age !== null ? age : null,
         index_row_count: noIndex ? null : (rows ?? (total + 1) * 5200 + 4000),
         index_size_bytes: noIndex ? null : (sizeBytes ?? (total + 1) * 240_000 + 160_000),
+        execution_status: execStatus,
+        execution_last_run_at: execStatus === "pending" ? null : "2026-06-24T06:59:30+00:00",
+        execution_exit_code: execExit,
         detail,
       };
     };
@@ -2878,7 +2890,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const tick = ++_consolidatorPollTick;
     const defiAge = 2600 + tick * 30;
     const defiPending = _climb(tick, 6, 14);
-    const onchainAge = 900 + tick * 30;
     const onchainPending = _climb(tick, 3, 8);
     return json({
       generated_at: "2026-06-24T07:00:00+00:00",
@@ -3013,11 +3024,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           "features-onchain",
           "defi",
           "critical",
-          "stale_output",
-          onchainAge,
+          "fired_but_empty",
+          90000 + tick * 60, // genuinely stale vs the 86400s features budget (climb-and-stick)
           onchainPending,
-          onchainPending,
-          `index ${onchainAge}s (> 120s budget) while ${onchainPending} per-VM shards wait — consolidator behind/DOWN`,
+          onchainPending + 4,
+          "execution SUCCEEDED 30s ago yet the index is > 86400s old — the job ran green but wrote nothing",
           6_200_000,
           214_000_000,
         ),

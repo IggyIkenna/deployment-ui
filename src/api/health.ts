@@ -60,7 +60,7 @@ export interface ConsolidatorAssetGroup {
 }
 
 /** Data-correctness lens: did this consolidator run PRODUCE its data (derived from freshness + backlog). */
-export type ConsolidatorVerdict = "produced" | "producing" | "stale_output" | "empty" | "unknown";
+export type ConsolidatorVerdict = "produced" | "producing" | "stale_output" | "fired_but_empty" | "empty" | "unknown";
 
 /** Per-CONSOLIDATOR posture — one per (kind, asset_group) in the terraform estate (~25 jobs). */
 export interface ConsolidatorHealth {
@@ -82,10 +82,18 @@ export interface ConsolidatorHealth {
   pending_shard_count?: number | null;
   /** Fan-in width: per-VM shards currently feeding this index (active writers). */
   total_shard_count?: number | null;
+  /** Age (seconds) of the OLDEST un-absorbed per-VM shard — how long the merge has been behind. */
+  oldest_pending_shard_age_seconds?: number | null;
   /** Absolute rows in the consolidated availability_index.parquet (its parquet num_rows). */
   index_row_count?: number | null;
   /** Absolute size of the consolidated index file in bytes (a large index is what OOMs a consolidator). */
   index_size_bytes?: number | null;
+  /** Latest Cloud Run execution posture for THIS job — the fired-but-empty discriminator. */
+  execution_status?: string | null;
+  /** ISO-8601 completion time of the latest execution. */
+  execution_last_run_at?: string | null;
+  /** 0 succeeded / 1 failed (synthesised from Cloud Run counts). */
+  execution_exit_code?: number | null;
   detail: string;
 }
 

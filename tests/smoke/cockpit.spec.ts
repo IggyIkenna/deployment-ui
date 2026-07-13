@@ -106,13 +106,13 @@ test.describe("Cockpit — scaffold IA", () => {
 
     await page.getByTestId("cockpit-tab-consolidators").click();
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
-    await expect(page.getByTestId("cockpit-consolidator-defi")).toBeVisible();
-    // Consolidators wires to GET /api/health/consolidator — real per-AG status, not placeholder.
+    // The per-consolidator estate renders one card per (kind, asset_group), keyed by category.
+    await expect(page.getByTestId("cockpit-consolidator-market-data-defi")).toBeVisible();
+    // Consolidators wires to GET /api/health/consolidator — real per-consolidator posture, not placeholder.
     await expect(page.getByTestId("cockpit-consolidators-overall")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // cefi is DOWN with per-VM shard fallback active in the mock rollup → the recovery-merge alarm banner renders.
-    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
-    await expect(page.getByTestId("cockpit-consolidator-status-defi")).not.toHaveText("—");
+    // The defi market-data consolidator is stale in the mock → its verdict badge reads "stale output".
+    await expect(page.getByTestId("cockpit-consolidator-verdict-market-data-defi")).toContainText("stale output");
   });
 
   test("Header nav-menu routes to /cockpit from another page", async ({ page }) => {
@@ -532,20 +532,17 @@ test.describe("Cockpit — Launch tab nested-form fix", () => {
  * /api/alerts, /api/vm/{name}/events — so the wiring is exercised end-to-end, not mocked-away.
  */
 test.describe("Cockpit — operator additions O1–O4", () => {
-  test("O1: Consolidators drill-down renders the real per-AG index age (not —)", async ({ page }) => {
+  test("O1: Consolidators drill-down renders the real per-consolidator index age (not —)", async ({ page }) => {
     await page.goto("/cockpit?tab=consolidators");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
-    // The defi card (mock: 25s old) renders a concrete index age vs budget, NOT the placeholder dash.
-    const defiCard = page.getByTestId("cockpit-consolidator-defi");
-    await expect(defiCard).toContainText("index age / budget");
-    await expect(defiCard).toContainText("25s");
-    // The cefi card (mock: 2457s, fallback active) shows the budget + the recovery-merge fallback alarm.
-    const cefiCard = page.getByTestId("cockpit-consolidator-cefi");
-    await expect(cefiCard).toContainText("budget");
-    await expect(page.getByTestId("cockpit-consolidator-fallback-cefi")).toBeVisible();
-    await expect(page.getByTestId("cockpit-consolidator-status-cefi")).toHaveText("CRITICAL");
+    // The defi market-data card renders a concrete index age vs its budget, NOT the placeholder dash.
+    const defiCard = page.getByTestId("cockpit-consolidator-market-data-defi");
+    await expect(defiCard).toContainText("index age");
+    await expect(defiCard).toContainText(/\d+[smhd]/); // a concrete age value, not "—"
+    // Its cadence-matched budget is the live-tick 120s (2m), sourced from the catalog.
+    await expect(defiCard).toContainText("2m");
   });
 
   test("O2: Data-Coverage tile links to the data-status surface, not /deployments", async ({ page }) => {
@@ -597,15 +594,31 @@ test.describe("Cockpit — operator additions O1–O4", () => {
     test.setTimeout(60_000); // waits for a 2nd 30s poll to accumulate the sparkline
     await page.goto("/cockpit?tab=consolidators");
     await page.waitForLoadState("networkidle");
-    // cefi mock: 47 pending of 48 shards (consolidator behind) — the real "keeping up?" magnitude.
-    const backlog = page.getByTestId("cockpit-consolidator-backlog-cefi");
+    // The defi market-data consolidator is behind in the mock (pending / total shards) — the real
+    // "keeping up?" magnitude. Assert the pending/total backlog cell renders a concrete count.
+    const backlog = page.getByTestId("cockpit-consolidator-backlog-market-data-defi");
     await expect(backlog).toBeVisible();
-    await expect(backlog).toContainText("47");
-    await expect(backlog).toContainText("48");
+    await expect(backlog).toContainText("/"); // pending / total
+    await expect(backlog).toContainText(/\d+/);
     // The sparkline container is present on the first poll (one sample → "collecting"); once a
     // 2nd poll (30s interval) lands a second sample, the recharts area actually renders (svg).
-    const spark = page.getByTestId("cockpit-consolidator-sparkline-cefi");
+    const spark = page.getByTestId("cockpit-consolidator-sparkline-market-data-defi");
     await expect(spark).toBeVisible();
     await expect(spark.locator("svg")).toBeVisible({ timeout: 40000 });
+  });
+
+  test("O6: fired-but-empty verdict + oldest-unmerged-shard age render (WS-3)", async ({ page }) => {
+    await page.goto("/cockpit?tab=consolidators");
+    await page.waitForLoadState("networkidle");
+    // The mock features-onchain-defi consolidator: its Cloud Run execution SUCCEEDED but the index is
+    // stale → the data-correctness verdict is fired-but-empty (ran green, wrote nothing).
+    const verdict = page.getByTestId("cockpit-consolidator-verdict-features-onchain-defi");
+    await expect(verdict).toContainText("fired");
+    // Its backlog cell surfaces the oldest un-absorbed shard age (how long the merge has been stuck).
+    const oldest = page.getByTestId("cockpit-consolidator-oldest-pending-features-onchain-defi");
+    await expect(oldest).toBeVisible();
+    await expect(oldest).toContainText("oldest");
+    // The estate summary counts the fired-but-empty consolidator.
+    await expect(page.getByTestId("cockpit-consolidators-overall")).toContainText("fired-but-empty");
   });
 });

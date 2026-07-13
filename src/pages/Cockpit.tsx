@@ -816,6 +816,12 @@ const VERDICT_META: Record<ConsolidatorVerdict, { label: string; tone: TileStatu
     cls: "border-red-500/40 bg-red-500/10 text-red-300",
     tip: "Index is older than its staleness budget while per-VM shards wait — the consolidator is behind/down; its output is stale.",
   },
+  fired_but_empty: {
+    label: "fired · empty",
+    tone: "critical",
+    cls: "border-amber-500/50 bg-amber-500/10 text-amber-300",
+    tip: "The job's latest Cloud Run execution SUCCEEDED (exit 0) recently, yet the index is still stale — it ran green but wrote nothing. The silent failure a liveness-only view shows as 'succeeded'.",
+  },
   empty: {
     label: "empty",
     tone: "placeholder",
@@ -946,6 +952,11 @@ function ConsolidatorCard({
   const age0 = c.index_age_seconds ?? null;
   const liveAge = age0 === null ? null : age0 + Math.max(0, (nowMs - fetchedAtMs) / 1000);
   const over = liveAge !== null && c.staleness_budget_seconds > 0 && liveAge > c.staleness_budget_seconds;
+  // Oldest un-absorbed shard — how long the earliest pending write has waited (merge-stuck-for).
+  // Tick it forward like the index age: it keeps aging while the merge stays behind.
+  const oldest0 = c.oldest_pending_shard_age_seconds ?? null;
+  const liveOldest = oldest0 === null ? null : oldest0 + Math.max(0, (nowMs - fetchedAtMs) / 1000);
+  const oldestOver = liveOldest !== null && c.staleness_budget_seconds > 0 && liveOldest > c.staleness_budget_seconds;
   return (
     <Card data-testid={`cockpit-consolidator-${c.category}`}>
       <CardHeader className="pb-1.5">
@@ -975,7 +986,7 @@ function ConsolidatorCard({
               {over ? <span className="text-red-400"> · over</span> : null}
             </div>
           </div>
-          {/* backlog pending / total (its trend is the chart below). */}
+          {/* backlog pending / total (its trend is the chart below) + the oldest un-absorbed shard's age. */}
           <div className="min-w-0" data-testid={`cockpit-consolidator-backlog-${c.category}`}>
             <div className="text-[12px] uppercase tracking-wide text-[var(--color-text-muted)]">backlog</div>
             <div className="truncate font-mono text-[15px] leading-tight">
@@ -985,6 +996,16 @@ function ConsolidatorCard({
               <span className="text-[var(--color-text-muted)]"> / {total}</span>
               {absorbed > 0 ? <span className="text-[var(--color-accent-green)]"> · −{absorbed}</span> : null}
             </div>
+            {/* Oldest pending shard: how long the merge has been stuck. Amber/red when it exceeds the budget. */}
+            {liveOldest !== null ? (
+              <div
+                data-testid={`cockpit-consolidator-oldest-pending-${c.category}`}
+                className={`truncate font-mono text-[11px] leading-tight ${oldestOver ? "text-red-400" : "text-[var(--color-text-muted)]"}`}
+                title="Age of the oldest per-VM shard written since the last merge — how long the consolidator has been behind. Turns red past the staleness budget."
+              >
+                oldest {fmtAge(liveOldest)}
+              </div>
+            ) : null}
           </div>
         </div>
         {/* Hero chart — this session's backlog trend, full width. */}
@@ -1089,6 +1110,7 @@ function ConsolidatorsTab() {
     produced: 0,
     producing: 0,
     stale_output: 0,
+    fired_but_empty: 0,
     empty: 0,
     unknown: 0,
   };
@@ -1124,7 +1146,13 @@ function ConsolidatorsTab() {
                 <span className="text-red-300">{vcounts.stale_output} stale output</span>
               ) : (
                 "0 stale"
-              )}{" "}
+              )}
+              {vcounts.fired_but_empty ? (
+                <>
+                  {" "}
+                  · <span className="text-amber-300">{vcounts.fired_but_empty} fired-but-empty</span>
+                </>
+              ) : null}{" "}
               · {vcounts.empty} empty{vcounts.unknown ? ` · ${vcounts.unknown} unknown` : ""}
             </span>
           </span>
