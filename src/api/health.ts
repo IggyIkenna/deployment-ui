@@ -107,6 +107,23 @@ export interface ConsolidatorHealth {
   run_rows_added?: number | null;
   /** The last run's duration in milliseconds. */
   run_duration_ms?: number | null;
+  /** Dark data-correctness actors — the last phantom audit + empty re-probe for this AG, self-published
+   *  by the reconcile/re-probe scripts. Absent (null) = "no audit yet" (shown loudly; phantom is ~weekly).
+   *  Only market-data / instruments buckets carry these. */
+  /** ISO-8601 of the last phantom audit. */
+  phantom_audit_at?: string | null;
+  /** Phantoms found in the last audit (0 = clean). */
+  phantom_count?: number | null;
+  /** gs:// drill-down triage JSONL, when phantoms > 0. */
+  phantom_triage_link?: string | null;
+  /** ISO-8601 of the last empty re-probe. */
+  reprobe_audit_at?: string | null;
+  /** New empty_confirmed cells re-probed in the last run. */
+  reprobe_new_empties?: number | null;
+  /** Oracle/re-fetch says data SHOULD exist (candidate C1 misclassification bugs). */
+  reprobe_disagreements?: number | null;
+  /** Proven-misclassified empties auto-flipped to attempted_failed. */
+  reprobe_reclassified?: number | null;
   detail: string;
 }
 

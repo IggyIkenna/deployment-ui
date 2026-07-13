@@ -2905,6 +2905,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       // = the run itself failed/old; everything else = a healthy recent success.
       const execStatus = verdict === "stale_output" ? "failed" : noIndex ? "pending" : "succeeded";
       const execExit = execStatus === "succeeded" ? 0 : execStatus === "failed" ? 1 : null;
+      // Dark data-correctness actors (phantom reconcile + empty re-probe) only run on the
+      // market-data / instruments manifests → those buckets carry audit summaries; others don't.
+      const audits = kind === "market-data" || kind === "instruments";
       return {
         category,
         kind,
@@ -2941,6 +2944,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         run_shards_changed: pending,
         run_rows_added: pending * 1000,
         run_duration_ms: 8400,
+        // Last phantom audit + empty re-probe (cefi carries phantoms → amber; defi a reprobe
+        // disagreement + reclassify). Non-audit kinds report null (the card shows no audit row).
+        phantom_audit_at: audits ? "2026-07-12T02:00:00+00:00" : null,
+        phantom_count: audits ? (asset_group === "cefi" ? 2 : 0) : null,
+        phantom_triage_link: audits && asset_group === "cefi" ? "mock://phantom-triage/triage_cefi_mock.jsonl" : null,
+        reprobe_audit_at: audits ? "2026-07-13T05:00:00+00:00" : null,
+        reprobe_new_empties: audits ? pending + 3 : null,
+        reprobe_disagreements: audits ? (asset_group === "defi" ? 1 : 0) : null,
+        reprobe_reclassified: audits ? (asset_group === "defi" ? 1 : 0) : null,
         detail,
       };
     };

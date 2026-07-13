@@ -966,6 +966,76 @@ function RunSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
   );
 }
 
+// A phantom audit older than this is itself a signal — the reconcile runs ~weekly, so past a
+// week+grace the count is stale; the re-probe runs ~daily.
+const PHANTOM_STALE_DAYS = 8;
+const REPROBE_STALE_DAYS = 2;
+
+/**
+ * Dark data-correctness actors — the last phantom audit + last empty re-probe for this AG,
+ * self-published by the reconcile/re-probe scripts to the same bucket. Renders NOTHING when
+ * neither summary exists (the card simply has no audit row — honest, no fabricated all-clear).
+ * A problem count (phantoms > 0, reprobe disagreements > 0) turns amber; a stale audit age turns
+ * the timestamp red (an overdue audit is itself worth surfacing loudly).
+ */
+function AuditSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
+  const hasPhantom = c.phantom_audit_at != null;
+  const hasReprobe = c.reprobe_audit_at != null;
+  if (!hasPhantom && !hasReprobe) return null;
+  const ageDays = (iso: string) => (nowMs - Date.parse(iso)) / 86_400_000;
+  const phantomCount = c.phantom_count ?? 0;
+  const disagreements = c.reprobe_disagreements ?? 0;
+  const reclassified = c.reprobe_reclassified ?? 0;
+  return (
+    <div
+      data-testid={`cockpit-consolidator-audit-${c.category}`}
+      className="space-y-0.5 text-[11px] text-[var(--color-text-tertiary)]"
+    >
+      {hasPhantom ? (
+        <div
+          className="truncate"
+          title="Last phantom audit — manifest rows claiming 'captured' with no parquet on disk. Amber when phantoms were found; the age turns red when the ~weekly audit is overdue."
+        >
+          <span className="text-[var(--color-text-muted)]">phantoms </span>
+          <span className={phantomCount > 0 ? "text-amber-400" : "text-[var(--color-accent-green)]"}>
+            {phantomCount}
+          </span>
+          <span
+            className={
+              ageDays(c.phantom_audit_at ?? "") > PHANTOM_STALE_DAYS ? "text-red-400" : "text-[var(--color-text-muted)]"
+            }
+          >
+            {" · "}
+            {relTime(c.phantom_audit_at ?? null, nowMs)}
+          </span>
+        </div>
+      ) : null}
+      {hasReprobe ? (
+        <div
+          className="truncate"
+          title="Last empty re-probe — does a 'confirmed empty' cell actually have data? Amber when the oracle/re-fetch disagreed (candidate misclassification bugs); reclassified = proven empties auto-flipped to re-attempt."
+        >
+          <span className="text-[var(--color-text-muted)]">reprobe </span>
+          <span className={disagreements > 0 ? "text-amber-400" : "text-[var(--color-text-secondary)]"}>
+            {disagreements} disagree
+          </span>
+          {reclassified > 0 ? (
+            <span className="text-[var(--color-accent-green)]"> · {reclassified} reclassified</span>
+          ) : null}
+          <span
+            className={
+              ageDays(c.reprobe_audit_at ?? "") > REPROBE_STALE_DAYS ? "text-red-400" : "text-[var(--color-text-muted)]"
+            }
+          >
+            {" · "}
+            {relTime(c.reprobe_audit_at ?? null, nowMs)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * One consolidator card, tuned for a 3-up (soon 4-up) grid: identity + verdict header,
  * a compact ABSOLUTE snapshot (rows / size / fan-in), the live index age, then the
@@ -1054,6 +1124,8 @@ function ConsolidatorCard({
         {/* Self-reported run summary (from the consolidator's latest.json). A dead consolidator that
             never fired publishes none → shown honestly as "not reporting", never a fake all-clear. */}
         <RunSummary c={c} nowMs={nowMs} />
+        {/* Dark data-correctness actors — last phantom audit + empty re-probe (only where an audit runs). */}
+        <AuditSummary c={c} nowMs={nowMs} />
         {/* Footer: job + bucket, both shown, truncating with the FULL value on hover. */}
         <div className="space-y-0.5 pt-0.5 font-mono text-[12px] text-[var(--color-text-tertiary)]/70">
           <p className="truncate cursor-help" title={c.job_name}>

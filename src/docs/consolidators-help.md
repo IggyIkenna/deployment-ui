@@ -20,6 +20,13 @@ Below the chart, the **last run** line is the consolidator's own report of its m
 
 A consolidator that has **never run** the reporting code — dead / not yet fired up — publishes no `latest.json`, so its card reads **"not reporting — consolidator not live yet"** rather than a fake all-clear. The moment that consolidator is started, it begins publishing the same summary automatically (every one of the ~25 jobs runs the same shared code).
 
+On market-data and instruments cards, two more lines report the **dark data-correctness actors** — background audits that check the manifest is honest (they run separately from the consolidator, publishing their own per-AG summary to the same bucket):
+
+- **phantoms N** — the last **phantom audit**: manifest rows claiming `captured` with **no parquet on disk**. A phantom silently makes the orchestrator skip that shard forever (it trusts the manifest), so every backfill exits doing nothing. `0` is a green all-clear; any phantoms turn **amber**. The timestamp turns **red** when the ~weekly audit is overdue — a stale audit is itself a signal (nobody's been checking).
+- **reprobe N disagree** — the last **empty re-probe**: it re-checks cells marked "confirmed empty" by re-asking the coverage oracle / re-hitting the source. A **disagreement** means the data actually _should_ exist — the empty is a candidate misclassification bug (the operator's #1 failure class). `reclassified` counts proven-wrong empties it auto-flipped back to re-attempt. Disagreements turn **amber**.
+
+Where an audit has **never run** for a bucket, no audit line is shown at all — an honest absence, never a fabricated "0 phantoms" for something nothing has scanned.
+
 The **job** and **bkt** lines at the bottom name the Cloud Run job (the key the Deployments tab links on) and the GCS bucket. Both truncate — hover to see the full value.
 
 ## The chart
