@@ -2343,7 +2343,18 @@ function mockRepoCiDetail(repo: string) {
 }
 
 function mockRepoCiAlerts() {
-  const entries = [
+  const entries: {
+    kind: string;
+    timestamp: string;
+    repo: string;
+    workflow_name: string;
+    severity: string;
+    conclusion: string;
+    message: string;
+    run_url: string | null;
+    alert_class?: string | null;
+    deployment_target?: string | null;
+  }[] = [
     {
       kind: "alert",
       timestamp: "2026-06-10T12:10:00Z",
@@ -2383,6 +2394,20 @@ function mockRepoCiAlerts() {
       conclusion: "failure",
       message: "quality-gates-v2 FAILED on main",
       run_url: "https://github.com/IggyIkenna/execution-service/actions/runs/4",
+    },
+    {
+      // Infra/deployment alert (parity #4) — carries a deployment target → an internal /deployments link.
+      // Timestamp kept EARLIER than the CI alerts so it never displaces alert-entry-0 in existing specs.
+      kind: "vm_down",
+      timestamp: "2026-06-10T11:00:00Z",
+      repo: "deployment-service",
+      workflow_name: "vm-watchdog",
+      severity: "CRITICAL",
+      conclusion: "failure",
+      message: "VM DOWN: cefi-binance-futures-backfill stopped heartbeating (umbrella=batch)",
+      run_url: null,
+      alert_class: "vm_down",
+      deployment_target: "cefi-binance-futures-backfill",
     },
   ];
   const byStream = new Map<string, typeof entries>();
@@ -2830,6 +2855,10 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       // Empty/unknown buckets have no readable index → null absolutes; otherwise derive a
       // plausible size/row-count from the fan-in width, overridable per row (e.g. defi's 442 MB).
       const noIndex = verdict === "empty" || verdict === "unknown";
+      // Execution truth: fired_but_empty = a recent SUCCEEDED run against a stale index; stale_output
+      // = the run itself failed/old; everything else = a healthy recent success.
+      const execStatus = verdict === "stale_output" ? "failed" : noIndex ? "pending" : "succeeded";
+      const execExit = execStatus === "succeeded" ? 0 : execStatus === "failed" ? 1 : null;
       return {
         category,
         kind,
@@ -2839,12 +2868,33 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         status,
         verdict,
         index_age_seconds: age,
-        staleness_budget_seconds: asset_group === "cefi" ? 86400 : 120,
+        // Cadence-matched budget (mirrors the backend catalog): live market-data ticks
+        // (defi/tradfi/sports/prediction) = 120s; every other consolidator = 86400s.
+        staleness_budget_seconds:
+          kind === "market-data" && asset_group !== null && asset_group !== "cefi" ? 120 : 86400,
         last_successful_run_at: age === null ? null : "2026-06-24T06:55:00+00:00",
         pending_shard_count: pending,
         total_shard_count: total,
+        // Oldest un-absorbed shard ≈ the index age when a backlog is waiting (merge-stuck-for).
+        oldest_pending_shard_age_seconds: pending > 0 && age !== null ? age : null,
         index_row_count: noIndex ? null : (rows ?? (total + 1) * 5200 + 4000),
         index_size_bytes: noIndex ? null : (sizeBytes ?? (total + 1) * 240_000 + 160_000),
+        execution_status: execStatus,
+        execution_last_run_at: execStatus === "pending" ? null : "2026-06-24T06:59:30+00:00",
+        execution_exit_code: execExit,
+        // Self-reported run summary — every mkC consolidator is LIVE (reporting a latest.json). The
+        // run verdict maps the endpoint verdict back to produced/empty/failed.
+        run_reporting: true,
+        run_verdict:
+          verdict === "fired_but_empty" || verdict === "empty"
+            ? "empty"
+            : verdict === "stale_output"
+              ? "failed"
+              : "produced",
+        run_last_run_at: "2026-06-24T06:59:35+00:00",
+        run_shards_changed: pending,
+        run_rows_added: pending * 1000,
+        run_duration_ms: 8400,
         detail,
       };
     };
@@ -2853,7 +2903,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const tick = ++_consolidatorPollTick;
     const defiAge = 2600 + tick * 30;
     const defiPending = _climb(tick, 6, 14);
-    const onchainAge = 900 + tick * 30;
     const onchainPending = _climb(tick, 3, 8);
     return json({
       generated_at: "2026-06-24T07:00:00+00:00",
@@ -2988,11 +3037,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           "features-onchain",
           "defi",
           "critical",
-          "stale_output",
-          onchainAge,
+          "fired_but_empty",
+          90000 + tick * 60, // genuinely stale vs the 86400s features budget (climb-and-stick)
           onchainPending,
-          onchainPending,
-          `index ${onchainAge}s (> 120s budget) while ${onchainPending} per-VM shards wait — consolidator behind/DOWN`,
+          onchainPending + 4,
+          "execution SUCCEEDED 30s ago yet the index is > 86400s old — the job ran green but wrote nothing",
           6_200_000,
           214_000_000,
         ),
@@ -3063,6 +3112,35 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           0,
           "index missing; no per-VM shards — genuinely empty bucket, not an outage",
         ),
+        // A DEAD consolidator — declared in the catalog but never fired up, so it publishes no
+        // latest.json → run_reporting:false. The card shows "not reporting", never a fake all-clear.
+        {
+          category: "instruments-prediction",
+          kind: "instruments",
+          asset_group: "prediction",
+          job_name: "uts-prod-manifest-consolidator-instruments-prediction",
+          bucket: "instruments-store-prediction-prd-mock",
+          status: "degraded",
+          verdict: "empty",
+          index_age_seconds: null,
+          staleness_budget_seconds: 86400,
+          last_successful_run_at: null,
+          pending_shard_count: 0,
+          total_shard_count: 0,
+          oldest_pending_shard_age_seconds: null,
+          index_row_count: null,
+          index_size_bytes: null,
+          execution_status: "pending",
+          execution_last_run_at: null,
+          execution_exit_code: null,
+          run_reporting: false,
+          run_verdict: null,
+          run_last_run_at: null,
+          run_shards_changed: null,
+          run_rows_added: null,
+          run_duration_ms: null,
+          detail: "no index and no shards — consolidator not yet fired up (not reporting)",
+        },
       ],
     });
   }

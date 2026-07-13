@@ -14,7 +14,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { BellRing, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowUpRight, BellRing, ExternalLink, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
@@ -182,6 +183,17 @@ export function AlertsContent() {
                   </span>
                   <span className="font-mono text-[var(--color-text-muted)] shrink-0">{alert.repo}</span>
                   <span className="text-[var(--color-text-primary)]">{alert.message}</span>
+                  {alert.deployment_target && (
+                    <Link
+                      to={`/deployments/${encodeURIComponent(alert.deployment_target)}`}
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      title={`Open ${alert.deployment_target} in Deployments`}
+                      data-testid={`alert-deployment-link-${index}`}
+                    >
+                      <ArrowUpRight className="h-3 w-3" />
+                      <span className="text-xs">deployment</span>
+                    </Link>
+                  )}
                   {alert.run_url && (
                     <a href={alert.run_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
                       <ExternalLink className="h-3 w-3" />

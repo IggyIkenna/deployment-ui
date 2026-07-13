@@ -13,8 +13,12 @@ One card = one consolidator. The top row is five numbers:
 - **rows** — absolute rows in the consolidated index (its parquet `num_rows`): how many availability records it holds right now.
 - **size** — the index file's size on disk. A very large index is what makes the recovery-merge run out of memory and fall behind — the usual cause of `stale output`.
 - **fed by** — fan-in width: how many per-VM shard files currently feed this index (roughly, active writer VMs). `0` means nothing is writing / it's fully consolidated.
-- **index age** — time since the index was last written, against its staleness budget, shown `age / budget`. It ticks live and turns **amber, then red · over** once it's older than budget.
-- **backlog** — `pending / total`: shards written since the last merge (**pending**) out of all shards present (**total**). `pending > 0` means data is on disk but not yet folded into the index.
+- **index age** — time since the index was last written, against its staleness budget, shown `age / budget`. It ticks live and turns **amber, then red · over** once it's older than budget. The budget is **cadence-matched per consolidator** (from the catalog): live market-data ticks get **2m** (they run every minute), everything else gets **24h** (daily-ish batch / feature / instrument jobs) — so a slow-cadence job is judged against its own schedule, not a uniform 2m.
+- **backlog** — `pending / total`: shards written since the last merge (**pending**) out of all shards present (**total**). `pending > 0` means data is on disk but not yet folded into the index. When there's a backlog, a second line shows **oldest** — the age of the oldest un-absorbed shard, i.e. how long the merge has been behind. It turns **red** once that wait exceeds the budget (the merge has been stuck that long).
+
+Below the chart, the **last run** line is the consolidator's own report of its most recent cycle (self-published to `_index/latest.json` every run): when it ran, how many shards it **merged**, rows **added**, and how long it took. This is the authoritative "did it produce its data" signal — the verdict badge prefers it over the Cloud-Run-execution guess when it's present.
+
+A consolidator that has **never run** the reporting code — dead / not yet fired up — publishes no `latest.json`, so its card reads **"not reporting — consolidator not live yet"** rather than a fake all-clear. The moment that consolidator is started, it begins publishing the same summary automatically (every one of the ~25 jobs runs the same shared code).
 
 The **job** and **bkt** lines at the bottom name the Cloud Run job (the key the Deployments tab links on) and the GCS bucket. Both truncate — hover to see the full value.
 
@@ -33,5 +37,6 @@ A healthy consolidator sawtooths (accumulate, merge, repeat); a stuck one climbs
 - **produced** — index fresh and caught up; the last run wrote its data, no backlog waiting.
 - **producing** — index fresh and actively absorbing a live backlog (the healthy sawtooth).
 - **stale output** — index older than its budget while shards wait: the consolidator is behind or down, so its output is stale.
+- **fired · empty** — the job's latest Cloud Run execution **succeeded** (exit 0) recently, yet the index is still stale: it **ran green but wrote nothing**. This is the silent failure the liveness lens shows as "succeeded" — the exact gap this data-correctness tab exists to catch.
 - **empty** — no index and no shards: a genuinely empty bucket, not an outage.
 - **unknown** — the index couldn't be read (a transient error), not necessarily unhealthy.
