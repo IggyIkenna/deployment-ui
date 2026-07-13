@@ -2343,7 +2343,18 @@ function mockRepoCiDetail(repo: string) {
 }
 
 function mockRepoCiAlerts() {
-  const entries = [
+  const entries: {
+    kind: string;
+    timestamp: string;
+    repo: string;
+    workflow_name: string;
+    severity: string;
+    conclusion: string;
+    message: string;
+    run_url: string | null;
+    alert_class?: string | null;
+    deployment_target?: string | null;
+  }[] = [
     {
       kind: "alert",
       timestamp: "2026-06-10T12:10:00Z",
@@ -2383,6 +2394,20 @@ function mockRepoCiAlerts() {
       conclusion: "failure",
       message: "quality-gates-v2 FAILED on main",
       run_url: "https://github.com/IggyIkenna/execution-service/actions/runs/4",
+    },
+    {
+      // Infra/deployment alert (parity #4) — carries a deployment target → an internal /deployments link.
+      // Timestamp kept EARLIER than the CI alerts so it never displaces alert-entry-0 in existing specs.
+      kind: "vm_down",
+      timestamp: "2026-06-10T11:00:00Z",
+      repo: "deployment-service",
+      workflow_name: "vm-watchdog",
+      severity: "CRITICAL",
+      conclusion: "failure",
+      message: "VM DOWN: cefi-binance-futures-backfill stopped heartbeating (umbrella=batch)",
+      run_url: null,
+      alert_class: "vm_down",
+      deployment_target: "cefi-binance-futures-backfill",
     },
   ];
   const byStream = new Map<string, typeof entries>();

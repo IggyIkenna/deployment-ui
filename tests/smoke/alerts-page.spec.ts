@@ -71,4 +71,16 @@ test.describe("Alerts page", () => {
     await page.goto("/alerts");
     await expect(page.getByTestId("alerts-page").locator("h1")).toContainText("unified traceability");
   });
+
+  test("infra alert deep-links to its /deployments target detail (parity #4)", async ({ page }) => {
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-page")).toBeVisible();
+    // The vm_down infra alert carries a deployment target → an INTERNAL /deployments/{name} link (not
+    // the external run_url). Located by href so it's independent of timeline ordering.
+    const link = page.locator('a[href="/deployments/cefi-binance-futures-backfill"]');
+    await expect(link).toBeVisible();
+    await expect(link).toContainText("deployment");
+    await link.click();
+    await expect(page).toHaveURL(/\/deployments\/cefi-binance-futures-backfill$/);
+  });
 });

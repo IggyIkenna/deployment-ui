@@ -3669,6 +3669,8 @@ export interface RepoCiAlertEntry {
   conclusion: string | null;
   message: string | null;
   run_url: string | null;
+  /** The VM / deployment name an infra alert names → an internal /deployments/{name} deep-link (parity #4). */
+  deployment_target?: string | null;
 }
 
 export interface RepoCiAlertStream {
