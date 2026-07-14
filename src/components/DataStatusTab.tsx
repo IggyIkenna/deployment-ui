@@ -106,6 +106,29 @@ function getTodayAt8am(): string {
   return `${y}-${m}-${day}T08:00:00`;
 }
 
+// Full-history start — API-Football fixtures (and the UAC-declared universe more
+// broadly) go back to 2018-01-01. Still reachable via the "All" start-date preset
+// below; it is no longer the silent DEFAULT (see DEFAULT_LOOKBACK_DAYS).
+const FULL_HISTORY_START_DATE = "2018-01-01";
+
+// Default initial range — a bounded recent window, not full history. A full-history
+// (2018→now) scan is the heaviest thing the manifest builder runs: fine in prod
+// (parallel process pool + a <500ms rollup fast-path when a fresh rollup blob
+// exists), but on a macOS dev host the pool can't fork (BrokenProcessPool →
+// thread-pool fallback) AND beta mode always takes the on-demand compute path (no
+// rollup) — and even in prod it's needless latency for the common case. Operator
+// decision (deployment_ui_ux_caching_walkthrough, 2026-07-14, superseding the prior
+// 2026-06-14 2018-01-01-default instruction): default to the last 90 days; full
+// history remains one click away via the "All" start-date preset.
+const DEFAULT_LOOKBACK_DAYS = 90;
+
+/** `DEFAULT_LOOKBACK_DAYS` days back from today, YYYY-MM-DD. */
+function getDefaultStartDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - DEFAULT_LOOKBACK_DAYS);
+  return d.toISOString().split("T")[0];
+}
+
 // b4: Services whose manifest correctness is tracked in Data Status.
 // Services NOT in this list (execution, risk, pnl, alerting…) are runtime
 // services — their health belongs in Monitor → Live / Experiments, not here.
@@ -336,14 +359,9 @@ export function DateList({
 
 // Internal component for non-execution-services
 function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onDeployMissing }: DataStatusTabProps) {
-  // Default startDate = 2018-01-01 (operator-specified canonical start of full history).
-  // A full-history (2018→now) scan is the heaviest thing the manifest builder runs — fine in
-  // prod (parallel process pool + a <500ms rollup fast-path when a fresh rollup blob exists),
-  // but on a macOS dev host the pool can't fork (BrokenProcessPool → thread-pool fallback) AND
-  // beta mode always takes the on-demand compute path (no rollup). Prior default was today−30d
-  // (~12s), but operator instruction (2026-06-14) requires 2018-01-01 as the canonical default
-  // so the shards-weighted could-exist ratio reflects the full UAC-declared universe.
-  const [startDate, setStartDate] = useState("2018-01-01");
+  // Default startDate = a bounded recent window (see DEFAULT_LOOKBACK_DAYS above),
+  // NOT full history — full history is an explicit user action (the "All" preset).
+  const [startDate, setStartDate] = useState(getDefaultStartDate);
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -1645,8 +1663,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             setEndDate(today);
             setDataStatusMode("batch");
           } else if (newMode === "batch") {
-            // Reset to workspace-wide default
-            setStartDate("2018-01-01");
+            // Reset to the workspace-wide default (bounded recent window, not full
+            // history — see DEFAULT_LOOKBACK_DAYS).
+            setStartDate(getDefaultStartDate());
             const d = new Date();
             d.setDate(d.getDate() - 1);
             setEndDate(d.toISOString().split("T")[0]);
@@ -1988,10 +2007,10 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                   />
                   <div className="flex gap-1 mt-1">
                     {[
-                      { label: "30d", days: 30 },
-                      { label: "90d", days: 90 },
-                      { label: "1y", days: 365 },
-                      { label: "All", days: null },
+                      { label: "30d", days: 30, testId: "30d" },
+                      { label: "90d", days: 90, testId: "90d" },
+                      { label: "1y", days: 365, testId: "1y" },
+                      { label: "All", days: null, testId: "all" },
                     ].map((p) => (
                       <Button
                         key={p.label}
@@ -1999,10 +2018,17 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         variant="outline"
                         size="sm"
                         className="h-6 px-2 text-[10px]"
+                        data-testid={`data-status-start-preset-${p.testId}`}
+                        title={
+                          p.days === null
+                            ? `Load full history (${FULL_HISTORY_START_DATE} → today) — a much slower scan than the default window; click Check Status to apply.`
+                            : undefined
+                        }
                         onClick={() => {
                           if (p.days === null) {
-                            // Full history — API-Football fixtures go back to 2018-01-01.
-                            setStartDate("2018-01-01");
+                            // Full history — an explicit user action, never the silent
+                            // default (see DEFAULT_LOOKBACK_DAYS above).
+                            setStartDate(FULL_HISTORY_START_DATE);
                           } else {
                             const d = new Date();
                             d.setDate(d.getDate() - p.days);
