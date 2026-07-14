@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRepoCoverage } from "../api/repoCoverage";
 import type { RepoCoverage } from "../api/repoCoverage";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -70,14 +71,13 @@ export function RepoCoverageTab() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => {
-      void load();
-    }, REFRESH_INTERVAL_MS);
     return () => {
-      clearInterval(timer);
       abortRef.current?.abort();
     };
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, REFRESH_INTERVAL_MS);
 
   const greenCount = rows ? rows.filter((r) => r.all_above_target).length : 0;
   const totalCount = rows ? rows.length : 0;

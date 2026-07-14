@@ -59,6 +59,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { GhRateBudget } from "../components/GhRateBudget";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
   green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
@@ -1794,9 +1795,10 @@ export function RepoCiContent() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, 60_000);
 
   return (
     <div className="space-y-4" data-testid="repo-ci-page">

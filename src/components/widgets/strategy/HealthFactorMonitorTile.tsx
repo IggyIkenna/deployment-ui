@@ -18,16 +18,8 @@
 
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useVisibilityPausedInterval } from "../../../hooks/useVisibilityPausedInterval";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,20 +43,14 @@ interface Props {
 // ---------------------------------------------------------------------------
 let _mockHf = 1.25;
 function _nextMockHf(): number {
-  _mockHf = Math.max(
-    1.01,
-    Math.min(2.0, _mockHf + (Math.random() - 0.5) * 0.04),
-  );
+  _mockHf = Math.max(1.01, Math.min(2.0, _mockHf + (Math.random() - 0.5) * 0.04));
   return _mockHf;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function HealthFactorMonitorTile({
-  chain = "all",
-  pollIntervalMs = 5_000,
-}: Props): ReactElement {
+export function HealthFactorMonitorTile({ chain = "all", pollIntervalMs = 5_000 }: Props): ReactElement {
   const [points, setPoints] = useState<HfDataPoint[]>([]);
   const lastUpdate = useRef<number>(0);
 
@@ -80,10 +66,11 @@ export function HealthFactorMonitorTile({
   }, [chain, pollIntervalMs]);
 
   useEffect(() => {
-    const id = setInterval(tick, pollIntervalMs);
     tick();
-    return () => clearInterval(id);
-  }, [tick, pollIntervalMs]);
+  }, [tick]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(tick, pollIntervalMs);
 
   const latest = points[points.length - 1];
   const hfColor =
@@ -98,38 +85,17 @@ export function HealthFactorMonitorTile({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
           Health Factor Monitor
-          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">
-            chain: {chain}
-          </span>
+          <span className="ml-2 text-xs font-normal text-[var(--color-text-muted)]">chain: {chain}</span>
         </h3>
-        {latest && (
-          <span className={`text-lg font-bold tabular-nums ${hfColor}`}>
-            HF {latest.hf.toFixed(3)}
-          </span>
-        )}
+        {latest && <span className={`text-lg font-bold tabular-nums ${hfColor}`}>HF {latest.hf.toFixed(3)}</span>}
       </div>
 
       <ResponsiveContainer width="100%" height={160}>
-        <LineChart
-          data={points}
-          margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
-        >
+        <LineChart data={points} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="ts"
-            tick={{ fontSize: 10 }}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            domain={[1.0, 2.0]}
-            tick={{ fontSize: 10 }}
-            tickFormatter={(v: number) => v.toFixed(2)}
-          />
-          <Tooltip
-            formatter={(v) =>
-              typeof v === "number" ? v.toFixed(3) : String(v)
-            }
-          />
+          <XAxis dataKey="ts" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+          <YAxis domain={[1.0, 2.0]} tick={{ fontSize: 10 }} tickFormatter={(v: number) => v.toFixed(2)} />
+          <Tooltip formatter={(v) => (typeof v === "number" ? v.toFixed(3) : String(v))} />
           <ReferenceLine
             y={1.1}
             stroke="#eab308"
@@ -142,21 +108,13 @@ export function HealthFactorMonitorTile({
             strokeDasharray="4 2"
             label={{ value: "1.05", fontSize: 10, fill: "#dc2626" }}
           />
-          <Line
-            type="monotone"
-            dataKey="hf"
-            stroke="#3b82f6"
-            dot={false}
-            strokeWidth={1.5}
-            isAnimationActive={false}
-          />
+          <Line type="monotone" dataKey="hf" stroke="#3b82f6" dot={false} strokeWidth={1.5} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
 
       <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-        Thresholds: 1.10 partial-unwind (yellow) · 1.05 flash-close (red).
-        UI-throttled {pollIntervalMs / 1000}s. SSE stream endpoint pending
-        (Phase 11 P1 sub-todo).
+        Thresholds: 1.10 partial-unwind (yellow) · 1.05 flash-close (red). UI-throttled {pollIntervalMs / 1000}s. SSE
+        stream endpoint pending (Phase 11 P1 sub-todo).
       </p>
     </div>
   );

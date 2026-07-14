@@ -21,14 +21,13 @@ import {
   type RecursiveBorrowCell,
   type RecursiveBorrowCoverageResponse,
 } from "../../../api/client";
+import { useVisibilityPausedInterval } from "../../../hooks/useVisibilityPausedInterval";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function groupByProtocol(
-  cells: RecursiveBorrowCell[],
-): Map<string, RecursiveBorrowCell[]> {
+function groupByProtocol(cells: RecursiveBorrowCell[]): Map<string, RecursiveBorrowCell[]> {
   const map = new Map<string, RecursiveBorrowCell[]>();
   for (const c of cells) {
     const group = map.get(c.protocol) ?? [];
@@ -40,9 +39,7 @@ function groupByProtocol(
 
 function avgCoverage(cells: RecursiveBorrowCell[]): number {
   if (!cells.length) return 0;
-  return (
-    cells.reduce((s, c) => s + c.lending_rate_coverage_pct, 0) / cells.length
-  );
+  return cells.reduce((s, c) => s + c.lending_rate_coverage_pct, 0) / cells.length;
 }
 
 function mockSparkline(): { d: number; spread: number }[] {
@@ -72,18 +69,14 @@ function ProtocolRow({
     <div className="border-b border-[var(--color-border-default)] px-4 py-3 last:border-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="w-20 text-sm font-medium text-[var(--color-text-primary)]">
-            {protocol}
-          </span>
+          <span className="w-20 text-sm font-medium text-[var(--color-text-primary)]">{protocol}</span>
           <div className="h-2 w-32 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
             <div
               className="h-full rounded-full bg-blue-500 transition-all"
               style={{ width: `${Math.min(100, avg)}%` }}
             />
           </div>
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {avg.toFixed(1)}%
-          </span>
+          <span className="text-xs text-[var(--color-text-muted)]">{avg.toFixed(1)}%</span>
         </div>
         <div className="h-8 w-24">
           <ResponsiveContainer width="100%" height="100%">
@@ -98,10 +91,7 @@ function ProtocolRow({
               />
               <Tooltip
                 contentStyle={{ fontSize: 10 }}
-                formatter={(v) => [
-                  typeof v === "number" ? `${v.toFixed(3)}%` : String(v),
-                  "spread",
-                ]}
+                formatter={(v) => [typeof v === "number" ? `${v.toFixed(3)}%` : String(v), "spread"]}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -126,18 +116,9 @@ function ProtocolRow({
 // ---------------------------------------------------------------------------
 // Cell detail modal
 // ---------------------------------------------------------------------------
-function CellModal({
-  cell,
-  onClose,
-}: {
-  cell: RecursiveBorrowCell;
-  onClose: () => void;
-}): ReactElement {
+function CellModal({ cell, onClose }: { cell: RecursiveBorrowCell; onClose: () => void }): ReactElement {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-xl bg-[var(--color-bg-elevated)] p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -146,10 +127,7 @@ function CellModal({
           <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
             {cell.protocol} · {cell.collateral_asset}/{cell.debt_asset}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-          >
+          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]">
             ✕
           </button>
         </div>
@@ -159,14 +137,8 @@ function CellModal({
               ["Family", cell.family],
               ["Chain", cell.chain],
               ["Perp venue", cell.perp_venue ?? "—"],
-              [
-                "Lending cov %",
-                `${cell.lending_rate_coverage_pct.toFixed(1)}%`,
-              ],
-              [
-                "Funding cov %",
-                `${cell.funding_rate_coverage_pct.toFixed(1)}%`,
-              ],
+              ["Lending cov %", `${cell.lending_rate_coverage_pct.toFixed(1)}%`],
+              ["Funding cov %", `${cell.funding_rate_coverage_pct.toFixed(1)}%`],
               ["Spread horizon", `${cell.spread_history_horizon_days}d`],
               ["Cell status", cell.cell_status],
               ["Last observed", cell.last_observed_at ?? "—"],
@@ -174,15 +146,12 @@ function CellModal({
           ).map(([label, value]) => (
             <div key={label} className="flex justify-between">
               <dt className="text-[var(--color-text-muted)]">{label}</dt>
-              <dd className="font-mono text-[var(--color-text-primary)]">
-                {value}
-              </dd>
+              <dd className="font-mono text-[var(--color-text-primary)]">{value}</dd>
             </div>
           ))}
         </dl>
         <p className="mt-4 rounded bg-[var(--color-bg-secondary)] p-2 text-xs text-[var(--color-text-muted)]">
-          Backtest verdict: pending Phase 9 backtest replay (BLOCKED-DATA until
-          2026-05-19).
+          Backtest verdict: pending Phase 9 backtest replay (BLOCKED-DATA until 2026-05-19).
         </p>
       </div>
     </div>
@@ -193,14 +162,10 @@ function CellModal({
 // Main component
 // ---------------------------------------------------------------------------
 export function RecursiveBorrowDrilldown(): ReactElement {
-  const [data, setData] = useState<RecursiveBorrowCoverageResponse | null>(
-    null,
-  );
+  const [data, setData] = useState<RecursiveBorrowCoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedCell, setSelectedCell] = useState<RecursiveBorrowCell | null>(
-    null,
-  );
+  const [selectedCell, setSelectedCell] = useState<RecursiveBorrowCell | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -216,28 +181,19 @@ export function RecursiveBorrowDrilldown(): ReactElement {
 
   useEffect(() => {
     void fetchData();
-    const interval = setInterval(() => void fetchData(), 60_000);
-    return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(() => void fetchData(), 60_000);
+
   if (loading) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-text-muted)]">
-        Loading drilldown…
-      </div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">Loading drilldown…</div>;
   }
   if (error) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-accent-red)]">
-        Error: {error}
-      </div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-accent-red)]">Error: {error}</div>;
   }
   if (!data) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-text-muted)]">No data</div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">No data</div>;
   }
 
   const grouped = groupByProtocol(data.cells);
@@ -254,17 +210,10 @@ export function RecursiveBorrowDrilldown(): ReactElement {
       </div>
       <div>
         {[...grouped.entries()].map(([protocol, cells]) => (
-          <ProtocolRow
-            key={protocol}
-            protocol={protocol}
-            cells={cells}
-            onCellClick={setSelectedCell}
-          />
+          <ProtocolRow key={protocol} protocol={protocol} cells={cells} onCellClick={setSelectedCell} />
         ))}
       </div>
-      {selectedCell && (
-        <CellModal cell={selectedCell} onClose={() => setSelectedCell(null)} />
-      )}
+      {selectedCell && <CellModal cell={selectedCell} onClose={() => setSelectedCell(null)} />}
     </div>
   );
 }

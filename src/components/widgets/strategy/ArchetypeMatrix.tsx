@@ -21,30 +21,21 @@ import {
   type RecursiveBorrowCell,
   type RecursiveBorrowCoverageResponse,
 } from "../../../api/client";
+import { useVisibilityPausedInterval } from "../../../hooks/useVisibilityPausedInterval";
 
 // ---------------------------------------------------------------------------
 // Badge colours
 // ---------------------------------------------------------------------------
 const _STATUS_CLASSES: Record<RecursiveBorrowCell["cell_status"], string> = {
-  "design-ready":
-    "bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]",
-  "coverage-ready":
-    "bg-[var(--color-status-info-bg)] text-[var(--color-accent-blue)]",
-  "live-ready":
-    "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]",
-  paused:
-    "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]",
+  "design-ready": "bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]",
+  "coverage-ready": "bg-[var(--color-status-info-bg)] text-[var(--color-accent-blue)]",
+  "live-ready": "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]",
+  paused: "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]",
 };
 
-function StatusBadge({
-  status,
-}: {
-  status: RecursiveBorrowCell["cell_status"];
-}): ReactElement {
+function StatusBadge({ status }: { status: RecursiveBorrowCell["cell_status"] }): ReactElement {
   return (
-    <span
-      className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${_STATUS_CLASSES[status]}`}
-    >
+    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${_STATUS_CLASSES[status]}`}>
       {status}
     </span>
   );
@@ -57,17 +48,13 @@ function CellRow({ cell }: { cell: RecursiveBorrowCell }): ReactElement {
   const family = cell.family === "perp-hedged" ? "F2" : "F1";
   return (
     <tr className="border-b border-[var(--color-border-default)] hover:bg-[var(--color-bg-secondary)]">
-      <td className="px-3 py-2 text-xs font-mono text-[var(--color-text-muted)]">
-        {family}
-      </td>
+      <td className="px-3 py-2 text-xs font-mono text-[var(--color-text-muted)]">{family}</td>
       <td className="px-3 py-2 text-xs">{cell.protocol}</td>
       <td className="px-3 py-2 text-xs">{cell.chain}</td>
       <td className="px-3 py-2 text-xs">{cell.collateral_asset}</td>
       <td className="px-3 py-2 text-xs">{cell.debt_asset}</td>
       <td className="px-3 py-2 text-xs">{cell.perp_venue ?? "—"}</td>
-      <td className="px-3 py-2 text-right text-xs">
-        {cell.lending_rate_coverage_pct.toFixed(1)}%
-      </td>
+      <td className="px-3 py-2 text-right text-xs">{cell.lending_rate_coverage_pct.toFixed(1)}%</td>
       <td className="px-3 py-2">
         <StatusBadge status={cell.cell_status} />
       </td>
@@ -79,9 +66,7 @@ function CellRow({ cell }: { cell: RecursiveBorrowCell }): ReactElement {
 // Main component
 // ---------------------------------------------------------------------------
 export function ArchetypeMatrix(): ReactElement {
-  const [data, setData] = useState<RecursiveBorrowCoverageResponse | null>(
-    null,
-  );
+  const [data, setData] = useState<RecursiveBorrowCoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -99,28 +84,19 @@ export function ArchetypeMatrix(): ReactElement {
 
   useEffect(() => {
     void fetchData();
-    const interval = setInterval(() => void fetchData(), 60_000);
-    return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(() => void fetchData(), 60_000);
+
   if (loading) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-text-muted)]">
-        Loading archetype matrix…
-      </div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">Loading archetype matrix…</div>;
   }
   if (error) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-accent-red)]">
-        Error: {error}
-      </div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-accent-red)]">Error: {error}</div>;
   }
   if (!data) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-text-muted)]">No data</div>
-    );
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">No data</div>;
   }
 
   const { cells, summary } = data;
@@ -134,9 +110,7 @@ export function ArchetypeMatrix(): ReactElement {
             ({summary.total_cells} cells · {summary.live_ready} live-ready)
           </span>
         </h3>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Refreshes every 60s
-        </span>
+        <span className="text-xs text-[var(--color-text-muted)]">Refreshes every 60s</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">

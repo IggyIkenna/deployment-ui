@@ -44,27 +44,16 @@ import {
   verifyDeploymentCompletion,
 } from "../api/client";
 import { useDeployEventStream } from "../hooks/useDeployEventStream";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { cn, formatDateTime } from "../lib/utils";
 import type { LiveHealthStatus, ShardEvent } from "../types/index";
 import { VM_EVENT_TYPES } from "../types/index";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface ExecutionAttempt {
@@ -190,10 +179,7 @@ interface DeploymentDetailsProps {
   onClose: () => void;
 }
 
-export function DeploymentDetails({
-  deploymentId,
-  onClose,
-}: DeploymentDetailsProps) {
+export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsProps) {
   const [status, setStatus] = useState<DeploymentStatusData | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsMessage, setLogsMessage] = useState<string | null>(null);
@@ -203,9 +189,7 @@ export function DeploymentDetails({
   const [error, setError] = useState<string | null>(null);
   const [showAllShards, setShowAllShards] = useState(false);
   const [viewMode, setViewMode] = useState<"flat" | "grouped">("grouped");
-  const [expandedAssetGroups, setExpandedAssetGroups] = useState<Set<string>>(
-    new Set(["CEFI", "TRADFI", "DEFI"]),
-  );
+  const [expandedAssetGroups, setExpandedAssetGroups] = useState<Set<string>>(new Set(["CEFI", "TRADFI", "DEFI"]));
 
   // Shard loading & filtering
   const [allShards, setAllShards] = useState<ShardDetail[] | null>(null);
@@ -239,9 +223,7 @@ export function DeploymentDetails({
   // Infrastructure report
   const [report, setReport] = useState<DeploymentReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [rerunCommands, setRerunCommands] = useState<RerunCommands | null>(
-    null,
-  );
+  const [rerunCommands, setRerunCommands] = useState<RerunCommands | null>(null);
 
   // Event timeline
   const [events, setEvents] = useState<ShardEvent[]>([]);
@@ -252,8 +234,7 @@ export function DeploymentDetails({
   const [liveHealth, setLiveHealth] = useState<LiveHealthStatus | null>(null);
 
   // Shard log modal
-  const [selectedShardForLogs, setSelectedShardForLogs] =
-    useState<ShardDetail | null>(null);
+  const [selectedShardForLogs, setSelectedShardForLogs] = useState<ShardDetail | null>(null);
   const [shardLogs, setShardLogs] = useState<LogEntry[]>([]);
   const [shardLogsLoading, setShardLogsLoading] = useState(false);
   const [shardLogsMessage, setShardLogsMessage] = useState<string | null>(null);
@@ -263,9 +244,7 @@ export function DeploymentDetails({
 
   // Log search & severity filter
   const [logSearch, setLogSearch] = useState("");
-  const [logSeverityFilter, setLogSeverityFilter] = useState<
-    "ALL" | "ERROR" | "WARNING" | "INFO"
-  >("ALL");
+  const [logSeverityFilter, setLogSeverityFilter] = useState<"ALL" | "ERROR" | "WARNING" | "INFO">("ALL");
 
   // Auto-follow logs
   const [followLogs, setFollowLogs] = useState(false);
@@ -309,25 +288,16 @@ export function DeploymentDetails({
 
   // Action handlers
   const handleCancelDeployment = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to cancel this deployment? All running shards will be stopped.",
-      )
-    )
-      return;
+    if (!window.confirm("Are you sure you want to cancel this deployment? All running shards will be stopped.")) return;
 
     try {
       setActionLoading("cancel");
       setActionError(null);
       const result = await cancelDeployment(deploymentId);
-      setActionSuccess(
-        `Deployment cancelled. ${result.cancelled_shards} shard(s) stopped.`,
-      );
+      setActionSuccess(`Deployment cancelled. ${result.cancelled_shards} shard(s) stopped.`);
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to cancel deployment",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to cancel deployment");
     } finally {
       setActionLoading(null);
     }
@@ -341,9 +311,7 @@ export function DeploymentDetails({
       setActionSuccess(result.message);
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to resume deployment",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to resume deployment");
     } finally {
       setActionLoading(null);
     }
@@ -354,14 +322,10 @@ export function DeploymentDetails({
       setActionLoading("verify");
       setActionError(null);
       await verifyDeploymentCompletion(deploymentId, { force });
-      setActionSuccess(
-        force ? "Verification refreshed." : "Verification completed.",
-      );
+      setActionSuccess(force ? "Verification refreshed." : "Verification completed.");
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to verify completion",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to verify completion");
     } finally {
       setActionLoading(null);
     }
@@ -375,9 +339,7 @@ export function DeploymentDetails({
       setActionSuccess(result.message);
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to retry failed shards",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to retry failed shards");
     } finally {
       setActionLoading(null);
     }
@@ -391,11 +353,7 @@ export function DeploymentDetails({
       setActionSuccess(result.message);
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : `Failed to cancel shard ${shardId}`,
-      );
+      setActionError(err instanceof Error ? err.message : `Failed to cancel shard ${shardId}`);
     } finally {
       setActionLoading(null);
     }
@@ -403,8 +361,7 @@ export function DeploymentDetails({
 
   const handleCancelSelectedShards = async () => {
     if (selectedShards.size === 0) return;
-    if (!window.confirm(`Cancel ${selectedShards.size} selected shard(s)?`))
-      return;
+    if (!window.confirm(`Cancel ${selectedShards.size} selected shard(s)?`)) return;
 
     try {
       setActionLoading("cancel-selected");
@@ -423,14 +380,10 @@ export function DeploymentDetails({
       }
 
       setSelectedShards(new Set());
-      setActionSuccess(
-        `Cancelled ${cancelled} shard(s)${failed > 0 ? `, ${failed} failed` : ""}`,
-      );
+      setActionSuccess(`Cancelled ${cancelled} shard(s)${failed > 0 ? `, ${failed} failed` : ""}`);
       fetchStatus();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to cancel selected shards",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to cancel selected shards");
     } finally {
       setActionLoading(null);
     }
@@ -444,9 +397,7 @@ export function DeploymentDetails({
       setEditingTag(false);
       setActionSuccess(result.message);
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to update tag",
-      );
+      setActionError(err instanceof Error ? err.message : "Failed to update tag");
     } finally {
       setActionLoading(null);
     }
@@ -468,11 +419,7 @@ export function DeploymentDetails({
   const fetchLiveHealth = useCallback(async () => {
     if (!status?.service_url) return;
     try {
-      const health = await getLiveDeploymentHealth(
-        deploymentId,
-        status.service,
-        status.region ?? "",
-      );
+      const health = await getLiveDeploymentHealth(deploymentId, status.service, status.region ?? "");
       setLiveHealth(health);
     } catch {
       // silently ignore
@@ -494,9 +441,7 @@ export function DeploymentDetails({
         service: status.service,
         region: status.region ?? "",
       });
-      setActionSuccess(
-        "Rollback initiated. Traffic shifted to previous revision.",
-      );
+      setActionSuccess("Rollback initiated. Traffic shifted to previous revision.");
       fetchStatus();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Rollback failed");
@@ -520,13 +465,8 @@ export function DeploymentDetails({
   const selectAllRunningShards = () => {
     const source = allShards ?? status?.shards;
     if (!source) return;
-    const runningShards = source
-      .filter((s) => s.status === "running")
-      .map((s) => s.shard_id);
-    if (
-      runningShards.length === selectedShards.size &&
-      runningShards.every((id) => selectedShards.has(id))
-    ) {
+    const runningShards = source.filter((s) => s.status === "running").map((s) => s.shard_id);
+    if (runningShards.length === selectedShards.size && runningShards.every((id) => selectedShards.has(id))) {
       setSelectedShards(new Set());
     } else {
       setSelectedShards(new Set(runningShards));
@@ -534,9 +474,7 @@ export function DeploymentDetails({
   };
 
   // Group shards by asset group (CEFI, TRADFI, DEFI, etc.) — first segment of shard_id
-  const groupShardsByAssetGroup = (
-    shards: ShardDetail[],
-  ): Record<string, ShardDetail[]> => {
+  const groupShardsByAssetGroup = (shards: ShardDetail[]): Record<string, ShardDetail[]> => {
     const grouped: Record<string, ShardDetail[]> = {};
     for (const shard of shards) {
       const parts = shard.shard_id.split("-");
@@ -615,9 +553,7 @@ export function DeploymentDetails({
       setLoading(true);
       // Fetch summary only for speed (avoid downloading tens of thousands of shards)
       // Logs are fetched separately via the Logs tab
-      const response = await fetch(
-        `/api/deployments/${deploymentId}?skip_logs=true&summary=true`,
-      );
+      const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`);
       if (!response.ok) {
         let message = "Failed to fetch status";
         try {
@@ -644,11 +580,7 @@ export function DeploymentDetails({
 
   // Legacy: paginated shard fetching (kept for backward compat, replaced by loadAllShards for UI)
   const fetchShardPage = useCallback(
-    async (opts?: {
-      offset?: number;
-      status?: typeof shardPageStatus;
-      asset_group?: string;
-    }) => {
+    async (opts?: { offset?: number; status?: typeof shardPageStatus; asset_group?: string }) => {
       const nextOffset = opts?.offset ?? shardPageOffset;
       const nextStatus = opts?.status ?? shardPageStatus;
       const nextAg = opts?.asset_group ?? shardPageAssetGroup;
@@ -662,9 +594,7 @@ export function DeploymentDetails({
         if (nextStatus !== "all") params.append("status", nextStatus);
         if (nextAg.trim()) params.set("asset_group", nextAg.trim());
 
-        const response = await fetch(
-          `/api/deployments/${deploymentId}/shards?${params.toString()}`,
-        );
+        const response = await fetch(`/api/deployments/${deploymentId}/shards?${params.toString()}`);
         if (!response.ok) {
           const err = await response.json();
           throw new Error(err.detail || "Failed to fetch shards");
@@ -680,13 +610,7 @@ export function DeploymentDetails({
         setShardPageLoading(false);
       }
     },
-    [
-      deploymentId,
-      shardPageLimit,
-      shardPageOffset,
-      shardPageStatus,
-      shardPageAssetGroup,
-    ],
+    [deploymentId, shardPageLimit, shardPageOffset, shardPageStatus, shardPageAssetGroup],
   );
 
   // API allows max limit=1000; use it so the request succeeds (was 10000 → 422)
@@ -697,14 +621,10 @@ export function DeploymentDetails({
     if (shardsLoading) return;
     setShardsLoading(true);
     try {
-      const response = await fetch(
-        `/api/deployments/${deploymentId}/shards?limit=${SHARDS_PAGE_LIMIT}&offset=0`,
-      );
+      const response = await fetch(`/api/deployments/${deploymentId}/shards?limit=${SHARDS_PAGE_LIMIT}&offset=0`);
       if (!response.ok) {
         // Fallback: full status includes shards (for deployments with many shards we only get first page from /shards)
-        const fullResponse = await fetch(
-          `/api/deployments/${deploymentId}?skip_logs=true`,
-        );
+        const fullResponse = await fetch(`/api/deployments/${deploymentId}?skip_logs=true`);
         if (fullResponse.ok) {
           const data = await fullResponse.json();
           if (data.shards) {
@@ -753,16 +673,11 @@ export function DeploymentDetails({
 
       if (isClassification && classifications) {
         // Filter by classification, with fallback to raw status for STILL_RUNNING
-        let classFiltered = result.filter(
-          (s) => classifications[s.shard_id] === shardStatusFilter,
-        );
+        let classFiltered = result.filter((s) => classifications[s.shard_id] === shardStatusFilter);
         // Fallback: if classification filter returns nothing but we expect matches,
         // it means the deployment state changed since classifications were computed.
         // For STILL_RUNNING, fall back to matching shards with status 'running'.
-        if (
-          classFiltered.length === 0 &&
-          shardStatusFilter === "STILL_RUNNING"
-        ) {
+        if (classFiltered.length === 0 && shardStatusFilter === "STILL_RUNNING") {
           classFiltered = result.filter((s) => s.status === "running");
         }
         result = classFiltered;
@@ -786,8 +701,7 @@ export function DeploymentDetails({
         // Match status
         if (s.status.toLowerCase().includes(query)) return true;
         // Match classification
-        if (classifications?.[s.shard_id]?.toLowerCase().includes(query))
-          return true;
+        if (classifications?.[s.shard_id]?.toLowerCase().includes(query)) return true;
         // Match dimension values
         if (s.dimensions) {
           const dimStr = Object.values(s.dimensions)
@@ -803,24 +717,13 @@ export function DeploymentDetails({
     }
 
     return result;
-  }, [
-    allShards,
-    status?.shards,
-    shardPage,
-    shardStatusFilter,
-    shardSearchText,
-    status?.shard_classifications,
-  ]);
+  }, [allShards, status?.shards, shardPage, shardStatusFilter, shardSearchText, status?.shard_classifications]);
 
   // Use ref to prevent concurrent fetches
   const isFetchingLogs = useRef(false);
 
   const fetchLogs = useCallback(
-    async (
-      severity: string = "DEFAULT",
-      incremental: boolean = false,
-      hoursBack?: number | null,
-    ) => {
+    async (severity: string = "DEFAULT", incremental: boolean = false, hoursBack?: number | null) => {
       // Prevent concurrent fetches
       if (isFetchingLogs.current) return;
       isFetchingLogs.current = true;
@@ -840,16 +743,11 @@ export function DeploymentDetails({
           if (response.status === 429) {
             if (!incremental) {
               setLogs([]);
-              setLogsMessage(
-                data.message ||
-                  "Cloud Logging rate limit exceeded. Wait a minute and try again.",
-              );
+              setLogsMessage(data.message || "Cloud Logging rate limit exceeded. Wait a minute and try again.");
             }
             return;
           }
-          throw new Error(
-            data.detail || data.message || "Failed to fetch logs",
-          );
+          throw new Error(data.detail || data.message || "Failed to fetch logs");
         }
 
         if (incremental && afterLine > 0) {
@@ -867,12 +765,7 @@ export function DeploymentDetails({
         setLogsMessage(data.message || null);
 
         // Auto-scroll to bottom if following and new logs arrived
-        if (
-          followLogs &&
-          data.logs &&
-          data.logs.length > 0 &&
-          logsContainerRef.current
-        ) {
+        if (followLogs && data.logs && data.logs.length > 0 && logsContainerRef.current) {
           setTimeout(() => {
             logsContainerRef.current?.scrollTo({
               top: logsContainerRef.current.scrollHeight,
@@ -884,37 +777,20 @@ export function DeploymentDetails({
         if (!incremental) {
           setLogs([]);
           const msg = err instanceof Error ? err.message : String(err);
-          setLogsMessage(
-            msg.includes("429") || msg.toLowerCase().includes("rate limit")
-              ? msg
-              : null,
-          );
+          setLogsMessage(msg.includes("429") || msg.toLowerCase().includes("rate limit") ? msg : null);
         }
       } finally {
         setLogsLoading(false);
         isFetchingLogs.current = false;
       }
     },
-    [
-      deploymentId,
-      lastLineCount,
-      followLogs,
-      logsHoursBack,
-      status?.compute_type,
-    ],
+    [deploymentId, lastLineCount, followLogs, logsHoursBack, status?.compute_type],
   );
 
-  // Auto-follow polling effect
-  useEffect(() => {
-    if (!followLogs) return;
-
-    // Poll every 15s to avoid exceeding Cloud Logging 60 reads/min quota
-    const pollInterval = setInterval(() => {
-      fetchLogs("DEFAULT", true);
-    }, 15000);
-
-    return () => clearInterval(pollInterval);
-  }, [followLogs, fetchLogs]);
+  // Auto-follow polling effect — every 15s to avoid exceeding Cloud Logging
+  // 60 reads/min quota. Pauses while the tab is hidden, resumes with an
+  // immediate refresh.
+  useVisibilityPausedInterval(() => fetchLogs("DEFAULT", true), followLogs ? 15000 : null);
 
   const fetchShardLogs = async (shardId: string) => {
     try {
@@ -929,15 +805,10 @@ export function DeploymentDetails({
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (response.status === 429) {
-          setShardLogsMessage(
-            data.message ||
-              "Cloud Logging rate limit exceeded. Wait a minute and try again.",
-          );
+          setShardLogsMessage(data.message || "Cloud Logging rate limit exceeded. Wait a minute and try again.");
           return;
         }
-        throw new Error(
-          data.detail || data.message || "Failed to fetch shard logs",
-        );
+        throw new Error(data.detail || data.message || "Failed to fetch shard logs");
       }
 
       setShardLogs(data.logs || []);
@@ -964,11 +835,29 @@ export function DeploymentDetails({
     let mounted = true;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let pollCount = 0;
+    // Tracks the currently-scheduled cadence so the visibility-pause resume
+    // handler below can restart at the SAME phase (fast vs slow) rather than
+    // resetting the backoff. Set by scheduleInterval() below.
+    let currentPollMs = 0;
+    // Distinguishes "paused because the tab is hidden" (pollInterval===null,
+    // resumable) from "stopped because the deployment reached a terminal
+    // state" (pollInterval===null, permanent — visibility changes must NOT
+    // resurrect it).
+    let stoppedForTerminal = false;
     // When SSE is connected, skip fast-poll phase entirely and use 30s fallback polling.
     // When SSE is disconnected, use fast (3s) for first 18s then slow (15s).
     const maxFastPolls = sseConnected ? 0 : 6;
     const slowPollMs = sseConnected ? 30_000 : 15_000;
     const fastPollMs = 3_000;
+
+    // (Re)schedules the interval at `ms`, pausing immediately (no timer
+    // created) if the tab is currently hidden — the visibilitychange
+    // handler below starts it once the tab is visible again.
+    const scheduleInterval = (ms: number) => {
+      if (pollInterval) clearInterval(pollInterval);
+      currentPollMs = ms;
+      pollInterval = document.hidden ? null : setInterval(poll, ms);
+    };
 
     const poll = async () => {
       if (!mounted) return;
@@ -978,9 +867,7 @@ export function DeploymentDetails({
 
       try {
         // Always skip log analysis for fast response - logs tab fetches separately
-        const response = await fetch(
-          `/api/deployments/${deploymentId}?skip_logs=true&summary=true`,
-        );
+        const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`);
         if (!mounted) return;
 
         if (response.ok) {
@@ -1001,8 +888,7 @@ export function DeploymentDetails({
 
           // Call refresh on first poll and every 2nd poll (every ~30s during slow polling)
           // With aggregatedList backend optimization, refresh is now fast (~1-3s)
-          const hasWorkRemaining =
-            (data.running_shards || 0) > 0 || (data.pending_shards || 0) > 0;
+          const hasWorkRemaining = (data.running_shards || 0) > 0 || (data.pending_shards || 0) > 0;
           if (hasWorkRemaining && (pollCount === 1 || pollCount % 2 === 0)) {
             try {
               await fetch(`/api/deployments/${deploymentId}/refresh`, {
@@ -1023,12 +909,11 @@ export function DeploymentDetails({
             "completed_with_warnings",
             "completed_with_errors",
           ];
-          const isTerminal =
-            terminalStates.includes(data.status) ||
-            terminalStates.includes(data.status_detail);
+          const isTerminal = terminalStates.includes(data.status) || terminalStates.includes(data.status_detail);
           if (isTerminal && !hasWorkRemaining) {
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = null;
+            stoppedForTerminal = true;
             return;
           }
         } else if (response.status === 404) {
@@ -1043,22 +928,30 @@ export function DeploymentDetails({
         }
       } catch (err) {
         if (mounted && pollCount > maxFastPolls) {
-          setError(
-            err instanceof Error ? err.message : "Failed to fetch status",
-          );
+          setError(err instanceof Error ? err.message : "Failed to fetch status");
           setLoading(false);
         }
       }
 
       // Adjust polling interval: fast phase -> slow phase
-      if (
-        !sseConnected &&
-        isFastPolling &&
-        pollCount === maxFastPolls &&
-        pollInterval
-      ) {
-        clearInterval(pollInterval);
-        pollInterval = setInterval(poll, slowPollMs);
+      if (!sseConnected && isFastPolling && pollCount === maxFastPolls && pollInterval) {
+        scheduleInterval(slowPollMs);
+      }
+    };
+
+    // Pauses polling while the tab is hidden; resumes at the SAME cadence
+    // (fast or slow, whichever was active) with an immediate refresh when
+    // the tab becomes visible again. Never resurrects a terminal-stopped poll.
+    const handleVisibilityChange = () => {
+      if (stoppedForTerminal || !mounted) return;
+      if (document.hidden) {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      } else if (pollInterval === null) {
+        void poll();
+        pollInterval = setInterval(poll, currentPollMs || slowPollMs);
       }
     };
 
@@ -1068,10 +961,13 @@ export function DeploymentDetails({
 
     // Start polling: fast (3s) when no SSE, slow (30s) when SSE is connected
     const initialInterval = sseConnected ? slowPollMs : fastPollMs;
-    pollInterval = setInterval(poll, initialInterval);
+    scheduleInterval(initialInterval);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       mounted = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
@@ -1095,10 +991,8 @@ export function DeploymentDetails({
       "completed_with_errors",
     ];
     const isNowTerminal =
-      terminalStates.includes(status.status) ||
-      (status.status_detail && terminalStates.includes(status.status_detail));
-    const wasNotTerminal =
-      prevStatusRef.current && !terminalStates.includes(prevStatusRef.current);
+      terminalStates.includes(status.status) || (status.status_detail && terminalStates.includes(status.status_detail));
+    const wasNotTerminal = prevStatusRef.current && !terminalStates.includes(prevStatusRef.current);
 
     // If deployment just transitioned to terminal state and we have shard data loaded, refresh it
     if (isNowTerminal && wasNotTerminal && allShards !== null) {
@@ -1109,13 +1003,13 @@ export function DeploymentDetails({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit `status` object to avoid re-running on every status poll
   }, [status?.status, status?.status_detail, loadAllShards, allShards]);
 
-  // Poll live health every 15s for live-mode running deployments
+  // Poll live health every 15s for live-mode running deployments; pauses
+  // while the tab is hidden, resumes with an immediate refresh.
+  const liveHealthActive = status?.deploy_mode === "live" && status?.status === "running";
   useEffect(() => {
-    if (status?.deploy_mode !== "live" || status?.status !== "running") return;
-    fetchLiveHealth();
-    const interval = setInterval(fetchLiveHealth, 15000);
-    return () => clearInterval(interval);
-  }, [status?.deploy_mode, status?.status, fetchLiveHealth]);
+    if (liveHealthActive) fetchLiveHealth();
+  }, [liveHealthActive, fetchLiveHealth]);
+  useVisibilityPausedInterval(fetchLiveHealth, liveHealthActive ? 15000 : null);
 
   const getStatusBadge = (status: string, statusDetail?: string) => {
     // Use status_detail for nuanced display if available
@@ -1133,10 +1027,7 @@ export function DeploymentDetails({
         return <Badge variant="success">Completed</Badge>;
       case "completed_pending_delete":
         return (
-          <Badge
-            variant="warning"
-            title="VMs may still be deleting; delete manually if they remain"
-          >
+          <Badge variant="warning" title="VMs may still be deleting; delete manually if they remain">
             Completed (pending delete)
           </Badge>
         );
@@ -1168,12 +1059,8 @@ export function DeploymentDetails({
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
             <div className="text-center">
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Loading deployment status...
-              </p>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Checking shard states and VM instances
-              </p>
+              <p className="text-sm text-[var(--color-text-secondary)]">Loading deployment status...</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Checking shard states and VM instances</p>
             </div>
           </div>
         </CardContent>
@@ -1197,15 +1084,8 @@ export function DeploymentDetails({
           <div className="flex items-start gap-3 p-4 rounded-lg status-error">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)]" />
             <div>
-              <p className="text-sm font-medium text-[var(--color-accent-red)]">
-                {error || "Deployment not found"}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchStatus}
-                className="mt-2"
-              >
+              <p className="text-sm font-medium text-[var(--color-accent-red)]">{error || "Deployment not found"}</p>
+              <Button variant="ghost" size="sm" onClick={fetchStatus} className="mt-2">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry
               </Button>
@@ -1220,10 +1100,7 @@ export function DeploymentDetails({
   // the status filter + text search. Only fall back to raw shardPage when nothing is loaded.
   const hasLoadedShards = allShards !== null || status.shards !== null;
   const shardsForDisplay = hasLoadedShards ? filteredShards : (shardPage ?? []);
-  const displayShards = shardsForDisplay.slice(
-    0,
-    showAllShards ? undefined : 50,
-  );
+  const displayShards = shardsForDisplay.slice(0, showAllShards ? undefined : 50);
 
   return (
     <Card className="border-2 border-[var(--color-border-emphasis)]">
@@ -1231,17 +1108,14 @@ export function DeploymentDetails({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <CardTitle className="font-mono text-lg">
-                {status.deployment_id}
-              </CardTitle>
+              <CardTitle className="font-mono text-lg">{status.deployment_id}</CardTitle>
               {getStatusBadge(status.status, status.status_detail)}
               {status.has_force && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-accent-purple)]/20 text-[var(--color-accent-purple)]">
                   --force
                 </span>
               )}
-              {(status.gcs_fuse_active !== undefined ||
-                status.gcs_fuse_reason) && (
+              {(status.gcs_fuse_active !== undefined || status.gcs_fuse_reason) && (
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                     status.gcs_fuse_active
@@ -1265,11 +1139,7 @@ export function DeploymentDetails({
                     : "Event stream disconnected -- using polling fallback"
                 }
               >
-                {sseConnected ? (
-                  <Wifi className="h-3 w-3" />
-                ) : (
-                  <WifiOff className="h-3 w-3" />
-                )}
+                {sseConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                 {sseConnected ? "Live" : "Polling"}
               </span>
             </div>
@@ -1280,10 +1150,7 @@ export function DeploymentDetails({
               {" • "}
               {formatDateTime(status.created_at || "")}
               {status.updated_at && (
-                <span
-                  className="text-[var(--color-text-muted)]"
-                  title="Status refreshes every few seconds"
-                >
+                <span className="text-[var(--color-text-muted)]" title="Status refreshes every few seconds">
                   {" • Updated "}
                   {formatDateTime(status.updated_at)}
                 </span>
@@ -1304,26 +1171,20 @@ export function DeploymentDetails({
                       {status.image_short_digest}
                     </span>
                     {/* Show other tags if available (like commit hashes) */}
-                    {status.image_all_tags &&
-                      status.image_all_tags.length > 1 && (
-                        <span className="text-xs text-[var(--color-text-muted)]">
-                          (
-                          {status.image_all_tags
-                            .filter(
-                              (t) => t !== "latest" && t !== status.image_tag,
-                            )
-                            .slice(0, 2)
-                            .join(", ") || status.image_tag}
-                          )
-                        </span>
-                      )}
+                    {status.image_all_tags && status.image_all_tags.length > 1 && (
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        (
+                        {status.image_all_tags
+                          .filter((t) => t !== "latest" && t !== status.image_tag)
+                          .slice(0, 2)
+                          .join(", ") || status.image_tag}
+                        )
+                      </span>
+                    )}
                   </>
                 ) : (
                   // Fallback to just showing the tag
-                  <span
-                    className="text-xs font-mono text-[var(--color-accent-purple)]"
-                    title={status.docker_image}
-                  >
+                  <span className="text-xs font-mono text-[var(--color-accent-purple)]" title={status.docker_image}>
                     {status.image_tag}
                   </span>
                 )}
@@ -1332,10 +1193,7 @@ export function DeploymentDetails({
                     className="text-xs text-[var(--color-text-muted)] truncate max-w-[200px]"
                     title={status.docker_image}
                   >
-                    (
-                    {status.docker_image.split("/").pop()?.split(":")[0] ||
-                      "image"}
-                    )
+                    ({status.docker_image.split("/").pop()?.split(":")[0] || "image"})
                   </span>
                 )}
               </div>
@@ -1381,11 +1239,7 @@ export function DeploymentDetails({
               ) : (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-[var(--color-text-secondary)]">
-                    {status.tag || (
-                      <span className="text-[var(--color-text-muted)] italic">
-                        No description
-                      </span>
-                    )}
+                    {status.tag || <span className="text-[var(--color-text-muted)] italic">No description</span>}
                   </span>
                   <Button
                     variant="ghost"
@@ -1409,9 +1263,7 @@ export function DeploymentDetails({
             {status.deploy_mode === "live" && liveHealth && (
               <span
                 className={`text-xs flex items-center gap-1 ${
-                  liveHealth.healthy
-                    ? "text-[var(--color-accent-green)]"
-                    : "text-[var(--color-accent-red)]"
+                  liveHealth.healthy ? "text-[var(--color-accent-green)]" : "text-[var(--color-accent-red)]"
                 }`}
                 title={`Health check at ${liveHealth.checked_at}${liveHealth.status_code ? ` — HTTP ${liveHealth.status_code}` : ""}`}
               >
@@ -1427,12 +1279,7 @@ export function DeploymentDetails({
                 Auto-syncing
               </span>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={fetchStatus}
-              title="Refresh"
-            >
+            <Button variant="ghost" size="icon" onClick={fetchStatus} title="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose} title="Close">
@@ -1445,12 +1292,7 @@ export function DeploymentDetails({
         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[var(--color-border-subtle)]">
           {/* Cancel - only for running/pending */}
           {(status.status === "running" || status.status === "pending") && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleCancelDeployment}
-              disabled={actionLoading !== null}
-            >
+            <Button variant="destructive" size="sm" onClick={handleCancelDeployment} disabled={actionLoading !== null}>
               {actionLoading === "cancel" ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
@@ -1462,12 +1304,7 @@ export function DeploymentDetails({
 
           {/* Resume - only for failed */}
           {status.status === "failed" && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleResumeDeployment}
-              disabled={actionLoading !== null}
-            >
+            <Button variant="default" size="sm" onClick={handleResumeDeployment} disabled={actionLoading !== null}>
               {actionLoading === "resume" ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
@@ -1479,12 +1316,7 @@ export function DeploymentDetails({
 
           {/* Retry Failed - only if there are failed shards */}
           {status.failed_shards > 0 && status.status !== "cancelled" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetryFailed}
-              disabled={actionLoading !== null}
-            >
+            <Button variant="outline" size="sm" onClick={handleRetryFailed} disabled={actionLoading !== null}>
               {actionLoading === "retry" ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -1500,29 +1332,27 @@ export function DeploymentDetails({
           )}
 
           {/* Rollback - live mode only, not when completed */}
-          {status.deploy_mode === "live" &&
-            status.status !== "completed" &&
-            status.status !== "cancelled" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRollback}
-                disabled={actionLoading !== null}
-                className="border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[var(--color-accent-amber)]/10"
-              >
-                {actionLoading === "rollback" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    Rolling back...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Rollback
-                  </>
-                )}
-              </Button>
-            )}
+          {status.deploy_mode === "live" && status.status !== "completed" && status.status !== "cancelled" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRollback}
+              disabled={actionLoading !== null}
+              className="border-[var(--color-accent-amber)] text-[var(--color-accent-amber)] hover:bg-[var(--color-accent-amber)]/10"
+            >
+              {actionLoading === "rollback" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  Rolling back...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Rollback
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Action Messages */}
@@ -1560,124 +1390,98 @@ export function DeploymentDetails({
           <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-[var(--color-accent-red)]">
-                Deployment Failed
-              </p>
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1 font-mono">
-                {status.error_message}
-              </p>
+              <p className="text-sm font-medium text-[var(--color-accent-red)]">Deployment Failed</p>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1 font-mono">{status.error_message}</p>
             </div>
           </div>
         )}
 
         {/* Log Analysis - Errors and Warnings Summary */}
-        {status.log_analysis &&
-          (status.log_analysis.error_count > 0 ||
-            status.log_analysis.warning_count > 0) && (
-            <div className="space-y-3">
-              {/* Completed with issues alert */}
-              {status.status_detail === "completed_with_errors" && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
-                  <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-accent-amber)]">
-                      Completed with Errors - Data may be unreliable
-                    </p>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      This deployment completed but had{" "}
-                      {status.log_analysis.error_count} error(s) in the logs.
-                      Review before considering data reliable.
-                    </p>
-                  </div>
+        {status.log_analysis && (status.log_analysis.error_count > 0 || status.log_analysis.warning_count > 0) && (
+          <div className="space-y-3">
+            {/* Completed with issues alert */}
+            {status.status_detail === "completed_with_errors" && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
+                <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-accent-amber)]">
+                    Completed with Errors - Data may be unreliable
+                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                    This deployment completed but had {status.log_analysis.error_count} error(s) in the logs. Review
+                    before considering data reliable.
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {status.status_detail === "completed_with_warnings" && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
-                  <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-accent-amber)]">
-                      Completed with Warnings
-                    </p>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      This deployment completed but had{" "}
-                      {status.log_analysis.warning_count} warning(s). Review
-                      recommended.
-                    </p>
-                  </div>
+            {status.status_detail === "completed_with_warnings" && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-status-warning-bg-alt)] border border-[var(--color-status-warning-border-alt)]">
+                <AlertCircle className="h-5 w-5 text-[var(--color-accent-amber)] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-accent-amber)]">Completed with Warnings</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                    This deployment completed but had {status.log_analysis.warning_count} warning(s). Review
+                    recommended.
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Errors Panel */}
-              {status.log_analysis.error_count > 0 && (
-                <div className="p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[var(--color-accent-red)] flex items-center gap-1">
-                      <XCircle className="h-4 w-4" />
-                      {status.log_analysis.error_count} Error(s) in Logs
+            {/* Errors Panel */}
+            {status.log_analysis.error_count > 0 && (
+              <div className="p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-[var(--color-accent-red)] flex items-center gap-1">
+                    <XCircle className="h-4 w-4" />
+                    {status.log_analysis.error_count} Error(s) in Logs
+                  </span>
+                  {status.log_analysis.has_stack_traces && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-accent-red)] text-white">
+                      Has Stack Traces
                     </span>
-                    {status.log_analysis.has_stack_traces && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-accent-red)] text-white">
-                        Has Stack Traces
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {status.log_analysis.errors.slice(0, 5).map((err, idx) => (
-                      <div
-                        key={idx}
-                        className="text-xs font-mono text-[var(--color-text-secondary)] truncate"
-                      >
-                        <span className="text-[var(--color-accent-purple)]">
-                          [{err.shard_id}]
-                        </span>{" "}
-                        {err.message}
-                      </div>
-                    ))}
-                    {status.log_analysis.error_count > 5 && (
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        ... and {status.log_analysis.error_count - 5} more
-                        errors
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </div>
-              )}
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {status.log_analysis.errors.slice(0, 5).map((err, idx) => (
+                    <div key={idx} className="text-xs font-mono text-[var(--color-text-secondary)] truncate">
+                      <span className="text-[var(--color-accent-purple)]">[{err.shard_id}]</span> {err.message}
+                    </div>
+                  ))}
+                  {status.log_analysis.error_count > 5 && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      ... and {status.log_analysis.error_count - 5} more errors
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
-              {/* Warnings Panel */}
-              {status.log_analysis.warning_count > 0 && (
-                <div className="p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[var(--color-accent-amber)] flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {status.log_analysis.warning_count} Warning(s) in Logs
-                    </span>
-                  </div>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {status.log_analysis.warnings
-                      .slice(0, 5)
-                      .map((warn, idx) => (
-                        <div
-                          key={idx}
-                          className="text-xs font-mono text-[var(--color-text-secondary)] truncate"
-                        >
-                          <span className="text-[var(--color-accent-purple)]">
-                            [{warn.shard_id}]
-                          </span>{" "}
-                          {warn.message}
-                        </div>
-                      ))}
-                    {status.log_analysis.warning_count > 5 && (
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        ... and {status.log_analysis.warning_count - 5} more
-                        warnings
-                      </p>
-                    )}
-                  </div>
+            {/* Warnings Panel */}
+            {status.log_analysis.warning_count > 0 && (
+              <div className="p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-[var(--color-accent-amber)] flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {status.log_analysis.warning_count} Warning(s) in Logs
+                  </span>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {status.log_analysis.warnings.slice(0, 5).map((warn, idx) => (
+                    <div key={idx} className="text-xs font-mono text-[var(--color-text-secondary)] truncate">
+                      <span className="text-[var(--color-accent-purple)]">[{warn.shard_id}]</span> {warn.message}
+                    </div>
+                  ))}
+                  {status.log_analysis.warning_count > 5 && (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      ... and {status.log_analysis.warning_count - 5} more warnings
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Progress Stats — click any stat to filter the shard list */}
         <div className="grid grid-cols-5 gap-3">
@@ -1716,9 +1520,7 @@ export function DeploymentDetails({
         {/* Shard Classification Breakdown */}
         {status.classification_counts ? (
           <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
-              Shard Classification
-            </p>
+            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Shard Classification</p>
 
             {/* Data Verification (Tier 3) */}
             {(status.completed_shards ?? 0) > 0 && (
@@ -1773,12 +1575,9 @@ export function DeploymentDetails({
 
             {/* Log Quality (Tier 2) */}
             {((status.classification_counts?.COMPLETED_WITH_ERRORS ?? 0) > 0 ||
-              (status.classification_counts?.COMPLETED_WITH_WARNINGS ?? 0) >
-                0) && (
+              (status.classification_counts?.COMPLETED_WITH_WARNINGS ?? 0) > 0) && (
               <div className="mb-2">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                  Log Quality
-                </p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Log Quality</p>
                 <div className="grid grid-cols-5 gap-2">
                   {(
                     [
@@ -1816,9 +1615,7 @@ export function DeploymentDetails({
               (status.classification_counts?.VM_DIED ?? 0) > 0 ||
               (status.classification_counts?.NEVER_RAN ?? 0) > 0) && (
               <div className="mb-2">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                  Job Failures
-                </p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Job Failures</p>
                 <div className="grid grid-cols-5 gap-2">
                   {(
                     [
@@ -1868,9 +1665,7 @@ export function DeploymentDetails({
             {((status.classification_counts?.STILL_RUNNING ?? 0) > 0 ||
               (status.classification_counts?.CANCELLED ?? 0) > 0) && (
               <div className="mb-2">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                  In Progress
-                </p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">In Progress</p>
                 <div className="grid grid-cols-5 gap-2">
                   {(
                     [
@@ -1905,11 +1700,7 @@ export function DeploymentDetails({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  handleVerifyCompletion(
-                    (status.completed_with_verification ?? null) != null,
-                  )
-                }
+                onClick={() => handleVerifyCompletion((status.completed_with_verification ?? null) != null)}
                 disabled={actionLoading === "verify"}
               >
                 {actionLoading === "verify" ? (
@@ -1920,9 +1711,7 @@ export function DeploymentDetails({
                 ) : (
                   <>
                     <CheckSquare className="h-4 w-4 mr-2" />
-                    {(status.completed_with_verification ?? null) != null
-                      ? "Re-verify"
-                      : "Verify"}
+                    {(status.completed_with_verification ?? null) != null ? "Re-verify" : "Verify"}
                   </>
                 )}
               </Button>
@@ -1931,35 +1720,21 @@ export function DeploymentDetails({
         ) : (status.completed_shards ?? 0) > 0 ? (
           /* Fallback: old-style stat boxes when classification is not yet available */
           <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">
-              Completed shards
-            </p>
+            <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Completed shards</p>
             <div className="grid grid-cols-4 gap-3">
               <StatBox
                 label="Verified"
-                value={
-                  status.completed_with_verification != null
-                    ? status.completed_with_verification
-                    : "—"
-                }
+                value={status.completed_with_verification != null ? status.completed_with_verification : "—"}
                 color="var(--color-accent-green)"
               />
               <StatBox
                 label="With warnings"
-                value={
-                  status.completed_with_warnings != null
-                    ? status.completed_with_warnings
-                    : "—"
-                }
+                value={status.completed_with_warnings != null ? status.completed_with_warnings : "—"}
                 color="var(--color-accent-amber)"
               />
               <StatBox
                 label="With errors"
-                value={
-                  status.completed_with_errors != null
-                    ? status.completed_with_errors
-                    : "—"
-                }
+                value={status.completed_with_errors != null ? status.completed_with_errors : "—"}
                 color="var(--color-accent-red)"
               />
               <StatBox
@@ -1970,8 +1745,7 @@ export function DeploymentDetails({
             </div>
             {(status.completed_with_verification ?? null) == null && (
               <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                {(status.running_shards ?? 0) === 0 &&
-                (status.pending_shards ?? 0) === 0
+                {(status.running_shards ?? 0) === 0 && (status.pending_shards ?? 0) === 0
                   ? "Verification is running automatically in the background. Refresh in a moment, or click Verify."
                   : "Click Verify to check how many completed shards have created output files."}
               </p>
@@ -1980,11 +1754,7 @@ export function DeploymentDetails({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  handleVerifyCompletion(
-                    (status.completed_with_verification ?? null) != null,
-                  )
-                }
+                onClick={() => handleVerifyCompletion((status.completed_with_verification ?? null) != null)}
                 disabled={actionLoading === "verify"}
               >
                 {actionLoading === "verify" ? (
@@ -1995,9 +1765,7 @@ export function DeploymentDetails({
                 ) : (
                   <>
                     <CheckSquare className="h-4 w-4 mr-2" />
-                    {(status.completed_with_verification ?? null) != null
-                      ? "Re-verify"
-                      : "Verify"}
+                    {(status.completed_with_verification ?? null) != null ? "Re-verify" : "Verify"}
                   </>
                 )}
               </Button>
@@ -2016,8 +1784,7 @@ export function DeploymentDetails({
               {status.retry_stats.succeeded_after_retry > 0 && (
                 <span className="text-[var(--color-accent-green)]">
                   {" "}
-                  • {status.retry_stats.succeeded_after_retry} succeeded after
-                  retry
+                  • {status.retry_stats.succeeded_after_retry} succeeded after retry
                 </span>
               )}
               {status.retry_stats.failed_after_retry > 0 && (
@@ -2034,9 +1801,7 @@ export function DeploymentDetails({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[var(--color-text-secondary)]">Progress</span>
-            <span className="font-mono text-[var(--color-text-primary)]">
-              {status.progress_percentage}%
-            </span>
+            <span className="font-mono text-[var(--color-text-primary)]">{status.progress_percentage}%</span>
           </div>
           <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
             <div
@@ -2049,9 +1814,7 @@ export function DeploymentDetails({
         {/* Tabs for Shards and Logs */}
         <Tabs defaultValue="shards" className="w-full">
           <TabsList variant="pill" className="grid w-full grid-cols-4">
-            <TabsTrigger value="shards">
-              Shards ({status.total_shards})
-            </TabsTrigger>
+            <TabsTrigger value="shards">Shards ({status.total_shards})</TabsTrigger>
             <TabsTrigger
               value="logs"
               onClick={() => {
@@ -2063,10 +1826,7 @@ export function DeploymentDetails({
             >
               Logs ({logs.length})
             </TabsTrigger>
-            <TabsTrigger
-              value="report"
-              onClick={() => !report && fetchReport()}
-            >
+            <TabsTrigger value="report" onClick={() => !report && fetchReport()}>
               Report
             </TabsTrigger>
             <TabsTrigger
@@ -2083,17 +1843,16 @@ export function DeploymentDetails({
 
           <TabsContent value="shards" className="mt-4">
             {/* Show provisioning message when all shards are pending */}
-            {status.pending_shards === status.total_shards &&
-              status.total_shards > 0 && (
-                <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-[var(--color-status-running-bg)] border border-[var(--color-status-running-border)]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-cyan)]" />
-                  <span className="text-sm text-[var(--color-accent-cyan)]">
-                    {status.compute_type === "vm"
-                      ? `Provisioning ${status.total_shards} VMs across available zones...`
-                      : `Starting ${status.total_shards} shards (serverless)...`}
-                  </span>
-                </div>
-              )}
+            {status.pending_shards === status.total_shards && status.total_shards > 0 && (
+              <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-[var(--color-status-running-bg)] border border-[var(--color-status-running-border)]">
+                <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-cyan)]" />
+                <span className="text-sm text-[var(--color-accent-cyan)]">
+                  {status.compute_type === "vm"
+                    ? `Provisioning ${status.total_shards} VMs across available zones...`
+                    : `Starting ${status.total_shards} shards (serverless)...`}
+                </span>
+              </div>
+            )}
 
             {/* Shard loading & filtering */}
             {status.total_shards > 0 && (
@@ -2109,12 +1868,7 @@ export function DeploymentDetails({
                         Load to inspect, search, and filter individual shards.
                       </p>
                     </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={loadAllShards}
-                      disabled={shardsLoading}
-                    >
+                    <Button variant="default" size="sm" onClick={loadAllShards} disabled={shardsLoading}>
                       {shardsLoading ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -2146,58 +1900,40 @@ export function DeploymentDetails({
                             label: "Succeeded",
                             color: "var(--color-accent-green)",
                             count: (allShards ?? status?.shards ?? []).filter(
-                              (s) =>
-                                s.status === "succeeded" ||
-                                s.status === "completed",
+                              (s) => s.status === "succeeded" || s.status === "completed",
                             ).length,
                           },
                           {
                             key: "failed" as const,
                             label: "Failed",
                             color: "var(--color-accent-red)",
-                            count: (allShards ?? status?.shards ?? []).filter(
-                              (s) => s.status === "failed",
-                            ).length,
+                            count: (allShards ?? status?.shards ?? []).filter((s) => s.status === "failed").length,
                           },
                           {
                             key: "running" as const,
                             label: "Running",
                             color: "var(--color-accent-cyan)",
-                            count: (allShards ?? status?.shards ?? []).filter(
-                              (s) => s.status === "running",
-                            ).length,
+                            count: (allShards ?? status?.shards ?? []).filter((s) => s.status === "running").length,
                           },
                           {
                             key: "pending" as const,
                             label: "Pending",
                             color: "var(--color-text-muted)",
-                            count: (allShards ?? status?.shards ?? []).filter(
-                              (s) => s.status === "pending",
-                            ).length,
+                            count: (allShards ?? status?.shards ?? []).filter((s) => s.status === "pending").length,
                           },
                         ]
                           .filter((f) => f.key === "all" || f.count > 0)
                           .map((f) => (
                             <Button
                               key={f.key}
-                              variant={
-                                shardStatusFilter === f.key
-                                  ? "default"
-                                  : "ghost"
-                              }
+                              variant={shardStatusFilter === f.key ? "default" : "ghost"}
                               size="sm"
                               onClick={() => setShardStatusFilter(f.key)}
                               className={cn(
                                 "px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap h-auto",
-                                shardStatusFilter === f.key
-                                  ? "text-white"
-                                  : "text-[var(--color-text-secondary)]",
+                                shardStatusFilter === f.key ? "text-white" : "text-[var(--color-text-secondary)]",
                               )}
-                              style={
-                                shardStatusFilter === f.key
-                                  ? { backgroundColor: f.color }
-                                  : undefined
-                              }
+                              style={shardStatusFilter === f.key ? { backgroundColor: f.color } : undefined}
                             >
                               {f.label} ({f.count})
                             </Button>
@@ -2233,9 +1969,7 @@ export function DeploymentDetails({
                     </div>
 
                     {/* Active classification filter banner */}
-                    {CLASSIFICATION_FILTERS.includes(
-                      shardStatusFilter as (typeof CLASSIFICATION_FILTERS)[number],
-                    ) && (
+                    {CLASSIFICATION_FILTERS.includes(shardStatusFilter as (typeof CLASSIFICATION_FILTERS)[number]) && (
                       <div className="flex items-center gap-2 px-2 py-1 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
                         <span className="text-xs text-[var(--color-text-secondary)]">
                           Filtered by classification:{" "}
@@ -2258,8 +1992,7 @@ export function DeploymentDetails({
                     <div className="text-xs text-[var(--color-text-muted)]">
                       {shardSearchText.trim() || shardStatusFilter !== "all" ? (
                         <span>
-                          Showing {filteredShards.length} of{" "}
-                          {(allShards ?? status?.shards ?? []).length} shards
+                          Showing {filteredShards.length} of {(allShards ?? status?.shards ?? []).length} shards
                           {shardSearchText.trim() && (
                             <Button
                               variant="ghost"
@@ -2322,25 +2055,16 @@ export function DeploymentDetails({
                 {status.running_shards > 0 && (allShards || status.shards) && (
                   <>
                     <div className="w-px h-4 bg-[var(--color-border-subtle)]" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={selectAllRunningShards}
-                      className="h-7 text-xs"
-                    >
+                    <Button variant="ghost" size="sm" onClick={selectAllRunningShards} className="h-7 text-xs">
                       {selectedShards.size > 0 ? (
                         <CheckSquare className="h-3 w-3 mr-1" />
                       ) : (
                         <Square className="h-3 w-3 mr-1" />
                       )}
-                      {selectedShards.size === status.running_shards
-                        ? "Deselect All"
-                        : "Select Running"}
+                      {selectedShards.size === status.running_shards ? "Deselect All" : "Select Running"}
                     </Button>
                     {selectedShards.size > 0 && (
-                      <span className="text-xs text-[var(--color-accent-cyan)]">
-                        {selectedShards.size} selected
-                      </span>
+                      <span className="text-xs text-[var(--color-accent-cyan)]">{selectedShards.size} selected</span>
                     )}
                   </>
                 )}
@@ -2364,16 +2088,13 @@ export function DeploymentDetails({
             </div>
 
             <div className="border border-[var(--color-border-default)] rounded-lg overflow-hidden">
-              {shardsForDisplay.length === 0 &&
-              (allShards || status?.shards) ? (
+              {shardsForDisplay.length === 0 && (allShards || status?.shards) ? (
                 // No results after filtering
                 <div className="p-6 text-center text-sm text-[var(--color-text-muted)]">
                   {shardSearchText.trim() ? (
                     <>
                       No shards matching &ldquo;{shardSearchText}&rdquo;
-                      {shardStatusFilter !== "all"
-                        ? ` (in ${shardStatusFilter} shards)`
-                        : ""}
+                      {shardStatusFilter !== "all" ? ` (in ${shardStatusFilter} shards)` : ""}
                     </>
                   ) : shardStatusFilter !== "all" ? (
                     <>No {shardStatusFilter} shards</>
@@ -2384,16 +2105,11 @@ export function DeploymentDetails({
               ) : viewMode === "grouped" && shardsForDisplay.length > 0 ? (
                 // Grouped view by asset group
                 <div className="max-h-[500px] overflow-y-auto">
-                  {Object.entries(
-                    groupShardsByAssetGroup(shardsForDisplay),
-                  ).map(([ag, agShards]) => {
+                  {Object.entries(groupShardsByAssetGroup(shardsForDisplay)).map(([ag, agShards]) => {
                     const stats = getAssetGroupStats(agShards);
                     const isExpanded = expandedAssetGroups.has(ag);
                     return (
-                      <div
-                        key={ag}
-                        className="border-b border-[var(--color-border-subtle)] last:border-b-0"
-                      >
+                      <div key={ag} className="border-b border-[var(--color-border-subtle)] last:border-b-0">
                         {/* Asset group header */}
                         <Button
                           variant="ghost"
@@ -2407,9 +2123,7 @@ export function DeploymentDetails({
                               <Folder className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                             )}
                             <span className="font-medium text-sm">{ag}</span>
-                            <span className="text-xs text-[var(--color-text-muted)]">
-                              ({stats.total} shards)
-                            </span>
+                            <span className="text-xs text-[var(--color-text-muted)]">({stats.total} shards)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {/* Status summary badges */}
@@ -2449,24 +2163,12 @@ export function DeploymentDetails({
                                 key={shard.shard_id}
                                 shard={shard}
                                 selected={selectedShards.has(shard.shard_id)}
-                                onSelect={() =>
-                                  toggleShardSelection(shard.shard_id)
-                                }
-                                onCancel={() =>
-                                  handleCancelShard(shard.shard_id)
-                                }
+                                onSelect={() => toggleShardSelection(shard.shard_id)}
+                                onCancel={() => handleCancelShard(shard.shard_id)}
                                 onViewLogs={() => openShardLogs(shard)}
-                                cancelling={
-                                  actionLoading === `shard-${shard.shard_id}`
-                                }
-                                classification={
-                                  status?.shard_classifications?.[
-                                    shard.shard_id
-                                  ]
-                                }
-                                vmEvents={events.filter(
-                                  (e) => e.shard_id === shard.shard_id,
-                                )}
+                                cancelling={actionLoading === `shard-${shard.shard_id}`}
+                                classification={status?.shard_classifications?.[shard.shard_id]}
+                                vmEvents={events.filter((e) => e.shard_id === shard.shard_id)}
                               />
                             ))}
                           </div>
@@ -2488,12 +2190,8 @@ export function DeploymentDetails({
                         onCancel={() => handleCancelShard(shard.shard_id)}
                         onViewLogs={() => openShardLogs(shard)}
                         cancelling={actionLoading === `shard-${shard.shard_id}`}
-                        classification={
-                          status?.shard_classifications?.[shard.shard_id]
-                        }
-                        vmEvents={events.filter(
-                          (e) => e.shard_id === shard.shard_id,
-                        )}
+                        classification={status?.shard_classifications?.[shard.shard_id]}
+                        vmEvents={events.filter((e) => e.shard_id === shard.shard_id)}
                       />
                     ))}
                   </div>
@@ -2527,11 +2225,7 @@ export function DeploymentDetails({
                 {/* Severity filter (structured, not text search) */}
                 <Select
                   value={logSeverityFilter}
-                  onValueChange={(v) =>
-                    setLogSeverityFilter(
-                      v as "ALL" | "ERROR" | "WARNING" | "INFO",
-                    )
-                  }
+                  onValueChange={(v) => setLogSeverityFilter(v as "ALL" | "ERROR" | "WARNING" | "INFO")}
                 >
                   <SelectTrigger
                     className="h-8 text-xs w-32"
@@ -2572,17 +2266,10 @@ export function DeploymentDetails({
                       logSeverityFilter === "ALL"
                         ? logs
                         : logSeverityFilter === "ERROR"
-                          ? logs.filter(
-                              (l) =>
-                                l.severity === "ERROR" ||
-                                l.severity === "CRITICAL",
-                            )
+                          ? logs.filter((l) => l.severity === "ERROR" || l.severity === "CRITICAL")
                           : logSeverityFilter === "WARNING"
                             ? logs.filter(
-                                (l) =>
-                                  l.severity === "ERROR" ||
-                                  l.severity === "CRITICAL" ||
-                                  l.severity === "WARNING",
+                                (l) => l.severity === "ERROR" || l.severity === "CRITICAL" || l.severity === "WARNING",
                               )
                             : logs;
                     const searchLower = logSearch.toLowerCase().trim();
@@ -2590,15 +2277,11 @@ export function DeploymentDetails({
                       ? sevFiltered.filter(
                           (l) =>
                             l.message.toLowerCase().includes(searchLower) ||
-                            (l.logger &&
-                              l.logger.toLowerCase().includes(searchLower)) ||
-                            (l.shard &&
-                              l.shard.toLowerCase().includes(searchLower)),
+                            (l.logger && l.logger.toLowerCase().includes(searchLower)) ||
+                            (l.shard && l.shard.toLowerCase().includes(searchLower)),
                         ).length
                       : sevFiltered.length;
-                    return logSearch || logSeverityFilter !== "ALL"
-                      ? `${count}/${logs.length}`
-                      : `${logs.length} logs`;
+                    return logSearch || logSeverityFilter !== "ALL" ? `${count}/${logs.length}` : `${logs.length} logs`;
                   })()}
                 </span>
 
@@ -2638,14 +2321,9 @@ export function DeploymentDetails({
                   }}
                   className={cn(
                     "h-8 text-xs",
-                    followLogs &&
-                      "bg-[var(--color-accent-green)] hover:bg-[var(--color-accent-green)]/80",
+                    followLogs && "bg-[var(--color-accent-green)] hover:bg-[var(--color-accent-green)]/80",
                   )}
-                  title={
-                    followLogs
-                      ? "Stop auto-follow"
-                      : "Auto-follow (poll every 15s)"
-                  }
+                  title={followLogs ? "Stop auto-follow" : "Auto-follow (poll every 15s)"}
                 >
                   {followLogs ? (
                     <>
@@ -2667,11 +2345,7 @@ export function DeploymentDetails({
                   disabled={logsLoading || followLogs}
                   title="Manual refresh"
                 >
-                  {logsLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
+                  {logsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 </Button>
               </div>
 
@@ -2679,35 +2353,27 @@ export function DeploymentDetails({
               {status.compute_type === "vm" && (
                 <div className="p-2 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                      View shard:
-                    </span>
-                    {(allShards ?? status?.shards ?? shardPage ?? []).length >
-                    0 ? (
+                    <span className="text-xs font-medium text-[var(--color-text-secondary)]">View shard:</span>
+                    {(allShards ?? status?.shards ?? shardPage ?? []).length > 0 ? (
                       <>
                         <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto flex-1">
-                          {(allShards ?? status?.shards ?? shardPage ?? [])
-                            .slice(0, 50)
-                            .map((s) => (
-                              <Button
-                                key={s.shard_id}
-                                size="sm"
-                                variant="outline"
-                                className="text-[10px] font-mono h-6 px-1.5"
-                                onClick={() =>
-                                  openShardLogs({
-                                    shard_id: s.shard_id,
-                                    status: s.status ?? "unknown",
-                                  })
-                                }
-                              >
-                                {s.shard_id.length > 30
-                                  ? `${s.shard_id.slice(0, 27)}…`
-                                  : s.shard_id}
-                              </Button>
-                            ))}
-                          {(allShards ?? status?.shards ?? shardPage ?? [])
-                            .length > 50 && (
+                          {(allShards ?? status?.shards ?? shardPage ?? []).slice(0, 50).map((s) => (
+                            <Button
+                              key={s.shard_id}
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] font-mono h-6 px-1.5"
+                              onClick={() =>
+                                openShardLogs({
+                                  shard_id: s.shard_id,
+                                  status: s.status ?? "unknown",
+                                })
+                              }
+                            >
+                              {s.shard_id.length > 30 ? `${s.shard_id.slice(0, 27)}…` : s.shard_id}
+                            </Button>
+                          ))}
+                          {(allShards ?? status?.shards ?? shardPage ?? []).length > 50 && (
                             <span className="text-[10px] self-center text-[var(--color-text-muted)]">
                               + more in Shards tab
                             </span>
@@ -2718,16 +2384,10 @@ export function DeploymentDetails({
                             size="sm"
                             variant="default"
                             className="h-6 text-[10px]"
-                            onClick={() =>
-                              fetchLogs("DEFAULT", false, logsHoursBack)
-                            }
+                            onClick={() => fetchLogs("DEFAULT", false, logsHoursBack)}
                             disabled={logsLoading}
                           >
-                            {logsLoading ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              "Load all logs"
-                            )}
+                            {logsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Load all logs"}
                           </Button>
                         )}
                       </>
@@ -2769,16 +2429,10 @@ export function DeploymentDetails({
                             size="sm"
                             variant="default"
                             className="h-6 text-[10px]"
-                            onClick={() =>
-                              fetchLogs("DEFAULT", false, logsHoursBack)
-                            }
+                            onClick={() => fetchLogs("DEFAULT", false, logsHoursBack)}
                             disabled={logsLoading}
                           >
-                            {logsLoading ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              "Load all logs"
-                            )}
+                            {logsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Load all logs"}
                           </Button>
                         )}
                       </div>
@@ -2811,17 +2465,10 @@ export function DeploymentDetails({
                       logSeverityFilter === "ALL"
                         ? logs
                         : logSeverityFilter === "ERROR"
-                          ? logs.filter(
-                              (l) =>
-                                l.severity === "ERROR" ||
-                                l.severity === "CRITICAL",
-                            )
+                          ? logs.filter((l) => l.severity === "ERROR" || l.severity === "CRITICAL")
                           : logSeverityFilter === "WARNING"
                             ? logs.filter(
-                                (l) =>
-                                  l.severity === "ERROR" ||
-                                  l.severity === "CRITICAL" ||
-                                  l.severity === "WARNING",
+                                (l) => l.severity === "ERROR" || l.severity === "CRITICAL" || l.severity === "WARNING",
                               )
                             : logs; // INFO+ = all
 
@@ -2830,32 +2477,18 @@ export function DeploymentDetails({
                     const filteredLogs = searchLower
                       ? severityFiltered.filter((log) => {
                           return (
-                            (log.message &&
-                              log.message
-                                .toLowerCase()
-                                .includes(searchLower)) ||
-                            (log.logger &&
-                              log.logger.toLowerCase().includes(searchLower)) ||
-                            (log.execution_name &&
-                              log.execution_name
-                                .toLowerCase()
-                                .includes(searchLower)) ||
-                            (log.shard &&
-                              log.shard.toLowerCase().includes(searchLower))
+                            (log.message && log.message.toLowerCase().includes(searchLower)) ||
+                            (log.logger && log.logger.toLowerCase().includes(searchLower)) ||
+                            (log.execution_name && log.execution_name.toLowerCase().includes(searchLower)) ||
+                            (log.shard && log.shard.toLowerCase().includes(searchLower))
                           );
                         })
                       : severityFiltered;
 
-                    if (
-                      filteredLogs.length === 0 &&
-                      (logSearch || logSeverityFilter !== "ALL")
-                    ) {
+                    if (filteredLogs.length === 0 && (logSearch || logSeverityFilter !== "ALL")) {
                       return (
                         <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">
-                          No logs matching{" "}
-                          {logSeverityFilter !== "ALL"
-                            ? `severity=${logSeverityFilter}`
-                            : ""}
+                          No logs matching {logSeverityFilter !== "ALL" ? `severity=${logSeverityFilter}` : ""}
                           {logSearch ? ` "${logSearch}"` : ""}
                         </div>
                       );
@@ -2863,22 +2496,14 @@ export function DeploymentDetails({
 
                     return filteredLogs.map((log, idx) => {
                       // Check for failover-related tags
-                      const isZoneExhausted =
-                        log.message.includes("[ZONE_EXHAUSTED]");
-                      const isRegionSwitch =
-                        log.message.includes("[REGION_SWITCH]");
+                      const isZoneExhausted = log.message.includes("[ZONE_EXHAUSTED]");
+                      const isRegionSwitch = log.message.includes("[REGION_SWITCH]");
                       const isQuotaExhausted =
                         log.message.includes("[REGIONAL_QUOTA_EXHAUSTED]") ||
                         log.message.includes("[IP_QUOTA_EXCEEDED]") ||
                         log.message.includes("[CPU_QUOTA_EXCEEDED]");
-                      const isAllExhausted = log.message.includes(
-                        "[ALL_REGIONS_EXHAUSTED]",
-                      );
-                      const isFailoverEvent =
-                        isZoneExhausted ||
-                        isRegionSwitch ||
-                        isQuotaExhausted ||
-                        isAllExhausted;
+                      const isAllExhausted = log.message.includes("[ALL_REGIONS_EXHAUSTED]");
+                      const isFailoverEvent = isZoneExhausted || isRegionSwitch || isQuotaExhausted || isAllExhausted;
 
                       return (
                         <div
@@ -2887,8 +2512,7 @@ export function DeploymentDetails({
                             "py-1 px-2 rounded hover:bg-[var(--color-bg-tertiary)]",
                             isRegionSwitch &&
                               "bg-[var(--color-status-tradfi-bg)] border-l-2 border-[var(--color-accent-purple)]",
-                            isZoneExhausted &&
-                              "bg-[var(--color-status-warning-bg-subtle)]",
+                            isZoneExhausted && "bg-[var(--color-status-warning-bg-subtle)]",
                             isQuotaExhausted &&
                               "bg-[var(--color-status-warning-bg)] border-l-2 border-[var(--color-accent-amber)]",
                             isAllExhausted &&
@@ -2898,12 +2522,9 @@ export function DeploymentDetails({
                           <span
                             className={cn(
                               "font-bold",
-                              log.severity === "ERROR" &&
-                                "text-[var(--color-accent-red)]",
-                              log.severity === "WARNING" &&
-                                "text-[var(--color-accent-amber)]",
-                              log.severity === "INFO" &&
-                                "text-[var(--color-accent-cyan)]",
+                              log.severity === "ERROR" && "text-[var(--color-accent-red)]",
+                              log.severity === "WARNING" && "text-[var(--color-accent-amber)]",
+                              log.severity === "INFO" && "text-[var(--color-accent-cyan)]",
                             )}
                           >
                             [{log.severity}]
@@ -2922,14 +2543,10 @@ export function DeploymentDetails({
                               <span
                                 className={cn(
                                   "px-1 rounded text-[10px] font-semibold",
-                                  isRegionSwitch &&
-                                    "bg-[var(--color-accent-purple)] text-white",
-                                  isZoneExhausted &&
-                                    "bg-[var(--color-accent-amber)] text-black",
-                                  isQuotaExhausted &&
-                                    "bg-[var(--color-accent-amber)] text-black",
-                                  isAllExhausted &&
-                                    "bg-[var(--color-accent-red)] text-white",
+                                  isRegionSwitch && "bg-[var(--color-accent-purple)] text-white",
+                                  isZoneExhausted && "bg-[var(--color-accent-amber)] text-black",
+                                  isQuotaExhausted && "bg-[var(--color-accent-amber)] text-black",
+                                  isAllExhausted && "bg-[var(--color-accent-red)] text-white",
                                 )}
                               >
                                 {isRegionSwitch
@@ -2953,14 +2570,10 @@ export function DeploymentDetails({
                           {log.shard && (
                             <>
                               {" "}
-                              <span className="text-[var(--color-accent-purple)]">
-                                [{log.shard}]
-                              </span>
+                              <span className="text-[var(--color-accent-purple)]">[{log.shard}]</span>
                             </>
                           )}{" "}
-                          <span className="text-[var(--color-text-secondary)]">
-                            {log.message}
-                          </span>
+                          <span className="text-[var(--color-text-secondary)]">{log.message}</span>
                         </div>
                       );
                     });
@@ -2974,9 +2587,7 @@ export function DeploymentDetails({
             {reportLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-[var(--color-accent-cyan)]" />
-                <span className="ml-2 text-sm text-[var(--color-text-secondary)]">
-                  Loading report...
-                </span>
+                <span className="ml-2 text-sm text-[var(--color-text-secondary)]">Loading report...</span>
               </div>
             ) : report ? (
               <div className="space-y-4">
@@ -2986,58 +2597,39 @@ export function DeploymentDetails({
                     <div className="text-xl font-mono font-bold text-[var(--color-accent-green)]">
                       {report.summary.success_rate}%
                     </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      Success Rate
-                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Success Rate</div>
                   </div>
                   <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-center">
                     <div className="text-xl font-mono font-bold text-[var(--color-accent-amber)]">
                       {report.summary.total_retries}
                     </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      Total Retries
-                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Total Retries</div>
                   </div>
                   <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-center">
                     <div className="text-xl font-mono font-bold text-[var(--color-accent-purple)]">
                       {report.retry_stats.total_zone_switches}
                     </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      Zone Switches
-                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Zone Switches</div>
                   </div>
                   <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)] text-center">
                     <div className="text-xl font-mono font-bold text-[var(--color-accent-cyan)]">
                       {report.retry_stats.total_region_switches}
                     </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      Region Switches
-                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Region Switches</div>
                   </div>
                 </div>
 
                 {/* Failure Breakdown */}
                 {Object.keys(report.failure_breakdown).length > 0 && (
                   <div className="p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border-strong)]">
-                    <h4 className="text-sm font-medium text-[var(--color-accent-red)] mb-2">
-                      Failure Breakdown
-                    </h4>
+                    <h4 className="text-sm font-medium text-[var(--color-accent-red)] mb-2">Failure Breakdown</h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(report.failure_breakdown).map(
-                        ([reason, count]) => (
-                          <div
-                            key={reason}
-                            className="flex justify-between text-xs"
-                          >
-                            <span className="text-[var(--color-text-secondary)]">
-                              {reason}
-                            </span>
-                            <span className="font-mono text-[var(--color-accent-red)]">
-                              {count}
-                            </span>
-                          </div>
-                        ),
-                      )}
+                      {Object.entries(report.failure_breakdown).map(([reason, count]) => (
+                        <div key={reason} className="flex justify-between text-xs">
+                          <span className="text-[var(--color-text-secondary)]">{reason}</span>
+                          <span className="font-mono text-[var(--color-accent-red)]">{count}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -3045,25 +2637,14 @@ export function DeploymentDetails({
                 {/* Zone Usage */}
                 {Object.keys(report.zone_usage).length > 0 && (
                   <div className="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]">
-                    <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">
-                      Zone Usage
-                    </h4>
+                    <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Zone Usage</h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(report.zone_usage).map(
-                        ([zone, count]) => (
-                          <div
-                            key={zone}
-                            className="flex justify-between text-xs"
-                          >
-                            <span className="text-[var(--color-text-secondary)]">
-                              {zone}
-                            </span>
-                            <span className="font-mono text-[var(--color-accent-cyan)]">
-                              {count} shards
-                            </span>
-                          </div>
-                        ),
-                      )}
+                      {Object.entries(report.zone_usage).map(([zone, count]) => (
+                        <div key={zone} className="flex justify-between text-xs">
+                          <span className="text-[var(--color-text-secondary)]">{zone}</span>
+                          <span className="font-mono text-[var(--color-accent-cyan)]">{count} shards</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -3072,26 +2653,16 @@ export function DeploymentDetails({
                 {report.infrastructure_issues.length > 0 && (
                   <div className="p-3 rounded-lg bg-[var(--color-status-warning-bg)] border border-[var(--color-status-warning-border)]">
                     <h4 className="text-sm font-medium text-[var(--color-accent-amber)] mb-2">
-                      Infrastructure Issues (
-                      {report.infrastructure_issues.length})
+                      Infrastructure Issues ({report.infrastructure_issues.length})
                     </h4>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {report.infrastructure_issues
-                        .slice(0, 10)
-                        .map((issue, idx) => (
-                          <div key={idx} className="text-xs">
-                            <span className="text-[var(--color-accent-purple)]">
-                              [{issue.shard_id}]
-                            </span>
-                            <span className="text-[var(--color-text-muted)]">
-                              {" "}
-                              {issue.zone} -{" "}
-                            </span>
-                            <span className="text-[var(--color-accent-amber)]">
-                              {issue.asset_group ?? "—"}
-                            </span>
-                          </div>
-                        ))}
+                      {report.infrastructure_issues.slice(0, 10).map((issue, idx) => (
+                        <div key={idx} className="text-xs">
+                          <span className="text-[var(--color-accent-purple)]">[{issue.shard_id}]</span>
+                          <span className="text-[var(--color-text-muted)]"> {issue.zone} - </span>
+                          <span className="text-[var(--color-accent-amber)]">{issue.asset_group ?? "—"}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -3109,10 +2680,7 @@ export function DeploymentDetails({
                     )}
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {rerunCommands.commands.slice(0, 5).map((cmd, idx) => (
-                        <div
-                          key={idx}
-                          className="text-xs font-mono text-[var(--color-text-secondary)] truncate"
-                        >
+                        <div key={idx} className="text-xs font-mono text-[var(--color-text-secondary)] truncate">
                           # {cmd.shard_id}
                         </div>
                       ))}
@@ -3120,12 +2688,7 @@ export function DeploymentDetails({
                   </div>
                 )}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchReport}
-                  className="w-full"
-                >
+                <Button variant="outline" size="sm" onClick={fetchReport} className="w-full">
                   <RefreshCw className="h-4 w-4 mr-1" />
                   Refresh Report
                 </Button>
@@ -3141,15 +2704,8 @@ export function DeploymentDetails({
 
           <TabsContent value="events" className="mt-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-                Shard Event Timeline
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={fetchEvents}
-                disabled={eventsLoading}
-              >
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">Shard Event Timeline</p>
+              <Button size="sm" variant="outline" onClick={fetchEvents} disabled={eventsLoading}>
                 {eventsLoading ? (
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
                 ) : (
@@ -3162,15 +2718,11 @@ export function DeploymentDetails({
             {eventsLoading && events.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-[var(--color-accent-cyan)]" />
-                <span className="ml-2 text-sm text-[var(--color-text-muted)]">
-                  Loading events...
-                </span>
+                <span className="ml-2 text-sm text-[var(--color-text-muted)]">Loading events...</span>
               </div>
             ) : events.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  No events recorded for this deployment.
-                </p>
+                <p className="text-sm text-[var(--color-text-muted)]">No events recorded for this deployment.</p>
                 <p className="text-xs text-[var(--color-text-muted)] mt-1">
                   Events are emitted by VM/Cloud Run backends during execution.
                 </p>
@@ -3178,11 +2730,7 @@ export function DeploymentDetails({
             ) : (
               <div className="space-y-1">
                 {[...events]
-                  .sort(
-                    (a, b) =>
-                      new Date(a.timestamp).getTime() -
-                      new Date(b.timestamp).getTime(),
-                  )
+                  .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
                   .map((ev, idx) => {
                     const isVm = VM_EVENT_TYPES.has(ev.event_type);
                     return (
@@ -3205,9 +2753,7 @@ export function DeploymentDetails({
                         >
                           {ev.event_type.replace(/_/g, " ")}
                         </span>
-                        <span className="text-[var(--color-text-secondary)] flex-1 min-w-0 truncate">
-                          {ev.message}
-                        </span>
+                        <span className="text-[var(--color-text-secondary)] flex-1 min-w-0 truncate">{ev.message}</span>
                       </div>
                     );
                   })}
@@ -3215,8 +2761,7 @@ export function DeploymentDetails({
             )}
 
             {/* Collapsible: aggregate VM error summary */}
-            {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length >
-              0 && (
+            {events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length > 0 && (
               <div className="mt-4">
                 <Button
                   variant="ghost"
@@ -3224,17 +2769,8 @@ export function DeploymentDetails({
                   className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] h-auto p-0"
                   onClick={() => setEventsExpanded((v) => !v)}
                 >
-                  {eventsExpanded ? (
-                    <ChevronUp className="h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
-                  VM Event Summary (
-                  {
-                    events.filter((e) => VM_EVENT_TYPES.has(e.event_type))
-                      .length
-                  }{" "}
-                  events)
+                  {eventsExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  VM Event Summary ({events.filter((e) => VM_EVENT_TYPES.has(e.event_type)).length} events)
                 </Button>
                 {eventsExpanded && (
                   <div className="mt-2 pl-4 space-y-1">
@@ -3246,16 +2782,9 @@ export function DeploymentDetails({
                           return acc;
                         }, {}),
                     ).map(([type, count]) => (
-                      <div
-                        key={type}
-                        className="flex items-center gap-2 text-xs"
-                      >
-                        <span className="text-[var(--color-accent-amber)]">
-                          {type.replace(/_/g, " ")}
-                        </span>
-                        <span className="text-[var(--color-text-muted)]">
-                          ×{count}
-                        </span>
+                      <div key={type} className="flex items-center gap-2 text-xs">
+                        <span className="text-[var(--color-accent-amber)]">{type.replace(/_/g, " ")}</span>
+                        <span className="text-[var(--color-text-muted)]">×{count}</span>
                       </div>
                     ))}
                   </div>
@@ -3269,17 +2798,13 @@ export function DeploymentDetails({
       {/* Shard Logs Modal */}
       <Dialog open={!!selectedShardForLogs} onClose={closeShardLogs}>
         <DialogHeader onClose={closeShardLogs}>
-          <DialogTitle className="font-mono">
-            {selectedShardForLogs?.shard_id} - Logs
-          </DialogTitle>
+          <DialogTitle className="font-mono">{selectedShardForLogs?.shard_id} - Logs</DialogTitle>
         </DialogHeader>
         <DialogContent>
           {shardLogsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-[var(--color-accent-cyan)]" />
-              <span className="ml-2 text-sm text-[var(--color-text-muted)]">
-                Loading logs...
-              </span>
+              <span className="ml-2 text-sm text-[var(--color-text-muted)]">Loading logs...</span>
             </div>
           ) : shardLogs.length === 0 ? (
             <div className="text-center py-8">
@@ -3295,40 +2820,28 @@ export function DeploymentDetails({
             </div>
           ) : (
             <div className="space-y-2">
-              {shardLogsMessage && (
-                <p className="text-xs text-[var(--color-text-muted)] mb-2">
-                  {shardLogsMessage}
-                </p>
-              )}
+              {shardLogsMessage && <p className="text-xs text-[var(--color-text-muted)] mb-2">{shardLogsMessage}</p>}
               <div className="bg-[var(--color-bg-tertiary)] rounded-lg p-3 font-mono text-xs overflow-x-auto max-h-96 overflow-y-auto">
                 {shardLogs.map((log, idx) => (
                   <div
                     key={idx}
                     className={cn(
                       "py-1 border-b border-[var(--color-border-subtle)] last:border-0",
-                      log.severity === "ERROR" &&
-                        "text-[var(--color-accent-red)]",
-                      log.severity === "WARNING" &&
-                        "text-[var(--color-accent-amber)]",
-                      log.severity === "INFO" &&
-                        "text-[var(--color-text-secondary)]",
-                      log.severity === "DEBUG" &&
-                        "text-[var(--color-text-muted)]",
+                      log.severity === "ERROR" && "text-[var(--color-accent-red)]",
+                      log.severity === "WARNING" && "text-[var(--color-accent-amber)]",
+                      log.severity === "INFO" && "text-[var(--color-text-secondary)]",
+                      log.severity === "DEBUG" && "text-[var(--color-text-muted)]",
                     )}
                   >
                     <span className="text-[var(--color-text-muted)] mr-2">
-                      {log.timestamp &&
-                        new Date(log.timestamp).toLocaleTimeString()}
+                      {log.timestamp && new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                     <span
                       className={cn(
                         "px-1 rounded text-xs mr-2",
-                        log.severity === "ERROR" &&
-                          "bg-[var(--color-status-error-bg-tag)]",
-                        log.severity === "WARNING" &&
-                          "bg-[var(--color-status-warning-bg-tag)]",
-                        log.severity === "INFO" &&
-                          "bg-[var(--color-status-success-bg-tag)]",
+                        log.severity === "ERROR" && "bg-[var(--color-status-error-bg-tag)]",
+                        log.severity === "WARNING" && "bg-[var(--color-status-warning-bg-tag)]",
+                        log.severity === "INFO" && "bg-[var(--color-status-success-bg-tag)]",
                       )}
                     >
                       {log.severity}
@@ -3463,10 +2976,7 @@ const CLASSIFICATION_STYLES: Record<string, { color: string; bg: string }> = {
   },
 };
 
-const VM_EVENT_BADGE_CONFIG: Record<
-  string,
-  { label: string; color: string; bg: string }
-> = {
+const VM_EVENT_BADGE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   VM_PREEMPTED: {
     label: "Preempted",
     color: "var(--color-accent-amber)",
@@ -3517,21 +3027,15 @@ function ShardRow({
   const getIcon = () => {
     switch (shard.status) {
       case "succeeded":
-        return (
-          <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-        );
+        return <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />;
       case "running":
-        return (
-          <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />
-        );
+        return <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />;
       case "failed":
         return <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />;
       case "pending":
         return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
       case "cancelled":
-        return (
-          <StopCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-        );
+        return <StopCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />;
       default:
         return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
     }
@@ -3598,9 +3102,7 @@ function ShardRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <code className="text-xs font-mono text-[var(--color-text-primary)] truncate">
-            {shard.shard_id}
-          </code>
+          <code className="text-xs font-mono text-[var(--color-text-primary)] truncate">{shard.shard_id}</code>
           {getRetryBadge()}
           {shard.args?.includes("--force") && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-status-purple-bg-tag)] text-[var(--color-accent-purple)]">
@@ -3611,12 +3113,8 @@ function ShardRow({
             <span
               className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
               style={{
-                color:
-                  CLASSIFICATION_STYLES[classification]?.color ??
-                  "var(--color-class-unverified)",
-                backgroundColor:
-                  CLASSIFICATION_STYLES[classification]?.bg ??
-                  "var(--color-class-unverified-bg)",
+                color: CLASSIFICATION_STYLES[classification]?.color ?? "var(--color-class-unverified)",
+                backgroundColor: CLASSIFICATION_STYLES[classification]?.bg ?? "var(--color-class-unverified-bg)",
               }}
             >
               {classification.replace(/_/g, " ")}
@@ -3625,25 +3123,21 @@ function ShardRow({
           {/* VM event badges — derived from event timeline */}
           {vmEvents &&
             vmEvents.length > 0 &&
-            Array.from(
-              new Set(
-                vmEvents
-                  .map((e) => e.event_type)
-                  .filter((t) => t in VM_EVENT_BADGE_CONFIG),
-              ),
-            ).map((eventType) => {
-              const cfg = VM_EVENT_BADGE_CONFIG[eventType];
-              return cfg ? (
-                <span
-                  key={eventType}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
-                  style={{ color: cfg.color, backgroundColor: cfg.bg }}
-                  title={eventType}
-                >
-                  {cfg.label}
-                </span>
-              ) : null;
-            })}
+            Array.from(new Set(vmEvents.map((e) => e.event_type).filter((t) => t in VM_EVENT_BADGE_CONFIG))).map(
+              (eventType) => {
+                const cfg = VM_EVENT_BADGE_CONFIG[eventType];
+                return cfg ? (
+                  <span
+                    key={eventType}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    style={{ color: cfg.color, backgroundColor: cfg.bg }}
+                    title={eventType}
+                  >
+                    {cfg.label}
+                  </span>
+                ) : null;
+              },
+            )}
         </div>
         {/* CLI args (compact, hover for full) */}
         {shard.args && shard.args.length > 0 && (
@@ -3655,9 +3149,7 @@ function ShardRow({
           </p>
         )}
         {shard.error_message && (
-          <p className="text-xs text-[var(--color-accent-red)] mt-1 truncate">
-            {shard.error_message}
-          </p>
+          <p className="text-xs text-[var(--color-accent-red)] mt-1 truncate">{shard.error_message}</p>
         )}
       </div>
 

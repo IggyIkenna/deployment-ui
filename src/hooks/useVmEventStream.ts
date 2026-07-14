@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getVmEvents, type VmEvent } from "../api/deploymentApi";
+import { useVisibilityPausedInterval } from "./useVisibilityPausedInterval";
 
 interface UseVmEventStreamState {
   events: VmEvent[];
@@ -13,10 +14,15 @@ export function useVmEventStream(vmName: string, date?: string) {
     loading: true,
     error: null,
   });
+  // Forwards each interval tick to the CURRENT generation's fetchEvents
+  // (rebound below whenever vmName/date changes), without needing to
+  // restart the interval on every date change.
+  const fetchEventsRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!vmName) {
       setState({ events: [], loading: false, error: null });
+      fetchEventsRef.current = () => {};
       return;
     }
 
@@ -43,8 +49,7 @@ export function useVmEventStream(vmName: string, date?: string) {
             seenEventIds.add(eventId);
           }
 
-          const trimmed =
-            allEvents.length > 500 ? allEvents.slice(-500) : allEvents;
+          const trimmed = allEvents.length > 500 ? allEvents.slice(-500) : allEvents;
 
           return {
             events: trimmed,
@@ -63,14 +68,18 @@ export function useVmEventStream(vmName: string, date?: string) {
       }
     };
 
+    fetchEventsRef.current = () => {
+      void fetchEvents();
+    };
     fetchEvents();
-    const interval = setInterval(fetchEvents, 10000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, [vmName, date]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(() => fetchEventsRef.current(), vmName ? 10000 : null);
 
   return state;
 }

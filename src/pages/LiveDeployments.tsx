@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchVmDeployments,
   fetchVmLogs,
@@ -11,6 +11,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useVmWebSocket } from "../hooks/useVmWebSocket";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const LOG_POLL_MS = 10_000;
@@ -125,32 +126,33 @@ function VmLogPanel({ vmName }: { vmName: string }) {
   const [result, setResult] = useState<VmLogTailResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Guards against a stale response landing after `vmName` has already
+  // moved on (e.g. the operator flips between VMs quickly).
+  const activeVmRef = useRef(vmName);
+  activeVmRef.current = vmName;
+
+  const poll = useCallback(() => {
+    const requestedVm = vmName;
+    fetchVmLogs(vmName)
+      .then((r) => {
+        if (activeVmRef.current !== requestedVm) return;
+        setResult(r);
+        setError(null);
+        setLoading(false);
+      })
+      .catch((e: unknown) => {
+        if (activeVmRef.current !== requestedVm) return;
+        setError(e instanceof Error ? e.message : "Failed to load logs");
+        setLoading(false);
+      });
+  }, [vmName]);
 
   useEffect(() => {
-    let active = true;
-    function poll() {
-      fetchVmLogs(vmName)
-        .then((r) => {
-          if (active) {
-            setResult(r);
-            setError(null);
-            setLoading(false);
-          }
-        })
-        .catch((e: unknown) => {
-          if (active) {
-            setError(e instanceof Error ? e.message : "Failed to load logs");
-            setLoading(false);
-          }
-        });
-    }
     poll();
-    const id = setInterval(poll, LOG_POLL_MS);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [vmName]);
+  }, [poll]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(poll, LOG_POLL_MS);
 
   return (
     <Card className="mt-2">
@@ -215,9 +217,10 @@ export function LiveDeploymentsContent() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, REFRESH_INTERVAL_MS);
 
   function toggleVm(vmName: string) {
     setSelectedVmName((prev) => {

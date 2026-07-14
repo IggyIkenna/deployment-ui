@@ -9,6 +9,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { VenueCredentialsPanel } from "../components/VenueCredentialsPanel";
 import { VenueDateRangePanel } from "../components/VenueDateRangePanel";
 import { VenueRelaunchEstimatePanel } from "../components/VenueRelaunchEstimatePanel";
@@ -164,9 +165,11 @@ export function VmDeploymentsContent({ compact = false }: { compact?: boolean } 
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(load, 30_000); // auto-refresh 30s
-    return () => window.clearInterval(timer);
   }, [load]);
+
+  // Auto-refresh 30s; pauses while the tab is hidden, resumes with an
+  // immediate refresh.
+  useVisibilityPausedInterval(load, 30_000);
 
   const renderTable = (rows: VmDeploymentEntry[], heading: string, count: number) => (
     <Card className="rounded-lg">

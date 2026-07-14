@@ -24,7 +24,7 @@
  * Plan: unified_deployment_health_cockpit_2026_06_23.md (parent_epic observability_master).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -61,6 +61,7 @@ import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import {
   getDeploymentFreshness,
   getFleetReconciliation,
@@ -1182,37 +1183,40 @@ function ConsolidatorsTab() {
   const [history, setHistory] = useState<Record<string, number[]>>({});
 
   // Poll the endpoint — this is a live monitor, not a one-shot load.
-  useEffect(() => {
-    let cancelled = false;
-    async function tick() {
-      try {
-        const res = await getHealthConsolidator();
-        if (!cancelled) {
-          setData(res);
-          setFetchedAtMs(Date.now());
-          setError(null);
-          setHistory((prev) => {
-            const next: Record<string, number[]> = { ...prev };
-            for (const c of res.consolidators ?? []) {
-              if (c.pending_shard_count == null) continue;
-              next[c.category] = [...(next[c.category] ?? []), c.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
-            }
-            return next;
-          });
-        }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "consolidator health unavailable");
-      } finally {
-        if (!cancelled) setLoading(false);
+  const cancelledRef = useRef(false);
+  const tick = useCallback(async () => {
+    try {
+      const res = await getHealthConsolidator();
+      if (!cancelledRef.current) {
+        setData(res);
+        setFetchedAtMs(Date.now());
+        setError(null);
+        setHistory((prev) => {
+          const next: Record<string, number[]> = { ...prev };
+          for (const c of res.consolidators ?? []) {
+            if (c.pending_shard_count == null) continue;
+            next[c.category] = [...(next[c.category] ?? []), c.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
+          }
+          return next;
+        });
       }
+    } catch (err) {
+      if (!cancelledRef.current) setError(err instanceof Error ? err.message : "consolidator health unavailable");
+    } finally {
+      if (!cancelledRef.current) setLoading(false);
     }
-    void tick();
-    const id = setInterval(() => void tick(), CONSOLIDATOR_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
   }, []);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    void tick();
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [tick]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(() => void tick(), CONSOLIDATOR_POLL_MS);
 
   // 1s clock so "updated …ago" / "last run …ago" stay live between polls.
   useEffect(() => {

@@ -52,6 +52,7 @@ import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
@@ -1066,9 +1067,10 @@ export function DeploymentsContent({
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, 60_000);
 
   // Region options for the selector — dynamic from the API (default pinned first), so a new region
   // appears the moment infra lands there. Fetched once; on failure the seeded default + "all" remain.

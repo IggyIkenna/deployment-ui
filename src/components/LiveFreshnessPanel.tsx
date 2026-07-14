@@ -1,46 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "./ui/badge";
 import { getLiveStatus, type LiveStatusRow } from "../api/deploymentApi";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 export function LiveFreshnessPanel() {
   const [rows, setRows] = useState<LiveStatusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchLiveStatus = async () => {
-      try {
-        const response = await getLiveStatus();
-        if (!isMounted) return;
-        setRows(response.rows);
-        setRefreshedAt(response.refreshed_at);
-        setError(null);
-        setLoading(false);
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchLiveStatus();
-    const interval = setInterval(fetchLiveStatus, 60000);
-
+    mountedRef.current = true;
     return () => {
-      isMounted = false;
-      clearInterval(interval);
+      mountedRef.current = false;
     };
   }, []);
 
+  const fetchLiveStatus = useCallback(async () => {
+    try {
+      const response = await getLiveStatus();
+      if (!mountedRef.current) return;
+      setRows(response.rows);
+      setRefreshedAt(response.refreshed_at);
+      setError(null);
+      setLoading(false);
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchLiveStatus();
+  }, [fetchLiveStatus]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(fetchLiveStatus, 60000);
+
   const getStalenessColor = (stalenessSec: number): string => {
-    if (stalenessSec < 300)
-      return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]";
-    if (stalenessSec < 900)
-      return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]";
+    if (stalenessSec < 300) return "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)]";
+    if (stalenessSec < 900) return "bg-[var(--color-status-warning-bg)] text-[var(--color-accent-amber)]";
     return "bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]";
   };
 
@@ -55,11 +57,7 @@ export function LiveFreshnessPanel() {
   }
 
   if (error) {
-    return (
-      <div className="p-4 text-[var(--color-accent-red)]">
-        Error: {error.message}
-      </div>
-    );
+    return <div className="p-4 text-[var(--color-accent-red)]">Error: {error.message}</div>;
   }
 
   if (rows.length === 0) {
@@ -102,9 +100,7 @@ export function LiveFreshnessPanel() {
                 <Badge variant="outline">{row.capture_status}</Badge>
               </div>
               <div>
-                <Badge
-                  className={`whitespace-nowrap ${getStalenessColor(row.staleness_seconds)}`}
-                >
+                <Badge className={`whitespace-nowrap ${getStalenessColor(row.staleness_seconds)}`}>
                   {getStalenessLabel(row.staleness_seconds)}
                 </Badge>
               </div>
