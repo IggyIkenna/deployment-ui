@@ -1021,6 +1021,16 @@ function delay(ms = MOCK_DELAY_MS): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// Test-only hook (mirrors __mockErrors/__mockRequests/__mockBreakdownDelayMs): a spec
+// can widen the STANDARD per-request delay (the one every route pays via the bare
+// `await delay();` at the top of handleRoute) to make an otherwise-sub-100ms loading
+// state (e.g. a skeleton) reliably observable, without touching call sites that pass
+// their own explicit ms (those are unaffected).
+function getStandardMockDelayMs(): number {
+  const override = (window as typeof window & { __mockDelayMs?: number }).__mockDelayMs;
+  return override ?? MOCK_DELAY_MS;
+}
+
 // ---- Stress overrides ----
 function getStressDeployments(): typeof MOCK_DEPLOYMENTS {
   if (STRESS_SCENARIO === "MISSING_DATA") return [];
@@ -2603,10 +2613,13 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
       ["(unlabeled)", "gcp", 8956, "GCP label", "other"],
       ["manifest-consolidator", "gcp", 3685, "GCP label", "other"],
       ["market-data-raw", "gcp", 945, "GCP label", "other"],
-      ...Array.from(
-        { length: 125 },
-        (_, i): Row => [`purpose-${i + 1}`, "gcp", +(400 - i * 2.5).toFixed(2), "GCP label", "other"],
-      ),
+      ...Array.from({ length: 125 }, (_, i): Row => [
+        `purpose-${i + 1}`,
+        "gcp",
+        +(400 - i * 2.5).toFixed(2),
+        "GCP label",
+        "other",
+      ]),
     ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
@@ -2708,7 +2721,7 @@ function _climb(tick: number, start: number, cap: number): number {
 }
 
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
-  await delay();
+  await delay(getStandardMockDelayMs());
   const method = init?.method?.toUpperCase() ?? "GET";
   const path = url
     .replace(/^https?:\/\/[^/]+/, "")

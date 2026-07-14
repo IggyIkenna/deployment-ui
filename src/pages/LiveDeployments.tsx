@@ -10,6 +10,7 @@ import { VmHealthBadge } from "../components/VmHealthBadge";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Skeleton } from "../components/ui/skeleton";
 import { useVmWebSocket } from "../hooks/useVmWebSocket";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
@@ -284,9 +285,12 @@ export function LiveDeploymentsContent() {
             <div
               role="status"
               aria-label="Loading live deployments"
-              className="py-12 text-center text-sm text-[var(--color-text-muted)]"
+              className="space-y-2 p-4"
+              data-testid="live-deployments-skeleton"
             >
-              Loading…
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
             </div>
           ) : rows.length === 0 ? (
             <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
