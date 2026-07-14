@@ -21,6 +21,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { cn } from "../lib/utils";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import {
   getCloudBuildTriggers,
   triggerCloudBuild,
@@ -36,9 +37,7 @@ interface CloudBuildsTabProps {
 function getBuildStatusIcon(status: string) {
   switch (status) {
     case "SUCCESS":
-      return (
-        <CheckCircle className="h-4 w-4 text-[var(--color-accent-green)]" />
-      );
+      return <CheckCircle className="h-4 w-4 text-[var(--color-accent-green)]" />;
     case "FAILURE":
     case "TIMEOUT":
     case "CANCELLED":
@@ -46,9 +45,7 @@ function getBuildStatusIcon(status: string) {
     case "WORKING":
     case "QUEUED":
     case "PENDING":
-      return (
-        <RefreshCw className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />
-      );
+      return <RefreshCw className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />;
     default:
       return <AlertCircle className="h-4 w-4 text-[var(--color-text-muted)]" />;
   }
@@ -129,10 +126,7 @@ function TriggerCard({
         isInfrastructure && "border-l-4 border-l-[var(--color-accent-pink)]",
       )}
     >
-      <div
-        className="p-4 cursor-pointer hover:bg-[var(--color-bg-hover)]"
-        onClick={onExpand}
-      >
+      <div className="p-4 cursor-pointer hover:bg-[var(--color-bg-hover)]" onClick={onExpand}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isExpanded ? (
@@ -153,10 +147,7 @@ function TriggerCard({
                   </Badge>
                 )}
                 {trigger.disabled && (
-                  <Badge
-                    variant="outline"
-                    className="text-[8px] text-[var(--color-accent-amber)]"
-                  >
+                  <Badge variant="outline" className="text-[8px] text-[var(--color-accent-amber)]">
                     DISABLED
                   </Badge>
                 )}
@@ -166,9 +157,7 @@ function TriggerCard({
                   <GitBranch className="h-3 w-3" />
                   {trigger.github_repo}
                   {trigger.branch_pattern && (
-                    <span className="text-[var(--color-accent-cyan)]">
-                      ({trigger.branch_pattern})
-                    </span>
+                    <span className="text-[var(--color-accent-cyan)]">({trigger.branch_pattern})</span>
                   )}
                 </div>
               )}
@@ -182,12 +171,7 @@ function TriggerCard({
                 {getBuildStatusIcon(trigger.last_build.status)}
                 <div className="text-right">
                   <div className="flex items-center gap-2">
-                    <Badge
-                      className={cn(
-                        "text-[9px]",
-                        getBuildStatusColor(trigger.last_build.status),
-                      )}
-                    >
+                    <Badge className={cn("text-[9px]", getBuildStatusColor(trigger.last_build.status))}>
                       {trigger.last_build.status}
                     </Badge>
                     {trigger.last_build.commit_sha && (
@@ -200,24 +184,17 @@ function TriggerCard({
                     <Clock className="h-3 w-3" />
                     {formatTimeAgo(trigger.last_build.create_time)}
                     {trigger.last_build.duration_seconds && (
-                      <span>
-                        ({formatDuration(trigger.last_build.duration_seconds)})
-                      </span>
+                      <span>({formatDuration(trigger.last_build.duration_seconds)})</span>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                No builds yet
-              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">No builds yet</span>
             )}
 
             {/* Trigger button */}
-            <div
-              className="flex items-center gap-2"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Input
                 placeholder="main"
                 value={branchInput}
@@ -230,11 +207,7 @@ function TriggerCard({
                 disabled={isTriggering || trigger.disabled}
                 className="bg-[var(--color-accent-purple)] hover:bg-[var(--color-accent-purple)]/80"
               >
-                {isTriggering ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
+                {isTriggering ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               </Button>
             </div>
 
@@ -275,29 +248,14 @@ function TriggerCard({
                 >
                   <div className="flex items-center gap-3">
                     {getBuildStatusIcon(build.status)}
-                    <Badge
-                      className={cn(
-                        "text-[9px]",
-                        getBuildStatusColor(build.status),
-                      )}
-                    >
-                      {build.status}
-                    </Badge>
+                    <Badge className={cn("text-[9px]", getBuildStatusColor(build.status))}>{build.status}</Badge>
                     {build.commit_sha && (
-                      <code className="text-xs text-[var(--color-text-muted)]">
-                        {build.commit_sha}
-                      </code>
+                      <code className="text-xs text-[var(--color-text-muted)]">{build.commit_sha}</code>
                     )}
-                    {build.branch && (
-                      <span className="text-xs text-[var(--color-accent-cyan)]">
-                        {build.branch}
-                      </span>
-                    )}
+                    {build.branch && <span className="text-xs text-[var(--color-accent-cyan)]">{build.branch}</span>}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
-                    {build.duration_seconds && (
-                      <span>{formatDuration(build.duration_seconds)}</span>
-                    )}
+                    {build.duration_seconds && <span>{formatDuration(build.duration_seconds)}</span>}
                     <span>{formatTimeAgo(build.create_time)}</span>
                     {build.log_url && (
                       <a
@@ -314,9 +272,7 @@ function TriggerCard({
               ))}
             </div>
           ) : (
-            <div className="text-sm text-[var(--color-text-muted)]">
-              No build history available
-            </div>
+            <div className="text-sm text-[var(--color-text-muted)]">No build history available</div>
           )}
         </div>
       )}
@@ -328,18 +284,14 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
   const [triggers, setTriggers] = useState<BuildTrigger[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [triggeringService, setTriggeringService] = useState<string | null>(
-    null,
-  );
+  const [triggeringService, setTriggeringService] = useState<string | null>(null);
   const [triggerResult, setTriggerResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
   const [branchInputs, setBranchInputs] = useState<Record<string, string>>({});
   const [expandedService, setExpandedService] = useState<string | null>(null);
-  const [buildHistory, setBuildHistory] = useState<Record<string, BuildInfo[]>>(
-    {},
-  );
+  const [buildHistory, setBuildHistory] = useState<Record<string, BuildInfo[]>>({});
   const [loadingHistory, setLoadingHistory] = useState<string | null>(null);
 
   const fetchTriggers = useCallback(async () => {
@@ -349,9 +301,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
       const response = await getCloudBuildTriggers();
       let filteredTriggers = response.triggers;
       if (serviceName) {
-        filteredTriggers = filteredTriggers.filter(
-          (t) => t.service === serviceName,
-        );
+        filteredTriggers = filteredTriggers.filter((t) => t.service === serviceName);
       }
       // Sort: libraries first, then services alphabetically
       filteredTriggers.sort((a, b) => {
@@ -362,33 +312,28 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
       });
       setTriggers(filteredTriggers);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load build triggers",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load build triggers");
     } finally {
       setLoading(false);
     }
   }, [serviceName]);
 
   // Separate libraries, services, and infrastructure
-  const { libraries, services, infrastructure, librariesWithIssues } =
-    useMemo(() => {
-      const libs = triggers.filter((t) => t.type === "library");
-      const svcs = triggers.filter((t) => t.type === "service");
-      const infra = triggers.filter((t) => t.type === "infrastructure");
-      // Check for libraries with failing builds
-      const issueLibs = libs.filter(
-        (lib) =>
-          lib.last_build &&
-          ["FAILURE", "TIMEOUT", "CANCELLED"].includes(lib.last_build.status),
-      );
-      return {
-        libraries: libs,
-        services: svcs,
-        infrastructure: infra,
-        librariesWithIssues: issueLibs,
-      };
-    }, [triggers]);
+  const { libraries, services, infrastructure, librariesWithIssues } = useMemo(() => {
+    const libs = triggers.filter((t) => t.type === "library");
+    const svcs = triggers.filter((t) => t.type === "service");
+    const infra = triggers.filter((t) => t.type === "infrastructure");
+    // Check for libraries with failing builds
+    const issueLibs = libs.filter(
+      (lib) => lib.last_build && ["FAILURE", "TIMEOUT", "CANCELLED"].includes(lib.last_build.status),
+    );
+    return {
+      libraries: libs,
+      services: svcs,
+      infrastructure: infra,
+      librariesWithIssues: issueLibs,
+    };
+  }, [triggers]);
 
   useEffect(() => {
     fetchTriggers();
@@ -396,23 +341,12 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
 
   // Auto-refresh when there are running builds
   const hasRunningBuilds = useMemo(() => {
-    return triggers.some(
-      (t) =>
-        t.last_build &&
-        ["WORKING", "QUEUED", "PENDING"].includes(t.last_build.status),
-    );
+    return triggers.some((t) => t.last_build && ["WORKING", "QUEUED", "PENDING"].includes(t.last_build.status));
   }, [triggers]);
 
-  useEffect(() => {
-    if (!hasRunningBuilds) return;
-
-    // Poll every 15 seconds when builds are running
-    const interval = setInterval(() => {
-      fetchTriggers();
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [hasRunningBuilds, fetchTriggers]);
+  // Poll every 15 seconds when builds are running; pauses while the tab is
+  // hidden and resumes with an immediate refresh when it becomes visible.
+  useVisibilityPausedInterval(fetchTriggers, hasRunningBuilds ? 15000 : null);
 
   const handleTriggerBuild = async (service: string) => {
     const branch = branchInputs[service] || "main";
@@ -527,12 +461,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
             <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
           )}
           <span className="text-sm">{triggerResult.message}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-6 px-2"
-            onClick={() => setTriggerResult(null)}
-          >
+          <Button variant="ghost" size="sm" className="ml-auto h-6 px-2" onClick={() => setTriggerResult(null)}>
             Dismiss
           </Button>
         </div>
@@ -544,21 +473,16 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-[var(--color-accent-amber)] flex-shrink-0 mt-0.5" />
             <div>
-              <div className="font-medium text-[var(--color-accent-amber)]">
-                Library Quality Gate Issues
-              </div>
+              <div className="font-medium text-[var(--color-accent-amber)]">Library Quality Gate Issues</div>
               <div className="text-sm text-[var(--color-text-secondary)] mt-1">
                 {librariesWithIssues.map((lib) => lib.service).join(", ")}{" "}
-                {librariesWithIssues.length === 1 ? "has" : "have"} failing
-                builds. Services importing{" "}
-                {librariesWithIssues.length === 1
-                  ? "this library"
-                  : "these libraries"}{" "}
-                may encounter import errors when rebuilt.
+                {librariesWithIssues.length === 1 ? "has" : "have"} failing builds. Services importing{" "}
+                {librariesWithIssues.length === 1 ? "this library" : "these libraries"} may encounter import errors when
+                rebuilt.
               </div>
               <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                All services depend on unified-trading-services. Fix library
-                issues before rebuilding dependent services.
+                All services depend on unified-trading-services. Fix library issues before rebuilding dependent
+                services.
               </div>
             </div>
           </div>
@@ -582,9 +506,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
               isExpanded={expandedService === trigger.service}
               onExpand={() => handleExpandService(trigger.service)}
               branchInput={branchInputs[trigger.service] || ""}
-              onBranchChange={(val) =>
-                setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))
-              }
+              onBranchChange={(val) => setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))}
               onTriggerBuild={() => handleTriggerBuild(trigger.service)}
               isTriggering={triggeringService === trigger.service}
               buildHistory={buildHistory[trigger.service]}
@@ -611,9 +533,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
               isExpanded={expandedService === trigger.service}
               onExpand={() => handleExpandService(trigger.service)}
               branchInput={branchInputs[trigger.service] || ""}
-              onBranchChange={(val) =>
-                setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))
-              }
+              onBranchChange={(val) => setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))}
               onTriggerBuild={() => handleTriggerBuild(trigger.service)}
               isTriggering={triggeringService === trigger.service}
               buildHistory={buildHistory[trigger.service]}
@@ -640,9 +560,7 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
               isExpanded={expandedService === trigger.service}
               onExpand={() => handleExpandService(trigger.service)}
               branchInput={branchInputs[trigger.service] || ""}
-              onBranchChange={(val) =>
-                setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))
-              }
+              onBranchChange={(val) => setBranchInputs((prev) => ({ ...prev, [trigger.service]: val }))}
               onTriggerBuild={() => handleTriggerBuild(trigger.service)}
               isTriggering={triggeringService === trigger.service}
               buildHistory={buildHistory[trigger.service]}
@@ -653,32 +571,29 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
       )}
 
       {/* Legacy: Show all triggers if no type separation (backward compat) */}
-      {libraries.length === 0 &&
-        services.length === 0 &&
-        infrastructure.length === 0 &&
-        triggers.length > 0 && (
-          <div className="space-y-3">
-            {triggers.map((trigger) => (
-              <TriggerCard
-                key={trigger.trigger_id}
-                trigger={trigger}
-                isExpanded={expandedService === trigger.service}
-                onExpand={() => handleExpandService(trigger.service)}
-                branchInput={branchInputs[trigger.service] || ""}
-                onBranchChange={(val) =>
-                  setBranchInputs((prev) => ({
-                    ...prev,
-                    [trigger.service]: val,
-                  }))
-                }
-                onTriggerBuild={() => handleTriggerBuild(trigger.service)}
-                isTriggering={triggeringService === trigger.service}
-                buildHistory={buildHistory[trigger.service]}
-                loadingHistory={loadingHistory === trigger.service}
-              />
-            ))}
-          </div>
-        )}
+      {libraries.length === 0 && services.length === 0 && infrastructure.length === 0 && triggers.length > 0 && (
+        <div className="space-y-3">
+          {triggers.map((trigger) => (
+            <TriggerCard
+              key={trigger.trigger_id}
+              trigger={trigger}
+              isExpanded={expandedService === trigger.service}
+              onExpand={() => handleExpandService(trigger.service)}
+              branchInput={branchInputs[trigger.service] || ""}
+              onBranchChange={(val) =>
+                setBranchInputs((prev) => ({
+                  ...prev,
+                  [trigger.service]: val,
+                }))
+              }
+              onTriggerBuild={() => handleTriggerBuild(trigger.service)}
+              isTriggering={triggeringService === trigger.service}
+              buildHistory={buildHistory[trigger.service]}
+              loadingHistory={loadingHistory === trigger.service}
+            />
+          ))}
+        </div>
+      )}
 
       {triggers.length === 0 && (
         <Card>
@@ -691,11 +606,8 @@ export function CloudBuildsTab({ serviceName }: CloudBuildsTabProps) {
 
       {/* Permission note */}
       <div className="text-xs text-[var(--color-text-muted)] p-3 rounded bg-[var(--color-bg-secondary)] border border-[var(--color-border-subtle)]">
-        <strong>Note:</strong> Triggering builds requires the service account to
-        have
-        <code className="mx-1 px-1 py-0.5 rounded bg-[var(--color-bg-primary)]">
-          roles/cloudbuild.builds.editor
-        </code>
+        <strong>Note:</strong> Triggering builds requires the service account to have
+        <code className="mx-1 px-1 py-0.5 rounded bg-[var(--color-bg-primary)]">roles/cloudbuild.builds.editor</code>
         permission. If triggers fail, check IAM permissions.
       </div>
     </div>

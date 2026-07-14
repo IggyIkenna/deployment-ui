@@ -22,10 +22,11 @@
  * Plan: gh_rate_budget_tracker_deployment_ui_2026_06_11.md.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fetchGhRateLimit } from "../api/ghRateLimit";
 import type { GhRatePool, GhRateLimit } from "../api/ghRateLimit";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -75,32 +76,36 @@ function PoolBars({ resources, prefix }: { resources: Record<string, GhRatePool>
 export function GhRateBudget() {
   const [data, setData] = useState<GhRateLimit | null>(null);
   const [err, setErr] = useState(false);
+  const cancelledRef = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const fetchRate = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    try {
+      const j = await fetchGhRateLimit(controller.signal);
+      if (!cancelledRef.current) {
+        setData(j);
+        setErr(false);
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      if (!cancelledRef.current) setErr(true);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    async function fetchRate() {
-      try {
-        const j = await fetchGhRateLimit(controller.signal);
-        if (!cancelled) {
-          setData(j);
-          setErr(false);
-        }
-      } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") return;
-        if (!cancelled) setErr(true);
-      }
-    }
+    cancelledRef.current = false;
     void fetchRate();
-    const timer = setInterval(() => {
-      void fetchRate();
-    }, REFRESH_INTERVAL_MS);
     return () => {
-      cancelled = true;
-      controller.abort();
-      clearInterval(timer);
+      cancelledRef.current = true;
+      controllerRef.current?.abort();
     };
-  }, []);
+  }, [fetchRate]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(fetchRate, REFRESH_INTERVAL_MS);
 
   if (err) {
     return (

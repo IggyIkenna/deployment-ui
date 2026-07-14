@@ -50,8 +50,10 @@ import {
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
@@ -381,9 +383,34 @@ function heartbeatLabel(seconds: number | null): string | null {
   return `${Math.round(min / 60)}h`;
 }
 
+/** Summary-chip-row skeleton — shown while the FIRST load is in flight, so the page shows
+ * visible progress instead of reading blank during the (historically 30-90s) inventory +
+ * umbrella-summary fetch. */
+function DeploymentsSummaryHeaderSkeleton() {
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2"
+      data-testid="umbrella-summary-skeleton"
+      aria-label="Loading deployments summary"
+    >
+      <Skeleton className="h-6 w-24 rounded-full" />
+      <Skeleton className="h-6 w-20 rounded-full" />
+      <Skeleton className="h-6 w-20 rounded-full" />
+      <Skeleton className="h-6 w-16 rounded-full" />
+    </div>
+  );
+}
+
 /** Summary header — counts by status + last failure, aggregated across every mode in view. */
-function DeploymentsSummaryHeader({ summary }: { summary: UmbrellaSummaryResponse | null }) {
+function DeploymentsSummaryHeader({
+  summary,
+  loading,
+}: {
+  summary: UmbrellaSummaryResponse | null;
+  loading?: boolean;
+}) {
   if (!summary) {
+    if (loading) return <DeploymentsSummaryHeaderSkeleton />;
     return (
       <p className="text-sm text-[var(--color-text-muted)]" data-testid="umbrella-summary-empty">
         No summary available.
@@ -771,6 +798,19 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
   );
 }
 
+/** Table-shaped skeleton — shown in place of the matrix while the FIRST load is in
+ * flight (inventory + freshness can historically take 30-90s), so the page shows
+ * visible progress instead of a blank/empty-looking table. */
+function DeploymentMatrixSkeleton() {
+  return (
+    <div className="space-y-2 py-2" data-testid="deployment-matrix-skeleton" aria-label="Loading deployments">
+      {Array.from({ length: 6 }, (_, i) => (
+        <Skeleton key={i} className="h-8 w-full" />
+      ))}
+    </div>
+  );
+}
+
 function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
   // null → the default semantic hierarchy; else an explicit column sort. A header click cycles that
   // column asc → desc → back to the default hierarchy.
@@ -1066,9 +1106,10 @@ export function DeploymentsContent({
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, 60_000);
 
   // Region options for the selector — dynamic from the API (default pinned first), so a new region
   // appears the moment infra lands there. Fetched once; on failure the seeded default + "all" remain.
@@ -1133,7 +1174,7 @@ export function DeploymentsContent({
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">Deployments</CardTitle>
               <div className="pt-2">
-                <DeploymentsSummaryHeader summary={summary} />
+                <DeploymentsSummaryHeader summary={summary} loading={loading && items.length === 0} />
               </div>
               <StrandedCostBadge items={items} />
               {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
@@ -1234,12 +1275,8 @@ export function DeploymentsContent({
                   <span>{error}</span>
                 </div>
               )}
-              {loading && items.length === 0 && !error && (
-                <p className="text-sm text-[var(--color-text-muted)] py-2 flex items-center gap-2">
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading…
-                </p>
-              )}
-              {!error && (
+              {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
+              {!error && !(loading && items.length === 0) && (
                 <DeploymentMatrix
                   items={items.filter(
                     (i) =>

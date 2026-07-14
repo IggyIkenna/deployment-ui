@@ -10,24 +10,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRepoReadiness } from "../api/repoReadiness";
 import type { RepoReadiness } from "../api/repoReadiness";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
 function ReadinessBadge({ ready }: { ready: boolean }) {
-  return (
-    <Badge variant={ready ? "success" : "error"}>
-      {ready ? "Ready" : "Not Ready"}
-    </Badge>
-  );
+  return <Badge variant={ready ? "success" : "error"}>{ready ? "Ready" : "Not Ready"}</Badge>;
 }
 
 function fmtReason(reason: string): string {
@@ -43,11 +34,7 @@ function fmtSnapshotAge(lastSnapshotDate: string | null): string {
   return `${days}d ago`;
 }
 
-function SnapshotAgeBadge({
-  lastSnapshotDate,
-}: {
-  lastSnapshotDate: string | null;
-}) {
+function SnapshotAgeBadge({ lastSnapshotDate }: { lastSnapshotDate: string | null }) {
   if (!lastSnapshotDate) {
     return <Badge variant="error">no snapshot</Badge>;
   }
@@ -88,14 +75,13 @@ export function DeploymentReadinessTab() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => {
-      void load();
-    }, REFRESH_INTERVAL_MS);
     return () => {
-      clearInterval(timer);
       abortRef.current?.abort();
     };
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, REFRESH_INTERVAL_MS);
 
   const readyCount = rows ? rows.filter((r) => r.deploy_ready).length : 0;
   const totalCount = rows ? rows.length : 0;
@@ -106,15 +92,13 @@ export function DeploymentReadinessTab() {
         <div>
           <CardTitle className="text-base">Repo Deploy Readiness</CardTitle>
           <CardDescription>
-            deploy_ready = true iff last 5 QG snapshots green, zero open P0
-            issues, and no in-flight refactor banner.
+            deploy_ready = true iff last 5 QG snapshots green, zero open P0 issues, and no in-flight refactor banner.
           </CardDescription>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {rows !== null && (
             <span className="text-sm text-[var(--color-text-secondary)]">
-              {readyCount}/{totalCount} ready · last{" "}
-              {fmtLastRefreshed(lastRefreshed)}
+              {readyCount}/{totalCount} ready · last {fmtLastRefreshed(lastRefreshed)}
             </span>
           )}
           <Button
@@ -132,20 +116,13 @@ export function DeploymentReadinessTab() {
       </CardHeader>
       <CardContent>
         {error && (
-          <p
-            className="text-sm text-[var(--color-accent-red)] mb-4"
-            data-testid="readiness-error"
-          >
+          <p className="text-sm text-[var(--color-accent-red)] mb-4" data-testid="readiness-error">
             {error}
           </p>
         )}
-        {!error && rows === null && loading && (
-          <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>
-        )}
+        {!error && rows === null && loading && <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>}
         {rows !== null && rows.length === 0 && (
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            No data — QG snapshot cron not yet running.
-          </p>
+          <p className="text-sm text-[var(--color-text-secondary)]">No data — QG snapshot cron not yet running.</p>
         )}
         {rows !== null && rows.length > 0 && (
           <table className="w-full text-sm border-collapse">
@@ -168,17 +145,10 @@ export function DeploymentReadinessTab() {
                   <td className="py-2 pr-6">
                     <ReadinessBadge ready={row.deploy_ready} />
                   </td>
-                  <td
-                    className="py-2 pr-6"
-                    data-testid={`snapshot-age-${row.repo}`}
-                  >
-                    <SnapshotAgeBadge
-                      lastSnapshotDate={row.last_snapshot_date}
-                    />
+                  <td className="py-2 pr-6" data-testid={`snapshot-age-${row.repo}`}>
+                    <SnapshotAgeBadge lastSnapshotDate={row.last_snapshot_date} />
                   </td>
-                  <td className="py-2 text-[var(--color-text-secondary)] text-xs">
-                    {fmtReason(row.reason)}
-                  </td>
+                  <td className="py-2 text-[var(--color-text-secondary)] text-xs">{fmtReason(row.reason)}</td>
                 </tr>
               ))}
             </tbody>

@@ -16,22 +16,12 @@ import {
   Check,
   X,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { cn, formatDateTime } from "../lib/utils";
-import {
-  getDeployments,
-  bulkDeleteDeployments,
-  cancelDeployment,
-  updateDeploymentTag,
-} from "../api/client";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
+import { getDeployments, bulkDeleteDeployments, cancelDeployment, updateDeploymentTag } from "../api/client";
 import { Input } from "./ui/input";
 
 interface DeploymentSummary {
@@ -52,10 +42,7 @@ interface DeploymentHistoryProps {
   onViewDetails?: (deploymentId: string) => void;
 }
 
-export function DeploymentHistory({
-  serviceName,
-  onViewDetails,
-}: DeploymentHistoryProps) {
+export function DeploymentHistory({ serviceName, onViewDetails }: DeploymentHistoryProps) {
   const [deployments, setDeployments] = useState<DeploymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,11 +58,7 @@ export function DeploymentHistory({
   const [savingTag, setSavingTag] = useState(false);
 
   const fetchDeployments = useCallback(
-    async (
-      forceRefresh = false,
-      clearSelection = false,
-      isBackgroundPoll = false,
-    ) => {
+    async (forceRefresh = false, clearSelection = false, isBackgroundPoll = false) => {
       try {
         // Only show loading spinner on initial/manual fetches, NOT background polls.
         // Background polls update data silently to avoid UI flickering.
@@ -106,9 +89,7 @@ export function DeploymentHistory({
       } catch (err) {
         // Only show errors for manual fetches, not background polls
         if (!isBackgroundPoll) {
-          setError(
-            err instanceof Error ? err.message : "Failed to fetch deployments",
-          );
+          setError(err instanceof Error ? err.message : "Failed to fetch deployments");
         }
       } finally {
         if (!isBackgroundPoll) {
@@ -125,16 +106,13 @@ export function DeploymentHistory({
   }, [fetchDeployments]);
 
   // Poll for updates when any deployment is pending or running (so status/progress update in the list)
-  const hasActiveDeployments = deployments.some(
-    (d) => d.status === "pending" || d.status === "running",
+  const hasActiveDeployments = deployments.some((d) => d.status === "pending" || d.status === "running");
+  // Every 30s while there is at least one active deployment (silent update);
+  // pauses while the tab is hidden, resumes with an immediate refresh.
+  useVisibilityPausedInterval(
+    () => fetchDeployments(true, false, true), // force_refresh, don't clear selection, IS background poll
+    hasActiveDeployments ? 30000 : null,
   );
-  useEffect(() => {
-    if (!hasActiveDeployments) return;
-    const interval = setInterval(() => {
-      fetchDeployments(true, false, true); // force_refresh, don't clear selection, IS background poll
-    }, 30000); // every 30s while there is at least one active deployment (silent update)
-    return () => clearInterval(interval);
-  }, [hasActiveDeployments, fetchDeployments]);
 
   const toggleSelection = (deploymentId: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -187,9 +165,7 @@ export function DeploymentHistory({
   const handleBulkCancel = async () => {
     // Get selected deployments that are running
     const runningSelected = deployments.filter(
-      (d) =>
-        selectedIds.has(d.deployment_id) &&
-        (d.status === "running" || d.status === "pending"),
+      (d) => selectedIds.has(d.deployment_id) && (d.status === "running" || d.status === "pending"),
     );
 
     if (runningSelected.length === 0) {
@@ -237,11 +213,7 @@ export function DeploymentHistory({
     try {
       await updateDeploymentTag(deploymentId, editingTagValue.trim() || null);
       setDeployments((prev) =>
-        prev.map((d) =>
-          d.deployment_id === deploymentId
-            ? { ...d, tag: editingTagValue.trim() || null }
-            : d,
-        ),
+        prev.map((d) => (d.deployment_id === deploymentId ? { ...d, tag: editingTagValue.trim() || null } : d)),
       );
       setEditingTagId(null);
     } catch {
@@ -253,9 +225,7 @@ export function DeploymentHistory({
 
   // Count running deployments in selection
   const selectedRunningCount = deployments.filter(
-    (d) =>
-      selectedIds.has(d.deployment_id) &&
-      (d.status === "running" || d.status === "pending"),
+    (d) => selectedIds.has(d.deployment_id) && (d.status === "running" || d.status === "pending"),
   ).length;
 
   const getStatusBadge = (status: string) => {
@@ -266,10 +236,7 @@ export function DeploymentHistory({
         return <Badge variant="success">Completed</Badge>;
       case "completed_pending_delete":
         return (
-          <Badge
-            variant="warning"
-            title="VMs may still be deleting; check and delete manually if they remain"
-          >
+          <Badge variant="warning" title="VMs may still be deleting; check and delete manually if they remain">
             Completed (pending delete)
           </Badge>
         );
@@ -295,30 +262,20 @@ export function DeploymentHistory({
       case "completed":
       case "succeeded":
       case "clean":
-        return (
-          <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />
-        );
+        return <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)]" />;
       case "completed_pending_delete":
-        return (
-          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-        );
+        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />;
       case "completed_with_errors":
       case "completed_with_warnings":
-        return (
-          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-        );
+        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />;
       case "running":
-        return (
-          <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />
-        );
+        return <Loader2 className="h-4 w-4 text-[var(--color-accent-cyan)] animate-spin" />;
       case "failed":
         return <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />;
       case "pending":
         return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
       case "cancelled":
-        return (
-          <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />
-        );
+        return <AlertCircle className="h-4 w-4 text-[var(--color-accent-amber)]" />;
       default:
         return <Clock className="h-4 w-4 text-[var(--color-text-muted)]" />;
     }
@@ -344,18 +301,9 @@ export function DeploymentHistory({
           <div className="flex items-start gap-3 p-4 rounded-lg status-error">
             <AlertCircle className="h-5 w-5 text-[var(--color-accent-red)] shrink-0" />
             <div>
-              <p className="text-sm font-medium text-[var(--color-accent-red)]">
-                Failed to load deployments
-              </p>
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                {error}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => fetchDeployments(true, true)}
-                className="mt-2"
-              >
+              <p className="text-sm font-medium text-[var(--color-accent-red)]">Failed to load deployments</p>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1">{error}</p>
+              <Button variant="ghost" size="sm" onClick={() => fetchDeployments(true, true)} className="mt-2">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry
               </Button>
@@ -373,15 +321,9 @@ export function DeploymentHistory({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Deployment History</CardTitle>
-              <CardDescription>
-                Recent deployments for {serviceName}
-              </CardDescription>
+              <CardDescription>Recent deployments for {serviceName}</CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchDeployments(true, true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => fetchDeployments(true, true)}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -389,12 +331,9 @@ export function DeploymentHistory({
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Clock className="h-12 w-12 text-[var(--color-text-muted)] mb-4" />
-            <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
-              No Deployment History
-            </h3>
+            <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">No Deployment History</h3>
             <p className="text-sm text-[var(--color-text-secondary)] max-w-md">
-              No deployments found for {serviceName}. Run a deployment to see it
-              here.
+              No deployments found for {serviceName}. Run a deployment to see it here.
             </p>
           </div>
         </CardContent>
@@ -411,9 +350,7 @@ export function DeploymentHistory({
             <CardDescription>
               {deployments.length} recent deployments for {serviceName}
               {selectedIds.size > 0 && (
-                <span className="ml-2 text-[var(--color-accent-cyan)]">
-                  ({selectedIds.size} selected)
-                </span>
+                <span className="ml-2 text-[var(--color-accent-cyan)]">({selectedIds.size} selected)</span>
               )}
             </CardDescription>
           </div>
@@ -422,12 +359,7 @@ export function DeploymentHistory({
               <>
                 {/* Cancel running deployments */}
                 {selectedRunningCount > 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleBulkCancel}
-                    disabled={cancelling}
-                  >
+                  <Button variant="destructive" size="sm" onClick={handleBulkCancel} disabled={cancelling}>
                     {cancelling ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-1" />
                     ) : (
@@ -444,11 +376,7 @@ export function DeploymentHistory({
                   disabled={deleting}
                   className="text-[var(--color-accent-red)] hover:bg-[var(--color-accent-red)]/10"
                 >
-                  {deleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-1" />
-                  )}
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
                   Delete ({selectedIds.size})
                 </Button>
               </>
@@ -457,11 +385,7 @@ export function DeploymentHistory({
               variant="outline"
               size="sm"
               onClick={selectAll}
-              title={
-                selectedIds.size === deployments.length
-                  ? "Deselect all"
-                  : "Select all"
-              }
+              title={selectedIds.size === deployments.length ? "Deselect all" : "Select all"}
             >
               {selectedIds.size === deployments.length ? (
                 <CheckSquare className="h-4 w-4" />
@@ -469,20 +393,14 @@ export function DeploymentHistory({
                 <Square className="h-4 w-4" />
               )}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchDeployments(true, true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => fetchDeployments(true, true)}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
         {(deleteError || cancelError) && (
           <div className="mt-2 p-2 rounded status-error">
-            <p className="text-sm text-[var(--color-accent-red)]">
-              {deleteError || cancelError}
-            </p>
+            <p className="text-sm text-[var(--color-accent-red)]">{deleteError || cancelError}</p>
           </div>
         )}
       </CardHeader>
@@ -493,8 +411,7 @@ export function DeploymentHistory({
               key={deployment.deployment_id}
               className={cn(
                 "flex items-center gap-4 p-4 hover:bg-[var(--color-bg-hover)] transition-colors cursor-pointer",
-                selectedIds.has(deployment.deployment_id) &&
-                  "bg-[var(--color-accent-cyan)]/10",
+                selectedIds.has(deployment.deployment_id) && "bg-[var(--color-accent-cyan)]/10",
               )}
               onClick={() => onViewDetails?.(deployment.deployment_id)}
             >
@@ -528,16 +445,12 @@ export function DeploymentHistory({
                 <div className="flex items-center gap-1 mb-1">
                   <Tag className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
                   {editingTagId === deployment.deployment_id ? (
-                    <div
-                      className="flex items-center gap-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Input
                         value={editingTagValue}
                         onChange={(e) => setEditingTagValue(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleSaveTag(deployment.deployment_id);
+                          if (e.key === "Enter") handleSaveTag(deployment.deployment_id);
                           if (e.key === "Escape") setEditingTagId(null);
                         }}
                         className="h-6 text-xs w-40"
@@ -551,11 +464,7 @@ export function DeploymentHistory({
                         onClick={() => handleSaveTag(deployment.deployment_id)}
                         disabled={savingTag}
                       >
-                        {savingTag ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Check className="h-3 w-3" />
-                        )}
+                        {savingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                       </Button>
                       <Button
                         variant="ghost"
@@ -567,16 +476,9 @@ export function DeploymentHistory({
                       </Button>
                     </div>
                   ) : (
-                    <div
-                      className="flex items-center gap-1 group"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="flex items-center gap-1 group" onClick={(e) => e.stopPropagation()}>
                       <span className="text-xs text-[var(--color-text-secondary)] truncate max-w-xs">
-                        {deployment.tag || (
-                          <span className="text-[var(--color-text-muted)] italic">
-                            No tag
-                          </span>
-                        )}
+                        {deployment.tag || <span className="text-[var(--color-text-muted)] italic">No tag</span>}
                       </span>
                       <Button
                         variant="ghost"
@@ -596,9 +498,7 @@ export function DeploymentHistory({
                 <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                   <span>
                     <Clock className="h-3 w-3 inline mr-1" />
-                    {deployment.created_at
-                      ? formatDateTime(deployment.created_at)
-                      : "Unknown"}
+                    {deployment.created_at ? formatDateTime(deployment.created_at) : "Unknown"}
                   </span>
                   <span>{deployment.total_shards} shards</span>
                   <span className="font-mono">{deployment.progress}</span>

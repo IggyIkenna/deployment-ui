@@ -8,12 +8,8 @@ import {
 } from "../api/deploymentApi";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import {
   ERR_FAILED_TO_LOAD_DETAILS,
   FIELD_ASSET_GROUP,
@@ -33,10 +29,7 @@ import {
   FIELD_VM_NAME,
 } from "../lib/strings";
 
-const STATUS_VARIANT: Record<
-  string,
-  "success" | "warning" | "error" | "default"
-> = {
+const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "default"> = {
   running: "warning",
   completed: "success",
   failed: "error",
@@ -75,38 +68,28 @@ export function VmDeploymentDetails() {
         setEntry(e);
         setEvents(ev as DeploymentEventsResponse);
       })
-      .catch((err: unknown) =>
-        setError(
-          err instanceof Error ? err.message : ERR_FAILED_TO_LOAD_DETAILS,
-        ),
-      )
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : ERR_FAILED_TO_LOAD_DETAILS))
       .finally(() => setLoading(false));
   }, [deploymentId]);
 
   useEffect(() => {
     load();
-    // Live-poll while the deployment is running.
-    const timer = window.setInterval(() => {
-      if (!entry || entry.status === "running") load();
-    }, 15_000);
-    return () => window.clearInterval(timer);
-  }, [load, entry]);
+  }, [load]);
+
+  // Live-poll while the deployment is running; pauses while the tab is
+  // hidden, resumes with an immediate refresh.
+  useVisibilityPausedInterval(() => {
+    if (!entry || entry.status === "running") load();
+  }, 15_000);
 
   if (loading && !entry) {
-    return (
-      <div className="p-6 text-[var(--color-text-muted)] font-mono">
-        Loading deployment {deploymentId}…
-      </div>
-    );
+    return <div className="p-6 text-[var(--color-text-muted)] font-mono">Loading deployment {deploymentId}…</div>;
   }
 
   if (error) {
     return (
       <div className="p-6 space-y-2">
-        <Link
-          to="/vm-deployments"
-          className="text-xs text-[var(--color-accent-blue)]"
-        >
+        <Link to="/vm-deployments" className="text-xs text-[var(--color-accent-blue)]">
           ← Back to VM Deployments
         </Link>
         <div className="text-[var(--color-error)] text-sm">Error: {error}</div>
@@ -138,23 +121,14 @@ export function VmDeploymentDetails() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link
-            to="/vm-deployments"
-            className="text-xs text-[var(--color-accent-blue)]"
-          >
+          <Link to="/vm-deployments" className="text-xs text-[var(--color-accent-blue)]">
             ← Back to VM Deployments
           </Link>
-          <h1 className="text-base font-semibold text-[var(--color-text-primary)] mt-1">
-            {entry.vm_name}
-          </h1>
-          <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
-            {entry.deployment_id}
-          </p>
+          <h1 className="text-base font-semibold text-[var(--color-text-primary)] mt-1">{entry.vm_name}</h1>
+          <p className="text-xs text-[var(--color-text-tertiary)] font-mono">{entry.deployment_id}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={STATUS_VARIANT[entry.status] ?? "default"}>
-            {entry.status}
-          </Badge>
+          <Badge variant={STATUS_VARIANT[entry.status] ?? "default"}>{entry.status}</Badge>
           <Button variant="outline" size="sm" onClick={load}>
             Refresh
           </Button>
@@ -170,10 +144,7 @@ export function VmDeploymentDetails() {
             {fields.map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4">
                 <dt className="text-[var(--color-text-muted)]">{k}</dt>
-                <dd
-                  className="font-mono text-xs truncate max-w-[60%]"
-                  title={String(v ?? "—")}
-                >
+                <dd className="font-mono text-xs truncate max-w-[60%]" title={String(v ?? "—")}>
                   {v == null || v === "" ? "—" : String(v)}
                 </dd>
               </div>
@@ -202,22 +173,15 @@ export function VmDeploymentDetails() {
               <tbody>
                 {!events || events.events.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={3}
-                      className="table-cell text-center text-[var(--color-text-muted)] py-6"
-                    >
+                    <td colSpan={3} className="table-cell text-center text-[var(--color-text-muted)] py-6">
                       No events yet.
                     </td>
                   </tr>
                 ) : (
                   events.events.map((e, i) => (
                     <tr key={i} className="table-row">
-                      <td className="table-cell font-mono text-xs text-[var(--color-text-muted)]">
-                        {e.timestamp}
-                      </td>
-                      <td className="table-cell text-xs font-semibold">
-                        {e.event_type}
-                      </td>
+                      <td className="table-cell font-mono text-xs text-[var(--color-text-muted)]">{e.timestamp}</td>
+                      <td className="table-cell text-xs font-semibold">{e.event_type}</td>
                       <td className="table-cell font-mono text-xs truncate max-w-[60ch]">
                         {formatValue(e.message ?? e)}
                       </td>

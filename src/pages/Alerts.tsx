@@ -20,6 +20,7 @@ import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "..
 import { formatAge } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
@@ -93,9 +94,10 @@ export function AlertsContent() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // Pauses while the tab is hidden; resumes with an immediate refresh.
+  useVisibilityPausedInterval(load, 60_000);
 
   return (
     <div className="space-y-4" data-testid="alerts-page">
