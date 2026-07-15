@@ -282,6 +282,54 @@ function VenuePillList({ venues }: { venues: Record<string, number> }) {
   );
 }
 
+/**
+ * Lazy-mounting wrapper for the hierarchical shard-atom drill-down.
+ *
+ * A native ``<details>`` collapses its children VISUALLY (CSS) but React
+ * still MOUNTS them, so ``HierarchicalShardDrilldown``'s fetch-on-mount
+ * effect fired for EVERY asset_group on page load even while collapsed —
+ * 5 concurrent full-index reads that OOM-killed the 4 GiB deployment-api
+ * container (503 storm on /drilldown + /api/health flap → "Backend
+ * unreachable"). Gate the mount on the ``open`` state so the expensive
+ * drilldown request only fires when the operator actually expands that
+ * asset_group's panel.
+ */
+export function LazyDrilldownDetails({
+  service,
+  assetGroup,
+  startDate,
+  endDate,
+  className = "mt-3",
+  summaryLabel = "Hierarchical drill-down (shard atom)",
+  summaryClassName = "text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]",
+}: {
+  service: string;
+  assetGroup: string;
+  startDate: string;
+  endDate: string;
+  className?: string;
+  summaryLabel?: string;
+  summaryClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className={className} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className={summaryClassName}>{summaryLabel}</summary>
+      <div className="mt-2">
+        {open ? (
+          <HierarchicalShardDrilldown
+            service={service}
+            assetGroup={assetGroup}
+            startDate={startDate}
+            endDate={endDate}
+            initialDepth={1}
+          />
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 const DATE_PAGE_SIZE = 60;
 
 export function DateList({
@@ -1825,23 +1873,17 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                           (UAC SSOT). Each leaf row exposes a per-shard
                           CSV download + a Deploy-Missing button that
                           composes the surgical --shard-key=... command
-                          for missing shards. Default-collapsed inside
-                          a <details> so the page doesn't fan out
-                          5000 instruments by default. */}
-                            <details className="mt-3">
-                              <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]">
-                                Hierarchical drill-down (shard atom)
-                              </summary>
-                              <div className="mt-2">
-                                <HierarchicalShardDrilldown
-                                  service={serviceName}
-                                  assetGroup={axisKey}
-                                  startDate={startDate}
-                                  endDate={endDate}
-                                  initialDepth={1}
-                                />
-                              </div>
-                            </details>
+                          for missing shards. Default-collapsed; the
+                          drilldown request is LAZY (fires on expand, not on
+                          mount) via LazyDrilldownDetails so the page doesn't
+                          fan out 5 concurrent full-index reads (and 5000
+                          instruments) by default. */}
+                            <LazyDrilldownDetails
+                              service={serviceName}
+                              assetGroup={axisKey}
+                              startDate={startDate}
+                              endDate={endDate}
+                            />
                           </div>
                         );
                       })}
@@ -4062,20 +4104,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                     className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3"
                                     data-testid="prediction-hierarchical-drilldown"
                                   >
-                                    <details>
-                                      <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] uppercase tracking-wide font-medium">
-                                        Hierarchical drill-down (canonical_question_group → cadence → day)
-                                      </summary>
-                                      <div className="mt-2">
-                                        <HierarchicalShardDrilldown
-                                          service={serviceName}
-                                          assetGroup={catName.toLowerCase()}
-                                          startDate={startDate}
-                                          endDate={endDate}
-                                          initialDepth={1}
-                                        />
-                                      </div>
-                                    </details>
+                                    <LazyDrilldownDetails
+                                      service={serviceName}
+                                      assetGroup={catName.toLowerCase()}
+                                      startDate={startDate}
+                                      endDate={endDate}
+                                      className=""
+                                      summaryLabel="Hierarchical drill-down (canonical_question_group → cadence → day)"
+                                      summaryClassName="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] uppercase tracking-wide font-medium"
+                                    />
                                   </div>
                                 )}
 
