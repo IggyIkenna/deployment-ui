@@ -22,6 +22,7 @@ import {
   getHierarchicalDrilldown,
 } from "../api/client";
 import { DeployMissingButton } from "./DeployMissingButton";
+import { type LeafSchemaModalCoord } from "./LeafSchemaModal";
 
 interface HierarchicalShardDrilldownProps {
   service: string;
@@ -34,6 +35,11 @@ interface HierarchicalShardDrilldownProps {
    *  Default 200; the API returns ``total_top_axis_children`` so the
    *  UI can render a load-more button when more shards exist. */
   topPageSize?: number;
+  /** Open the per-leaf schema view (live parquet columns + stats) for a leaf
+   *  shard. Wired by the parent to its shared LeafSchemaModal state so the
+   *  drilldown leaf gets the SAME "retrievable schema" surface as the flat
+   *  panel's venue badges. Omit to hide the per-leaf schema control. */
+  onOpenLeafSchema?: (coord: LeafSchemaModalCoord) => void;
 }
 
 function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<string, string>): string | null {
@@ -60,6 +66,47 @@ function _leafDownloadUrl(service: string, assetGroup: string, rowKey: Record<st
     chain: rowKey.chain,
     league_id: rowKey.league_id,
   });
+}
+
+// ``data_type`` is not a drilldown axis for services whose leaf shard is a
+// single per-(venue, day) bundle: instruments-service emits ONE ``instruments``
+// catalog parquet per venue-day for EVERY asset_group, so its leaf row_key is
+// only {venue, date}. Services whose drilldown axes DO include data_type (MTDS,
+// market-data-processing, features-*) already carry it in the row_key, so this
+// fallback is only consulted when the row_key omits it.
+const _DEFAULT_LEAF_DATA_TYPE: Record<string, string> = {
+  "instruments-service": "instruments",
+};
+
+/**
+ * Build the per-leaf schema-view coord (``/leaf-stats`` via LeafSchemaModal) from
+ * a drilldown leaf's row_key. Mirrors the flat panel's coord (DataStatusTab
+ * `setLeafSchemaCoord`): ``instrument_type: "AUTO"`` lets deployment-api resolve
+ * the parquet path via ``_gcs_path_for_shard``, so a coarse (venue, day,
+ * data_type) leaf still resolves. Returns null when the row_key can't identify a
+ * shard (so the "schema" control renders only where it will actually work).
+ */
+function _leafSchemaCoord(
+  service: string,
+  assetGroup: string,
+  rowKey: Record<string, string>,
+): LeafSchemaModalCoord | null {
+  const day = rowKey.day ?? rowKey.date;
+  const venue = rowKey.venue;
+  const dataType = rowKey.data_type ?? _DEFAULT_LEAF_DATA_TYPE[service];
+  if (!day || !venue || !dataType) {
+    return null;
+  }
+  return {
+    service,
+    asset_group: assetGroup,
+    instrument_type: rowKey.instrument_type ?? "AUTO",
+    data_type: dataType,
+    day,
+    venue,
+    instrument_id: rowKey.instrument_id ?? null,
+    underlying: rowKey.underlying ?? null,
+  };
 }
 
 /** Human-readable label for the M8 cadence axis (UAC ``Cadence`` StrEnum). The
@@ -101,6 +148,7 @@ export function HierarchicalShardDrilldown({
   endDate,
   initialDepth = 1,
   topPageSize = 200,
+  onOpenLeafSchema,
 }: HierarchicalShardDrilldownProps) {
   const [topLevel, setTopLevel] = useState<DrilldownResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -232,6 +280,7 @@ export function HierarchicalShardDrilldown({
             startDate={startDate}
             endDate={endDate}
             depth={0}
+            onOpenLeafSchema={onOpenLeafSchema}
           />
         ))}
       </ul>
@@ -274,9 +323,18 @@ interface DrilldownNodeRowProps {
   startDate: string;
   endDate: string;
   depth: number;
+  onOpenLeafSchema?: (coord: LeafSchemaModalCoord) => void;
 }
 
-function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth }: DrilldownNodeRowProps) {
+function DrilldownNodeRow({
+  node,
+  service,
+  assetGroup,
+  startDate,
+  endDate,
+  depth,
+  onOpenLeafSchema,
+}: DrilldownNodeRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<DrilldownNode[] | null>(node.children.length > 0 ? node.children : null);
   const [loading, setLoading] = useState(false);
@@ -381,6 +439,12 @@ function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth
             const rk = node.row_key;
             const hasFullShardKey = !!rk.venue && !!rk.data_type && (!!rk.day || !!rk.date);
             const isMissingShard = node.captured === 0;
+            // Per-leaf schema view (live parquet columns + stats) — the SAME
+            // "retrievable schema" surface the flat panel's venue badges open,
+            // now placed on the per-day leaf so a shard's CSV download and its
+            // schema live side by side. Null when the row_key can't resolve a
+            // shard, so the control never renders where it would 4xx.
+            const schemaCoord = onOpenLeafSchema ? _leafSchemaCoord(service, assetGroup, node.row_key) : null;
             return (
               <span className="drilldown-leaf-controls">
                 {downloadUrl && (
@@ -393,6 +457,16 @@ function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth
                   >
                     ↓ csv
                   </a>
+                )}
+                {onOpenLeafSchema && schemaCoord && (
+                  <button
+                    type="button"
+                    className="drilldown-schema"
+                    title="View this shard's retrievable schema — live parquet columns, row/null counts, available_at envelope"
+                    onClick={() => onOpenLeafSchema(schemaCoord)}
+                  >
+                    ⛃ schema
+                  </button>
                 )}
                 {isMissingShard && hasFullShardKey && (
                   <DeployMissingButton
@@ -458,6 +532,7 @@ function DrilldownNodeRow({ node, service, assetGroup, startDate, endDate, depth
               startDate={startDate}
               endDate={endDate}
               depth={depth + 1}
+              onOpenLeafSchema={onOpenLeafSchema}
             />
           ))}
           {children?.length === 0 && !loading && <li className="drilldown-empty">(no data)</li>}

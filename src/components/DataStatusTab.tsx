@@ -302,6 +302,7 @@ export function LazyDrilldownDetails({
   className = "mt-3",
   summaryLabel = "Hierarchical drill-down (shard atom)",
   summaryClassName = "text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)]",
+  onOpenLeafSchema,
 }: {
   service: string;
   assetGroup: string;
@@ -310,6 +311,7 @@ export function LazyDrilldownDetails({
   className?: string;
   summaryLabel?: string;
   summaryClassName?: string;
+  onOpenLeafSchema?: (coord: LeafSchemaModalCoord) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -323,6 +325,7 @@ export function LazyDrilldownDetails({
             startDate={startDate}
             endDate={endDate}
             initialDepth={1}
+            onOpenLeafSchema={onOpenLeafSchema}
           />
         ) : null}
       </div>
@@ -1883,6 +1886,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                               assetGroup={axisKey}
                               startDate={startDate}
                               endDate={endDate}
+                              onOpenLeafSchema={setLeafSchemaCoord}
                             />
                           </div>
                         );
@@ -4112,6 +4116,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                       className=""
                                       summaryLabel="Hierarchical drill-down (canonical_question_group → cadence → day)"
                                       summaryClassName="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] uppercase tracking-wide font-medium"
+                                      onOpenLeafSchema={setLeafSchemaCoord}
                                     />
                                   </div>
                                 )}

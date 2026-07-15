@@ -90,6 +90,76 @@ describe("HierarchicalShardDrilldown — render-gate regressions", () => {
     expect(screen.getByText(/CME/)).toBeTruthy();
   });
 
+  it("per-leaf 'schema' control opens the leaf schema view with an AUTO-resolved coord (operator 2026-07-15)", async () => {
+    // instruments-service leaves carry only {venue, date} (no data_type axis) —
+    // the coord must still resolve: data_type falls back to the service default
+    // ("instruments") and instrument_type is "AUTO" (deployment-api /leaf-stats
+    // resolves the parquet path). This is the "retrievable schema at the leaf".
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2026-07-14",
+          captured: 5,
+          total: 5,
+          completion_pct: 100,
+          row_key: { venue: "BINANCE-FUTURES", date: "2026-07-14" },
+          is_leaf: true,
+        }),
+      ]),
+    );
+    const onOpenLeafSchema = vi.fn();
+    render(
+      <HierarchicalShardDrilldown
+        service="instruments-service"
+        assetGroup="cefi"
+        startDate="2026-07-14"
+        endDate="2026-07-14"
+        onOpenLeafSchema={onOpenLeafSchema}
+      />,
+    );
+    const schemaBtn = await screen.findByRole("button", { name: /schema/i });
+    fireEvent.click(schemaBtn);
+    expect(onOpenLeafSchema).toHaveBeenCalledTimes(1);
+    expect(onOpenLeafSchema).toHaveBeenCalledWith(
+      expect.objectContaining({
+        service: "instruments-service",
+        asset_group: "cefi",
+        venue: "BINANCE-FUTURES",
+        day: "2026-07-14",
+        instrument_type: "AUTO",
+        data_type: "instruments",
+      }),
+    );
+  });
+
+  it("hides the per-leaf 'schema' control when the row_key can't resolve a shard (no venue)", async () => {
+    vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
+      _mockResponse([
+        _node({
+          axis: "date",
+          value: "2026-07-14",
+          captured: 5,
+          total: 5,
+          row_key: { date: "2026-07-14" }, // no venue → not a resolvable shard
+          is_leaf: true,
+        }),
+      ]),
+    );
+    const onOpenLeafSchema = vi.fn();
+    render(
+      <HierarchicalShardDrilldown
+        service="instruments-service"
+        assetGroup="cefi"
+        startDate="2026-07-14"
+        endDate="2026-07-14"
+        onOpenLeafSchema={onOpenLeafSchema}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/2026-07-14/)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /schema/i })).toBeNull();
+  });
+
   it("B5: renders the expected_unattempted 4th state — totals 'pending' pill + per-node 'u' badge + legend", async () => {
     vi.spyOn(apiClient, "getHierarchicalDrilldown").mockResolvedValue(
       _mockResponse([
