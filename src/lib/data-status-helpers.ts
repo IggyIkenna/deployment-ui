@@ -152,3 +152,20 @@ export function showsGlobalReferenceAffordance(
 ): boolean {
   return category === "SPORTS" && !hasLeagues && typeof axis === "string" && axis.startsWith("global_");
 }
+
+/**
+ * P8 UI-P2 — true when the "per-fixture drill-down and downloads are
+ * FIXTURES-only" note should render for a sports data_type entry.
+ *
+ * The deeper per-fixture drill (`build_fixture_breakdown`, date→fixture
+ * expansion) and CSV downloads are hardcoded to FIXTURES
+ * (`catName === "SPORTS" && name === "FIXTURES"` gates in `DataStatusTab.tsx`).
+ * Rather than silently omit the affordance for every other sports data_type
+ * (STANDINGS, TEAMS, LEAGUES, PLAYER_VALUES, …), render an explicit honest
+ * note so operators understand why the drill/download controls aren't there —
+ * this is a documented scope limit, not a bug. Plan
+ * data_status_page_ux_and_canonicalisation_2026_07_16 P8 UI-P2.
+ */
+export function showsFixturesOnlyDrillNote(category: string, dataTypeName: string): boolean {
+  return category === "SPORTS" && dataTypeName !== "FIXTURES";
+}

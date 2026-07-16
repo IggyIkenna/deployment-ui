@@ -4,6 +4,7 @@ import type { ShardAxisMatrixResponse } from "../api/client";
 import {
   canonicalInstrumentTypeLabel,
   isHierarchicalDrilldownRedundant,
+  showsFixturesOnlyDrillNote,
   showsGlobalReferenceAffordance,
 } from "./data-status-helpers";
 
@@ -104,5 +105,23 @@ describe("showsGlobalReferenceAffordance (P8 honest-absence)", () => {
     expect(showsGlobalReferenceAffordance("PREDICTION", false, "global_periodic")).toBe(false);
     expect(showsGlobalReferenceAffordance("CEFI", false, "global_periodic")).toBe(false);
     expect(showsGlobalReferenceAffordance("SPORTS", false, undefined)).toBe(false);
+  });
+});
+
+describe("showsFixturesOnlyDrillNote (P8 UI-P2 deep-drill parity)", () => {
+  it("shows for non-FIXTURES sports data_types", () => {
+    expect(showsFixturesOnlyDrillNote("SPORTS", "STANDINGS")).toBe(true);
+    expect(showsFixturesOnlyDrillNote("SPORTS", "TEAMS")).toBe(true);
+    expect(showsFixturesOnlyDrillNote("SPORTS", "LEAGUES")).toBe(true);
+    expect(showsFixturesOnlyDrillNote("SPORTS", "PLAYER_VALUES")).toBe(true);
+  });
+
+  it("hidden for FIXTURES itself", () => {
+    expect(showsFixturesOnlyDrillNote("SPORTS", "FIXTURES")).toBe(false);
+  });
+
+  it("hidden for non-sports categories regardless of data_type name", () => {
+    expect(showsFixturesOnlyDrillNote("PREDICTION", "STANDINGS")).toBe(false);
+    expect(showsFixturesOnlyDrillNote("CEFI", "FIXTURES")).toBe(false);
   });
 });
