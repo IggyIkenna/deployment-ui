@@ -1,4 +1,4 @@
-import { BarChart3, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, BarChart3, Info, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { HonestCoverageResponse } from "../api/client";
 import { getHonestCoverage } from "../api/client";
@@ -116,6 +116,17 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   return { knownEmpty, pendingFetch, manifestCapturePct, capturedPct };
 }
 
+/** Whole days between the coverage file's own `date` (YYYY-MM-DD, UTC) and today
+ * (UTC). 0 = current. Flags a stale card when the daily cron missed and the endpoint
+ * served an older file via its 14-day fallback. */
+function daysStale(coverageDate: string): number {
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const [y, m, d] = coverageDate.split("-").map(Number);
+  if (!y || !m || !d) return 0;
+  return Math.max(0, Math.round((todayUtc - Date.UTC(y, m - 1, d)) / 86_400_000));
+}
+
 export function HonestCoverageCard({ date }: { date?: string }) {
   const [data, setData] = useState<HonestCoverageResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,6 +155,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
   }, [date]);
 
   const notYetComputed = !loading && data === null && error === null;
+  const stale = data?.date ? daysStale(data.date) : 0;
 
   return (
     <Card>
@@ -160,7 +172,14 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           >
             of attempted
           </span>
-          {data?.date && <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">{data.date}</span>}
+          {data?.date && (
+            <span
+              className={`text-[10px] ml-auto ${stale >= 1 ? "text-amber-600" : "text-[var(--color-text-muted)]"}`}
+              title={stale >= 1 ? `Stale — measurement is ${stale} day${stale === 1 ? "" : "s"} old` : undefined}
+            >
+              {data.date}
+            </span>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -181,6 +200,32 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           <div className="text-xs text-red-500">{error}</div>
         ) : data?.by_asset_group ? (
           <div className="space-y-2">
+            {data.partial ? (
+              <div
+                className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-600"
+                data-testid="honest-coverage-partial-banner"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Coverage incomplete — {data.asset_groups_failed?.length ?? 0} asset group
+                  {(data.asset_groups_failed?.length ?? 0) === 1 ? "" : "s"} failed to load
+                  {data.asset_groups_failed?.length ? `: ${data.asset_groups_failed.join(", ")}` : ""}. Showing{" "}
+                  {Object.keys(data.by_asset_group).length} of{" "}
+                  {data.asset_groups_requested?.length ?? Object.keys(data.by_asset_group).length}.
+                </span>
+              </div>
+            ) : stale >= 1 ? (
+              <div
+                className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-600"
+                data-testid="honest-coverage-stale-banner"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Showing coverage as of {data.date} ({stale} day{stale === 1 ? "" : "s"} old) — today&apos;s daily
+                  measurement isn&apos;t available yet.
+                </span>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
               {AG_ORDER.filter((ag) => ag in data.by_asset_group).map((ag) => {
                 const s = data.by_asset_group[ag];
