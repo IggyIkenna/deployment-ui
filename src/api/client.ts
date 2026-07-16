@@ -2630,7 +2630,7 @@ export function buildShardDownloadUrl(params: {
 
 /**
  * Build the sports-FIXTURES CSV download URL for one (day, league) slice.
- * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
+ * Server reads gs://instruments-store-sports-prd-{pid}/sports_reference/by_date/day={day}/.../entity=fixtures/fixtures.parquet (canonical; resolved server-side via resolve_bucket_name)
  * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
  */
 export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
