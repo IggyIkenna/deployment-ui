@@ -1783,12 +1783,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       </div>
                       <div className="text-[10px] text-[var(--color-text-muted)]">
                         {coverageSummary.totals.unique_instruments != null
-                          ? "unique instruments (catalogue-deduplicated, all asset groups)"
+                          ? "unique instruments — all-time incl. expired/delisted/resolved (catalogue-deduplicated, all asset groups)"
                           : "instruments (latest day, sum across asset groups)"}
                       </div>
                       {coverageSummary.totals.unique_instruments != null && (
-                        <div className="text-[10px] text-[var(--color-text-muted)]">
-                          {coverageSummary.totals.latest_day_instruments.toLocaleString()} rows on latest day
+                        <div
+                          className="text-[10px] font-semibold text-[var(--color-text-muted)]"
+                          title="The live, currently-active universe — not the all-time total above."
+                        >
+                          {coverageSummary.totals.latest_day_instruments.toLocaleString()} active on latest day
                         </div>
                       )}
                     </div>
