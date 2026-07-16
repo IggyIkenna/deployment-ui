@@ -42,6 +42,7 @@ import {
   getAssetGroupBreakdown,
   isHierarchicalDrilldownRedundant,
   isPredictionCqgAxis,
+  showsFixturesOnlyDrillNote,
   showsGlobalReferenceAffordance,
 } from "../lib/data-status-helpers";
 import { cn, formatEventDrivenCoverageLabel, formatRatePerDay, isRateMetricRow } from "../lib/utils";
@@ -66,6 +67,7 @@ import { TypedReasonBadges } from "./TypedReasonBadges";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
+import { PredictionCatalogueCard } from "./PredictionCatalogue";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
@@ -1747,6 +1749,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           {serviceName === "instruments-service" && <UpcomingFixtures />}
           {serviceName === "instruments-service" && <NewListingsCard />}
           {serviceName === "instruments-service" && <UpcomingExpiriesCard />}
+          {serviceName === "instruments-service" && <PredictionCatalogueCard />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
@@ -1780,12 +1783,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       </div>
                       <div className="text-[10px] text-[var(--color-text-muted)]">
                         {coverageSummary.totals.unique_instruments != null
-                          ? "unique instruments (catalogue-deduplicated, all asset groups)"
+                          ? "unique instruments — all-time incl. expired/delisted/resolved (catalogue-deduplicated, all asset groups)"
                           : "instruments (latest day, sum across asset groups)"}
                       </div>
                       {coverageSummary.totals.unique_instruments != null && (
-                        <div className="text-[10px] text-[var(--color-text-muted)]">
-                          {coverageSummary.totals.latest_day_instruments.toLocaleString()} rows on latest day
+                        <div
+                          className="text-[10px] font-semibold text-[var(--color-text-muted)]"
+                          title="The live, currently-active universe — not the all-time total above."
+                        >
+                          {coverageSummary.totals.latest_day_instruments.toLocaleString()} active on latest day
                         </div>
                       )}
                     </div>
@@ -5512,6 +5518,25 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                   >
                                                     Global reference entity — no per-league breakdown (axis:{" "}
                                                     {subData.axis})
+                                                  </span>
+                                                </div>
+                                              )}
+
+                                              {/* P8 UI-P2 — deep-drill parity: the per-fixture drill-down
+                                                  (date→fixture expansion) and CSV downloads are wired ONLY for
+                                                  FIXTURES (see the `catName === "SPORTS" && name === "FIXTURES"`
+                                                  gates above). Rather than fabricate a generalized breakdown for
+                                                  other sports data_types, render an explicit honest note instead.
+                                                  Plan data_status_page_ux_and_canonicalisation_2026_07_16
+                                                  P8 UI-P2. */}
+                                              {showsFixturesOnlyDrillNote(catName, name) && (
+                                                <div className="pt-1">
+                                                  <span
+                                                    className="text-[9px] italic text-[var(--color-text-muted)]"
+                                                    data-testid="fixtures-only-drilldown-note"
+                                                  >
+                                                    Per-fixture drill-down and downloads are available for FIXTURES
+                                                    only.
                                                   </span>
                                                 </div>
                                               )}
