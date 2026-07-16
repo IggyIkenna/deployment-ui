@@ -5,9 +5,7 @@ import { BreakdownsAccordion } from "./BreakdownsAccordion";
 
 describe("BreakdownsAccordion", () => {
   it("renders nothing when no axes are declared", () => {
-    const { container } = render(
-      <BreakdownsAccordion axes={[]} breakdowns={{}} />,
-    );
+    const { container } = render(<BreakdownsAccordion axes={[]} breakdowns={{}} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -15,13 +13,7 @@ describe("BreakdownsAccordion", () => {
     // Phase 3 deliver-with-empty-data invariant: an axis declared in the
     // UAC SSOT for this (service, asset_group) MUST render even when the
     // backend writer hasn't populated the column yet.
-    render(
-      <BreakdownsAccordion
-        axes={["job_id", "training_period"]}
-        breakdowns={{}}
-        title="Breakdowns"
-      />,
-    );
+    render(<BreakdownsAccordion axes={["job_id", "training_period"]} breakdowns={{}} title="Breakdowns" />);
     expect(screen.getByText("Job (experiment run)")).toBeTruthy();
     expect(screen.getByText("Training period")).toBeTruthy();
     // Two "no data yet" labels — one per axis header.
@@ -42,11 +34,7 @@ describe("BreakdownsAccordion", () => {
     fireEvent.click(screen.getByText("Chain"));
     // Sorted descending by count → ETHEREUM, ARBITRUM, SOLANA
     const rows = screen.getAllByText(/^ETHEREUM|ARBITRUM|SOLANA$/);
-    expect(rows.map((r) => r.textContent)).toEqual([
-      "ETHEREUM",
-      "ARBITRUM",
-      "SOLANA",
-    ]);
+    expect(rows.map((r) => r.textContent)).toEqual(["ETHEREUM", "ARBITRUM", "SOLANA"]);
     expect(screen.getByText("120")).toBeTruthy();
     expect(screen.getByText("40")).toBeTruthy();
   });
@@ -72,13 +60,43 @@ describe("BreakdownsAccordion", () => {
     expect(onSelectValue).toHaveBeenCalledWith("job_id", "20260506-runA");
   });
 
-  it("shows axis count + total row count summary in the header", () => {
+  it("labels __legacy__ as '(unlabeled)' on a NON-job_id axis (P4-A)", () => {
+    // The __legacy__ sentinel only means "pre-job_id" on the job_id axis; on
+    // instrument_type/data_type a blank is just an unlabeled value.
     render(
       <BreakdownsAccordion
-        axes={["chain"]}
-        breakdowns={{ chain: { ETHEREUM: 100, ARBITRUM: 25 } }}
+        axes={["instrument_type"]}
+        breakdowns={{ instrument_type: { SPOT_PAIR: 30, __legacy__: 4 } }}
       />,
     );
+    fireEvent.click(screen.getByText("Instrument type"));
+    expect(screen.getByText("(unlabeled)")).toBeTruthy();
+    expect(screen.queryByText("(legacy — pre-job_id)")).toBeNull();
+  });
+
+  it("canonicalises legacy instrument_type labels but keeps the raw query key (P4-A)", () => {
+    const onSelectValue = vi.fn();
+    render(
+      <BreakdownsAccordion
+        axes={["instrument_type"]}
+        breakdowns={{ instrument_type: { spot: 42, perpetual: 10 } }}
+        onSelectValue={onSelectValue}
+      />,
+    );
+    fireEvent.click(screen.getByText("Instrument type"));
+    // Display is canonical UPPERCASE …
+    const spotRow = screen.getByText("SPOT_PAIR");
+    expect(spotRow).toBeTruthy();
+    expect(screen.getByText("PERPETUAL")).toBeTruthy();
+    // … raw value visible on hover …
+    expect(spotRow.getAttribute("title")).toBe("raw: spot");
+    // … and the manifest query key sent back is the RAW value, not the label.
+    fireEvent.click(spotRow);
+    expect(onSelectValue).toHaveBeenCalledWith("instrument_type", "spot");
+  });
+
+  it("shows axis count + total row count summary in the header", () => {
+    render(<BreakdownsAccordion axes={["chain"]} breakdowns={{ chain: { ETHEREUM: 100, ARBITRUM: 25 } }} />);
     expect(screen.getByText("2 values · 125 rows")).toBeTruthy();
   });
 });

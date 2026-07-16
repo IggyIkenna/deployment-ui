@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ShardAxisMatrixResponse } from "../api/client";
-import { isHierarchicalDrilldownRedundant } from "./data-status-helpers";
+import { canonicalInstrumentTypeLabel, isHierarchicalDrilldownRedundant } from "./data-status-helpers";
 
 /**
  * P5 — the Instrument-Coverage-Summary hierarchical drilldown is redundant with
@@ -57,5 +57,27 @@ describe("isHierarchicalDrilldownRedundant", () => {
   it("keeps the drilldown when the matrix is unavailable or the pair is absent (fail-open)", () => {
     expect(isHierarchicalDrilldownRedundant("instruments-service", "cefi", null)).toBe(false);
     expect(isHierarchicalDrilldownRedundant("instruments-service", "unknown", MATRIX)).toBe(false);
+  });
+});
+
+describe("canonicalInstrumentTypeLabel", () => {
+  it("lifts legacy lowercase values to canonical UPPERCASE UAC InstrumentType", () => {
+    expect(canonicalInstrumentTypeLabel("spot")).toBe("SPOT_PAIR");
+    expect(canonicalInstrumentTypeLabel("perp")).toBe("PERPETUAL");
+    expect(canonicalInstrumentTypeLabel("perpetual")).toBe("PERPETUAL");
+    expect(canonicalInstrumentTypeLabel("futures")).toBe("FUTURE");
+    expect(canonicalInstrumentTypeLabel("lending_market")).toBe("LENDING");
+    expect(canonicalInstrumentTypeLabel("etf")).toBe("ETF");
+  });
+
+  it("returns already-canonical + DeFi mid-migration values verbatim (no fabrication)", () => {
+    // Already canonical — untouched.
+    expect(canonicalInstrumentTypeLabel("PERPETUAL")).toBe("PERPETUAL");
+    expect(canonicalInstrumentTypeLabel("DEX_POOL")).toBe("DEX_POOL");
+    // DeFi mid-migration types stay verbatim (not "fixed").
+    expect(canonicalInstrumentTypeLabel("A_TOKEN")).toBe("A_TOKEN");
+    expect(canonicalInstrumentTypeLabel("DEBT_TOKEN")).toBe("DEBT_TOKEN");
+    // Unknown value is never force-uppercased or invented.
+    expect(canonicalInstrumentTypeLabel("weird_value")).toBe("weird_value");
   });
 });

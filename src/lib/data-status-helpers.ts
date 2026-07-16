@@ -93,3 +93,42 @@ export function isHierarchicalDrilldownRedundant(
   if (shardAxes.length === 0) return false;
   return shardAxes.every((axis) => GRID_COVERED_SHARD_AXES.has(axis));
 }
+
+/**
+ * Legacy-lowercase → canonical-UPPERCASE instrument_type aliases. SSOT: the
+ * `InstrumentType` docstring in `unified_api_contracts._instrument_enums`
+ * (spot → SPOT_PAIR, perp/perpetual → PERPETUAL, futures → FUTURE, option →
+ * OPTION, pool → POOL, lending_market/lending → LENDING, lst → LST, yield →
+ * YIELD_BEARING, etf → ETF). DeFi mid-migration types (A_TOKEN / DEBT_TOKEN /
+ * STAKING / YIELD_BEARING / LST) are ALREADY canonical UPPERCASE and stay
+ * verbatim — this map only lifts the legacy lowercase manifest values.
+ */
+const INSTRUMENT_TYPE_CANONICAL_ALIASES: Readonly<Record<string, string>> = {
+  spot: "SPOT_PAIR",
+  perp: "PERPETUAL",
+  perpetual: "PERPETUAL",
+  futures: "FUTURE",
+  future: "FUTURE",
+  option: "OPTION",
+  options: "OPTION",
+  pool: "POOL",
+  lending_market: "LENDING",
+  lending: "LENDING",
+  lst: "LST",
+  yield: "YIELD_BEARING",
+  etf: "ETF",
+};
+
+/**
+ * Display-only canonical label for an `instrument_type` breakdown value.
+ *
+ * Maps legacy lowercase manifest values to their canonical UPPERCASE UAC
+ * `InstrumentType`. Unmapped values return **verbatim** — an already-canonical
+ * value (PERPETUAL, DEX_POOL, A_TOKEN, …) is unchanged, and an unknown value is
+ * NEVER fabricated or force-uppercased (honest-absence). This is DISPLAY ONLY:
+ * the raw value stays the manifest secondary-axis query key (shard-atom
+ * identity) and is surfaced on hover by the caller. Plan P4-A.
+ */
+export function canonicalInstrumentTypeLabel(rawValue: string): string {
+  return INSTRUMENT_TYPE_CANONICAL_ALIASES[rawValue.toLowerCase()] ?? rawValue;
+}
