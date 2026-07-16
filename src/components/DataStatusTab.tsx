@@ -64,6 +64,7 @@ import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
 import { HonestCoverageCard } from "./HonestCoverageCard";
+import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
@@ -1744,6 +1745,8 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       {dataStatusViewMode !== "live" && (
         <>
           {serviceName === "instruments-service" && <UpcomingFixtures />}
+          {serviceName === "instruments-service" && <NewListingsCard />}
+          {serviceName === "instruments-service" && <UpcomingExpiriesCard />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
