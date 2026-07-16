@@ -38,7 +38,11 @@ import {
   buildShardDownloadUrl,
   searchInstruments,
 } from "../api/client";
-import { getAssetGroupBreakdown, isPredictionCqgAxis } from "../lib/data-status-helpers";
+import {
+  getAssetGroupBreakdown,
+  isHierarchicalDrilldownRedundant,
+  isPredictionCqgAxis,
+} from "../lib/data-status-helpers";
 import { cn, formatEventDrivenCoverageLabel, formatRatePerDay, isRateMetricRow } from "../lib/utils";
 import type {
   AssetGroupVenuesResponse,
@@ -1880,14 +1884,25 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                           drilldown request is LAZY (fires on expand, not on
                           mount) via LazyDrilldownDetails so the page doesn't
                           fan out 5 concurrent full-index reads (and 5000
-                          instruments) by default. */}
-                            <LazyDrilldownDetails
-                              service={serviceName}
-                              assetGroup={axisKey}
-                              startDate={startDate}
-                              endDate={endDate}
-                              onOpenLeafSchema={setLeafSchemaCoord}
-                            />
+                          instruments) by default.
+
+                          P5: suppressed for instruments-service cefi/tradfi/defi
+                          — their shard axes (venue, +chain for defi) are a
+                          strict subset of the "Data Coverage" grid below, so
+                          this drilldown is redundant there. Kept for IS
+                          sports/prediction (league_id / cqg axes the grid does
+                          not expand) + every other service (primary drilldown).
+                          isHierarchicalDrilldownRedundant is an axis-comparison
+                          predicate, NOT a blanket service-name gate. */}
+                            {!isHierarchicalDrilldownRedundant(serviceName, axisKey, shardAxisMatrix) && (
+                              <LazyDrilldownDetails
+                                service={serviceName}
+                                assetGroup={axisKey}
+                                startDate={startDate}
+                                endDate={endDate}
+                                onOpenLeafSchema={setLeafSchemaCoord}
+                              />
+                            )}
                           </div>
                         );
                       })}
