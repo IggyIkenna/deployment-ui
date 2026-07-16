@@ -489,6 +489,11 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  // P6 phase-1 (data_status_page_ux_and_canonicalisation_2026_07_16) — "MVP
+  // only" toggle, mirrors VenueCoverageTable's scope=mvp pill. Threaded into
+  // both the listing fetch and the CSV download URL so the export always
+  // matches the on-screen filtered view.
+  const [mvpOnly, setMvpOnly] = useState(false);
   // Accumulated instruments across "Load more" clicks when search is empty.
   const [loadedInstruments, setLoadedInstruments] = useState<ShardInstrumentEntry[]>([]);
 
@@ -521,11 +526,11 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
     };
   }, [searchInput]);
 
-  // Reset pagination whenever the search term changes.
+  // Reset pagination whenever the search term or the MVP-only toggle changes.
   useEffect(() => {
     setOffset(0);
     setLoadedInstruments([]);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, mvpOnly]);
 
   // Reset everything when the coordinate changes (modal re-open).
   useEffect(() => {
@@ -538,6 +543,7 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
     setPasteError(null);
     setActiveInstrumentType(coord.instrument_type);
     setShardInfo(null);
+    setMvpOnly(false);
   }, [coord.service, coord.asset_group, coord.venue, coord.day, coord.instrument_type, coord.data_type]);
 
   // Resolve the actual instrument_types present on this venue+day. If the
@@ -583,6 +589,7 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
       limit: PAGE_SIZE,
       offset,
       search: debouncedSearch || undefined,
+      mvp_only: mvpOnly,
     })
       .then((r) => {
         if (cancelled) return;
@@ -631,6 +638,7 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
     offset,
     debouncedSearch,
     activeInstrumentType,
+    mvpOnly,
   ]);
 
   const isBundled = listing?.bundling === "per_underlying";
@@ -700,6 +708,7 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
         instrument_type: activeInstrumentType,
         data_type: coord.data_type,
         instrument_ids: Array.from(selected),
+        mvp_only: mvpOnly,
       })
     : null;
 
@@ -865,6 +874,19 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
             </label>
           </div>
 
+          {/* P6 phase-1 — MVP-only toggle. Narrows the listing fetch +
+              CSV download to is_mvp-true instruments (mirrors
+              VenueCoverageTable's scope=mvp pill). */}
+          <label className="flex items-center gap-1.5 text-[11px] cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={mvpOnly}
+              onChange={(e) => setMvpOnly(e.target.checked)}
+              data-testid="instruments-modal-mvp-toggle"
+            />
+            <span className="text-[var(--color-text-muted)]">MVP only</span>
+          </label>
+
           {/* Actions */}
           <div className="flex gap-2 text-xs">
             <button className="underline" onClick={selectAll}>
@@ -906,6 +928,14 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
                       {i.instrument_id}
                     </span>
                   </label>
+                  {i.is_mvp && (
+                    <span
+                      className="text-[8px] font-mono px-1 py-0.5 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)]"
+                      data-testid={`mvp-badge-${i.instrument_id}`}
+                    >
+                      MVP
+                    </span>
+                  )}
                   <CaptureStatusBadge status={status} errorReason={i.error_reason} attemptedAt={i.attempted_at} />
                   {status === "attempted_failed" && (
                     <RetryShardButton

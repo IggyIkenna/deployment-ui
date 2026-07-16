@@ -11,8 +11,8 @@ vi.mock("../../../src/api/client", () => ({
   fetchBundlePreview: vi.fn(),
   fetchShardInfo: vi.fn(),
   buildCsvDownloadUrl: vi.fn(
-    (p: { day: string; venue: string; instrument_type: string; instrument_ids: string[] }) =>
-      `/api/data-status/download-csv?day=${p.day}&venue=${p.venue}&instrument_type=${p.instrument_type}&ids=${p.instrument_ids.join(",")}`,
+    (p: { day: string; venue: string; instrument_type: string; instrument_ids: string[]; mvp_only?: boolean }) =>
+      `/api/data-status/download-csv?day=${p.day}&venue=${p.venue}&instrument_type=${p.instrument_type}&ids=${p.instrument_ids.join(",")}${p.mvp_only ? "&mvp_only=true" : ""}`,
   ),
   setApiBaseUrl: vi.fn(),
   clearCache: vi.fn().mockResolvedValue(undefined),
@@ -20,7 +20,6 @@ vi.mock("../../../src/api/client", () => ({
   retryFailedShard: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
- 
 import * as api from "../../../src/api/client";
 
 describe("SchemaModal", () => {
@@ -397,6 +396,92 @@ describe("InstrumentsModal", () => {
       vi.advanceTimersByTime(400);
     });
     vi.useRealTimers();
+  });
+
+  // P6 phase-1 (data_status_page_ux_and_canonicalisation_2026_07_16) — "MVP
+  // only" toggle on InstrumentsModalStandard.
+  it("toggling 'MVP only' refetches with mvp_only=true", async () => {
+    const fetchSpy = api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>;
+    fetchSpy.mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [{ instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1024, is_mvp: true }],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          asset_group: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("0xaaa")).toBeTruthy());
+    expect(fetchSpy).toHaveBeenLastCalledWith(expect.objectContaining({ mvp_only: false }));
+
+    fireEvent.click(screen.getByTestId("instruments-modal-mvp-toggle"));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenLastCalledWith(expect.objectContaining({ mvp_only: true })));
+  });
+
+  it("renders an MVP badge only for rows with is_mvp: true", async () => {
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [
+        { instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1024, is_mvp: true },
+        { instrument_id: "0xbbb", file_uri: "gs://b/t.parquet", size_bytes: 1024, is_mvp: false },
+      ],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          asset_group: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("0xaaa")).toBeTruthy());
+    expect(screen.getByTestId("mvp-badge-0xaaa")).toBeTruthy();
+    expect(screen.queryByTestId("mvp-badge-0xbbb")).toBeNull();
+  });
+
+  it("threads mvp_only into the CSV download URL when the toggle is on", async () => {
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [{ instrument_id: "0xaaa", file_uri: "gs://b/t.parquet", size_bytes: 1024, is_mvp: true }],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          asset_group: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("0xaaa")).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId("instruments-modal-mvp-toggle"));
+
+    await waitFor(() =>
+      expect(
+        (api.buildCsvDownloadUrl as ReturnType<typeof vi.fn>).mock.calls.some(
+          (c) => (c[0] as { mvp_only?: boolean }).mvp_only === true,
+        ),
+      ).toBe(true),
+    );
   });
 });
 

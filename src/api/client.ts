@@ -2535,6 +2535,10 @@ export interface ShardInstrumentEntry {
   capture_status?: "captured" | "empty_confirmed" | "attempted_failed";
   error_reason?: string;
   attempted_at?: string;
+  // P6 phase-1 (data_status_page_ux_and_canonicalisation_2026_07_16) —
+  // every instrument dict now carries is_mvp regardless of the mvp_only
+  // toggle, so the drill-down can badge MVP rows even when browsing "all".
+  is_mvp?: boolean;
 }
 
 export interface InstrumentsForShardResponse {
@@ -2598,6 +2602,9 @@ export async function fetchInstrumentsForShard(params: {
   limit?: number;
   offset?: number;
   search?: string;
+  // P6 phase-1 — restrict to is_mvp-true instruments (mirrors the coverage
+  // grid's scope=mvp toggle; backend: mvp_only Query param).
+  mvp_only?: boolean;
 }): Promise<InstrumentsForShardResponse> {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2610,6 +2617,7 @@ export async function fetchInstrumentsForShard(params: {
   if (params.limit !== undefined) qp.set("limit", String(params.limit));
   if (params.offset !== undefined) qp.set("offset", String(params.offset));
   if (params.search !== undefined && params.search !== "") qp.set("search", params.search);
+  if (params.mvp_only) qp.set("mvp_only", "true");
   return fetchJson<InstrumentsForShardResponse>(`/data-status/instruments-for-shard?${qp.toString()}`);
 }
 
@@ -2698,6 +2706,9 @@ export function buildCsvDownloadUrl(params: {
   chain?: string;
   league_id?: string;
   job_id?: string;
+  // P6 phase-1 — restrict the export to is_mvp-true instruments (same rule
+  // as instrument_ids; backend: mvp_only Query param on /download-csv).
+  mvp_only?: boolean;
 }): string {
   const qp = new URLSearchParams({
     service: params.service,
@@ -2711,6 +2722,7 @@ export function buildCsvDownloadUrl(params: {
   if (params.chain) qp.set("chain", params.chain);
   if (params.league_id) qp.set("league_id", params.league_id);
   if (params.job_id) qp.set("job_id", params.job_id);
+  if (params.mvp_only) qp.set("mvp_only", "true");
   return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
 }
 
