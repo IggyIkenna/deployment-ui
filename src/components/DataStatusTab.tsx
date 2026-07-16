@@ -64,6 +64,7 @@ import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
+import { CatalogueExplorer } from "./CatalogueExplorer";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
@@ -1750,6 +1751,10 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           {serviceName === "instruments-service" && <NewListingsCard />}
           {serviceName === "instruments-service" && <UpcomingExpiriesCard />}
           {serviceName === "instruments-service" && <PredictionCatalogueCard />}
+          {/* P6 phase-1 catalogue explorer — availability-derived "captured
+              instruments" list, IS-only (phase-1 scope; see
+              data_status_page_ux_and_canonicalisation_2026_07_16 P6). */}
+          {serviceName === "instruments-service" && <CatalogueExplorer />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
