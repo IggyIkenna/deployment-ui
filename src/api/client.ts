@@ -1185,14 +1185,7 @@ export interface TurboChainStatus {
 // this type. Source:
 // unified_api_contracts/canonical/domain/features/registry.py.
 export type FeatureFamily =
-  | "calendar"
-  | "commodity"
-  | "cross_instrument"
-  | "delta_one"
-  | "multi_timeframe"
-  | "onchain"
-  | "sports"
-  | "volatility";
+  "calendar" | "commodity" | "cross_instrument" | "delta_one" | "multi_timeframe" | "onchain" | "sports" | "volatility";
 
 export const FEATURE_FAMILIES: ReadonlyArray<FeatureFamily> = [
   "calendar",
@@ -2637,7 +2630,7 @@ export function buildShardDownloadUrl(params: {
 
 /**
  * Build the sports-FIXTURES CSV download URL for one (day, league) slice.
- * Server reads gs://instruments-store-sports-{pid}/sports_reference/by_date/day={day}/entity=fixtures/fixtures.parquet
+ * Server reads gs://instruments-store-sports-prd-{pid}/sports_reference/by_date/day={day}/.../entity=fixtures/fixtures.parquet (canonical; resolved server-side via resolve_bucket_name)
  * and filters by canonical league_id (mapped to API-Football numeric id via UAC).
  */
 export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: string }): string {
@@ -2677,12 +2670,7 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
  * response body for the non-captured branches.
  */
 export type ShardDownloadStatus =
-  | "captured"
-  | "empty_confirmed"
-  | "attempted_failed"
-  | "never_attempted"
-  | "path_drift"
-  | "unknown";
+  "captured" | "empty_confirmed" | "attempted_failed" | "never_attempted" | "path_drift" | "unknown";
 
 export interface ShardDownloadResult {
   status: ShardDownloadStatus;
@@ -3270,6 +3258,14 @@ export interface HonestCoverageResponse {
   by_asset_group: Record<string, HonestCoverageStatusCounts>;
   by_venue: Record<string, Record<string, HonestCoverageStatusCounts>>;
   by_venue_data_type: Record<string, Record<string, Record<string, HonestCoverageStatusCounts>>>;
+  // Honest-absence: a PARTIAL measurement run (some requested asset_groups failed
+  // to load — e.g. an availability-index parquet OOM in the writer) stamps these so
+  // the card can show a "coverage incomplete" banner instead of silently rendering a
+  // subset. Optional: older coverage.json files (pre-2026-07-16 writer) omit them.
+  asset_groups_requested?: string[];
+  asset_groups_measured?: string[];
+  asset_groups_failed?: string[];
+  partial?: boolean;
 }
 
 /** Fetch cross-asset-group honest coverage for a given date (default: today UTC).

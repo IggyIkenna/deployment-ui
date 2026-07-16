@@ -23,6 +23,8 @@
 import { ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { useState } from "react";
 
+import { canonicalInstrumentTypeLabel } from "../lib/data-status-helpers";
+
 interface BreakdownsAccordionProps {
   /**
    * Axes returned by /api/config/shard-axis-matrix breakdown_axes for
@@ -74,23 +76,34 @@ const HUMAN_AXIS_LABELS: Record<string, string> = {
 };
 
 function formatAxisLabel(axis: string): string {
-  return (
-    HUMAN_AXIS_LABELS[axis] ??
-    axis.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  );
+  return HUMAN_AXIS_LABELS[axis] ?? axis.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatValueLabel(value: string): string {
-  if (value === "__legacy__") return "(legacy — pre-job_id)";
+/**
+ * Human display label for a breakdown value. AXIS-AWARE:
+ *
+ *   - The synthetic empty-value sentinel `__legacy__` only means "pre-job_id"
+ *     on the `job_id` axis (ML/strategy/execution rows that wrote `job_id=""`).
+ *     On every other axis (instrument_type / data_type / …) a blank is simply
+ *     an unlabeled value → "(unlabeled)".
+ *   - `instrument_type` values are canonicalised to their UPPERCASE UAC
+ *     `InstrumentType` for display (spot → SPOT_PAIR, …); unmapped values are
+ *     returned verbatim.
+ *
+ * DISPLAY ONLY — the raw `value` remains the manifest secondary-axis query key
+ * (shard-atom identity) and is surfaced on hover. Plan P4-A.
+ */
+function formatValueLabel(axis: string, value: string): string {
+  if (value === "__legacy__") {
+    return axis === "job_id" ? "(legacy — pre-job_id)" : "(unlabeled)";
+  }
+  if (axis === "instrument_type") {
+    return canonicalInstrumentTypeLabel(value);
+  }
   return value;
 }
 
-export function BreakdownsAccordion({
-  axes,
-  breakdowns,
-  title,
-  onSelectValue,
-}: BreakdownsAccordionProps) {
+export function BreakdownsAccordion({ axes, breakdowns, title, onSelectValue }: BreakdownsAccordionProps) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   if (axes.length === 0) {
@@ -116,9 +129,7 @@ export function BreakdownsAccordion({
             <li key={axis} className="px-4 py-2">
               <button
                 type="button"
-                onClick={() =>
-                  setOpen((prev) => ({ ...prev, [axis]: !prev[axis] }))
-                }
+                onClick={() => setOpen((prev) => ({ ...prev, [axis]: !prev[axis] }))}
                 className="flex w-full items-center justify-between gap-2 text-left"
                 aria-expanded={isOpen}
               >
@@ -128,12 +139,8 @@ export function BreakdownsAccordion({
                   ) : (
                     <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                   )}
-                  <span className="font-medium text-[var(--color-text-secondary)]">
-                    {formatAxisLabel(axis)}
-                  </span>
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {axis}
-                  </span>
+                  <span className="font-medium text-[var(--color-text-secondary)]">{formatAxisLabel(axis)}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">{axis}</span>
                 </span>
                 <span className="text-xs text-[var(--color-text-muted)]">
                   {empty
@@ -143,10 +150,9 @@ export function BreakdownsAccordion({
               </button>
               {isOpen && empty ? (
                 <p className="mt-2 ml-6 text-xs italic text-[var(--color-text-muted)]">
-                  This axis is declared in the SSOT for this asset group but the
-                  manifest hasn&apos;t populated it yet (Phase&nbsp;1 writer
-                  work). Data will fill in here automatically once the writer
-                  for this service ships.
+                  This axis is declared in the SSOT for this asset group but the manifest hasn&apos;t populated it yet
+                  (Phase&nbsp;1 writer work). Data will fill in here automatically once the writer for this service
+                  ships.
                 </p>
               ) : null}
               {isOpen && !empty ? (
@@ -154,6 +160,12 @@ export function BreakdownsAccordion({
                   {entries.map(([value, count]) => {
                     const clickable = !!onSelectValue && value !== "__legacy__";
                     const Tag = clickable ? "button" : "div";
+                    const displayLabel = formatValueLabel(axis, value);
+                    // Raw manifest value on hover whenever the display label
+                    // differs (canonicalised type / relabelled sentinel), so
+                    // the operator can always read the underlying shard-atom
+                    // query key. Plan P4-A.
+                    const rawOnHover = displayLabel !== value ? `raw: ${value}` : undefined;
                     return (
                       <li key={value}>
                         <Tag
@@ -165,23 +177,20 @@ export function BreakdownsAccordion({
                             : {})}
                           className={
                             "flex w-full items-center justify-between text-left text-xs " +
-                            (clickable
-                              ? "rounded px-2 py-1 hover:bg-[var(--color-bg-secondary)]"
-                              : "px-2 py-1")
+                            (clickable ? "rounded px-2 py-1 hover:bg-[var(--color-bg-secondary)]" : "px-2 py-1")
                           }
                         >
                           <span
+                            title={rawOnHover}
                             className={
                               value === "__legacy__"
                                 ? "italic text-[var(--color-text-muted)]"
                                 : "text-[var(--color-text-secondary)]"
                             }
                           >
-                            {formatValueLabel(value)}
+                            {displayLabel}
                           </span>
-                          <span className="font-mono text-[var(--color-text-muted)]">
-                            {count.toLocaleString()}
-                          </span>
+                          <span className="font-mono text-[var(--color-text-muted)]">{count.toLocaleString()}</span>
                         </Tag>
                       </li>
                     );

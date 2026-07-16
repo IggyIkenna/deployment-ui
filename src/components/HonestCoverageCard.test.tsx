@@ -7,8 +7,12 @@
  *   3. Shows "not yet computed" when API returns null (404).
  *   4. Shows error message when API rejects.
  *   5. Passes explicit date prop through to the API call.
+ *   6. Honest-absence: partial banner lists failed asset groups (P1 fix).
+ *   7. Staleness: stale banner when a non-partial file predates today (14-day fallback).
+ *   8. No banner when the file is today's and complete.
  *
- * Plan: deployment_and_qg_strategy_implementation_2026_05_13.md Phase 4.C.
+ * Plan: deployment_and_qg_strategy_implementation_2026_05_13.md Phase 4.C;
+ *       data-status P1 honest-coverage partial/stale surfacing (2026-07-16).
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -117,5 +121,52 @@ describe("HonestCoverageCard", () => {
     await waitFor(() => {
       expect(spy).toHaveBeenCalledWith("2026-05-14");
     });
+  });
+
+  it("shows a partial banner listing the failed asset groups when the run was partial", async () => {
+    const partial: HonestCoverageResponse = {
+      ...COVERAGE,
+      partial: true,
+      asset_groups_requested: ["cefi", "defi", "tradfi", "sports", "prediction"],
+      asset_groups_measured: ["cefi", "defi"],
+      asset_groups_failed: ["tradfi", "sports", "prediction"],
+    };
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(partial);
+
+    render(<HonestCoverageCard />);
+
+    const banner = await screen.findByTestId("honest-coverage-partial-banner");
+    expect(banner.textContent).toContain("3 asset groups failed to load");
+    expect(banner.textContent).toContain("tradfi, sports, prediction");
+    expect(banner.textContent).toContain("Showing 2 of 5");
+    // Partial takes precedence — the stale banner must not also render.
+    expect(screen.queryByTestId("honest-coverage-stale-banner")).toBeNull();
+  });
+
+  it("shows a stale banner when a non-partial file predates today (14-day fallback)", async () => {
+    // COVERAGE.date is 2026-05-15 — always in the past relative to the test run.
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(COVERAGE);
+
+    render(<HonestCoverageCard />);
+
+    const banner = await screen.findByTestId("honest-coverage-stale-banner");
+    expect(banner.textContent).toContain("2026-05-15");
+    expect(screen.queryByTestId("honest-coverage-partial-banner")).toBeNull();
+  });
+
+  it("shows no banner when the file is today's and complete", async () => {
+    const now = new Date();
+    const todayUtc = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      now.getUTCDate(),
+    ).padStart(2, "0")}`;
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue({ ...COVERAGE, date: todayUtc });
+
+    render(<HonestCoverageCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("cefi")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("honest-coverage-partial-banner")).toBeNull();
+    expect(screen.queryByTestId("honest-coverage-stale-banner")).toBeNull();
   });
 });
