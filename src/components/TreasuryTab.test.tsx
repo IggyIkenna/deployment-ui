@@ -63,7 +63,7 @@ const MOCK_TREASURY: ClientTreasury = {
       source_nav_usd: "300000.00",
     },
     {
-      source: "SUB_ACCOUNT_DRIFT",
+      source: "SUB_ACCOUNT_DYDX",
       client_share_pct: "100",
       client_share_usd: "100000.00",
       source_nav_usd: "100000.00",
@@ -161,12 +161,8 @@ describe("TreasuryTab", () => {
   });
 
   it("renders NAV, onboarding badge, and subscriptions after data loads", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
-      MOCK_TREASURY,
-    );
-    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
-      MOCK_SUBSCRIPTIONS,
-    );
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(MOCK_SUBSCRIPTIONS);
 
     render(<TreasuryTab />);
 
@@ -183,18 +179,12 @@ describe("TreasuryTab", () => {
 
     // Subscription archetypes (may appear in both subscriptions + allocations tables)
     expect(screen.getAllByText("carry_staked_basis").length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText("arbitrage_price_dispersion").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("arbitrage_price_dispersion").length).toBeGreaterThan(0);
   });
 
   it("withdrawal request button is visible after data loads and opens dialog", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
-      MOCK_TREASURY,
-    );
-    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
-      MOCK_SUBSCRIPTIONS,
-    );
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(MOCK_SUBSCRIPTIONS);
 
     render(<TreasuryTab />);
 
@@ -210,12 +200,8 @@ describe("TreasuryTab", () => {
   });
 
   it("shows error message when API call fails", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockRejectedValue(
-      new Error("Network error"),
-    );
-    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockRejectedValue(
-      new Error("Network error"),
-    );
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockRejectedValue(new Error("Network error"));
+    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockRejectedValue(new Error("Network error"));
 
     render(<TreasuryTab />);
 
@@ -225,12 +211,8 @@ describe("TreasuryTab", () => {
   });
 
   it("renders COPPER custody ping as UNREACHABLE", async () => {
-    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(
-      MOCK_TREASURY,
-    );
-    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(
-      MOCK_SUBSCRIPTIONS,
-    );
+    vi.spyOn(treasuryApi, "fetchClientTreasury").mockResolvedValue(MOCK_TREASURY);
+    vi.spyOn(treasuryApi, "fetchClientSubscriptions").mockResolvedValue(MOCK_SUBSCRIPTIONS);
 
     render(<TreasuryTab />);
 

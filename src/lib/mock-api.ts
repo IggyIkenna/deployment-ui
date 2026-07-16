@@ -4924,7 +4924,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           source_nav_usd: "300000.00",
         },
         {
-          source: "SUB_ACCOUNT_DRIFT",
+          source: "SUB_ACCOUNT_DYDX",
           client_share_pct: "100",
           client_share_usd: "100000.00",
           source_nav_usd: "100000.00",
@@ -5007,7 +5007,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       sources: [
         { source: "DEFI_HOT_WALLET", nav_usd: "850000.00", is_reachable: true },
         { source: "SUB_ACCOUNT_HYPERLIQUID", nav_usd: "300000.00", is_reachable: true },
-        { source: "SUB_ACCOUNT_DRIFT", nav_usd: "100000.00", is_reachable: true },
+        { source: "SUB_ACCOUNT_DYDX", nav_usd: "100000.00", is_reachable: true },
       ],
     });
   }
