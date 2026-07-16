@@ -1339,15 +1339,23 @@ function PipelineStage({
   label,
   tone,
   testId,
+  dormant,
   children,
 }: {
   label: string;
   tone: ChipTone;
   testId?: string;
+  /** WS-L: stage is an expected-bypassed hop (staging under ldr_main). Mirrors HopPills'
+   * `data-dormant` so the state is assertable without depending on Tailwind colour classes. */
+  dormant?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 min-w-[76px] shrink-0" data-testid={testId}>
+    <div
+      className="flex flex-col items-center gap-1 min-w-[76px] shrink-0"
+      data-testid={testId}
+      data-dormant={dormant ? "true" : undefined}
+    >
       <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</span>
       <Chip tone={tone}>{children}</Chip>
     </div>
@@ -1429,7 +1437,16 @@ function SitLockDetail({ sit }: { sit: RepoCiSitState }) {
   );
 }
 
-function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
+/** WS-L staging-dormant, detail-panel half (2026-07-15, plan-reconcile §4 operator ruling A).
+ * The strip used to render a FIXED 5-stage LDR→staging→SIT→main→image path for every repo — but the
+ * fleet default is LDR→main DIRECT with staging BYPASSED (per-repo `ldr_main`), so the "staging PR"
+ * stage read as a live hop the repo never takes. HopPills/StallReason on the overview already muted
+ * the staging legs via `isStagingDormant`; the detail panel never got the same treatment because
+ * `RepoCiDetail` does not carry `promotion_model` — hence the flag is threaded down from the
+ * overview row (which does) rather than re-fetched. Operator 2026-06-28 governs the presentation:
+ * SHOW, don't hide — grey + "dormant", never red, so flipping staging back to relevant restores the
+ * active styling with no structural change. */
+function PromotionPipeline({ detail, stagingDormant }: { detail: RepoCiDetail; stagingDormant: boolean }) {
   const branchHead = (name: string) => detail.branches.find((b) => b.branch === name) ?? null;
   const ldr = branchHead("live-defi-rollout");
   const main = branchHead("main");
@@ -1446,13 +1463,16 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   const sit = detail.sit;
   const img = detail.image;
 
-  const stagingTone: ChipTone = stagingPr?.stuck_class
-    ? stuckClassTone(stagingPr.stuck_class)
-    : stagingPr
-      ? "blue"
-      : sit.staging_locked
-        ? "yellow"
-        : "gray";
+  // Dormant staging is EXPECTED, never actionable → grey, never a stuck/locked colour.
+  const stagingTone: ChipTone = stagingDormant
+    ? "gray"
+    : stagingPr?.stuck_class
+      ? stuckClassTone(stagingPr.stuck_class)
+      : stagingPr
+        ? "blue"
+        : sit.staging_locked
+          ? "yellow"
+          : "gray";
   const mainTone: ChipTone = mainPr?.stuck_class ? stuckClassTone(mainPr.stuck_class) : ciStatusTone(detail.ci_status);
   const imageTone: ChipTone = img.last_build_status === "SUCCESS" ? "green" : img.last_build_status ? "red" : "gray";
 
@@ -1472,8 +1492,13 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
         {ldr?.sha ? <ShaLink repo={detail.repo} sha={ldr.sha} /> : "—"}
       </PipelineStage>
       <PipelineArrow />
-      <PipelineStage label="staging PR" tone={stagingTone} testId="pipeline-stage-staging">
-        {stagingPr ? `#${stagingPr.number}` : sit.staging_locked ? "locked" : "—"}
+      <PipelineStage
+        label={stagingDormant ? "staging PR · dormant" : "staging PR"}
+        tone={stagingTone}
+        testId="pipeline-stage-staging"
+        dormant={stagingDormant}
+      >
+        {stagingDormant ? "bypassed" : stagingPr ? `#${stagingPr.number}` : sit.staging_locked ? "locked" : "—"}
       </PipelineStage>
       <PipelineArrow />
       <PipelineStage label="SIT" tone={sitStageTone(sit)} testId="pipeline-stage-sit">
@@ -1518,7 +1543,7 @@ function PromotionPipeline({ detail }: { detail: RepoCiDetail }) {
   );
 }
 
-export function RepoDetailPanel({ repo }: { repo: string }) {
+export function RepoDetailPanel({ repo, stagingDormant = false }: { repo: string; stagingDormant?: boolean }) {
   const [detail, setDetail] = useState<RepoCiDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Image signal follows the GCP/AWS toggle (Option B ?provider=), refetching on switch.
@@ -1580,7 +1605,7 @@ export function RepoDetailPanel({ repo }: { repo: string }) {
         </Link>
       </div>
       {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
-      <PromotionPipeline detail={detail} />
+      <PromotionPipeline detail={detail} stagingDormant={stagingDormant} />
       {/* SIT / staging-lock detail — the pipeline strip shows "locked"/"stuck"; this line surfaces
           WHY (staging_locked_reason) + how old the last SIT run is (last_sit_run_age_min), both
           already on the payload but previously unsurfaced. */}
@@ -1903,7 +1928,17 @@ export function RepoCiContent() {
           {selectedRepo ? (
             <Card>
               <CardContent className="pt-4">
-                <RepoDetailPanel repo={selectedRepo} />
+                {/* Per-repo dormancy (NOT the fleet-wide `.some()` the summary panels use): this
+                    panel describes ONE repo, so it must mute staging only when THAT repo bypasses
+                    it. The flag comes from the overview row because RepoCiDetail has no
+                    promotion_model field. */}
+                <RepoDetailPanel
+                  repo={selectedRepo}
+                  stagingDormant={(() => {
+                    const row = overview.repos.find((r) => r.repo === selectedRepo);
+                    return row ? isStagingDormant(row) : false;
+                  })()}
+                />
               </CardContent>
             </Card>
           ) : null}
