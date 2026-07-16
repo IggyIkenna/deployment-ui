@@ -4261,6 +4261,102 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
+  // P6 phase-1 catalogue explorer (data_status_page_ux_and_canonicalisation_
+  // 2026_07_16) — availability-derived "captured instruments" list. Mirrors
+  // the real response shape (deployment-api routes/data_status/_catalogue.py):
+  // a handful of rows spanning every capture_status + a mix of is_mvp so the
+  // MVP toggle + badges have something real to narrow/exercise in mock mode.
+  if (path.startsWith("/api/data-status/download-catalogue-csv")) {
+    const csv =
+      "instrument_id,venue,instrument_type,data_type,capture_status,error_reason,attempted_at,is_mvp\n" +
+      "BINANCE-SPOT-BTCUSDT,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
+      "BINANCE-SPOT-ETHUSDT,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
+      "DERIBIT-BTC-26SEP26-100000-C,DERIBIT,OPTION,instruments,empty_confirmed,,2026-07-14T00:12:00+00:00,False\n" +
+      "OKX-DOGEUSDT,OKX-SPOT,SPOT_PAIR,instruments,attempted_failed,RATE_LIMIT_HIT,2026-07-13T00:14:00+00:00,False\n";
+    return new Response(csv, {
+      status: 200,
+      headers: { "Content-Type": "text/csv; charset=utf-8", "X-Row-Count": "4" },
+    });
+  }
+  if (path.startsWith("/api/data-status/catalogue")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const venue = params.get("venue")?.trim().toUpperCase() || "";
+    const instrumentType = params.get("instrument_type")?.trim().toUpperCase() || "";
+    const dataType = params.get("data_type")?.trim().toUpperCase() || "";
+    const search = params.get("search")?.trim().toLowerCase() || "";
+    const mvpOnly = params.get("mvp_only") === "true";
+    const limit = Number(params.get("limit") ?? 50);
+    const offset = Number(params.get("offset") ?? 0);
+
+    const allRows = [
+      {
+        instrument_id: "BINANCE-SPOT-BTCUSDT",
+        venue: "BINANCE-SPOT",
+        instrument_type: "SPOT_PAIR",
+        data_type: "instruments",
+        capture_status: "captured",
+        error_reason: "",
+        attempted_at: "2026-07-15T00:10:00+00:00",
+        is_mvp: true,
+      },
+      {
+        instrument_id: "BINANCE-SPOT-ETHUSDT",
+        venue: "BINANCE-SPOT",
+        instrument_type: "SPOT_PAIR",
+        data_type: "instruments",
+        capture_status: "captured",
+        error_reason: "",
+        attempted_at: "2026-07-15T00:10:00+00:00",
+        is_mvp: true,
+      },
+      {
+        instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
+        venue: "DERIBIT",
+        instrument_type: "OPTION",
+        data_type: "instruments",
+        capture_status: "empty_confirmed",
+        error_reason: "",
+        attempted_at: "2026-07-14T00:12:00+00:00",
+        is_mvp: false,
+      },
+      {
+        instrument_id: "OKX-DOGEUSDT",
+        venue: "OKX-SPOT",
+        instrument_type: "SPOT_PAIR",
+        data_type: "instruments",
+        capture_status: "attempted_failed",
+        error_reason: "RATE_LIMIT_HIT",
+        attempted_at: "2026-07-13T00:14:00+00:00",
+        is_mvp: false,
+      },
+    ];
+
+    const filtered = allRows.filter((row) => {
+      if (venue && row.venue !== venue) return false;
+      if (instrumentType && row.instrument_type !== instrumentType) return false;
+      if (dataType && row.data_type !== dataType) return false;
+      if (mvpOnly && !row.is_mvp) return false;
+      if (search && !row.instrument_id.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    return json({
+      service: "instruments-service",
+      asset_group: (params.get("asset_group") || "cefi").toLowerCase(),
+      venue: params.get("venue") || null,
+      instrument_type: params.get("instrument_type") || null,
+      data_type: params.get("data_type") || null,
+      label: "captured instruments (availability-derived)",
+      instruments: filtered.slice(offset, offset + limit),
+      total_count: filtered.length,
+      limit,
+      offset,
+      has_more: offset + limit < filtered.length,
+      search: params.get("search") || "",
+      mvp_only: mvpOnly,
+      mock: true,
+    });
+  }
   if (path.startsWith("/api/data-status/instruments")) {
     return json({
       instruments: ["BTC/USDT", "ETH/USDT", "AAPL", "MSFT"],
@@ -4308,6 +4404,65 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           mvp: false,
         },
       ],
+      mock: true,
+    });
+  }
+  // P9 fixtures browser (operator request) — league -> day -> fixtures rows.
+  // Mirrors the real ``FixturesByLeagueAndDay`` shape (deployment-api
+  // routes/fixtures_browse.py).
+  if (path.startsWith("/api/fixtures/browse")) {
+    return json({
+      leagues: {
+        EPL: {
+          "2026-07-16": [
+            {
+              fixture_id: "epl-1001",
+              kickoff_utc: "2026-07-16T15:00:00+00:00",
+              league_id: "EPL",
+              home_team_id: "t-ars",
+              away_team_id: "t-che",
+              home_team_name: "Arsenal",
+              away_team_name: "Chelsea",
+              venue_id: "v-emi",
+              venue_name: "Emirates Stadium",
+              status: "NS",
+              round: "Regular Season - 1",
+            },
+          ],
+          "2026-07-17": [
+            {
+              fixture_id: "epl-1002",
+              kickoff_utc: "2026-07-17T18:30:00+00:00",
+              league_id: "EPL",
+              home_team_id: "t-liv",
+              away_team_id: "t-mci",
+              home_team_name: "Liverpool",
+              away_team_name: "Manchester City",
+              venue_id: "v-anf",
+              venue_name: "Anfield",
+              status: "NS",
+              round: "Regular Season - 1",
+            },
+          ],
+        },
+        MLS: {
+          "2026-07-16": [
+            {
+              fixture_id: "mls-2001",
+              kickoff_utc: "2026-07-16T23:00:00+00:00",
+              league_id: "MLS",
+              home_team_id: "t-lafc",
+              away_team_id: "t-lag",
+              home_team_name: "LAFC",
+              away_team_name: "LA Galaxy",
+              venue_id: "v-bmo",
+              venue_name: "BMO Stadium",
+              status: "NS",
+              round: "Regular Season",
+            },
+          ],
+        },
+      },
       mock: true,
     });
   }

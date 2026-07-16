@@ -959,6 +959,34 @@ export async function fetchUpcomingFixtures(opts?: {
   return res.fixtures ?? [];
 }
 
+/** One sports fixture row from ``GET /fixtures/browse`` (deployment-api). Same shape as ``UpcomingFixture``. */
+export type FixtureRow = UpcomingFixture;
+
+/** ``league_id -> day (YYYY-MM-DD, UTC) -> fixtures`` from ``GET /fixtures/browse``. */
+export type FixturesByLeagueAndDay = Record<string, Record<string, FixtureRow[]>>;
+
+export async function fetchFixturesBrowse(opts?: {
+  days_back?: number;
+  days_forward?: number;
+  league_id?: string;
+  signal?: AbortSignal;
+}): Promise<FixturesByLeagueAndDay> {
+  const searchParams = new URLSearchParams();
+  if (opts?.days_back != null) {
+    searchParams.set("days_back", String(opts.days_back));
+  }
+  if (opts?.days_forward != null) {
+    searchParams.set("days_forward", String(opts.days_forward));
+  }
+  if (opts?.league_id) {
+    searchParams.set("league_id", opts.league_id);
+  }
+  const q = searchParams.toString();
+  const path = `/fixtures/browse${q ? `?${q}` : ""}`;
+  const res = await fetchJson<{ leagues: FixturesByLeagueAndDay; mock?: boolean }>(path, { signal: opts?.signal });
+  return res.leagues ?? {};
+}
+
 /**
  * One instrument row from ``GET /instruments/new-listings`` or
  * ``GET /instruments/upcoming-expiries`` (deployment-api
@@ -2724,6 +2752,107 @@ export function buildCsvDownloadUrl(params: {
   if (params.job_id) qp.set("job_id", params.job_id);
   if (params.mvp_only) qp.set("mvp_only", "true");
   return `${API_BASE}/data-status/download-csv?${qp.toString()}`;
+}
+
+/**
+ * One row from ``GET /data-status/catalogue`` (deployment-api
+ * ``routes/data_status/_catalogue.py``) — the availability-derived
+ * "captured instruments" catalogue explorer (P6 phase-1). Every row carries
+ * ``is_mvp`` regardless of the ``mvp_only`` toggle.
+ */
+export interface InstrumentCatalogueRow {
+  instrument_id: string;
+  venue: string;
+  instrument_type: string;
+  data_type: string;
+  capture_status: string;
+  error_reason: string;
+  attempted_at: string;
+  is_mvp: boolean;
+}
+
+/**
+ * Paginated response from ``GET /data-status/catalogue``. ``label`` is
+ * ALWAYS ``"captured instruments (availability-derived)"`` — deployment-api
+ * cannot reach the instruments-service ``InstrumentCatalogReader`` SSOT
+ * (T4), so this reflects what the availability manifest has recorded, not
+ * the true venue catalogue. Render ``label`` verbatim so operators
+ * understand the distinction (P6 phase-2 will add a true-catalogue
+ * projection).
+ */
+export interface InstrumentCatalogueResponse {
+  service: string;
+  asset_group: string;
+  venue: string | null;
+  instrument_type: string | null;
+  data_type: string | null;
+  label: string;
+  instruments: InstrumentCatalogueRow[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  search: string;
+  mvp_only: boolean;
+}
+
+/**
+ * Fetch the availability-derived instrument catalogue for one
+ * (service, asset_group), optionally narrowed by venue / instrument_type /
+ * data_type / search / mvp_only. Mirrors ``fetchInstrumentsForShard``'s
+ * param-threading structure.
+ */
+export async function fetchInstrumentCatalogue(opts: {
+  service: string;
+  asset_group: string;
+  venue?: string;
+  instrument_type?: string;
+  data_type?: string;
+  search?: string;
+  mvp_only?: boolean;
+  limit?: number;
+  offset?: number;
+  signal?: AbortSignal;
+}): Promise<InstrumentCatalogueResponse> {
+  const qp = new URLSearchParams({
+    service: opts.service,
+    asset_group: opts.asset_group,
+  });
+  if (opts.venue) qp.set("venue", opts.venue);
+  if (opts.instrument_type) qp.set("instrument_type", opts.instrument_type);
+  if (opts.data_type) qp.set("data_type", opts.data_type);
+  if (opts.search) qp.set("search", opts.search);
+  if (opts.mvp_only) qp.set("mvp_only", "true");
+  if (opts.limit != null) qp.set("limit", String(opts.limit));
+  if (opts.offset != null) qp.set("offset", String(opts.offset));
+  return fetchJson<InstrumentCatalogueResponse>(`/data-status/catalogue?${qp.toString()}`, { signal: opts.signal });
+}
+
+/**
+ * Build the catalogue CSV download URL — mirrors ``buildCsvDownloadUrl``.
+ * Carries the SAME filters as ``fetchInstrumentCatalogue`` (no limit/offset
+ * — the export is unpaginated) so the download always matches the
+ * on-screen filtered view (deployment-api: ``/download-catalogue-csv``).
+ */
+export function buildCatalogueCsvDownloadUrl(params: {
+  service: string;
+  asset_group: string;
+  venue?: string;
+  instrument_type?: string;
+  data_type?: string;
+  search?: string;
+  mvp_only?: boolean;
+}): string {
+  const qp = new URLSearchParams({
+    service: params.service,
+    asset_group: params.asset_group,
+  });
+  if (params.venue) qp.set("venue", params.venue);
+  if (params.instrument_type) qp.set("instrument_type", params.instrument_type);
+  if (params.data_type) qp.set("data_type", params.data_type);
+  if (params.search) qp.set("search", params.search);
+  if (params.mvp_only) qp.set("mvp_only", "true");
+  return `${API_BASE}/data-status/download-catalogue-csv?${qp.toString()}`;
 }
 
 // Services that write per-venue-day-bundle parquets and support shard CSV download.
