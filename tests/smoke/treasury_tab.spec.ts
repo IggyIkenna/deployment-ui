@@ -78,7 +78,7 @@ const MOCK_TREASURY = {
       source_nav_usd: "300000.00",
     },
     {
-      source: "SUB_ACCOUNT_DRIFT",
+      source: "SUB_ACCOUNT_DYDX",
       client_share_pct: "100",
       client_share_usd: "100000.00",
       source_nav_usd: "100000.00",
@@ -154,7 +154,7 @@ const MOCK_ROLLUP = {
       is_reachable: true,
     },
     {
-      source: "SUB_ACCOUNT_DRIFT",
+      source: "SUB_ACCOUNT_DYDX",
       nav_usd: "100000.00",
       is_reachable: true,
     },

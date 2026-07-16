@@ -7,9 +7,15 @@
  * `!(catData.chains && ...)` — a category with ANY `chains` breakdown
  * suppressed its venue list entirely. That's correct for a fully-on-chain
  * category (DeFi, where ~every venue has a chain) but wrong for a mixed
- * category like CEFI, where only 2 of 24 venues (PACIFICA, LIGHTER) are
- * on-chain CLOBs — the other 22 (ASTER, BINANCE-*, DERIBIT, ...) vanished
+ * category like CEFI, where only 2 of 23 venues (EXTENDED, LIGHTER) are
+ * on-chain CLOBs — the other 21 (ASTER, BINANCE-*, DERIBIT, ...) vanished
  * from the card entirely.
+ *
+ * Fixture uses EXTENDED (Starknet on-chain CLOB perp) in place of the
+ * original PACIFICA (Solana) example — PACIFICA-SOLANA + DRIFT-SOLANA were
+ * removed workspace-wide 2026-07-16 (operator ruling: all Solana perp DEXes
+ * dropped except Jupiter, which is not integrated). SSOT: unified-trading-
+ * pm/codex/04-architecture/solana-defi-coverage.md.
  *
  * `getUncoveredVenueNames` is the extracted, directly-testable predicate
  * both JSX call sites in DataStatusTab.tsx now share.
@@ -33,14 +39,14 @@ describe("getUncoveredVenueNames", () => {
     const cefi = {
       breakdown_axis: "venue",
       chains: {
-        SOLANA: { dates_found: 1, dates_expected: 1, completion_pct: 100, venues: ["PACIFICA"], venue_count: 1 },
+        STARKNET: { dates_found: 1, dates_expected: 1, completion_pct: 100, venues: ["EXTENDED"], venue_count: 1 },
         ZKSYNC: { dates_found: 1, dates_expected: 1, completion_pct: 100, venues: ["LIGHTER"], venue_count: 1 },
       },
       venues: {
         ASTER: venue(),
         DERIBIT: venue(),
         "DERIBIT-COMBO": venue(),
-        PACIFICA: venue(),
+        EXTENDED: venue(),
         LIGHTER: venue(),
       },
     } as unknown as TurboAssetGroupStatus;

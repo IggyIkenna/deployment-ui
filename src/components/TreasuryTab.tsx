@@ -21,11 +21,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  fetchClientSubscriptions,
-  fetchClientTreasury,
-  postWithdrawalRequest,
-} from "../api/treasury";
+import { fetchClientSubscriptions, fetchClientTreasury, postWithdrawalRequest } from "../api/treasury";
 import type {
   AllocationDecision,
   ClientSubscriptions,
@@ -36,13 +32,7 @@ import type {
 } from "../api/treasury";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -81,15 +71,7 @@ function fmtTime(iso: string | null | undefined): string {
 // Onboarding state badge variant
 // ---------------------------------------------------------------------------
 
-type BadgeVariant =
-  | "default"
-  | "success"
-  | "warning"
-  | "error"
-  | "pending"
-  | "running"
-  | "info"
-  | "outline";
+type BadgeVariant = "default" | "success" | "warning" | "error" | "pending" | "running" | "info" | "outline";
 
 function onboardingBadgeVariant(state: string): BadgeVariant {
   switch (state) {
@@ -123,9 +105,7 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
   const [amountUsd, setAmountUsd] = useState("");
   const [destination, setDestination] = useState("");
   const [note, setNote] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "submitting" | "success" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [requestId, setRequestId] = useState("");
 
@@ -165,15 +145,13 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
         </DialogHeader>
         <DialogContent>
           <p className="text-xs text-[var(--color-text-secondary)] mb-3">
-            Submit a withdrawal request for client <strong>{clientId}</strong>.
-            Amounts above threshold require 2-of-N operator approval.
+            Submit a withdrawal request for client <strong>{clientId}</strong>. Amounts above threshold require 2-of-N
+            operator approval.
           </p>
 
           {status === "success" ? (
             <div className="space-y-3 py-2">
-              <p className="text-sm text-[var(--color-accent-green)]">
-                Withdrawal request submitted.
-              </p>
+              <p className="text-sm text-[var(--color-accent-green)]">Withdrawal request submitted.</p>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 Request ID: <code>{requestId}</code>
               </p>
@@ -192,10 +170,7 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
                   className="w-full rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
                 >
                   <option value="DEFI_HOT_WALLET">DEFI_HOT_WALLET</option>
-                  <option value="SUB_ACCOUNT_HYPERLIQUID">
-                    SUB_ACCOUNT_HYPERLIQUID
-                  </option>
-                  <option value="SUB_ACCOUNT_DRIFT">SUB_ACCOUNT_DRIFT</option>
+                  <option value="SUB_ACCOUNT_HYPERLIQUID">SUB_ACCOUNT_HYPERLIQUID</option>
                   <option value="COPPER" disabled>
                     COPPER (June-1)
                   </option>
@@ -231,26 +206,16 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
                   onChange={(e) => setNote(e.target.value)}
                 />
               </div>
-              {status === "error" && (
-                <p className="text-xs text-[var(--color-accent-red)]">
-                  {errorMsg}
-                </p>
-              )}
+              {status === "error" && <p className="text-xs text-[var(--color-accent-red)]">{errorMsg}</p>}
               <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  className="flex-1"
-                >
+                <Button variant="outline" onClick={handleClose} className="flex-1">
                   Cancel
                 </Button>
                 <Button
                   onClick={() => {
                     void handleSubmit();
                   }}
-                  disabled={
-                    status === "submitting" || !amountUsd || !destination
-                  }
+                  disabled={status === "submitting" || !amountUsd || !destination}
                   className="flex-1"
                   data-testid="withdrawal-submit-btn"
                 >
@@ -269,17 +234,9 @@ function WithdrawalDialog({ clientId, open, onClose }: WithdrawalDialogProps) {
 // Subscriptions table
 // ---------------------------------------------------------------------------
 
-function SubscriptionsTable({
-  subscriptions,
-}: {
-  subscriptions: ShareClassSubscription[];
-}) {
+function SubscriptionsTable({ subscriptions }: { subscriptions: ShareClassSubscription[] }) {
   if (subscriptions.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        No subscriptions.
-      </p>
-    );
+    return <p className="text-sm text-[var(--color-text-secondary)]">No subscriptions.</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -299,24 +256,12 @@ function SubscriptionsTable({
               key={`${sub.archetype_id}-${sub.share_class_id}`}
               className="border-b border-[var(--color-border-primary)]/30 text-[var(--color-text-primary)]"
             >
-              <td className="py-2 pr-4 font-mono text-xs">
-                {sub.archetype_id}
-              </td>
-              <td className="py-2 pr-4 font-mono text-xs">
-                {sub.share_class_id}
-              </td>
-              <td className="py-2 pr-4 text-right">
-                {fmtPct(sub.allocation_pct)}
-              </td>
-              <td className="py-2 pr-4 text-right">
-                {fmtPct(sub.max_drawdown_for_suspension_pct)}
-              </td>
+              <td className="py-2 pr-4 font-mono text-xs">{sub.archetype_id}</td>
+              <td className="py-2 pr-4 font-mono text-xs">{sub.share_class_id}</td>
+              <td className="py-2 pr-4 text-right">{fmtPct(sub.allocation_pct)}</td>
+              <td className="py-2 pr-4 text-right">{fmtPct(sub.max_drawdown_for_suspension_pct)}</td>
               <td className="py-2 text-center">
-                {sub.is_active ? (
-                  <Badge variant="success">Active</Badge>
-                ) : (
-                  <Badge variant="warning">Suspended</Badge>
-                )}
+                {sub.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="warning">Suspended</Badge>}
               </td>
             </tr>
           ))}
@@ -330,17 +275,9 @@ function SubscriptionsTable({
 // Allocations table
 // ---------------------------------------------------------------------------
 
-function AllocationsTable({
-  allocations,
-}: {
-  allocations: AllocationDecision[];
-}) {
+function AllocationsTable({ allocations }: { allocations: AllocationDecision[] }) {
   if (allocations.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        No allocations.
-      </p>
-    );
+    return <p className="text-sm text-[var(--color-text-secondary)]">No allocations.</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -360,15 +297,9 @@ function AllocationsTable({
               className="border-b border-[var(--color-border-primary)]/30 text-[var(--color-text-primary)]"
             >
               <td className="py-2 pr-4 font-mono text-xs">{a.archetype_id}</td>
-              <td className="py-2 pr-4 font-mono text-xs">
-                {a.share_class_id}
-              </td>
-              <td className="py-2 pr-4 text-right font-semibold">
-                {fmtUsd(a.allocation_amount_usd)}
-              </td>
-              <td className="py-2 text-right text-xs text-[var(--color-text-secondary)]">
-                {fmtTime(a.decided_at)}
-              </td>
+              <td className="py-2 pr-4 font-mono text-xs">{a.share_class_id}</td>
+              <td className="py-2 pr-4 text-right font-semibold">{fmtUsd(a.allocation_amount_usd)}</td>
+              <td className="py-2 text-right text-xs text-[var(--color-text-secondary)]">{fmtTime(a.decided_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -394,26 +325,18 @@ function CustodyPingsGrid({ pings }: { pings: CustodyPingResult[] }) {
           }`}
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-[var(--color-text-primary)] font-mono">
-              {ping.source}
-            </span>
-            <Badge variant={ping.is_reachable ? "success" : "error"}>
-              {ping.is_reachable ? "OK" : "UNREACHABLE"}
-            </Badge>
+            <span className="text-xs font-semibold text-[var(--color-text-primary)] font-mono">{ping.source}</span>
+            <Badge variant={ping.is_reachable ? "success" : "error"}>{ping.is_reachable ? "OK" : "UNREACHABLE"}</Badge>
           </div>
           {ping.is_reachable ? (
             <>
-              <p className="text-sm font-bold text-[var(--color-text-primary)]">
-                {fmtUsd(ping.balance_usd)}
-              </p>
+              <p className="text-sm font-bold text-[var(--color-text-primary)]">{fmtUsd(ping.balance_usd)}</p>
               <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
                 {fmtTime(ping.as_of_timestamp)} · {ping.latency_ms}ms
               </p>
             </>
           ) : (
-            <p className="text-xs text-[var(--color-accent-red)] mt-1">
-              {ping.error_message || "Unreachable"}
-            </p>
+            <p className="text-xs text-[var(--color-accent-red)] mt-1">{ping.error_message || "Unreachable"}</p>
           )}
         </div>
       ))}
@@ -425,11 +348,7 @@ function CustodyPingsGrid({ pings }: { pings: CustodyPingResult[] }) {
 // Attribution table
 // ---------------------------------------------------------------------------
 
-function AttributionTable({
-  attribution,
-}: {
-  attribution: TreasurySourceAttribution[];
-}) {
+function AttributionTable({ attribution }: { attribution: TreasurySourceAttribution[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
@@ -448,15 +367,9 @@ function AttributionTable({
               className="border-b border-[var(--color-border-primary)]/30 text-[var(--color-text-primary)]"
             >
               <td className="py-2 pr-4 font-mono text-xs">{row.source}</td>
-              <td className="py-2 pr-4 text-right">
-                {fmtUsd(row.source_nav_usd)}
-              </td>
-              <td className="py-2 pr-4 text-right">
-                {fmtPct(row.client_share_pct)}
-              </td>
-              <td className="py-2 text-right font-semibold">
-                {fmtUsd(row.client_share_usd)}
-              </td>
+              <td className="py-2 pr-4 text-right">{fmtUsd(row.source_nav_usd)}</td>
+              <td className="py-2 pr-4 text-right">{fmtPct(row.client_share_pct)}</td>
+              <td className="py-2 text-right font-semibold">{fmtUsd(row.client_share_usd)}</td>
             </tr>
           ))}
         </tbody>
@@ -473,8 +386,7 @@ export function TreasuryTab() {
   const [clientId, setClientId] = useState("demo");
   const [inputId, setInputId] = useState("demo");
   const [treasury, setTreasury] = useState<ClientTreasury | null>(null);
-  const [_subscriptions, setSubscriptions] =
-    useState<ClientSubscriptions | null>(null);
+  const [_subscriptions, setSubscriptions] = useState<ClientSubscriptions | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
@@ -486,10 +398,7 @@ export function TreasuryTab() {
     setLoading(true);
     setError(null);
     try {
-      const [t, s] = await Promise.all([
-        fetchClientTreasury(id),
-        fetchClientSubscriptions(id),
-      ]);
+      const [t, s] = await Promise.all([fetchClientTreasury(id), fetchClientSubscriptions(id)]);
       setTreasury(t);
       setSubscriptions(s);
     } catch (err) {
@@ -554,23 +463,14 @@ export function TreasuryTab() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg">
-                    {treasury.client_id}
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    As of {fmtTime(treasury.as_of)}
-                  </CardDescription>
+                  <CardTitle className="text-lg">{treasury.client_id}</CardTitle>
+                  <CardDescription className="text-xs mt-0.5">As of {fmtTime(treasury.as_of)}</CardDescription>
                 </div>
                 <div className="text-right space-y-1">
-                  <p
-                    className="text-2xl font-bold text-[var(--color-text-primary)]"
-                    data-testid="treasury-nav-usd"
-                  >
+                  <p className="text-2xl font-bold text-[var(--color-text-primary)]" data-testid="treasury-nav-usd">
                     {fmtUsd(treasury.nav_usd)}
                   </p>
-                  <Badge variant={onboardingBadgeVariant(onboardingState)}>
-                    {onboardingState}
-                  </Badge>
+                  <Badge variant={onboardingBadgeVariant(onboardingState)}>{onboardingState}</Badge>
                 </div>
               </div>
             </CardHeader>
@@ -579,9 +479,7 @@ export function TreasuryTab() {
           {/* Subscriptions */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                Share-Class Subscriptions
-              </CardTitle>
+              <CardTitle className="text-base">Share-Class Subscriptions</CardTitle>
             </CardHeader>
             <CardContent>
               <SubscriptionsTable subscriptions={treasury.subscriptions} />
@@ -611,12 +509,9 @@ export function TreasuryTab() {
           {/* Treasury source attribution */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                Treasury Source Attribution
-              </CardTitle>
+              <CardTitle className="text-base">Treasury Source Attribution</CardTitle>
               <CardDescription className="text-xs">
-                Client share per custody source. Sum of Client Share USD should
-                equal NAV ({fmtUsd(treasury.nav_usd)}).
+                Client share per custody source. Sum of Client Share USD should equal NAV ({fmtUsd(treasury.nav_usd)}).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -627,9 +522,7 @@ export function TreasuryTab() {
           {/* Post-trade history */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                Recent Post-Trade Activity
-              </CardTitle>
+              <CardTitle className="text-base">Recent Post-Trade Activity</CardTitle>
             </CardHeader>
             <CardContent>
               {treasury.last_settled ? (
@@ -638,18 +531,11 @@ export function TreasuryTab() {
                     <span className="font-mono text-xs text-[var(--color-text-secondary)]">
                       {treasury.last_settled.trade_id}
                     </span>
-                    <Badge
-                      variant={
-                        treasury.last_settled.side === "buy"
-                          ? "info"
-                          : "warning"
-                      }
-                    >
+                    <Badge variant={treasury.last_settled.side === "buy" ? "info" : "warning"}>
                       {treasury.last_settled.side.toUpperCase()}
                     </Badge>
                     <span className="text-xs text-[var(--color-text-secondary)]">
-                      {treasury.last_settled.archetype_id} @{" "}
-                      {treasury.last_settled.venue}
+                      {treasury.last_settled.archetype_id} @ {treasury.last_settled.venue}
                     </span>
                   </div>
                   <div className="flex gap-4 text-xs text-[var(--color-text-secondary)]">
@@ -657,10 +543,7 @@ export function TreasuryTab() {
                       Qty: <strong>{treasury.last_settled.quantity}</strong>
                     </span>
                     <span>
-                      Fill:{" "}
-                      <strong>
-                        {fmtUsd(treasury.last_settled.fill_price)}
-                      </strong>
+                      Fill: <strong>{fmtUsd(treasury.last_settled.fill_price)}</strong>
                     </span>
                     <span
                       className={
@@ -669,21 +552,15 @@ export function TreasuryTab() {
                           : "text-[var(--color-accent-red)]"
                       }
                     >
-                      PnL:{" "}
-                      <strong>{fmtUsd(treasury.last_settled.pnl_usd)}</strong>
+                      PnL: <strong>{fmtUsd(treasury.last_settled.pnl_usd)}</strong>
                     </span>
                     <span>
-                      Settled:{" "}
-                      <strong>
-                        {fmtTime(treasury.last_settled.settled_at)}
-                      </strong>
+                      Settled: <strong>{fmtTime(treasury.last_settled.settled_at)}</strong>
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  No recent trades.
-                </p>
+                <p className="text-sm text-[var(--color-text-secondary)]">No recent trades.</p>
               )}
             </CardContent>
           </Card>
@@ -691,39 +568,28 @@ export function TreasuryTab() {
           {/* HWM ledger placeholder */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                HWM Ledger &amp; Crystallization
-              </CardTitle>
+              <CardTitle className="text-base">HWM Ledger &amp; Crystallization</CardTitle>
               <CardDescription className="text-xs">
-                Per-share-class HWM snapshots + crystallization timeline. Demo
-                seed wired in Phase 9.
+                Per-share-class HWM snapshots + crystallization timeline. Demo seed wired in Phase 9.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-[var(--color-text-secondary)] italic">
-                HWM ledger rendering deferred to Phase 9 demo seed. UTL
-                HWMCrystallizer ships Phase 5.G (utl@3815477d).
+                HWM ledger rendering deferred to Phase 9 demo seed. UTL HWMCrystallizer ships Phase 5.G (utl@3815477d).
               </p>
             </CardContent>
           </Card>
 
           {/* Withdrawal request */}
           <div className="flex justify-end">
-            <Button
-              onClick={() => setWithdrawalOpen(true)}
-              data-testid="withdrawal-request-btn"
-            >
+            <Button onClick={() => setWithdrawalOpen(true)} data-testid="withdrawal-request-btn">
               Request Withdrawal
             </Button>
           </div>
         </>
       )}
 
-      <WithdrawalDialog
-        clientId={clientId}
-        open={withdrawalOpen}
-        onClose={() => setWithdrawalOpen(false)}
-      />
+      <WithdrawalDialog clientId={clientId} open={withdrawalOpen} onClose={() => setWithdrawalOpen(false)} />
     </div>
   );
 }
