@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ShardAxisMatrixResponse } from "../api/client";
-import { canonicalInstrumentTypeLabel, isHierarchicalDrilldownRedundant } from "./data-status-helpers";
+import {
+  canonicalInstrumentTypeLabel,
+  isHierarchicalDrilldownRedundant,
+  showsGlobalReferenceAffordance,
+} from "./data-status-helpers";
 
 /**
  * P5 — the Instrument-Coverage-Summary hierarchical drilldown is redundant with
@@ -79,5 +83,26 @@ describe("canonicalInstrumentTypeLabel", () => {
     expect(canonicalInstrumentTypeLabel("DEBT_TOKEN")).toBe("DEBT_TOKEN");
     // Unknown value is never force-uppercased or invented.
     expect(canonicalInstrumentTypeLabel("weird_value")).toBe("weird_value");
+  });
+});
+
+describe("showsGlobalReferenceAffordance (P8 honest-absence)", () => {
+  it("shows for global sports reference data_types with no leagues (LEAGUES, VENUES)", () => {
+    expect(showsGlobalReferenceAffordance("SPORTS", false, "global_periodic")).toBe(true);
+    expect(showsGlobalReferenceAffordance("SPORTS", false, "global_season")).toBe(true);
+  });
+
+  it("hidden when the entity has a per-league breakdown (TEAMS after P8, STANDINGS)", () => {
+    expect(showsGlobalReferenceAffordance("SPORTS", true, "per_league_trigger_date")).toBe(false);
+    expect(showsGlobalReferenceAffordance("SPORTS", true, "per_league_periodic")).toBe(false);
+    // Even a global axis is suppressed once a leagues map is present.
+    expect(showsGlobalReferenceAffordance("SPORTS", true, "global_periodic")).toBe(false);
+  });
+
+  it("hidden for non-global axes + non-sports categories", () => {
+    expect(showsGlobalReferenceAffordance("SPORTS", false, "per_league_trigger_date")).toBe(false);
+    expect(showsGlobalReferenceAffordance("PREDICTION", false, "global_periodic")).toBe(false);
+    expect(showsGlobalReferenceAffordance("CEFI", false, "global_periodic")).toBe(false);
+    expect(showsGlobalReferenceAffordance("SPORTS", false, undefined)).toBe(false);
   });
 });

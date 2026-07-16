@@ -42,6 +42,7 @@ import {
   getAssetGroupBreakdown,
   isHierarchicalDrilldownRedundant,
   isPredictionCqgAxis,
+  showsGlobalReferenceAffordance,
 } from "../lib/data-status-helpers";
 import { cn, formatEventDrivenCoverageLabel, formatRatePerDay, isRateMetricRow } from "../lib/utils";
 import type {
@@ -5489,6 +5490,26 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                       </details>
                                                     );
                                                   })}
+                                                </div>
+                                              )}
+
+                                              {/* P8 honest-absence affordance: genuinely-global sports reference
+                                                  data_types (LEAGUES, VENUES) carry a `global_*` axis and have NO
+                                                  per-league breakdown BY DESIGN. Silently omitting the Leagues
+                                                  section makes "no per-league dimension" indistinguishable from
+                                                  "not captured yet" — render an explicit row instead. TEAMS is now
+                                                  per-league (P8), so it renders the real leagues drilldown above and
+                                                  never hits this branch. Plan
+                                                  data_status_page_ux_and_canonicalisation_2026_07_16 P8. */}
+                                              {showsGlobalReferenceAffordance(catName, !!hasLeagues, subData.axis) && (
+                                                <div className="pt-1">
+                                                  <span
+                                                    className="text-[9px] italic text-[var(--color-text-muted)]"
+                                                    data-testid="global-reference-entity-affordance"
+                                                  >
+                                                    Global reference entity — no per-league breakdown (axis:{" "}
+                                                    {subData.axis})
+                                                  </span>
                                                 </div>
                                               )}
 

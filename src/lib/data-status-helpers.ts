@@ -132,3 +132,23 @@ const INSTRUMENT_TYPE_CANONICAL_ALIASES: Readonly<Record<string, string>> = {
 export function canonicalInstrumentTypeLabel(rawValue: string): string {
   return INSTRUMENT_TYPE_CANONICAL_ALIASES[rawValue.toLowerCase()] ?? rawValue;
 }
+
+/**
+ * P8 — true when a sports data_type entry should render the explicit
+ * "global reference entity — no per-league breakdown" affordance.
+ *
+ * Genuinely-global sports reference data_types (LEAGUES = `global_periodic`,
+ * VENUES = `global_season`) carry a `global_*` axis and have NO per-league
+ * dimension by design. Silently omitting the Leagues section makes "no
+ * per-league breakdown" indistinguishable from "not captured yet" — so the UI
+ * renders an explicit honest-absence row instead. TEAMS is now per-league (P8
+ * reclassify), so it renders the real leagues drilldown and never triggers
+ * this. Plan data_status_page_ux_and_canonicalisation_2026_07_16 P8.
+ */
+export function showsGlobalReferenceAffordance(
+  category: string,
+  hasLeagues: boolean,
+  axis: string | undefined,
+): boolean {
+  return category === "SPORTS" && !hasLeagues && typeof axis === "string" && axis.startsWith("global_");
+}
