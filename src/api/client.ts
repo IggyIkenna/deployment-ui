@@ -959,6 +959,73 @@ export async function fetchUpcomingFixtures(opts?: {
   return res.fixtures ?? [];
 }
 
+/**
+ * One instrument row from ``GET /instruments/new-listings`` or
+ * ``GET /instruments/upcoming-expiries`` (deployment-api
+ * `catalogue_lifecycle` service — catalogue-derived, read-only). Mirrors the
+ * ``CatalogueLifecycleRow`` TypedDict.
+ */
+export interface CatalogueLifecycleRow {
+  instrument_id: string;
+  instrument_type: string;
+  asset_group: string;
+  venue: string;
+  chain: string;
+  base_asset: string;
+  raw_symbol: string;
+  available_from: string;
+  available_to: string;
+  mvp: boolean;
+}
+
+export async function fetchNewListings(opts?: {
+  max_age_days?: number;
+  asset_group?: string;
+  venue?: string;
+  signal?: AbortSignal;
+}): Promise<CatalogueLifecycleRow[]> {
+  const searchParams = new URLSearchParams();
+  if (opts?.max_age_days != null) {
+    searchParams.set("max_age_days", String(opts.max_age_days));
+  }
+  if (opts?.asset_group) {
+    searchParams.set("asset_group", opts.asset_group);
+  }
+  if (opts?.venue) {
+    searchParams.set("venue", opts.venue);
+  }
+  const q = searchParams.toString();
+  const path = `/instruments/new-listings${q ? `?${q}` : ""}`;
+  const res = await fetchJson<{ new_listings: CatalogueLifecycleRow[]; mock?: boolean }>(path, {
+    signal: opts?.signal,
+  });
+  return res.new_listings ?? [];
+}
+
+export async function fetchUpcomingExpiries(opts?: {
+  within_days?: number;
+  asset_group?: string;
+  venue?: string;
+  signal?: AbortSignal;
+}): Promise<CatalogueLifecycleRow[]> {
+  const searchParams = new URLSearchParams();
+  if (opts?.within_days != null) {
+    searchParams.set("within_days", String(opts.within_days));
+  }
+  if (opts?.asset_group) {
+    searchParams.set("asset_group", opts.asset_group);
+  }
+  if (opts?.venue) {
+    searchParams.set("venue", opts.venue);
+  }
+  const q = searchParams.toString();
+  const path = `/instruments/upcoming-expiries${q ? `?${q}` : ""}`;
+  const res = await fetchJson<{ upcoming_expiries: CatalogueLifecycleRow[]; mock?: boolean }>(path, {
+    signal: opts?.signal,
+  });
+  return res.upcoming_expiries ?? [];
+}
+
 // Turbo Data Status - much faster for large services (uses month-prefix queries)
 
 // Data type completion status (nested within venue).

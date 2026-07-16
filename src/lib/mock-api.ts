@@ -4275,6 +4275,74 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
+  // P2 lifecycle cards (new-listings / upcoming-expiries) — plan
+  // data_status_page_ux_and_canonicalisation_2026_07_16 P2. A handful of
+  // representative rows so the cards render something in mock mode. Mirrors
+  // the real ``CatalogueLifecycleRow`` shape (deployment-api
+  // routes/catalogue_lifecycle.py).
+  if (path.startsWith("/api/instruments/new-listings")) {
+    return json({
+      new_listings: [
+        {
+          instrument_id: "BINANCE-SPOT-SOLUSDT",
+          instrument_type: "SPOT_PAIR",
+          asset_group: "cefi",
+          venue: "BINANCE-SPOT",
+          chain: "",
+          base_asset: "SOL",
+          raw_symbol: "SOLUSDT",
+          available_from: "2026-07-15",
+          available_to: "",
+          mvp: true,
+        },
+        {
+          instrument_id: "AAVE_V3-ETHEREUM-POOL-WETH",
+          instrument_type: "POOL",
+          asset_group: "defi",
+          venue: "AAVE_V3",
+          chain: "ETHEREUM",
+          base_asset: "WETH",
+          raw_symbol: "AAVE-V3-WETH-POOL",
+          available_from: "2026-07-12",
+          available_to: "",
+          mvp: false,
+        },
+      ],
+      mock: true,
+    });
+  }
+  if (path.startsWith("/api/instruments/upcoming-expiries")) {
+    return json({
+      upcoming_expiries: [
+        {
+          instrument_id: "CME-ESU6",
+          instrument_type: "FUTURE",
+          asset_group: "tradfi",
+          venue: "CME",
+          chain: "",
+          base_asset: "ES",
+          raw_symbol: "ESU6",
+          available_from: "2026-06-01",
+          available_to: "2026-09-19",
+          mvp: true,
+        },
+        {
+          instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
+          instrument_type: "OPTION",
+          asset_group: "cefi",
+          venue: "DERIBIT",
+          chain: "",
+          base_asset: "BTC",
+          raw_symbol: "BTC-26SEP26-100000-C",
+          available_from: "2026-06-15",
+          available_to: "2026-09-26",
+          mvp: false,
+        },
+      ],
+      mock: true,
+    });
+  }
+
   // Cloud builds history (fix path to also match /api/ prefix)
   if (path.match(/^\/api\/cloud-builds\/history\/.+/)) {
     return json({ builds: [] });
