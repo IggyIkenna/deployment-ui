@@ -4342,6 +4342,145 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
+  // P3 prediction-catalogue browser — plan
+  // data_status_page_ux_and_canonicalisation_2026_07_16 P3. Representative
+  // rows across every ``PredictionMarketCategory`` so the category <select> +
+  // cqg sub-filter + search have something real to narrow in mock mode.
+  // Mirrors the real ``PredictionCatalogueRow`` shape (deployment-api
+  // routes/prediction_catalogue.py / services/prediction_catalogue.py).
+  if (path.startsWith("/api/data-status/prediction-catalogue")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const category = params.get("category")?.trim().toLowerCase() || "";
+    const cqg = params.get("canonical_question_group")?.trim() || "";
+    const venue = params.get("venue")?.trim().toUpperCase() || "";
+    const search = params.get("search")?.trim().toLowerCase() || "";
+    const limit = Number(params.get("limit") ?? 50);
+    const offset = Number(params.get("offset") ?? 0);
+
+    const allRows = [
+      {
+        instrument_id: "POLYMARKET-BITCOIN-UP-OR-DOWN-JUNE-24-2026",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "POLYMARKET",
+        label: "bitcoin-up-or-down-june-24-2026",
+        canonical_question_group: "crypto-price-prediction",
+        category: "crypto",
+        underlying: "BTC",
+        available_from: "2026-06-01",
+        available_to: "2026-06-24",
+        mvp: true,
+      },
+      {
+        instrument_id: "KALSHI-ETH-PRICE-EOD-JUL16",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "KALSHI",
+        label: "eth-price-above-4000-eod-july-16-2026",
+        canonical_question_group: "crypto-price-prediction",
+        category: "crypto",
+        underlying: "ETH",
+        available_from: "2026-07-01",
+        available_to: "2026-07-16",
+        mvp: true,
+      },
+      {
+        instrument_id: "KALSHI-FED-RATE-DECISION-JUL2026",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "KALSHI",
+        label: "fed-funds-rate-decision-july-2026",
+        canonical_question_group: "fed-rate-decisions",
+        category: "financial",
+        underlying: "FED_FUNDS_RATE",
+        available_from: "2026-06-10",
+        available_to: "2026-07-30",
+        mvp: false,
+      },
+      {
+        instrument_id: "POLYMARKET-NBA-FINALS-2026-WINNER",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "POLYMARKET",
+        label: "nba-finals-2026-winner",
+        canonical_question_group: "sports-championship-winner",
+        category: "sports",
+        underlying: "NBA_FINALS",
+        available_from: "2026-04-01",
+        available_to: "2026-06-20",
+        mvp: false,
+      },
+      {
+        instrument_id: "KALSHI-NYC-HIGH-TEMP-JUL16",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "KALSHI",
+        label: "nyc-high-temp-above-95f-july-16-2026",
+        canonical_question_group: "weather-temperature-threshold",
+        category: "weather",
+        underlying: "NYC_TEMP",
+        available_from: "2026-07-15",
+        available_to: "2026-07-16",
+        mvp: false,
+      },
+      {
+        instrument_id: "POLYMARKET-OSCARS-2027-BEST-PICTURE",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "POLYMARKET",
+        label: "oscars-2027-best-picture-winner",
+        canonical_question_group: "entertainment-awards-winner",
+        category: "entertainment",
+        underlying: "OSCARS_BEST_PICTURE",
+        available_from: "2026-06-01",
+        available_to: "2027-03-01",
+        mvp: false,
+      },
+      {
+        instrument_id: "POLYMARKET-2026-MIDTERM-SENATE-CONTROL",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "POLYMARKET",
+        label: "2026-midterm-senate-control",
+        canonical_question_group: "election-outcome",
+        category: "politics",
+        underlying: "US_SENATE",
+        available_from: "2026-01-01",
+        available_to: "2026-11-03",
+        mvp: true,
+      },
+      {
+        instrument_id: "KALSHI-MISC-OTHER-EVENT-42",
+        instrument_type: "PREDICTION_MARKET",
+        venue: "KALSHI",
+        label: "instrument-id-fallback-example-42",
+        canonical_question_group: "other-misc",
+        category: "other",
+        underlying: "OTHER",
+        available_from: "2026-05-01",
+        available_to: "2026-08-01",
+        mvp: false,
+      },
+    ];
+
+    const categoryCounts: Record<string, number> = {};
+    const cqgCounts: Record<string, number> = {};
+    for (const row of allRows) {
+      categoryCounts[row.category] = (categoryCounts[row.category] ?? 0) + 1;
+      cqgCounts[row.canonical_question_group] = (cqgCounts[row.canonical_question_group] ?? 0) + 1;
+    }
+
+    const filtered = allRows.filter((row) => {
+      if (category && row.category !== category) return false;
+      if (cqg && row.canonical_question_group !== cqg) return false;
+      if (venue && row.venue !== venue) return false;
+      if (search && !row.label.toLowerCase().includes(search) && !row.instrument_id.toLowerCase().includes(search)) {
+        return false;
+      }
+      return true;
+    });
+
+    return json({
+      rows: filtered.slice(offset, offset + limit),
+      total: filtered.length,
+      category_counts: categoryCounts,
+      cqg_counts: cqgCounts,
+      mock: true,
+    });
+  }
 
   // Cloud builds history (fix path to also match /api/ prefix)
   if (path.match(/^\/api\/cloud-builds\/history\/.+/)) {

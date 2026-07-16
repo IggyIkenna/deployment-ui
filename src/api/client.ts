@@ -1026,6 +1026,74 @@ export async function fetchUpcomingExpiries(opts?: {
   return res.upcoming_expiries ?? [];
 }
 
+/**
+ * One browsable prediction-market row from ``GET
+ * /data-status/prediction-catalogue`` (deployment-api
+ * `services/prediction_catalogue.py`). Mirrors the ``PredictionCatalogueRow``
+ * TypedDict — ``label`` is the pre-computed honest display label (raw_symbol
+ * -> base_asset(50 chars) -> event_title -> instrument_id fallback chain,
+ * already resolved server-side).
+ */
+export interface PredictionCatalogueRow {
+  instrument_id: string;
+  instrument_type: string;
+  venue: string;
+  label: string;
+  canonical_question_group: string;
+  category: string;
+  underlying: string;
+  available_from: string;
+  available_to: string;
+  mvp: boolean;
+}
+
+/** Paginated + faceted response from ``GET /data-status/prediction-catalogue``. */
+export interface PredictionCatalogueResult {
+  rows: PredictionCatalogueRow[];
+  total: number;
+  category_counts: Record<string, number>;
+  cqg_counts: Record<string, number>;
+}
+
+export async function fetchPredictionCatalogue(opts?: {
+  category?: string;
+  canonical_question_group?: string;
+  venue?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  signal?: AbortSignal;
+}): Promise<PredictionCatalogueResult> {
+  const searchParams = new URLSearchParams();
+  if (opts?.category) {
+    searchParams.set("category", opts.category);
+  }
+  if (opts?.canonical_question_group) {
+    searchParams.set("canonical_question_group", opts.canonical_question_group);
+  }
+  if (opts?.venue) {
+    searchParams.set("venue", opts.venue);
+  }
+  if (opts?.search) {
+    searchParams.set("search", opts.search);
+  }
+  if (opts?.limit != null) {
+    searchParams.set("limit", String(opts.limit));
+  }
+  if (opts?.offset != null) {
+    searchParams.set("offset", String(opts.offset));
+  }
+  const q = searchParams.toString();
+  const path = `/data-status/prediction-catalogue${q ? `?${q}` : ""}`;
+  const res = await fetchJson<PredictionCatalogueResult & { mock?: boolean }>(path, { signal: opts?.signal });
+  return {
+    rows: res.rows ?? [],
+    total: res.total ?? 0,
+    category_counts: res.category_counts ?? {},
+    cqg_counts: res.cqg_counts ?? {},
+  };
+}
+
 // Turbo Data Status - much faster for large services (uses month-prefix queries)
 
 // Data type completion status (nested within venue).

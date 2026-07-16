@@ -67,6 +67,7 @@ import { TypedReasonBadges } from "./TypedReasonBadges";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
+import { PredictionCatalogueCard } from "./PredictionCatalogue";
 import { UpcomingFixtures } from "./UpcomingFixtures";
 import { VenueDetailPanel } from "./VenueDetailPanel";
 import { Badge } from "./ui/badge";
@@ -1748,6 +1749,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           {serviceName === "instruments-service" && <UpcomingFixtures />}
           {serviceName === "instruments-service" && <NewListingsCard />}
           {serviceName === "instruments-service" && <UpcomingExpiriesCard />}
+          {serviceName === "instruments-service" && <PredictionCatalogueCard />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
