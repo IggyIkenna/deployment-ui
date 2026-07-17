@@ -40,18 +40,10 @@ describe("TypedReasonBadges", () => {
         }}
       />,
     );
-    expect(
-      screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY"),
-    ).toBeTruthy();
-    expect(
-      screen.getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO"),
-    ).toBeTruthy();
-    expect(
-      screen.getByTestId("typed-reason-badge-failed_cluster"),
-    ).toBeTruthy();
-    expect(
-      screen.queryByTestId("typed-reason-badge-EXPECTED_WEEKEND"),
-    ).toBeNull();
+    expect(screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY")).toBeTruthy();
+    expect(screen.getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO")).toBeTruthy();
+    expect(screen.getByTestId("typed-reason-badge-failed_cluster")).toBeTruthy();
+    expect(screen.queryByTestId("typed-reason-badge-EXPECTED_WEEKEND")).toBeNull();
     expect(screen.queryByTestId("typed-reason-badge-failed_other")).toBeNull();
   });
 
@@ -64,9 +56,7 @@ describe("TypedReasonBadges", () => {
       />,
     );
     const root = screen.getByTestId("my-row-typed-reason-badges");
-    const badges = root.querySelectorAll(
-      "[data-testid^='my-row-typed-reason-badge-']",
-    );
+    const badges = root.querySelectorAll("[data-testid^='my-row-typed-reason-badge-']");
     expect(badges.length).toBe(2);
     expect(badges[0].getAttribute("data-badge-kind")).toBe("failure_pillar");
     expect(badges[1].getAttribute("data-badge-kind")).toBe("empty_reason");
@@ -74,21 +64,10 @@ describe("TypedReasonBadges", () => {
 
   it("emits the count on each pill", () => {
     render(
-      <TypedReasonBadges
-        emptyReasons={{ SOURCE_RETURNED_ZERO: 17 }}
-        failurePillars={{ failed_timestamp_bias: 4 }}
-      />,
+      <TypedReasonBadges emptyReasons={{ SOURCE_RETURNED_ZERO: 17 }} failurePillars={{ failed_timestamp_bias: 4 }} />,
     );
-    expect(
-      screen
-        .getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO")
-        .getAttribute("data-badge-count"),
-    ).toBe("17");
-    expect(
-      screen
-        .getByTestId("typed-reason-badge-failed_timestamp_bias")
-        .getAttribute("data-badge-count"),
-    ).toBe("4");
+    expect(screen.getByTestId("typed-reason-badge-SOURCE_RETURNED_ZERO").getAttribute("data-badge-count")).toBe("17");
+    expect(screen.getByTestId("typed-reason-badge-failed_timestamp_bias").getAttribute("data-badge-count")).toBe("4");
   });
 
   it("renders interactive buttons when onBadgeClick is supplied", () => {
@@ -148,18 +127,10 @@ describe("TypedReasonBadges", () => {
         }
       />,
     );
-    expect(
-      screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY"),
-    ).toBeTruthy();
-    expect(
-      screen.getByTestId("typed-reason-badge-failed_cluster"),
-    ).toBeTruthy();
-    expect(
-      screen.queryByTestId("typed-reason-badge-NEWLY_INVENTED_REASON"),
-    ).toBeNull();
-    expect(
-      screen.queryByTestId("typed-reason-badge-failed_invented"),
-    ).toBeNull();
+    expect(screen.getByTestId("typed-reason-badge-EXPECTED_HOLIDAY")).toBeTruthy();
+    expect(screen.getByTestId("typed-reason-badge-failed_cluster")).toBeTruthy();
+    expect(screen.queryByTestId("typed-reason-badge-NEWLY_INVENTED_REASON")).toBeNull();
+    expect(screen.queryByTestId("typed-reason-badge-failed_invented")).toBeNull();
   });
 });
 
@@ -190,6 +161,10 @@ describe("Typed-reason taxonomy SSOT (deployment-api parity)", () => {
     "EXPECTED_PARTIAL_HALF_DAY",
     "EXPECTED_REFDATA_CADENCE_CHANGE",
     "EXPECTED_DEPRECATED_DATA_TYPE",
+    // Bounded evidenced out-of-bounds range (UAC COVERAGE_EXCLUSIONS). OUT OF MODEL
+    // (clipped from the coverage denominator) — so it MUST render as its own badge:
+    // an out-of-model range that is invisible is indistinguishable from data we lost.
+    "EXPECTED_UPSTREAM_OUT_OF_BOUNDS",
     "SOURCE_RETURNED_ZERO",
     "empty_unclassified",
   ];
