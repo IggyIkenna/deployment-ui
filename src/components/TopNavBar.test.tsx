@@ -65,12 +65,12 @@ describe("TopNavBar", () => {
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {
     renderAt("/ops/costs");
     expect(screen.getByTestId("top-nav-bar")).toBeTruthy();
-    // A cockpit tab is still one click away from a non-cockpit route.
-    expect(screen.getByTestId("cockpit-tab-fleet").getAttribute("href")).toBe("/cockpit?tab=fleet");
+    // Each former pane is now its own plain route (2026-07-17: `?tab=` retired).
+    expect(screen.getByTestId("cockpit-tab-fleet").getAttribute("href")).toBe("/fleet");
   });
 
   it("marks the active entry via aria-current, driven by the URL", () => {
-    renderAt("/cockpit?tab=fleet");
+    renderAt("/fleet");
     expect(screen.getByTestId("cockpit-tab-fleet").getAttribute("aria-current")).toBe("page");
     expect(screen.getByTestId("cockpit-tab-health").getAttribute("aria-current")).toBeNull();
   });

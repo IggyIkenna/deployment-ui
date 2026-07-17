@@ -16,7 +16,7 @@ test.describe("Fleet Git-Health tab", () => {
     // section INSIDE the cockpit Fleet tab now, and /fleet redirects there.
     await page.goto("/cockpit");
     await page.getByTestId("cockpit-tab-fleet").click();
-    await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+    await expect(page).toHaveURL(/\/fleet$/);
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
     await expect(page.getByTestId("fleet-git-page")).toBeVisible();
     await expect(page.getByTestId("fleet-summary")).toBeVisible();

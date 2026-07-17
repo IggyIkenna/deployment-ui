@@ -1,60 +1,57 @@
 /**
- * Unit test for the Cockpit page (scaffold stage).
+ * Unit tests for the cockpit pane page-components.
  *
- * Asserts the page renders its shell, the Health landing tile grid (every monitoring
- * domain present), and ?tab= deep-linking — guarding the IA before per-pane data wiring.
+ * Since the `?tab=` scheme was retired (2026-07-17) each pane is its own plain-route page
+ * component (CockpitHealth = /cockpit, CockpitDeploy = /deploy, CockpitFleet = /fleet, …)
+ * instead of one `Cockpit` that switch-rendered on `?tab=`. These tests render the pane
+ * components directly. The always-visible nav bar is asserted in TopNavBar / nav-menu specs.
  * No API mocks needed (placeholders).
- *
- * The tab BAR is no longer this page's: it was lifted into the top bar so it shows on
- * every route (operator 2026-07-17), so its triggers are asserted in TopNavBar.test.tsx.
- * This page still owns which pane `?tab=` renders, which is what the deep-link test pins.
  */
 
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { Cockpit } from "./Cockpit";
+import { CockpitHealth, CockpitDeploy, CockpitFleet } from "./Cockpit";
 
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Cockpit />
-    </MemoryRouter>,
-  );
+function renderPane(node: React.ReactElement) {
+  return render(<MemoryRouter>{node}</MemoryRouter>);
 }
 
-describe("Cockpit", () => {
-  it("renders the page shell without a title block (the top bar says where you are)", () => {
-    renderAt("/cockpit");
+describe("Cockpit panes", () => {
+  it("Health renders the page shell without a title block (the top bar says where you are)", () => {
+    renderPane(<CockpitHealth />);
     expect(screen.getByTestId("cockpit-page")).toBeTruthy();
     // The "Cockpit" heading block was removed — it was pure vertical spend.
     expect(screen.queryByText("unified deployment & health observability")).toBeNull();
   });
 
-  it("Health is the default tab and shows the full monitoring tile grid", () => {
-    renderAt("/cockpit");
+  it("Health shows the full monitoring tile grid", () => {
+    renderPane(<CockpitHealth />);
     expect(screen.getByTestId("cockpit-health")).toBeTruthy();
     for (const id of ["deployments", "fleet", "consolidators", "coverage", "ci", "github", "billing", "alerts"]) {
       expect(screen.getByTestId(`cockpit-tile-${id}`)).toBeTruthy();
     }
   });
 
-  it("Health landing lists the Consoles & tools links (folded surfaces are reachable)", () => {
-    renderAt("/cockpit");
+  it("Health lists the Consoles & tools links (other surfaces are one click away)", () => {
+    renderPane(<CockpitHealth />);
     expect(screen.getByTestId("cockpit-consoles")).toBeTruthy();
-    for (const id of ["vm-deployments", "live-ops", "chaos", "safety-ops", "ml", "strategy", "exec-bt"]) {
+    // "live-ops" was dropped 2026-07-17 — /ops/live-deployments is deleted and its content
+    // renders inside the Deployments page.
+    for (const id of ["vm-deployments", "chaos", "safety-ops", "ml", "strategy", "exec-bt"]) {
       expect(screen.getByTestId(`cockpit-console-${id}`)).toBeTruthy();
     }
+    expect(screen.queryByTestId("cockpit-console-live-ops")).toBeNull();
   });
 
-  it("honours the ?tab= query param for deep-linking", () => {
-    renderAt("/cockpit?tab=fleet");
+  it("Fleet pane renders the reconciliation cards", () => {
+    renderPane(<CockpitFleet />);
     expect(screen.getByTestId("cockpit-fleet")).toBeTruthy();
     expect(screen.getByTestId("cockpit-fleet-card-unknown")).toBeTruthy();
   });
 
-  it("Deploy tab exposes the batch/live/paper deploy entry points", () => {
-    renderAt("/cockpit?tab=deploy");
+  it("Deploy pane exposes the batch/live/paper deploy entry points", () => {
+    renderPane(<CockpitDeploy />);
     expect(screen.getByTestId("cockpit-deploy")).toBeTruthy();
     for (const id of ["batch", "live", "paper"]) {
       expect(screen.getByTestId(`cockpit-deploy-${id}`)).toBeTruthy();

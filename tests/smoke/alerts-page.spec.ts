@@ -17,7 +17,7 @@ test.describe("Alerts page", () => {
     // bar it used to open was deleted 2026-07-17 as a duplicate of the top bar).
     await page.goto("/cockpit");
     await page.getByTestId("cockpit-tile-alerts").click();
-    await expect(page).toHaveURL(/\/cockpit\?tab=alerts$/);
+    await expect(page).toHaveURL(/\/alerts$/);
     await expect(page.getByTestId("cockpit-alerts")).toBeVisible();
     await expect(page.getByTestId("alerts-page")).toBeVisible();
     await expect(page.getByTestId("alert-streams")).toBeVisible();
@@ -27,7 +27,7 @@ test.describe("Alerts page", () => {
   test("alerts is a tab in the unified pane, reachable from the top bar", async ({ page }) => {
     await page.goto("/cockpit");
     await page.getByTestId("cockpit-tab-alerts").click();
-    await expect(page).toHaveURL(/\/cockpit\?tab=alerts$/);
+    await expect(page).toHaveURL(/\/alerts$/);
     await expect(page.getByTestId("alerts-page")).toBeVisible();
     // A sibling tab is one click away — proves the single pane, not a route swap.
     await expect(page.getByTestId("cockpit-tab-health")).toBeVisible();

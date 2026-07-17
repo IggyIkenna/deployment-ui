@@ -20,6 +20,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { DeploymentDetail } from "./DeploymentDetail";
+import { LiveDeploymentsContent } from "./LiveDeployments";
 import {
   AlertCircle,
   AlertTriangle,
@@ -978,55 +981,43 @@ function aggregateSummaries(sums: UmbrellaSummaryResponse[]): UmbrellaSummaryRes
 
 /**
  * DeploymentsContent — the chrome-less unified inventory surface (no `<main>`, no page
- * `<h1>`) so it can render standalone (the /deployments page wraps it) OR embedded inside
- * the cockpit Deployments tab. Shows EVERY mode in one flat table; Mode is a FILTER
- * (All / Live / Batch / Paper), not a tab.
+ * `<h1>`) so its page wrapper (`DeploymentsPage`) supplies the shell. Shows EVERY mode in
+ * one flat table; Mode is a FILTER (All / Live / Batch / Paper), not a tab.
  *
- * When `embedded` the mode/cloud/status filters live in LOCAL state (no URL writes) so they
- * can't collide with the cockpit's `?tab=` ownership; standalone reads/writes
- * `?umbrella=&cloud=&status=&asset_group=` for alert deep-links (`umbrella` = the mode filter).
+ * ALL filters are URL-backed (`?umbrella=&cloud=&status=&asset_group=&kind=&launched_by=&region=`)
+ * — the single source of truth, so alert deep-links and shareable filtered views work. The old
+ * `embedded` dual-path (local state, no URL writes) was retired 2026-07-17 along with the
+ * `?tab=` scheme: there is no cockpit `?tab=` for the URL to collide with anymore, and reading
+ * the URL is what makes `/deployments?umbrella=batch&status=failed` actually apply both filters.
  */
 export function DeploymentsContent({
-  embedded = false,
   onDrill,
 }: {
-  embedded?: boolean;
   onDrill?: (name: string) => void;
 } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Embedded filters live in local state (no URL writes); standalone reads/writes the URL.
-  const [localMode, setLocalMode] = useState<ModeFilter>("");
-  const [localCloud, setLocalCloud] = useState("");
-  const [localStatus, setLocalStatus] = useState("running");
-  const [localAssetGroup, setLocalAssetGroup] = useState("");
-  const [localKind, setLocalKind] = useState("");
-  const [localLaunchedBy, setLocalLaunchedBy] = useState("");
-  const [localRegion, setLocalRegion] = useState("asia-northeast1");
 
   const urlMode = (searchParams.get("umbrella") ?? "").toUpperCase();
   // Validate the URL value against the SAME option list the dropdown renders, so the two can never
   // drift — the old hardcoded ["LIVE","BATCH","PAPER"] silently dropped EXPERIMENT / NONE selections
   // (the dropdown would snap back to "all"), which is why the Mode filter appeared not to stick.
-  const modeFilter: ModeFilter = embedded
-    ? localMode
-    : MODE_OPTIONS.some((o) => o.value !== "" && o.value === urlMode)
-      ? (urlMode as ModeFilter)
-      : "";
-  const cloudFilter = embedded ? localCloud : (searchParams.get("cloud")?.toUpperCase() ?? "");
+  const modeFilter: ModeFilter = MODE_OPTIONS.some((o) => o.value !== "" && o.value === urlMode)
+    ? (urlMode as ModeFilter)
+    : "";
+  const cloudFilter = searchParams.get("cloud")?.toUpperCase() ?? "";
   // Status defaults to `running` (live-first) — the operator opens on what's actually running; the
   // "all" option reveals the completed / historical rows. Absent param → running (never "all").
-  const statusFilter = embedded ? localStatus : (searchParams.get("status") ?? "running");
-  const assetGroupFilter = embedded ? localAssetGroup : (searchParams.get("asset_group") ?? "");
+  const statusFilter = searchParams.get("status") ?? "running";
+  const assetGroupFilter = searchParams.get("asset_group") ?? "";
   // Kind is client-side (not a server filter param) — the way a user isolates services vs jobs
   // vs VMs (services have Mode="—", so Mode can't find them — Open-Q1).
-  const kindFilter = embedded ? localKind : (searchParams.get("kind")?.toUpperCase() ?? "");
+  const kindFilter = searchParams.get("kind")?.toUpperCase() ?? "";
   // Launched-by is client-side (WS-D #14) — how an operator isolates every ad-hoc / unmanaged
   // resource so stranded compute is immediately findable.
-  const launchedByFilter = embedded ? localLaunchedBy : (searchParams.get("launched_by") ?? "");
+  const launchedByFilter = searchParams.get("launched_by") ?? "";
   // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
   // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
-  const regionFilter = embedded ? localRegion : (searchParams.get("region") ?? "asia-northeast1");
+  const regionFilter = searchParams.get("region") ?? "asia-northeast1";
 
   const [items, setItems] = useState<DeploymentItem[]>([]);
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
@@ -1040,16 +1031,6 @@ export function DeploymentsContent({
 
   const setParam = useCallback(
     (key: string, value: string) => {
-      if (embedded) {
-        if (key === "umbrella") setLocalMode(value as ModeFilter);
-        else if (key === "cloud") setLocalCloud(value);
-        else if (key === "status") setLocalStatus(value);
-        else if (key === "asset_group") setLocalAssetGroup(value);
-        else if (key === "kind") setLocalKind(value);
-        else if (key === "launched_by") setLocalLaunchedBy(value);
-        else if (key === "region") setLocalRegion(value);
-        return;
-      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -1060,7 +1041,7 @@ export function DeploymentsContent({
         { replace: true },
       );
     },
-    [embedded, setSearchParams],
+    [setSearchParams],
   );
 
   const load = useCallback(() => {
@@ -1144,18 +1125,12 @@ export function DeploymentsContent({
       <FreshnessContext.Provider value={freshness}>
         <div className="w-full" data-testid="deployments-page">
           <div className="flex items-center justify-between mb-4">
-            {embedded ? (
+            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              Deployments
               <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                live / batch / paper — every VM + Cloud Run job
+                live · batch · paper (unified) — every VM + Cloud Run job
               </span>
-            ) : (
-              <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-                Deployments
-                <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                  live · batch · paper (unified) — every VM + Cloud Run job
-                </span>
-              </h1>
-            )}
+            </h1>
             <div className="flex items-center gap-3">
               <DeploymentsHelpButton />
               <button
@@ -1294,14 +1269,89 @@ export function DeploymentsContent({
 }
 
 /**
- * Deployments — the standalone /repos-grade observability page. A thin `<main>` shell
- * around the chrome-less {@link DeploymentsContent} (URL-param-backed mode + filters for
- * alert deep-links). The cockpit embeds DeploymentsContent directly in its Deployments tab.
+ * DeploymentsPage — the canonical `/deployments` route (2026-07-17: the sole Deployments
+ * surface, replacing the old cockpit `?tab=deployments` pane). A `<main>` shell around the
+ * URL-backed {@link DeploymentsContent}, plus:
+ *   - the Live-ops fold (running services + event/log stream), formerly the deleted
+ *     `/ops/live-deployments` standalone; and
+ *   - the in-context drill-down slide-over: a row sets `?detail=<name>` and the per-target
+ *     {@link DeploymentDetail} opens over the list (deep-linkable), while `/deployments/:name`
+ *     remains the full-page detail (Alerts deep-links to it).
  */
-export function Deployments() {
+export function DeploymentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const detail = searchParams.get("detail");
+  const openDetail = useCallback(
+    (name: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("detail", name);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeDetail = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("detail");
+        return next;
+      },
+      { replace: false },
+    );
+  }, [setSearchParams]);
+
   return (
     <main className="w-full app-shell-gutter py-4">
-      <DeploymentsContent />
+      <div data-testid="cockpit-deployments">
+        {/* MERGED live/batch/paper — one flat all-modes inventory (Mode is a filter). */}
+        <DeploymentsContent onDrill={openDetail} />
+        {/* Live ops — running services + event/log stream (folded in from the deleted
+            /ops/live-deployments standalone, 2026-07-17). */}
+        <div className="mt-6" data-testid="cockpit-live-ops">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+            Live ops — running services + event/log stream
+          </h2>
+          <ErrorBoundary fallbackTitle="Live ops failed to load">
+            <LiveDeploymentsContent />
+          </ErrorBoundary>
+        </div>
+      </div>
+
+      {/* In-context drill-down slide-over — a row's per-target detail opens here (URL-driven
+          via ?detail=, so it is deep-linkable) instead of navigating to /deployments/:name. */}
+      {detail ? (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/50"
+          data-testid="cockpit-detail-overlay"
+          onClick={closeDetail}
+        >
+          <div
+            className="h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--color-border-default)] bg-[var(--color-bg-primary)] p-4 shadow-xl"
+            data-testid="cockpit-detail-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+                Deployment detail
+              </span>
+              <button
+                type="button"
+                onClick={closeDetail}
+                data-testid="cockpit-detail-close"
+                className="rounded-md border border-[var(--color-border-default)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                Close ✕
+              </button>
+            </div>
+            <DeploymentDetail name={detail} embedded />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

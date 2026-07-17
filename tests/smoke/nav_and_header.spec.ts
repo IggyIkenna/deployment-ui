@@ -180,11 +180,12 @@ test.describe("Header — mobile hamburger menu", () => {
 // The former top-bar links (ML/Strategy/Exec-BT/Live-Ops) moved into the cockpit's
 // Consoles section (top bar is utility-only now). These verify the cockpit routes to them.
 test.describe("Cockpit consoles — route to the folded surfaces", () => {
+  // "live-ops" was removed 2026-07-17 — /ops/live-deployments is deleted and its content
+  // renders inside the /deployments page, so there is no console link to it anymore.
   const CONSOLES = [
     { id: "ml", url: /\/research\/ml-experiments/ },
     { id: "strategy", url: /\/research\/strategy-backtests/ },
     { id: "exec-bt", url: /\/research\/execution-backtests/ },
-    { id: "live-ops", url: /\/ops\/live-deployments/ },
   ];
   for (const c of CONSOLES) {
     test(`cockpit console "${c.id}" routes correctly`, async ({ page }) => {
@@ -226,13 +227,14 @@ test.describe("Page renders — no crash smoke", () => {
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
-  test("Live deployments page renders without JS error", async ({ page }) => {
+  test("Live ops (folded into Deployments) renders without JS error", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/ops/live-deployments");
-    // This page streams (event/log feeds) so `networkidle` never settles — wait on the
-    // page heading as the deterministic render signal instead (a crash → error boundary,
-    // no heading).
-    await expect(page.getByRole("heading", { name: "Live Deployments" })).toBeVisible();
+    // /ops/live-deployments was deleted 2026-07-17 — LiveDeploymentsContent now renders as the
+    // "Live ops" section inside the canonical /deployments page.
+    await page.goto("/deployments");
+    // This section streams (event/log feeds) so `networkidle` never settles — wait on the
+    // section as the deterministic render signal instead (a crash → error boundary, no section).
+    await expect(page.getByTestId("cockpit-live-ops")).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });

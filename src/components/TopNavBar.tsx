@@ -7,13 +7,13 @@
  * "always visible" — the four entries with no cockpit twin (Services / Epics / VMs /
  * Costs) used to take the bar away with them when clicked.
  *
- * Every entry is a plain Link, including the cockpit tabs: the Cockpit derives its active
- * tab from `?tab=` in the URL, so a Link to /cockpit?tab=fleet selects that tab from any
- * page. That also means the browser Back button walks the tab history, which the old
- * in-place `setSearchParams(..., {replace:true})` swallowed.
+ * Every entry is a plain Link to a plain route (2026-07-17: the `?tab=` scheme was retired —
+ * each former cockpit tab is now its own top-level route, e.g. /fleet, /deployments). The
+ * browser Back button walks real route history.
  *
- * Testids are unchanged from the old cockpit bar (`cockpit-tab-<tabId>` /
- * `cockpit-navlink-<id>`) so the existing cockpit specs keep driving it.
+ * Testids are unchanged from the old cockpit bar (`cockpit-tab-<tabId>` for the ten former
+ * panes via cockpitTabIdFor / `cockpit-navlink-<id>` for the rest) so the existing cockpit
+ * specs keep driving it.
  */
 
 import { Link, useLocation } from "react-router-dom";
@@ -31,7 +31,7 @@ export function TopNavBar() {
       {NAV_ITEMS_CANONICAL.map((item) => {
         const Icon = item.icon;
         const tabId = cockpitTabIdFor(item.to);
-        const active = navItemIsActive(item.to, location.pathname, location.search);
+        const active = navItemIsActive(item.to, location.pathname);
         return (
           <Link
             key={item.id}

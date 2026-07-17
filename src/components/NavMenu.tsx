@@ -93,7 +93,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "deploy",
-        to: "/cockpit?tab=deploy",
+        to: "/deploy",
         label: "Deploy Console",
         icon: Rocket,
         desc: "Launch / rollback",
@@ -101,7 +101,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "deployments",
-        to: "/cockpit?tab=deployments",
+        to: "/deployments",
         label: "Deployments",
         icon: Layers,
         desc: "Live · batch · paper + live ops",
@@ -135,7 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "consolidators",
-        to: "/cockpit?tab=consolidators",
+        to: "/consolidators",
         label: "Consolidators",
         icon: Boxes,
         desc: "Index age · shard fallback",
@@ -148,7 +148,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "fleet",
-        to: "/cockpit?tab=fleet",
+        to: "/fleet",
         label: "Fleet",
         icon: Layers,
         desc: "Census · orphans · git · infra",
@@ -169,7 +169,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "repos",
-        to: "/cockpit?tab=ci",
+        to: "/ci",
         label: "Repos / CI",
         icon: GitBranch,
         desc: "Last-green · promotion lag",
@@ -177,7 +177,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "alerts",
-        to: "/cockpit?tab=alerts",
+        to: "/alerts",
         label: "Alerts & Logs",
         icon: AlertCircle,
         desc: "Open alerts + log stream",
@@ -190,7 +190,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "safety",
-        to: "/cockpit?tab=safety",
+        to: "/safety-ops",
         label: "Safety Ops",
         icon: ShieldCheck,
         desc: "Kill-switch + guardrails",
@@ -198,7 +198,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "chaos",
-        to: "/cockpit?tab=chaos",
+        to: "/chaos",
         label: "Chaos",
         icon: AlertTriangle,
         desc: "Resilience testing",
@@ -211,7 +211,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "launch",
-        to: "/cockpit?tab=launch",
+        to: "/launch",
         label: "Launch Console",
         icon: FlaskConical,
         desc: "ML · strategy · execution backtests",
@@ -219,65 +219,11 @@ export const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
-  {
-    heading: "Duplicate routes — pending removal",
-    legacy: true,
-    items: [
-      {
-        id: "dup-deployments",
-        to: "/deployments",
-        label: "/deployments",
-        icon: Layers,
-        desc: "same component as Deployments",
-      },
-      { id: "dup-repos", to: "/repos", label: "/repos", icon: GitBranch, desc: "redirects → Repos / CI" },
-      { id: "dup-alerts", to: "/alerts", label: "/alerts", icon: AlertCircle, desc: "redirects → Alerts & Logs" },
-      { id: "dup-fleet-git", to: "/fleet", label: "/fleet", icon: GitBranch, desc: "redirects → Fleet (git section)" },
-      {
-        id: "dup-fleet-infra",
-        to: "/infra",
-        label: "/infra",
-        icon: Activity,
-        desc: "redirects → Fleet (infra section)",
-      },
-      {
-        id: "dup-live-ops",
-        to: "/ops/live-deployments",
-        label: "/ops/live-deployments",
-        icon: Activity,
-        desc: "folded into Deployments",
-      },
-      { id: "dup-chaos", to: "/chaos", label: "/chaos", icon: AlertTriangle, desc: "same component as Chaos" },
-      {
-        id: "dup-safety",
-        to: "/safety-ops",
-        label: "/safety-ops",
-        icon: ShieldCheck,
-        desc: "same component as Safety Ops",
-      },
-      {
-        id: "dup-ml",
-        to: "/research/ml-experiments",
-        label: "/research/ml-experiments",
-        icon: FlaskConical,
-        desc: "folded into Launch",
-      },
-      {
-        id: "dup-strategy",
-        to: "/research/strategy-backtests",
-        label: "/research/strategy-backtests",
-        icon: FlaskConical,
-        desc: "folded into Launch",
-      },
-      {
-        id: "dup-exec",
-        to: "/research/execution-backtests",
-        label: "/research/execution-backtests",
-        icon: FlaskConical,
-        desc: "folded into Launch",
-      },
-    ],
-  },
+  // The "Duplicate routes — pending removal" quarantine group was DELETED 2026-07-17 together
+  // with its routes: the UI moved to ONE plain-URL scheme (operator decision), so `?tab=` is
+  // gone and the standalone/redirect duplicates it existed to compare no longer exist. /repos
+  // and /infra survive only as bookmark-compat redirects in App.tsx (→ /ci, /fleet), with no
+  // nav entry.
 ];
 
 /** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */
@@ -287,35 +233,37 @@ export const NAV_GROUPS_CANONICAL = NAV_GROUPS.filter((g) => !g.legacy);
 export const NAV_ITEMS_CANONICAL = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
 
 /**
- * The cockpit tab a nav entry selects, or `null` if it navigates to its own route.
- * `/cockpit` (no query) is the default `health` tab. Lets the always-visible cockpit
- * bar render tab-switchers and route-links from the SAME list as the dropdown, so the
- * two can never drift.
+ * The former cockpit-tab id for a nav entry's plain route, or `null` if the entry has no
+ * cockpit-pane heritage. Since the `?tab=` scheme was retired (2026-07-17) every pane is its
+ * own plain route; this map lets the always-visible bar keep its stable `cockpit-tab-<id>`
+ * testids (vs `cockpit-navlink-<id>` for the five screens that were never cockpit panes).
  */
+const PLAIN_ROUTE_TO_TAB_ID: Record<string, string> = {
+  "/cockpit": "health",
+  "/deploy": "deploy",
+  "/deployments": "deployments",
+  "/fleet": "fleet",
+  "/consolidators": "consolidators",
+  "/ci": "ci",
+  "/alerts": "alerts",
+  "/launch": "launch",
+  "/chaos": "chaos",
+  "/safety-ops": "safety",
+};
+
 export function cockpitTabIdFor(to: string): string | null {
-  const [path, query] = to.split("?");
-  if (path !== "/cockpit") return null;
-  return query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
+  return PLAIN_ROUTE_TO_TAB_ID[to] ?? null;
 }
 
 /**
- * Is `to` the screen currently on display? Shared by the dropdown and the always-visible
- * top bar so their highlight rules can't diverge. Cockpit entries compare the `?tab=`
- * param (bare `/cockpit` == the default `health` tab); everything else matches the path
- * (or a deeper detail route under it, e.g. /deployments/:name keeps Deployments lit).
+ * Is `to` the screen currently on display? Shared by the dropdown and the always-visible top
+ * bar so their highlight rules can't diverge. Plain path match, with prefix matching for
+ * deeper routes (e.g. /deployments/:name keeps the Deployments entry lit).
  */
-export function navItemIsActive(to: string, pathname: string, search: string): boolean {
-  const [path] = to.split("?");
-  if (path === "/cockpit") {
-    if (pathname !== "/cockpit") return false;
-    const current = new URLSearchParams(search).get("tab") ?? "health";
-    return current === (cockpitTabIdFor(to) ?? "health");
-  }
+export function navItemIsActive(to: string, pathname: string): boolean {
+  const path = to.split("?")[0];
   return pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
 }
-
-/** The redundant-route quarantine, rendered apart from the canonical grid. */
-const LEGACY_GROUP = NAV_GROUPS.find((g) => g.legacy);
 
 /** Flattened {to,label} list for the mobile hamburger menu (same source as the dropdown). */
 export const NAV_LINKS_FLAT = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ to: i.to, label: i.label })));
@@ -340,7 +288,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
 
   if (!open) return null;
 
-  const isActive = (to: string): boolean => navItemIsActive(to, location.pathname, location.search);
+  const isActive = (to: string): boolean => navItemIsActive(to, location.pathname);
 
   return (
     <>
@@ -413,45 +361,6 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
             </div>
           ))}
         </div>
-
-        {/* Redundant-route quarantine — every entry here renders the SAME component as a
-            canonical entry above, just under different chrome. Kept clickable so the two
-            can be compared side by side; delete this whole group once the standalone
-            routes are redirected into their cockpit tab. */}
-        {LEGACY_GROUP ? (
-          <div className="mt-4 border-t border-[var(--color-border-default)] pt-3" data-testid="nav-menu-legacy">
-            <div className="mb-1.5 flex items-baseline gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent-orange)]">
-                {LEGACY_GROUP.heading}
-              </span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">
-                same content as above — different chrome
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {LEGACY_GROUP.items.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.to}
-                    onClick={onClose}
-                    role="menuitem"
-                    title={item.desc}
-                    data-testid={`nav-menu-item-${item.id}`}
-                    className={`rounded border px-2 py-1 font-mono text-[11px] transition-colors ${
-                      active
-                        ? "border-[var(--color-accent-orange)]/50 bg-[var(--color-accent-orange)]/10 text-[var(--color-accent-orange)]"
-                        : "border-[var(--color-border-default)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
       </div>
     </>
   );

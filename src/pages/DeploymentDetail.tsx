@@ -390,7 +390,7 @@ function JobRunHistoryCard({ name, item }: { name: string; item: DeploymentItem 
               </>
             ) : null}
             <Link
-              to={`/cockpit?tab=consolidators${item.asset_group ? `&asset_group=${encodeURIComponent(item.asset_group)}` : ""}`}
+              to={`/consolidators${item.asset_group ? `?asset_group=${encodeURIComponent(item.asset_group)}` : ""}`}
               className="text-[var(--color-accent-cyan)] hover:underline"
               data-testid="detail-consolidator-link"
             >
@@ -539,7 +539,7 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
               {/* Close the alert → cockpit → logs → REDEPLOY walk: route to the Deploy console
                   (the embedded DeployForm, service pre-selectable) to relaunch this target. */}
               <Link
-                to={`/cockpit?tab=deploy&service=${encodeURIComponent(item.service)}`}
+                to={`/deploy?service=${encodeURIComponent(item.service)}`}
                 data-testid="detail-redeploy"
                 className="inline-flex items-center gap-1 rounded-md border border-[var(--color-accent-cyan)]/40 bg-[var(--color-accent-cyan)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/20"
               >

@@ -50,7 +50,7 @@ const PAGES: Array<{ name: string; path: string }> = [
   { name: "ML Experiments", path: "/research/ml-experiments" },
   { name: "Strategy Backtests", path: "/research/strategy-backtests" },
   { name: "Execution Backtests", path: "/research/execution-backtests" },
-  { name: "Live Deployments", path: "/ops/live-deployments" },
+  { name: "Deployments", path: "/deployments" },
   { name: "Daily Costs", path: "/ops/costs" },
 ];
 
@@ -78,7 +78,7 @@ for (const { name, path } of PAGES) {
       const summary = criticalOrSerious
         .map((v) => `  [${v.impact}] ${v.id}: ${v.description} (${v.nodes.length} node(s))`)
         .join("\n");
-       
+
       console.log(`\nAccessibility violations on ${name}:\n${summary}`);
     }
 

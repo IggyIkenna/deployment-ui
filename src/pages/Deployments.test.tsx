@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import type {
   DeploymentInventoryFilters,
   DeploymentInventoryResponse,
@@ -30,7 +30,7 @@ vi.mock("../components/ui/card", () => ({
   CardContent: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
 }));
 
-import { Deployments } from "./Deployments";
+import { DeploymentsContent } from "./Deployments";
 
 const LIVE_ITEMS = [
   {
@@ -125,12 +125,13 @@ function inventoryFor(filters?: DeploymentInventoryFilters): DeploymentInventory
   return { items, total: items.length, vm_count: 0, cloud_run_job_count: 0 };
 }
 
+// The `?tab=` scheme + the `embedded` dual-path were retired 2026-07-17: DeploymentsContent is
+// now always URL-backed, so rendering it directly under a MemoryRouter at a given URL exercises
+// the real filter deep-link path (?umbrella=, ?status=, …).
 function renderAt(url: string) {
   return render(
     <MemoryRouter initialEntries={[url]}>
-      <Routes>
-        <Route path="/deployments" element={<Deployments />} />
-      </Routes>
+      <DeploymentsContent />
     </MemoryRouter>,
   );
 }

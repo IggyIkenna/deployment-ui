@@ -50,7 +50,7 @@ test.describe("progressive loading skeletons", () => {
   }) => {
     await widenMockDelay(page, 1500);
 
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
 
     // Merged inventory (DeploymentsContent, embedded).

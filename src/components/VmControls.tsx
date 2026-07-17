@@ -112,7 +112,7 @@ export function VmControls({ vmName, status }: { vmName: string; status: string 
               Keep running
             </Button>
             <Link
-              to="/cockpit?tab=deploy"
+              to="/deploy"
               className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               onClick={() => {
                 setConfirmStop(false);
