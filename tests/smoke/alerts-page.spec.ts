@@ -12,21 +12,25 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Alerts page", () => {
-  test("cockpit Alerts tile routes to /alerts which renders as a home-shell tab", async ({ page }) => {
+  test("cockpit Alerts tile routes to the Alerts tab", async ({ page }) => {
+    // The tile links /alerts, which redirects into the cockpit Alerts tab (the LandingTabs
+    // bar it used to open was deleted 2026-07-17 as a duplicate of the top bar).
     await page.goto("/cockpit");
     await page.getByTestId("cockpit-tile-alerts").click();
-    await expect(page).toHaveURL(/\/alerts$/);
-    await expect(page.getByTestId("landing-alerts-tab")).toBeVisible();
+    await expect(page).toHaveURL(/\/cockpit\?tab=alerts$/);
+    await expect(page.getByTestId("cockpit-alerts")).toBeVisible();
     await expect(page.getByTestId("alerts-page")).toBeVisible();
     await expect(page.getByTestId("alert-streams")).toBeVisible();
     await expect(page.getByTestId("alert-timeline")).toBeVisible();
   });
 
-  test("alerts tab trigger sits beside Overview/Epics/Repos CI (single pane)", async ({ page }) => {
-    await page.goto("/home");
-    await page.getByTestId("landing-alerts-tab-trigger").click();
-    await expect(page).toHaveURL(/\/alerts$/);
+  test("alerts is a tab in the unified pane, reachable from the top bar", async ({ page }) => {
+    await page.goto("/cockpit");
+    await page.getByTestId("cockpit-tab-alerts").click();
+    await expect(page).toHaveURL(/\/cockpit\?tab=alerts$/);
     await expect(page.getByTestId("alerts-page")).toBeVisible();
+    // A sibling tab is one click away — proves the single pane, not a route swap.
+    await expect(page.getByTestId("cockpit-tab-health")).toBeVisible();
   });
 
   test("lifecycle stream shows previous -> current state pair (traceability)", async ({ page }) => {

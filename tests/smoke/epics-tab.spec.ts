@@ -9,8 +9,8 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Epics tab v2", () => {
   test("Epics tab renders live PM epic cards (not the stale asset-class view)", async ({ page }) => {
-    await page.goto("/home");
-    await page.getByRole("tab", { name: "Epics" }).click();
+    // Epics was a LandingTabs tab; that bar is gone (2026-07-17) and /epics is its own page.
+    await page.goto("/epics");
     await expect(page.getByTestId("epics-plans-page")).toBeVisible();
     // Live PM epics (by frontmatter name), NOT the archived defi/cefi/tradfi/sports yamls.
     await expect(page.getByTestId("epic-card-observability_master")).toBeVisible();
@@ -18,15 +18,13 @@ test.describe("Epics tab v2", () => {
   });
 
   test("epic card expands to its active-plan drilldown", async ({ page }) => {
-    await page.goto("/home");
-    await page.getByRole("tab", { name: "Epics" }).click();
+    await page.goto("/epics");
     await page.getByTestId("epic-toggle-observability_master").click();
     await expect(page.getByTestId("epic-plan-ci_dashboard_deployment_ui_2026_06_10")).toBeVisible();
   });
 
   test("orphan plans (no parent_epic) surface as a review-blocking strip", async ({ page }) => {
-    await page.goto("/home");
-    await page.getByRole("tab", { name: "Epics" }).click();
+    await page.goto("/epics");
     const orphans = page.getByTestId("epics-orphans");
     await expect(orphans).toBeVisible();
     await expect(orphans).toContainText("no `parent_epic`");

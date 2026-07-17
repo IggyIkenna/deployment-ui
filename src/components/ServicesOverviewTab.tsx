@@ -11,13 +11,7 @@ import {
   Server,
 } from "lucide-react";
 import * as api from "../api/client";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import type { ServicesOverview } from "../types";
@@ -26,9 +20,7 @@ interface ServicesOverviewTabProps {
   onSelectService: (service: string) => void;
 }
 
-export function ServicesOverviewTab({
-  onSelectService,
-}: ServicesOverviewTabProps) {
+export function ServicesOverviewTab({ onSelectService }: ServicesOverviewTabProps) {
   const [overview, setOverview] = useState<ServicesOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +34,7 @@ export function ServicesOverviewTab({
       setOverview(result);
       setHasLoaded(true);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch services overview",
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch services overview");
     } finally {
       setLoading(false);
     }
@@ -105,35 +93,21 @@ export function ServicesOverviewTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="services-overview">
       {/* Header Card */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-              <CardTitle className="text-xl font-mono">
-                All Services Overview
-              </CardTitle>
+              <CardTitle className="text-xl font-mono">All Services Overview</CardTitle>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchOverview}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
+            <Button variant="outline" size="sm" onClick={fetchOverview} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
               Refresh
             </Button>
           </div>
-          <CardDescription>
-            Health status of all services at a glance. Click a service to view
-            details.
-          </CardDescription>
+          <CardDescription>Health status of all services at a glance. Click a service to view details.</CardDescription>
         </CardHeader>
       </Card>
 
@@ -144,9 +118,7 @@ export function ServicesOverviewTab({
             <div className="flex flex-col items-center justify-center gap-4">
               <Server className="h-12 w-12 text-[var(--color-text-muted)]" />
               <div className="text-center">
-                <p className="text-[var(--color-text-primary)] font-medium">
-                  Select a service from the left panel
-                </p>
+                <p className="text-[var(--color-text-primary)] font-medium">Select a service from the left panel</p>
                 <p className="text-sm text-[var(--color-text-muted)] mt-1">
                   Or load the full status overview (may take 1-2 minutes)
                 </p>
@@ -194,9 +166,7 @@ export function ServicesOverviewTab({
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono">
-                    {overview.count}
-                  </div>
+                  <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono">{overview.count}</div>
                   <div className="text-xs text-[var(--color-text-muted)] mt-1 flex items-center justify-center gap-1">
                     <Server className="h-3 w-3" />
                     Total Services
@@ -236,9 +206,7 @@ export function ServicesOverviewTab({
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-[var(--color-accent-red)] font-mono">
-                    {overview.errors}
-                  </div>
+                  <div className="text-3xl font-bold text-[var(--color-accent-red)] font-mono">{overview.errors}</div>
                   <div className="text-xs text-[var(--color-text-muted)] mt-1 flex items-center justify-center gap-1">
                     <XCircle className="h-3 w-3 text-[var(--color-accent-red)]" />
                     Errors
@@ -258,24 +226,12 @@ export function ServicesOverviewTab({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--color-border-subtle)]">
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Service
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Health
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Last Data
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Last Deploy
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Last Build
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">
-                        Issues
-                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Service</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Health</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Data</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Deploy</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Last Build</th>
+                      <th className="text-left py-3 px-4 font-medium text-[var(--color-text-muted)]">Issues</th>
                       <th className="text-right py-3 px-4 font-medium text-[var(--color-text-muted)]"></th>
                     </tr>
                   </thead>
@@ -293,9 +249,7 @@ export function ServicesOverviewTab({
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <span
-                              style={{ color: getHealthColor(service.health) }}
-                            >
+                            <span style={{ color: getHealthColor(service.health) }}>
                               {getHealthIcon(service.health)}
                             </span>
                             <Badge
@@ -339,9 +293,7 @@ export function ServicesOverviewTab({
                               {service.anomaly_count > 1 ? "s" : ""}
                             </Badge>
                           ) : (
-                            <span className="text-[var(--color-text-muted)] text-xs">
-                              None
-                            </span>
+                            <span className="text-[var(--color-text-muted)] text-xs">None</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">

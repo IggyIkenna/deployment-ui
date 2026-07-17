@@ -11,10 +11,13 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Fleet Git-Health tab", () => {
-  test("nav tab routes to /fleet and renders the proxied fleet data", async ({ page }) => {
-    await page.goto("/home");
-    await page.getByTestId("landing-fleet-git-tab-trigger").click();
-    await expect(page).toHaveURL(/\/fleet$/);
+  test("the top bar's Fleet tab renders the proxied fleet-git data", async ({ page }) => {
+    // Fleet Git was a LandingTabs tab; that bar is gone (2026-07-17). The git view is a
+    // section INSIDE the cockpit Fleet tab now, and /fleet redirects there.
+    await page.goto("/cockpit");
+    await page.getByTestId("cockpit-tab-fleet").click();
+    await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
     await expect(page.getByTestId("fleet-git-page")).toBeVisible();
     await expect(page.getByTestId("fleet-summary")).toBeVisible();
     // The laptop host card + both slots render.

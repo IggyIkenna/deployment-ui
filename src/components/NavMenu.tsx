@@ -43,10 +43,15 @@ type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
  * `/vm-deployments` are canonical because they have no cockpit twin (the cockpit's
  * Fleet tab embeds only a COMPACT vm-deployments view).
  *
- * The `legacy` group is the standalone duplicates, kept visible-but-quarantined so
- * the operator can compare chromes before deciding what to delete. It is intended to
- * be DELETED once the standalone routes are redirected (nav-audit Option A) — it is
- * not a permanent section.
+ * The `legacy` group is the legacy URLs, kept visible-but-quarantined so the operator can
+ * compare chromes before deciding what to delete. Two kinds live here now: routes that
+ * still render a SECOND COPY of the screen (compare them against the canonical entry), and
+ * — since the LandingTabs bar was deleted 2026-07-17 — routes that merely REDIRECT to the
+ * canonical tab (kept so old bookmarks/deep-links survive). Listing the redirects here is
+ * also what keeps them reachable: `scripts/orphan-audit.ts` fails a declared route with no
+ * inbound <Link>, and the whitelist's three reason prefixes (MACHINE-ONLY / API-HANDLER /
+ * UNAUTHENTICATED-FUNNEL) deliberately have no "compat redirect" category. Delete the group
+ * — and the routes — together.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -225,6 +230,16 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Layers,
         desc: "same component as Deployments",
       },
+      { id: "dup-repos", to: "/repos", label: "/repos", icon: GitBranch, desc: "redirects → Repos / CI" },
+      { id: "dup-alerts", to: "/alerts", label: "/alerts", icon: AlertCircle, desc: "redirects → Alerts & Logs" },
+      { id: "dup-fleet-git", to: "/fleet", label: "/fleet", icon: GitBranch, desc: "redirects → Fleet (git section)" },
+      {
+        id: "dup-fleet-infra",
+        to: "/infra",
+        label: "/infra",
+        icon: Activity,
+        desc: "redirects → Fleet (infra section)",
+      },
       {
         id: "dup-live-ops",
         to: "/ops/live-deployments",
@@ -232,10 +247,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Activity,
         desc: "folded into Deployments",
       },
-      { id: "dup-fleet-git", to: "/fleet", label: "/fleet", icon: GitBranch, desc: "folded into Fleet (Git)" },
-      { id: "dup-fleet-infra", to: "/infra", label: "/infra", icon: Activity, desc: "folded into Fleet (Infra)" },
-      { id: "dup-repos", to: "/repos", label: "/repos", icon: GitBranch, desc: "same component as Repos / CI" },
-      { id: "dup-alerts", to: "/alerts", label: "/alerts", icon: AlertCircle, desc: "wrapped by Alerts & Logs" },
       { id: "dup-chaos", to: "/chaos", label: "/chaos", icon: AlertTriangle, desc: "same component as Chaos" },
       {
         id: "dup-safety",

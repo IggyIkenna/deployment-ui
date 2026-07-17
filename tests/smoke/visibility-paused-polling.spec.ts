@@ -55,8 +55,9 @@ test.describe("visibility-paused polling", () => {
       (window as MockRequestsWindow).__mockRequests = [];
     });
 
-    await page.goto("/home");
-    await page.getByTestId("landing-repos-ci-tab-trigger").click();
+    // Repos CI is the cockpit's CI tab since the LandingTabs bar was deleted (2026-07-17).
+    await page.goto("/cockpit");
+    await page.getByTestId("cockpit-tab-ci").click();
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     await expect(page.getByTestId("gh-rate-budget")).toBeVisible();
 

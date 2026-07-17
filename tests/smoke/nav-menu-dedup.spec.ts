@@ -59,8 +59,9 @@ test("nav item 'home' reaches the service picker", async ({ page }) => {
   await openNav(page);
   await page.getByTestId("nav-menu-item-home").click();
   await expect(page).toHaveURL(/\/home/);
-  // The landing shell's own tab bar is the proof the home shell mounted (not the cockpit).
-  await expect(page.getByTestId("landing-repos-ci-tab-trigger")).toBeVisible({ timeout: 15_000 });
+  // The service picker is the proof the home shell mounted (not the cockpit). It used to be
+  // the LandingTabs bar; that bar was deleted 2026-07-17 as a duplicate of the top bar.
+  await expect(page.getByTestId("services-overview")).toBeVisible({ timeout: 15_000 });
 });
 
 test("nav lists each destination exactly once (no duplicate hrefs)", async ({ page }) => {
@@ -82,8 +83,14 @@ test("redundant routes are quarantined in a labelled group, not mixed into the n
   await expect(legacy).toBeVisible();
   await expect(legacy).toContainText(/pending removal/i);
   // The folded standalones live ONLY here — never as a canonical entry.
-  await expect(page.getByTestId("nav-menu-item-dup-repos")).toBeVisible();
   await expect(page.getByTestId("nav-menu-item-dup-chaos")).toBeVisible();
+  await expect(page.getByTestId("nav-menu-item-dup-deployments")).toBeVisible();
+  // The retired LandingTabs URLs stay listed as REDIRECTS — that keeps old deep-links alive
+  // and keeps the routes reachable for scripts/orphan-audit.ts (a declared route with no
+  // inbound <Link> fails the gate, and "compat redirect" is not a whitelistable reason).
+  for (const id of ["dup-repos", "dup-alerts", "dup-fleet-git", "dup-fleet-infra"]) {
+    await expect(page.getByTestId(`nav-menu-item-${id}`)).toBeVisible();
+  }
 });
 
 test("the always-visible top bar carries the same 15 entries as the dropdown", async ({ page }) => {
@@ -139,12 +146,29 @@ test("the top bar is the only nav chrome — the cockpit no longer renders its o
   await expect(page.getByText("unified deployment & health observability")).toHaveCount(0);
 });
 
-test("/infra renders Fleet Infra even when a service was previously selected", async ({ page }) => {
-  // Regression: ServiceUrlSync.LANDING_PATHS omitted "/infra", so navigating to it with a
-  // service selected kept the stale per-service view on screen (nav audit 2026-07-17).
+test("the retired LandingTabs routes redirect into their cockpit tab", async ({ page }) => {
+  // /repos /alerts /fleet /infra were LandingTabs tabs rendering the same components as
+  // cockpit tabs. The bar is gone (2026-07-17); these keep every old deep-link working.
+  // /fleet AND /infra both land on the Fleet tab — it embeds the git + infra sections.
+  for (const [from, tab] of [
+    ["/repos", "ci"],
+    ["/alerts", "alerts"],
+    ["/fleet", "fleet"],
+    ["/infra", "fleet"],
+  ]) {
+    await page.goto(from);
+    await expect(page).toHaveURL(new RegExp(`/cockpit\\?tab=${tab}`));
+    await expect(page.getByTestId(`cockpit-${tab}`)).toBeVisible({ timeout: 15_000 });
+  }
+});
+
+test("a redirect fires even when a service was previously selected", async ({ page }) => {
+  // Regression: ServiceUrlSync used to own these paths and could keep the stale per-service
+  // view on screen instead of the target (that was the /infra bug, nav audit 2026-07-17).
   await page.goto("/home");
-  await page.getByTestId("landing-repos-ci-tab-trigger").waitFor({ timeout: 15_000 });
+  await expect(page.getByTestId("services-overview")).toBeVisible({ timeout: 15_000 });
 
   await page.goto("/infra");
-  await expect(page.getByTestId("landing-fleet-infra-tab")).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/cockpit\?tab=fleet/);
+  await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible({ timeout: 15_000 });
 });

@@ -7,8 +7,9 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Repos CI page", () => {
   test("the /repos page renders all panels", async ({ page }) => {
+    // /repos redirects into the cockpit CI tab (LandingTabs deleted 2026-07-17).
     await page.goto("/repos");
-    await expect(page).toHaveURL(/\/repos$/);
+    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     await expect(page.getByTestId("promotion-drain-panel")).toBeVisible();
     await expect(page.getByTestId("sit-run-panel")).toBeVisible();
@@ -210,31 +211,32 @@ test.describe("Repos CI page", () => {
     await expect(page.getByTestId("repo-detail")).toContainText("greeks-service");
   });
 
-  test("Repos CI is a landing tab in the home shell, not a separate page", async ({ page }) => {
-    // Regression: operator add 2026-06-10 — /repos must render as a sibling tab of
-    // Overview/Epics inside the deployment-ui home shell, not a standalone full-page app.
-    await page.goto("/home");
-    // Sibling landing tabs prove this is the unified home shell, not a separate UI.
-    await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Epics" })).toBeVisible();
-    await page.getByTestId("landing-repos-ci-tab-trigger").click();
-    await expect(page).toHaveURL(/\/repos$/);
-    const tab = page.getByTestId("landing-repos-ci-tab");
+  test("Repos CI is a tab in the unified pane, not a separate page", async ({ page }) => {
+    // Regression: operator add 2026-06-10 — Repos CI must render as a TAB inside the single
+    // devops pane, not a standalone full-page app. That requirement is unchanged; the tab
+    // moved from the LandingTabs bar to the cockpit when that duplicate bar was deleted
+    // (2026-07-17), so the sibling surfaces to check are now the cockpit's.
+    await page.goto("/cockpit");
+    await page.getByTestId("cockpit-tab-ci").click();
+    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    const tab = page.getByTestId("cockpit-ci");
     await expect(tab).toBeVisible();
     await expect(tab.getByTestId("repo-ci-page")).toBeVisible();
     await expect(tab.getByTestId("repo-ci-table")).toBeVisible();
-    // Overview tab is still a reachable sibling — confirms tab integration, not a route swap.
-    // The home shell lives at /home now (the cockpit owns /).
-    await page.getByRole("tab", { name: "Overview" }).click();
-    await expect(page).toHaveURL((url) => url.pathname === "/home");
+    // A sibling tab is still one click away — confirms tab integration, not a route swap.
+    // Health is the DEFAULT tab, so its link is bare /cockpit (no ?tab=).
+    await page.getByTestId("cockpit-tab-health").click();
+    await expect(page).toHaveURL(/\/cockpit$/);
+    await expect(page.getByTestId("cockpit-health")).toBeVisible();
   });
 
-  test("deep-link to /repos opens the Repos CI landing tab in the home shell", async ({ page }) => {
+  test("deep-link to /repos opens the Repos CI tab in the unified pane", async ({ page }) => {
     await page.goto("/repos");
-    await expect(page.getByTestId("landing-repos-ci-tab")).toBeVisible();
+    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page.getByTestId("cockpit-ci")).toBeVisible();
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
-    // The home shell's sibling tabs are present (proves shell, not standalone page).
-    await expect(page.getByRole("tab", { name: "Epics" })).toBeVisible();
+    // Sibling tabs present (proves the pane, not a standalone page).
+    await expect(page.getByTestId("cockpit-tab-health")).toBeVisible();
   });
 
   test("per-service CI tab renders the same drill-down in service context", async ({ page }) => {
@@ -504,8 +506,9 @@ test.describe("Repos CI page", () => {
     expect(padRight).toBeGreaterThanOrEqual(15);
 
     // (3) The tab panel no longer carries a whole-panel focus ring class.
+    // The panel is the cockpit's CI tab since the LandingTabs bar was deleted (2026-07-17).
     const panelRing = await page
-      .getByTestId("landing-repos-ci-tab")
+      .getByTestId("cockpit-ci")
       .evaluate((el) => el.className.includes("focus-visible:ring"));
     expect(panelRing).toBe(false);
 
