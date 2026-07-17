@@ -58,6 +58,7 @@ import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { FeatureFamilyBreakdown, groupFeatureGroupsByFamily } from "./FeatureFamilyBreakdown";
 import { FixtureBreakdown } from "./FixtureBreakdown";
+import { FixturesBrowser } from "./FixturesBrowser";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
 import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
@@ -1751,6 +1752,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       {dataStatusViewMode !== "live" && (
         <>
           {serviceName === "instruments-service" && <UpcomingFixtures />}
+          {serviceName === "instruments-service" && <FixturesBrowser />}
           {serviceName === "instruments-service" && <NewListingsCard />}
           {serviceName === "instruments-service" && <UpcomingExpiriesCard />}
           {serviceName === "instruments-service" && <PredictionCatalogueCard />}
