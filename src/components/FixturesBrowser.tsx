@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
+/** ``league_id -> human display_name`` (UAC-resolved server-side; unresolved ids absent). */
+type LeagueNames = Record<string, string>;
+
 function formatDayHeading(dayKey: string): string {
   // dayKey is a plain YYYY-MM-DD (UTC calendar day, no time component) — parse
   // as UTC midnight so the weekday doesn't shift under a negative-offset
@@ -39,11 +42,14 @@ function formatKickoffLocal(iso: string): string {
 
 interface LeagueGroup {
   league_id: string;
+  /** Human name (UAC display_name) if the id resolved, else undefined — the UI
+   *  then shows the raw id alone (honest-absence, never a fabricated name). */
+  league_name?: string;
   fixtureCount: number;
   days: { day: string; fixtures: FixtureRow[] }[];
 }
 
-function groupForDisplay(leagues: FixturesByLeagueAndDay): LeagueGroup[] {
+function groupForDisplay(leagues: FixturesByLeagueAndDay, leagueNames: LeagueNames): LeagueGroup[] {
   const leagueIds = Object.keys(leagues).sort();
   return leagueIds.map((leagueId) => {
     const byDay = leagues[leagueId] ?? {};
@@ -54,7 +60,7 @@ function groupForDisplay(leagues: FixturesByLeagueAndDay): LeagueGroup[] {
         fixtures: [...(byDay[day] ?? [])].sort((a, b) => a.kickoff_utc.localeCompare(b.kickoff_utc)),
       }));
     const fixtureCount = days.reduce((acc, d) => acc + d.fixtures.length, 0);
-    return { league_id: leagueId, fixtureCount, days };
+    return { league_id: leagueId, league_name: leagueNames[leagueId], fixtureCount, days };
   });
 }
 
@@ -89,6 +95,7 @@ export function FixturesBrowser() {
   const [leagueId, setLeagueId] = useState("");
   const [team, setTeam] = useState("");
   const [leagues, setLeagues] = useState<FixturesByLeagueAndDay>({});
+  const [leagueNames, setLeagueNames] = useState<LeagueNames>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,10 +115,12 @@ export function FixturesBrowser() {
         league_id: debouncedLeagueId.trim() || undefined,
         team: debouncedTeam.trim() || undefined,
       });
-      setLeagues(data);
+      setLeagues(data.leagues);
+      setLeagueNames(data.leagueNames);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fixtures");
       setLeagues({});
+      setLeagueNames({});
     } finally {
       setLoading(false);
     }
@@ -121,7 +130,7 @@ export function FixturesBrowser() {
     void load();
   }, [load]);
 
-  const grouped = useMemo(() => groupForDisplay(leagues), [leagues]);
+  const grouped = useMemo(() => groupForDisplay(leagues, leagueNames), [leagues, leagueNames]);
   const totalFixtures = useMemo(() => grouped.reduce((acc, g) => acc + g.fixtureCount, 0), [grouped]);
   const span = useMemo(() => spanDays(startDate, endDate), [startDate, endDate]);
 
@@ -234,7 +243,7 @@ export function FixturesBrowser() {
           </p>
         ) : (
           <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
-            {grouped.map(({ league_id: lid, fixtureCount, days }) => (
+            {grouped.map(({ league_id: lid, league_name: leagueName, fixtureCount, days }) => (
               <details
                 key={lid}
                 className="group/league rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] open:bg-[var(--color-bg-tertiary)]"
@@ -242,7 +251,18 @@ export function FixturesBrowser() {
               >
                 <summary className="cursor-pointer select-none list-none px-3 py-2 flex items-center gap-2 [&::-webkit-details-marker]:hidden">
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-transform group-open/league:rotate-90" />
-                  <span className="text-xs font-semibold text-[var(--color-text-primary)]">{lid}</span>
+                  {/* Human league name when the id resolved (UAC), else the raw id
+                      alone — honest-absence, never a fabricated name. The raw id is
+                      kept as a muted subtitle so it stays discoverable. */}
+                  <span
+                    className="text-xs font-semibold text-[var(--color-text-primary)]"
+                    data-testid={`fixtures-browser-league-name-${lid}`}
+                  >
+                    {leagueName ?? lid}
+                  </span>
+                  {leagueName ? (
+                    <span className="text-[9px] font-mono text-[var(--color-text-muted)]">{lid}</span>
+                  ) : null}
                   <Badge variant="outline" className="text-[9px] font-mono">
                     {days.length} day{days.length === 1 ? "" : "s"} · {fixtureCount} fixture
                     {fixtureCount === 1 ? "" : "s"}

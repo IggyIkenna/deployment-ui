@@ -965,6 +965,15 @@ export type FixtureRow = UpcomingFixture;
 /** ``league_id -> day (YYYY-MM-DD, UTC) -> fixtures`` from ``GET /fixtures/browse``. */
 export type FixturesByLeagueAndDay = Record<string, Record<string, FixtureRow[]>>;
 
+/** Result of ``GET /fixtures/browse``: the grouped fixtures plus a
+ *  ``league_id -> human display_name`` map (UAC-resolved server-side). An id
+ *  with no registry entry is ABSENT from `leagueNames` (honest-absence — the UI
+ *  falls back to the raw id, never a fabricated name). */
+export interface FixturesBrowseResult {
+  leagues: FixturesByLeagueAndDay;
+  leagueNames: Record<string, string>;
+}
+
 export async function fetchFixturesBrowse(opts?: {
   days_back?: number;
   days_forward?: number;
@@ -976,7 +985,7 @@ export async function fetchFixturesBrowse(opts?: {
   /** Absolute window end (YYYY-MM-DD, UTC) — overrides `days_forward`. */
   end_date?: string;
   signal?: AbortSignal;
-}): Promise<FixturesByLeagueAndDay> {
+}): Promise<FixturesBrowseResult> {
   const searchParams = new URLSearchParams();
   if (opts?.days_back != null) {
     searchParams.set("days_back", String(opts.days_back));
@@ -998,8 +1007,12 @@ export async function fetchFixturesBrowse(opts?: {
   }
   const q = searchParams.toString();
   const path = `/fixtures/browse${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ leagues: FixturesByLeagueAndDay; mock?: boolean }>(path, { signal: opts?.signal });
-  return res.leagues ?? {};
+  const res = await fetchJson<{
+    leagues: FixturesByLeagueAndDay;
+    league_names?: Record<string, string>;
+    mock?: boolean;
+  }>(path, { signal: opts?.signal });
+  return { leagues: res.leagues ?? {}, leagueNames: res.league_names ?? {} };
 }
 
 /**
@@ -2858,6 +2871,32 @@ export async function fetchInstrumentCatalogue(opts: {
   if (opts.limit != null) qp.set("limit", String(opts.limit));
   if (opts.offset != null) qp.set("offset", String(opts.offset));
   return fetchJson<InstrumentCatalogueResponse>(`/data-status/catalogue?${qp.toString()}`, { signal: opts.signal });
+}
+
+/**
+ * Distinct venue / instrument_type / data_type values present in the
+ * ``(service, asset_group)`` catalogue, from ``GET
+ * /data-status/catalogue-filter-options`` — populates the Catalogue Explorer's
+ * filter dropdowns. Each list is honest-absence: an axis with no/blank data
+ * comes back empty (the UI then offers only the "Any" default for it).
+ */
+export interface CatalogueFilterOptions {
+  service: string;
+  asset_group: string;
+  venues: string[];
+  instrument_types: string[];
+  data_types: string[];
+}
+
+export async function fetchCatalogueFilterOptions(opts: {
+  service: string;
+  asset_group: string;
+  signal?: AbortSignal;
+}): Promise<CatalogueFilterOptions> {
+  const qp = new URLSearchParams({ service: opts.service, asset_group: opts.asset_group });
+  return fetchJson<CatalogueFilterOptions>(`/data-status/catalogue-filter-options?${qp.toString()}`, {
+    signal: opts.signal,
+  });
 }
 
 /**
