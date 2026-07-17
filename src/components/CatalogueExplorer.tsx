@@ -94,8 +94,8 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
         limit: PAGE_SIZE,
         offset,
       });
-      setRows(data.instruments);
-      setTotal(data.total_count);
+      setRows(data.instruments ?? []);
+      setTotal(data.total_count ?? 0);
       setLabel(data.label || DEFAULT_LABEL);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load catalogue");

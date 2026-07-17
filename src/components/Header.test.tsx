@@ -8,12 +8,13 @@ import { Header } from "./Header";
 import type { HealthResponse } from "../types";
 
 /**
- * Header tests — was sitting at 42.85% function / 71.05% branch.
+ * Header tests.
  *
- * The header has 5 fork points: data-mode chip (4-way), cloud-provider
- * toggle, clear-cache button (idle/loading/cleared), API status chip
- * (healthy/error/checking), and gcs_fuse storage badge. Each rung gets
- * a focused test.
+ * The 5 utility fork points — data-mode chip (4-way), cloud-provider toggle,
+ * clear-cache (idle/loading/cleared), API status (healthy/error/checking) and the
+ * gcs_fuse storage badge — moved BEHIND the StatusMenu chip when the top bar was
+ * rebuilt to carry the page nav (operator 2026-07-17). They are unchanged in
+ * behaviour, so each test now opens the chip first via `openStatusMenu()`.
  */
 
 function makeHealth(overrides: Partial<HealthResponse> = {}): HealthResponse {
@@ -37,6 +38,11 @@ function renderHeader() {
   );
 }
 
+/** The utilities are one click away now — open the chip before asserting on them. */
+function openStatusMenu() {
+  fireEvent.click(screen.getByTestId("status-menu-trigger"));
+}
+
 describe("Header", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -46,22 +52,27 @@ describe("Header", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the brand title + version chip when health resolves", async () => {
+  it("renders the short brand + the version chip inside the status menu", async () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ version: "1.2.3" }));
     renderHeader();
-    expect(screen.getByText(/Unified Trading Deployment/)).toBeTruthy();
+    // Brand shrank to "UTS" to free the middle of the bar for the page nav.
+    expect(screen.getByText("UTS")).toBeTruthy();
+    expect(screen.queryByText(/Unified Trading Deployment/)).toBeNull();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText("v1.2.3")).toBeTruthy());
   });
 
   it("shows the Connected badge when health is healthy", async () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText("Connected")).toBeTruthy());
   });
 
   it("shows the Disconnected badge on health error", async () => {
     vi.spyOn(apiClient, "getHealth").mockRejectedValue(new Error("backend down"));
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText("Disconnected")).toBeTruthy());
   });
 
@@ -69,12 +80,14 @@ describe("Header", () => {
     // FRONTEND_MOCK comes from VITE_MOCK_API=true in .env.test.
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ mock_mode: true }));
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText(/MOCK \(both\)/)).toBeTruthy());
   });
 
   it("renders the MOCK (UI) badge when only frontend is mock", async () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth({ mock_mode: false }));
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText(/MOCK \(UI\)/)).toBeTruthy());
   });
 
@@ -84,6 +97,7 @@ describe("Header", () => {
       status: "ok",
     } as unknown as apiClient.ClearCacheResponse);
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("GCP")).toBeTruthy();
     expect(screen.getByText("AWS")).toBeTruthy();
     fireEvent.click(screen.getByText("AWS"));
@@ -96,6 +110,7 @@ describe("Header", () => {
       status: "ok",
     } as unknown as apiClient.ClearCacheResponse);
     renderHeader();
+    openStatusMenu();
     fireEvent.click(screen.getByText("Clear Cache"));
     await waitFor(() => expect(clearSpy).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText(/Cleared!/)).toBeTruthy());
@@ -105,6 +120,7 @@ describe("Header", () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     vi.spyOn(apiClient, "clearCache").mockRejectedValue(new Error("nope"));
     renderHeader();
+    openStatusMenu();
     fireEvent.click(screen.getByText("Clear Cache"));
     // Component recovers — header stays in DOM, no crash.
     await waitFor(() => expect(screen.getByText("Clear Cache")).toBeTruthy());
@@ -117,6 +133,7 @@ describe("Header", () => {
       }),
     );
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText("GCS Fuse")).toBeTruthy());
   });
 
@@ -127,6 +144,7 @@ describe("Header", () => {
       }),
     );
     renderHeader();
+    openStatusMenu();
     await waitFor(() => expect(screen.getByText("GCS API")).toBeTruthy());
   });
 

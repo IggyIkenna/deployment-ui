@@ -38,13 +38,12 @@ import {
   HelpCircle,
   Layers,
   Radio,
-  Rocket,
   Server,
   ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
 import { DeploymentsContent } from "./Deployments";
@@ -1319,22 +1318,29 @@ function ConsolidatorsTab() {
 
 // ---------------------------------------------------------------------------
 
-const COCKPIT_TABS = [
-  { id: "health", label: "Health", icon: ShieldCheck },
-  { id: "deploy", label: "Deploy", icon: Rocket },
-  { id: "deployments", label: "Deployments", icon: Boxes },
-  { id: "fleet", label: "Fleet", icon: Server },
-  { id: "consolidators", label: "Consolidators", icon: Database },
-  { id: "ci", label: "CI", icon: GitBranch },
-  { id: "alerts", label: "Alerts & Logs", icon: AlertTriangle },
-  { id: "launch", label: "Launch", icon: Rocket },
-  { id: "chaos", label: "Chaos", icon: AlertTriangle },
-  { id: "safety", label: "Safety Ops", icon: ShieldCheck },
+/**
+ * The tab ids this page can render — the `?tab=` whitelist (an unknown value falls back
+ * to `health`). Labels + icons are NOT here: the bar renders from NAV_ITEMS_CANONICAL so
+ * it and the top-left dropdown always show the same 14 entries. Adding a tab means adding
+ * it here AND to NAV_GROUPS; the nav L2 smoke fails if a nav entry names a tab this list
+ * doesn't know (the pane wouldn't mount).
+ */
+const COCKPIT_TAB_IDS = [
+  "health",
+  "deploy",
+  "deployments",
+  "fleet",
+  "consolidators",
+  "ci",
+  "alerts",
+  "launch",
+  "chaos",
+  "safety",
 ] as const;
 
-type CockpitTabId = (typeof COCKPIT_TABS)[number]["id"];
+type CockpitTabId = (typeof COCKPIT_TAB_IDS)[number];
 
-const VALID_TABS = new Set<string>(COCKPIT_TABS.map((t) => t.id));
+const VALID_TABS = new Set<string>(COCKPIT_TAB_IDS);
 
 export function Cockpit() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1370,31 +1376,12 @@ export function Cockpit() {
 
   return (
     <main className="w-full app-shell-gutter py-4" data-testid="cockpit-page">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30">
-          <ShieldCheck className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-        </span>
-        <div>
-          <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">Cockpit</h1>
-          <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
-            unified deployment & health observability — health · deploy · deployments · fleet
-          </p>
-        </div>
-      </div>
-
+      {/* No page header + no tab bar here: the tab bar was lifted into the top bar
+          (TopNavBar) so it is visible on EVERY route, not just this one, and the
+          "Cockpit" title block was pure vertical spend — the top bar already says
+          where you are (operator 2026-07-17). `?tab=` still drives which pane renders;
+          the Tabs value is fed from the URL, so the header's Links select it. */}
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList variant="pill" className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 mb-6">
-          {COCKPIT_TABS.map((t) => {
-            const Icon = t.icon;
-            return (
-              <TabsTrigger key={t.id} value={t.id} className="gap-2" data-testid={`cockpit-tab-${t.id}`}>
-                <Icon className="h-4 w-4" />
-                {t.label}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
         <TabsContent value="health">
           <HealthTab />
         </TabsContent>

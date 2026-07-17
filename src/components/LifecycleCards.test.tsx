@@ -19,6 +19,7 @@ describe("NewListingsCard", () => {
         available_from: "2026-07-15",
         available_to: "",
         mvp: true,
+        available_from_is_venue_first_day: false,
       },
     ]);
   });
@@ -41,6 +42,41 @@ describe("NewListingsCard", () => {
     await waitFor(() => {
       expect(screen.getByTestId("new-listings-empty")).toBeTruthy();
     });
+  });
+
+  // New-listings false-positive guard (plan P2). The catalogue's available_from
+  // degrades to "the day the pipeline first saw it" when a venue declares no
+  // listing date, so a recently-onboarded venue floods this card. Real prod
+  // instance found 2026-07-17: COINBASE-CDE, 99 rows all stamped 2026-07-10.
+  it("flags a row whose listing date is its venue's first captured day", async () => {
+    fetchSpy.mockResolvedValue([
+      {
+        instrument_id: "COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220",
+        instrument_type: "FUTURE",
+        asset_group: "cefi",
+        venue: "COINBASE-CDE",
+        chain: "",
+        base_asset: "BTC",
+        raw_symbol: "BTC-20DEC30-CDE",
+        available_from: "2026-07-10",
+        available_to: "2030-12-20",
+        mvp: false,
+        available_from_is_venue_first_day: true,
+      },
+    ]);
+    render(<NewListingsCard />);
+    const badge = await screen.findByTestId("new-listings-venue-first-day-COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220");
+    expect(badge.textContent).toContain("listing date unconfirmed");
+    // The row is still SHOWN — provenance is surfaced, not silently excluded.
+    expect(screen.getByTestId("new-listings-row-COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220")).toBeTruthy();
+  });
+
+  it("does not flag a genuine listing on an established venue", async () => {
+    render(<NewListingsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId("new-listings-row-BINANCE-SPOT-SOLUSDT")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("new-listings-venue-first-day-BINANCE-SPOT-SOLUSDT")).toBeNull();
   });
 
   it("changing the threshold input triggers a refetch with the new value", async () => {
@@ -77,6 +113,7 @@ describe("UpcomingExpiriesCard", () => {
         available_from: "2026-06-01",
         available_to: "2026-09-19",
         mvp: true,
+        available_from_is_venue_first_day: false,
       },
     ]);
   });

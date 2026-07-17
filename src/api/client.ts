@@ -969,6 +969,12 @@ export async function fetchFixturesBrowse(opts?: {
   days_back?: number;
   days_forward?: number;
   league_id?: string;
+  /** Case-insensitive substring on home/away team name or id (either side). */
+  team?: string;
+  /** Absolute window start (YYYY-MM-DD, UTC) — overrides `days_back`. */
+  start_date?: string;
+  /** Absolute window end (YYYY-MM-DD, UTC) — overrides `days_forward`. */
+  end_date?: string;
   signal?: AbortSignal;
 }): Promise<FixturesByLeagueAndDay> {
   const searchParams = new URLSearchParams();
@@ -980,6 +986,15 @@ export async function fetchFixturesBrowse(opts?: {
   }
   if (opts?.league_id) {
     searchParams.set("league_id", opts.league_id);
+  }
+  if (opts?.team) {
+    searchParams.set("team", opts.team);
+  }
+  if (opts?.start_date) {
+    searchParams.set("start_date", opts.start_date);
+  }
+  if (opts?.end_date) {
+    searchParams.set("end_date", opts.end_date);
   }
   const q = searchParams.toString();
   const path = `/fixtures/browse${q ? `?${q}` : ""}`;
@@ -1004,6 +1019,15 @@ export interface CatalogueLifecycleRow {
   available_from: string;
   available_to: string;
   mvp: boolean;
+  /**
+   * True when this row's `available_from` is the EARLIEST date the catalogue holds
+   * for its venue — so the "listing date" may just be when the pipeline onboarded
+   * the venue, not a real listing. The catalogue stores
+   * MIN(first_day_observed, venue_declared_date) without recording which side won,
+   * so this coincidence is the only available signal. A fact, not a verdict: a
+   * venue that genuinely launched on its first captured day looks identical.
+   */
+  available_from_is_venue_first_day: boolean;
 }
 
 export async function fetchNewListings(opts?: {
@@ -2567,6 +2591,14 @@ export interface ShardInstrumentEntry {
   // every instrument dict now carries is_mvp regardless of the mvp_only
   // toggle, so the drill-down can badge MVP rows even when browsing "all".
   is_mvp?: boolean;
+  /**
+   * P4-B: on-chain contract address of the instrument's BASE leg, read from the
+   * (venue, day) bundle's own column. **ABSENT vs null are different and both
+   * honest**: absent = this venue has no on-chain address at all (all of CeFi —
+   * the bundle carries no such column); null = the column exists but this row's
+   * cell is blank. Never a fabricated or zero address.
+   */
+  base_asset_contract_address?: string | null;
 }
 
 export interface InstrumentsForShardResponse {

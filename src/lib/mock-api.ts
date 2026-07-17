@@ -397,6 +397,62 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
       leagues: {} as Record<string, never>,
     } as unknown as ReturnType<typeof _mkVenue>,
+    // TEAMS — axis flipped global_trigger_date -> per_league_trigger_date by P8
+    // (deployment-api@fb0eec8), matching the IS writer + the UAC shard-atom SSOT.
+    // So it MUST carry a populated `leagues` map: this fixture is what makes the
+    // reclassification checkable in mock mode (it was previously absent entirely,
+    // which is why the P8 browser check came back INCONCLUSIVE).
+    // The per-league counts also model P8's honest-absence case: LA_LIGA has
+    // expected trigger dates but 0 captured (legitimately empty off-season /
+    // not-yet-captured, NOT a gap), while EPL has both boundary dates.
+    TEAMS: {
+      ..._mkVenue(6, 4, 0, 0),
+      completion_pct: 66.67,
+      found_shards: 4,
+      expected_shards: 6,
+      missing_shards: 2,
+      unit: "trigger_dates",
+      axis: "per_league_trigger_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {
+        EPL: { found_shards: 2, expected_shards: 2, missing_shards: 0, completion_pct: 100 },
+        SERIE_A: { found_shards: 2, expected_shards: 2, missing_shards: 0, completion_pct: 100 },
+        LA_LIGA: { found_shards: 0, expected_shards: 2, missing_shards: 2, completion_pct: 0 },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    // STANDINGS — per-league, the data_type P8 says TEAMS must now be consistent with.
+    STANDINGS: {
+      ..._mkVenue(9, 7, 0, 0),
+      completion_pct: 77.78,
+      found_shards: 7,
+      expected_shards: 9,
+      missing_shards: 2,
+      unit: "daily_snapshots",
+      axis: "per_league_periodic",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA", "SERIE_A"],
+      leagues: {
+        EPL: { found_shards: 3, expected_shards: 3, missing_shards: 0, completion_pct: 100 },
+        LA_LIGA: { found_shards: 3, expected_shards: 3, missing_shards: 0, completion_pct: 100 },
+        SERIE_A: { found_shards: 1, expected_shards: 3, missing_shards: 2, completion_pct: 33.33 },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    // VENUES — genuinely GLOBAL reference data (like LEAGUES): no per-league map,
+    // so the UI renders P8's explicit "Global reference entity — no per-league
+    // breakdown" affordance instead of silently omitting the section.
+    VENUES: {
+      ..._mkVenue(52, 52, 0, 0),
+      completion_pct: 100,
+      found_shards: 52,
+      expected_shards: 52,
+      missing_shards: 0,
+      unit: "season_snapshots",
+      axis: "global_season",
+      source: "api_football",
+      expected_leagues: [] as string[],
+      leagues: {} as Record<string, never>,
+    } as unknown as ReturnType<typeof _mkVenue>,
   };
 
   return {
@@ -3332,17 +3388,50 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path === "/api/config/shard-axis-matrix") {
+    // instruments-service entries mirror the UAC SSOT verbatim
+    // (unified_api_contracts/registry/data_status_axis_matrix.py —
+    // SHARD_AXIS_MATRIX / BREAKDOWN_AXES / PRIMARY_AXIS). Copying the REAL axes
+    // matters: `isHierarchicalDrilldownRedundant` (P5) decides purely on whether
+    // an IS asset_group's shard axes are a subset of {venue, chain}, and
+    // `BreakdownsAccordion` (P4-A) only mounts when breakdown_axes is non-empty
+    // — a hand-waved shape here would make mock mode agree with a bug.
     return json({
       shard_axes: {
         "market-tick-data-service": {
           prediction: ["venue", "canonical_question_group", "data_type"],
         },
+        "instruments-service": {
+          cefi: ["venue"],
+          tradfi: ["venue"],
+          defi: ["venue", "chain"],
+          sports: ["data_type", "league_id"],
+          prediction: ["venue", "canonical_question_group"],
+        },
       },
-      display_axes: { "market-tick-data-service": { prediction: [] } },
-      primary_axis: { "market-tick-data-service": { prediction: "venue" } },
+      display_axes: {
+        "market-tick-data-service": { prediction: [] },
+        "instruments-service": { cefi: [], tradfi: [], defi: [], sports: [], prediction: [] },
+      },
+      primary_axis: {
+        "market-tick-data-service": { prediction: "venue" },
+        "instruments-service": {
+          cefi: "venue",
+          tradfi: "venue",
+          defi: "venue",
+          sports: "data_type",
+          prediction: "venue",
+        },
+      },
       breakdown_axes: {
         "market-tick-data-service": {
           prediction: ["canonical_question_group", "data_type"],
+        },
+        "instruments-service": {
+          cefi: ["instrument_type", "data_type"],
+          tradfi: ["instrument_type", "data_type"],
+          defi: ["instrument_type", "data_type"],
+          sports: ["source"],
+          prediction: ["data_type"],
         },
       },
     });
@@ -3763,6 +3852,156 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       "kalshi-economic-event": 60,
       OTHER: 12,
     };
+    // Service-aware (2026-07-17): this handler previously returned the SINGLE
+    // PREDICTION entry below regardless of `?service=`, so the instruments-service
+    // page rendered no cefi/tradfi/defi cards in mock mode at all — which is why
+    // the P5/P7/P4-A browser checks kept coming back INCONCLUSIVE rather than
+    // passing or failing. The instruments-service branch below carries the real
+    // per-asset-group shape so those three behaviours are actually exercisable:
+    //   * P5  — cefi/tradfi/defi shard axes ⊆ {venue, chain} => the redundant
+    //           hierarchical drilldown is suppressed; sports/prediction keep it.
+    //   * P7  — ONLY defi carries `extras.chains`; cefi must render venue-only.
+    //   * P4-A — `instrument_type` breakdowns deliberately mix canonical
+    //           (SPOT_PAIR/PERPETUAL/FUTURE) with legacy-lowercase (`spot`,
+    //           `perpetual`) and the blank `__legacy__` sentinel, so
+    //           `canonicalInstrumentTypeLabel` + the axis-aware "(unlabeled)" vs
+    //           "(legacy — pre-job_id)" rendering both have real inputs.
+    // Read from the RAW `url`, not `path` — handleRoute strips the query string
+    // out of `path` (`.replace(/\?.*$/, "")`), so a searchParams read there is
+    // always empty. Same convention as the other query-aware handlers above.
+    const serviceParam = new URL(url, "http://x").searchParams.get("service");
+    if (serviceParam === "instruments-service") {
+      return json({
+        service: "instruments-service",
+        asset_groups: {
+          CEFI: {
+            total_shards: 79_943,
+            total_instrument_rows: 4_850_000,
+            total_instruments: 424_465,
+            unique_dates: 2_670,
+            unique_venues: 29,
+            sub_dimension_label: "venues",
+            group_axis: "venue",
+            date_range: { start: "2019-03-30", end: "2026-07-17" },
+            latest_day: "2026-07-17",
+            latest_day_instruments: { "BINANCE-SPOT": 1198, DERIBIT: 334_468 },
+            latest_day_total: 335_666,
+            breakdowns: {
+              instrument_type: {
+                SPOT_PAIR: 20_653,
+                PERPETUAL: 24_007,
+                FUTURE: 5_589,
+                OPTION: 3_120,
+                spot: 502,
+                perpetual: 1_150,
+                __legacy__: 13_046,
+              },
+              data_type: { instruments: 79_659, __legacy__: 284 },
+            },
+          },
+          DEFI: {
+            total_shards: 175_172,
+            total_instrument_rows: 3_030_000,
+            total_instruments: 10_883,
+            unique_dates: 2_666,
+            unique_venues: 63,
+            sub_dimension_label: "venues",
+            group_axis: "venue",
+            date_range: { start: "2021-04-23", end: "2026-07-17" },
+            latest_day: "2026-07-17",
+            latest_day_instruments: { "UNISWAP_V3-ETHEREUM": 473, "AAVE_V3-ETHEREUM": 113 },
+            latest_day_total: 586,
+            breakdowns: {
+              instrument_type: {
+                POOL: 7_212,
+                SPOT_ASSET: 1_389,
+                A_TOKEN: 1_117,
+                DEBT_TOKEN: 1_060,
+                LST: 3,
+                STAKING: 3,
+                __legacy__: 65_443,
+              },
+              data_type: { instruments: 175_172 },
+            },
+            // P7: chains are a DEFI-only sub-dimension (defi shard axes are
+            // ("venue","chain")). cefi above deliberately has none.
+            extras: { chains: { ETHEREUM: 5_120, BASE: 2_310, ARBITRUM: 1_880, POLYGON: 940, SOLANA: 633 } },
+          },
+          TRADFI: {
+            total_shards: 27_159,
+            total_instrument_rows: 47_189_618,
+            total_instruments: 1_173_803,
+            unique_dates: 1_820,
+            unique_venues: 6,
+            sub_dimension_label: "venues",
+            group_axis: "venue",
+            date_range: { start: "2019-06-04", end: "2026-07-17" },
+            latest_day: "2026-07-17",
+            latest_day_instruments: { CME: 74_005, CBOE: 12_400 },
+            latest_day_total: 86_405,
+            breakdowns: {
+              instrument_type: {
+                OPTION: 69_704,
+                COMBO: 4_437,
+                FUTURE: 347,
+                EQUITY: 2_100,
+                ETF: 480,
+                INDEX: 96,
+              },
+              data_type: { instruments: 27_159 },
+            },
+          },
+          SPORTS: {
+            total_shards: 5_353_331,
+            total_instrument_rows: 5_353_331,
+            total_instruments: 27_240,
+            unique_dates: 1_400,
+            unique_venues: 12,
+            sub_dimension_label: "data types",
+            group_axis: "data_type",
+            date_range: { start: "2022-08-01", end: "2026-07-17" },
+            latest_day: "2026-07-17",
+            latest_day_instruments: { FIXTURES: 320, TEAMS: 40 },
+            latest_day_total: 360,
+            // sports breaks down on `source` (UAC BREAKDOWN_AXES), not instrument_type.
+            breakdowns: {
+              source: {
+                api_football: 4_890_000,
+                mdps_odds_horizon_bucket: 356_131,
+                instruments_service: 100_472,
+                odds_api: 6_728,
+              },
+            },
+          },
+          PREDICTION: {
+            total_shards: 26_762,
+            total_instrument_rows: 2_673_230,
+            total_instruments: 2_673_230,
+            unique_dates: 900,
+            unique_venues: 2,
+            sub_dimension_label: "question groups",
+            group_axis: "canonical_question_group",
+            date_range: { start: "2023-01-01", end: "2026-07-17" },
+            latest_day: "2026-07-17",
+            latest_day_instruments: { POLYMARKET: 1_400, KALSHI: 900 },
+            latest_day_total: 2_300,
+            breakdowns: {
+              data_type: { prediction_market_lifecycle: 25_053, prediction_canonical_question_group: 1_709 },
+            },
+          },
+        },
+        totals: {
+          shards: 5_662_367,
+          instrument_rows: 63_096_179,
+          dates_across_asset_groups: 2_670,
+          latest_day_instruments: 425_317,
+          unique_instruments: 4_309_631,
+        },
+        totals_source: "rollup",
+        served_from: "mock",
+        mock: true,
+      });
+    }
     return json({
       service: "market-tick-data-service",
       asset_groups: {
@@ -3792,10 +4031,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       served_from: "mock",
       mock: true,
     });
-  }
-
-  if (path.match(/^\/api\/data-status/)) {
-    return json(MOCK_DATA_STATUS);
   }
 
   // Cloud builds
@@ -4235,6 +4470,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           capture_status: "captured",
           error_reason: "",
           attempted_at: `${day}T00:10:00+00:00`,
+          // P4-B: on-chain BASE-leg address (real WETH mainnet address, so the
+          // copyable affordance renders against a plausible value in mock mode).
+          // The two rows below deliberately OMIT the field — that is the honest
+          // CeFi shape (no on-chain address), and it keeps the mock exercising
+          // both branches of the render gate.
+          base_asset_contract_address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
         },
         {
           instrument_id: `${venue}-EMPTY-1`,
@@ -4390,6 +4631,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-07-15",
           available_to: "",
           mvp: true,
+          available_from_is_venue_first_day: false,
         },
         {
           instrument_id: "AAVE_V3-ETHEREUM-POOL-WETH",
@@ -4402,6 +4644,24 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-07-12",
           available_to: "",
           mvp: false,
+          available_from_is_venue_first_day: false,
+        },
+        // Models the REAL onboarding-flood false positive found on prod GCS
+        // 2026-07-17 (COINBASE-CDE: 99 rows all stamped the venue's first
+        // captured day, with expiries out to 2030) so mock mode renders the
+        // "listing date unconfirmed" affordance.
+        {
+          instrument_id: "COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220",
+          instrument_type: "FUTURE",
+          asset_group: "cefi",
+          venue: "COINBASE-CDE",
+          chain: "",
+          base_asset: "BTC",
+          raw_symbol: "BTC-20DEC30-CDE",
+          available_from: "2026-07-10",
+          available_to: "2030-12-20",
+          mvp: false,
+          available_from_is_venue_first_day: true,
         },
       ],
       mock: true,
@@ -4411,60 +4671,105 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Mirrors the real ``FixturesByLeagueAndDay`` shape (deployment-api
   // routes/fixtures_browse.py).
   if (path.startsWith("/api/fixtures/browse")) {
-    return json({
-      leagues: {
-        EPL: {
-          "2026-07-16": [
-            {
-              fixture_id: "epl-1001",
-              kickoff_utc: "2026-07-16T15:00:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-ars",
-              away_team_id: "t-che",
-              home_team_name: "Arsenal",
-              away_team_name: "Chelsea",
-              venue_id: "v-emi",
-              venue_name: "Emirates Stadium",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-          "2026-07-17": [
-            {
-              fixture_id: "epl-1002",
-              kickoff_utc: "2026-07-17T18:30:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-liv",
-              away_team_id: "t-mci",
-              home_team_name: "Liverpool",
-              away_team_name: "Manchester City",
-              venue_id: "v-anf",
-              venue_name: "Anfield",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-        },
-        MLS: {
-          "2026-07-16": [
-            {
-              fixture_id: "mls-2001",
-              kickoff_utc: "2026-07-16T23:00:00+00:00",
-              league_id: "MLS",
-              home_team_id: "t-lafc",
-              away_team_id: "t-lag",
-              home_team_name: "LAFC",
-              away_team_name: "LA Galaxy",
-              venue_id: "v-bmo",
-              venue_name: "BMO Stadium",
-              status: "NS",
-              round: "Regular Season",
-            },
-          ],
-        },
+    // Honour the date/league/team narrows (operator ask 2026-07-17) rather than
+    // always returning the full set — an unfiltered mock makes the filter bar
+    // look BROKEN locally (you type a team and nothing changes).
+    // Structural local mirror of the client's `FixtureRow` — declared here
+    // rather than imported from ../api/client to avoid a circular import
+    // (client.ts pulls in this module to intercept fetches).
+    type MockFixtureRow = {
+      fixture_id: string;
+      kickoff_utc: string;
+      league_id: string;
+      home_team_id: string;
+      away_team_id: string;
+      home_team_name: string;
+      away_team_name: string;
+      venue_id: string;
+      venue_name: string;
+      status: string;
+      round: string;
+    };
+    const browseQs = new URLSearchParams(path.split("?")[1] ?? "");
+    const teamNeedle = (browseQs.get("team") ?? "").trim().toLowerCase();
+    const leagueNeedle = (browseQs.get("league_id") ?? "").trim();
+    const startDay = (browseQs.get("start_date") ?? "").trim();
+    const endDay = (browseQs.get("end_date") ?? "").trim();
+    const allLeagues: Record<string, Record<string, MockFixtureRow[]>> = {
+      EPL: {
+        "2026-07-16": [
+          {
+            fixture_id: "epl-1001",
+            kickoff_utc: "2026-07-16T15:00:00+00:00",
+            league_id: "EPL",
+            home_team_id: "t-ars",
+            away_team_id: "t-che",
+            home_team_name: "Arsenal",
+            away_team_name: "Chelsea",
+            venue_id: "v-emi",
+            venue_name: "Emirates Stadium",
+            status: "NS",
+            round: "Regular Season - 1",
+          },
+        ],
+        "2026-07-17": [
+          {
+            fixture_id: "epl-1002",
+            kickoff_utc: "2026-07-17T18:30:00+00:00",
+            league_id: "EPL",
+            home_team_id: "t-liv",
+            away_team_id: "t-mci",
+            home_team_name: "Liverpool",
+            away_team_name: "Manchester City",
+            venue_id: "v-anf",
+            venue_name: "Anfield",
+            status: "NS",
+            round: "Regular Season - 1",
+          },
+        ],
       },
-      mock: true,
-    });
+      MLS: {
+        "2026-07-16": [
+          {
+            fixture_id: "mls-2001",
+            kickoff_utc: "2026-07-16T23:00:00+00:00",
+            league_id: "MLS",
+            home_team_id: "t-lafc",
+            away_team_id: "t-lag",
+            home_team_name: "LAFC",
+            away_team_name: "LA Galaxy",
+            venue_id: "v-bmo",
+            venue_name: "BMO Stadium",
+            status: "NS",
+            round: "Regular Season",
+          },
+        ],
+      },
+    };
+
+    const matchesTeam = (fx: MockFixtureRow): boolean =>
+      !teamNeedle ||
+      [fx.home_team_name, fx.away_team_name, fx.home_team_id, fx.away_team_id].some((v) =>
+        String(v).toLowerCase().includes(teamNeedle),
+      );
+    const inDayRange = (day: string): boolean => (!startDay || day >= startDay) && (!endDay || day <= endDay);
+
+    const filteredLeagues: Record<string, Record<string, MockFixtureRow[]>> = {};
+    for (const [lid, byDay] of Object.entries(allLeagues)) {
+      if (leagueNeedle && lid !== leagueNeedle) {
+        continue;
+      }
+      for (const [day, fixtures] of Object.entries(byDay)) {
+        if (!inDayRange(day)) {
+          continue;
+        }
+        const kept = fixtures.filter(matchesTeam);
+        if (kept.length > 0) {
+          (filteredLeagues[lid] ??= {})[day] = kept;
+        }
+      }
+    }
+    return json({ leagues: filteredLeagues, mock: true });
   }
   if (path.startsWith("/api/instruments/upcoming-expiries")) {
     return json({
@@ -4480,6 +4785,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-06-01",
           available_to: "2026-09-19",
           mvp: true,
+          available_from_is_venue_first_day: false,
         },
         {
           instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
@@ -4492,6 +4798,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-06-15",
           available_to: "2026-09-26",
           mvp: false,
+          available_from_is_venue_first_day: false,
         },
       ],
       mock: true,
@@ -5191,6 +5498,23 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Fleet infra-VM health (AO /api/fleet/summary proxy)
   if (path === "/api/fleet/infra-vm-health") {
     return json(mockInfraVmHealth());
+  }
+
+  // Generic /api/data-status/* fallback (the turbo coverage-summary shape) —
+  // MUST be the last data-status check in this function. Every specific
+  // /api/data-status/<endpoint> handler above (catalogue, prediction-catalogue,
+  // instruments-for-shard, honest-coverage, turbo, manifest, venue-filters,
+  // list-files, download-catalogue-csv, instruments, instrument-availability,
+  // ...) needs to match FIRST; this used to sit near the top of the function
+  // (pre-dating most of those routes, added 2026-06-16) and silently shadowed
+  // every one of them for over a month — any /api/data-status/<anything> request
+  // matched this regex before reaching its own specific handler further down,
+  // so those endpoints always got the big turbo MOCK_DATA_STATUS payload instead
+  // of their own real response shape (found 2026-07-17 while browser-verifying
+  // the Catalogue Explorer — it silently returned {asset_groups: {...}} instead
+  // of {instruments: [...], total_count, label, ...}). Keep this LAST.
+  if (path.match(/^\/api\/data-status/)) {
+    return json(MOCK_DATA_STATUS);
   }
 
   return json({ error: "Mock: no handler", path }, 404);

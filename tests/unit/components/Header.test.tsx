@@ -38,19 +38,28 @@ function renderHeader() {
 
 import { useHealth } from "../../../src/hooks/useHealth";
 
+/**
+ * The API/version/cache utilities moved behind the StatusMenu chip when the top bar
+ * was rebuilt to carry the page nav (operator 2026-07-17) — open it before asserting.
+ */
+function openStatusMenu() {
+  fireEvent.click(screen.getByTestId("status-menu-trigger"));
+}
+
 describe("Header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the app title", () => {
+  it("renders the short brand", () => {
     (useHealth as ReturnType<typeof vi.fn>).mockReturnValue({
       health: null,
       isHealthy: false,
       error: null,
     });
     renderHeader();
-    expect(screen.getByText("Unified Trading Deployment")).toBeTruthy();
+    // Shrunk to "UTS" so the middle of the bar can carry the page nav.
+    expect(screen.getByText("UTS")).toBeTruthy();
   });
 
   it("renders API status label", () => {
@@ -60,7 +69,8 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
-    // "API" text appears in the status area
+    openStatusMenu();
+    // "API" heading appears in the status panel
     const apiLabels = screen.getAllByText("API");
     expect(apiLabels.length).toBeGreaterThan(0);
   });
@@ -72,6 +82,7 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("Connected")).toBeTruthy();
   });
 
@@ -82,6 +93,7 @@ describe("Header", () => {
       error: "Connection refused",
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("Disconnected")).toBeTruthy();
   });
 
@@ -92,6 +104,7 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("v2.3.1")).toBeTruthy();
   });
 
@@ -102,6 +115,7 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("Clear Cache")).toBeTruthy();
   });
 
@@ -115,6 +129,7 @@ describe("Header", () => {
     (clearCache as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
     renderHeader();
+    openStatusMenu();
     fireEvent.click(screen.getByText("Clear Cache"));
     await waitFor(() => {
       expect(screen.getByText("Cleared!")).toBeTruthy();
@@ -133,6 +148,7 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("GCS Fuse")).toBeTruthy();
   });
 
@@ -148,6 +164,7 @@ describe("Header", () => {
       error: null,
     });
     renderHeader();
+    openStatusMenu();
     expect(screen.getByText("GCS API")).toBeTruthy();
   });
 });

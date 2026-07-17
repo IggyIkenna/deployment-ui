@@ -45,6 +45,40 @@ function captureStatusLabel(status: CaptureStatusValue | undefined): string {
   }
 }
 
+/**
+ * P4-B: the instrument's on-chain BASE-leg contract address, truncated for the
+ * row but copyable in full — the whole point is pasting it into a block explorer.
+ *
+ * Only rendered when the backend actually supplied an address (DeFi rows read it
+ * from their own bundle column). CeFi rows have no on-chain address, so the field
+ * is absent and nothing renders — honest absence rather than an empty box.
+ */
+function CopyableAddress({ address, instrumentId }: { address: string; instrumentId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      // Full address in the tooltip: the row shows a head/tail elision, so the
+      // untruncated value must stay reachable without copying.
+      title={copied ? "Copied!" : `${address} — click to copy`}
+      aria-label={`Copy contract address for ${instrumentId}`}
+      data-testid={`contract-address-${instrumentId}`}
+      data-address={address}
+      className="text-[9px] font-mono px-1 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-accent-cyan)] hover:border-[var(--color-accent-cyan)] shrink-0"
+    >
+      {copied ? "✓ copied" : `${address.slice(0, 6)}…${address.slice(-4)}`}
+    </button>
+  );
+}
+
 function CaptureStatusBadge({
   status,
   errorReason,
@@ -935,6 +969,9 @@ function InstrumentsModalStandard({ coord, onClose }: { coord: ShardCoordinate; 
                     >
                       MVP
                     </span>
+                  )}
+                  {i.base_asset_contract_address && (
+                    <CopyableAddress address={i.base_asset_contract_address} instrumentId={i.instrument_id} />
                   )}
                   <CaptureStatusBadge status={status} errorReason={i.error_reason} attemptedAt={i.attempted_at} />
                   {status === "attempted_failed" && (

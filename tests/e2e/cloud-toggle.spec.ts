@@ -49,7 +49,23 @@ async function setupMocks(page: Page) {
   // clearCache endpoint called by Header when switching providers.
   await page.route("**/api/turbo/clear", (route) => route.fulfill({ json: { status: "ok" } }));
 
-  await page.route("**/api/**", (route) => route.fulfill({ status: 404, json: {} }));
+  // Catch-all for un-stubbed API calls. MUST match on the pathname, not the `**/api/**`
+  // glob: under the Vite dev server the app's own source modules are served from
+  // /src/api/client.ts, which that glob also matches — 404-ing it meant React never
+  // booted and every test here saw a blank page (pre-existing; found 2026-07-17).
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    (route) => route.fulfill({ status: 404, json: {} }),
+  );
+}
+
+/**
+ * The cloud toggle moved into the StatusMenu panel when the top bar was rebuilt to carry
+ * the page nav (operator 2026-07-17). Open the chip before reaching for GCP/AWS.
+ */
+async function openStatusMenu(page: import("@playwright/test").Page) {
+  await page.getByTestId("status-menu-trigger").click();
+  await expect(page.getByTestId("status-menu")).toBeVisible();
 }
 
 test("clicking AWS toggle does not crash the page", async ({ page }) => {
@@ -60,8 +76,9 @@ test("clicking AWS toggle does not crash the page", async ({ page }) => {
 
   await page.goto("/home");
   await page.waitForLoadState("networkidle");
+  await openStatusMenu(page);
 
-  // The Header renders GCP and AWS toggle buttons.
+  // The StatusMenu panel renders GCP and AWS toggle buttons.
   const awsBtn = page.getByRole("button", { name: "AWS" });
   await expect(awsBtn).toBeVisible({ timeout: 5000 });
   await awsBtn.click();
@@ -80,6 +97,7 @@ test("GCP button is visible in header on initial load", async ({ page }) => {
 
   await page.goto("/home");
   await page.waitForLoadState("networkidle");
+  await openStatusMenu(page);
 
   await expect(page.getByRole("button", { name: "GCP" })).toBeVisible({ timeout: 5000 });
   await expect(page.getByRole("button", { name: "AWS" })).toBeVisible({ timeout: 5000 });
@@ -93,6 +111,7 @@ test("switching to AWS then back to GCP does not crash", async ({ page }) => {
 
   await page.goto("/home");
   await page.waitForLoadState("networkidle");
+  await openStatusMenu(page);
 
   const awsBtn = page.getByRole("button", { name: "AWS" });
   await awsBtn.click();

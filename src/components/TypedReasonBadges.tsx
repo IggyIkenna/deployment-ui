@@ -45,6 +45,7 @@ export const EMPTY_REASON_KEYS = [
   "EXPECTED_PARTIAL_HALF_DAY",
   "EXPECTED_REFDATA_CADENCE_CHANGE",
   "EXPECTED_DEPRECATED_DATA_TYPE",
+  "EXPECTED_UPSTREAM_OUT_OF_BOUNDS",
   "SOURCE_RETURNED_ZERO",
   "empty_unclassified",
 ] as const;
@@ -70,14 +71,18 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
   },
   EXPECTED_PAUSED_LEAGUE: {
     short: "paused-league",
+    description: "Sports source paused league for this date window (UAC KNOWN_COVERAGE_GAPS)",
+    color: "var(--color-accent-purple)",
+  },
+  EXPECTED_UPSTREAM_OUT_OF_BOUNDS: {
+    short: "out-of-bounds",
     description:
-      "Sports source paused league for this date window (UAC KNOWN_COVERAGE_GAPS)",
+      "Evidenced bounded range that was never capturable — OUT OF MODEL (excluded from the coverage denominator, not a gap). UAC COVERAGE_EXCLUSIONS; every range carries a probe + is continuously falsified",
     color: "var(--color-accent-purple)",
   },
   EXPECTED_PRE_SOURCE_COVERAGE_START: {
     short: "pre-source-start",
-    description:
-      "Date predates the source's earliest covered day (UAC SOURCE_COVERAGE_START)",
+    description: "Date predates the source's earliest covered day (UAC SOURCE_COVERAGE_START)",
     color: "var(--color-accent-cyan)",
   },
   EXPECTED_PRE_GENESIS_CHAIN: {
@@ -117,14 +122,12 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
   },
   SOURCE_RETURNED_ZERO: {
     short: "source-zero",
-    description:
-      "Source replied 200 with zero rows — honest absence (live-tradeable but illiquid)",
+    description: "Source replied 200 with zero rows — honest absence (live-tradeable but illiquid)",
     color: "var(--color-accent-yellow)",
   },
   empty_unclassified: {
     short: "unclassified",
-    description:
-      "Legacy null-reason rows pending Tier 3D.1 reconciler back-fill",
+    description: "Legacy null-reason rows pending Tier 3D.1 reconciler back-fill",
     color: "var(--color-text-muted)",
   },
 };
@@ -154,56 +157,47 @@ interface FailurePillarMeta {
 const FAILURE_PILLAR_META: Record<FailurePillarKey, FailurePillarMeta> = {
   failed_timestamp_bias: {
     short: "timestamp-bias",
-    description:
-      "UpstreamTimestampBiasError — source ticks fell outside requested day after interval_idx filter",
+    description: "UpstreamTimestampBiasError — source ticks fell outside requested day after interval_idx filter",
     color: "var(--color-accent-red)",
   },
   failed_malformed: {
     short: "malformed",
-    description:
-      "MalformedTickFieldError — source returned ticks but downstream calc dropped all rows",
+    description: "MalformedTickFieldError — source returned ticks but downstream calc dropped all rows",
     color: "var(--color-accent-red)",
   },
   failed_cluster: {
     short: "cluster",
-    description:
-      "ClusterCoverageError / MissingClusterValidationError — bundled shard missing required clusters",
+    description: "ClusterCoverageError / MissingClusterValidationError — bundled shard missing required clusters",
     color: "var(--color-accent-orange)",
   },
   failed_lookahead_bias: {
     short: "lookahead",
-    description:
-      "LookaheadBiasError — feature compute consumed a row whose available_at violated the horizon",
+    description: "LookaheadBiasError — feature compute consumed a row whose available_at violated the horizon",
     color: "var(--color-accent-red)",
   },
   failed_nan_ratio: {
     short: "nan-ratio",
-    description:
-      "NaN-ratio gate failure (placeholder pillar — class lands in writegate Phase 1A.future)",
+    description: "NaN-ratio gate failure (placeholder pillar — class lands in writegate Phase 1A.future)",
     color: "var(--color-accent-orange)",
   },
   failed_schema: {
     short: "schema",
-    description:
-      "SchemaMismatchError — parquet schema violated UAC contract (placeholder pillar)",
+    description: "SchemaMismatchError — parquet schema violated UAC contract (placeholder pillar)",
     color: "var(--color-accent-orange)",
   },
   failed_empty_placeholder_backfill: {
     short: "placeholder-backfill",
-    description:
-      "EmptyPlaceholderBugBackfill — reconciler flagged 1440-NaN historical row for re-attempt",
+    description: "EmptyPlaceholderBugBackfill — reconciler flagged 1440-NaN historical row for re-attempt",
     color: "var(--color-accent-orange)",
   },
   failed_missing_available_at: {
     short: "missing-available-at",
-    description:
-      "MissingAvailableAt — write-time guard caught a row missing its available_at column",
+    description: "MissingAvailableAt — write-time guard caught a row missing its available_at column",
     color: "var(--color-accent-red)",
   },
   failed_other: {
     short: "other",
-    description:
-      "Unrecognised typed-error class — surface to ensure new failure modes don't disappear silently",
+    description: "Unrecognised typed-error class — surface to ensure new failure modes don't disappear silently",
     color: "var(--color-text-muted)",
   },
 };
@@ -294,19 +288,14 @@ export function TypedReasonBadges({
   const prefix = testIdPrefix ? `${testIdPrefix}-` : "";
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-1"
-      data-testid={`${prefix}typed-reason-badges`}
-    >
+    <div className="flex flex-wrap items-center gap-1" data-testid={`${prefix}typed-reason-badges`}>
       {pills.map((pill) => {
         const tooltip = `${pill.key}: ${pill.description} (${pill.count} shard${pill.count === 1 ? "" : "s"})`;
         const testId = `${prefix}typed-reason-badge-${pill.key}`;
         const interactive = Boolean(onBadgeClick);
         const className =
           "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-mono leading-none whitespace-nowrap " +
-          (interactive
-            ? "cursor-pointer hover:bg-[var(--color-bg-hover)] "
-            : "");
+          (interactive ? "cursor-pointer hover:bg-[var(--color-bg-hover)] " : "");
         const style = {
           borderColor: pill.color,
           color: pill.color,

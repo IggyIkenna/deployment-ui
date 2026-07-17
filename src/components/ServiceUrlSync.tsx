@@ -19,9 +19,11 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-// `/home` is the per-service home shell (cockpit is the default `/`); the others are
-// LandingTabs sub-routes. All clear the service selection.
-const LANDING_PATHS = new Set(["/home", "/epics", "/repos", "/alerts", "/fleet"]);
+// `/home` is the per-service home shell (cockpit is the default `/`) and the only path
+// that renders it with no service selected. The old LandingTabs siblings (/epics, /repos,
+// /alerts, /fleet, /infra) are no longer part of this shell — /epics is its own page and
+// the rest redirect into their cockpit tab — so they must NOT be listed here.
+const LANDING_PATHS = new Set(["/home"]);
 
 interface ServiceUrlSyncProps {
   selectedService: string | null;

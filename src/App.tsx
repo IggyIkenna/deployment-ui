@@ -50,7 +50,8 @@ import { CostObservability } from "./pages/CostObservability";
 import { Deployments } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
 import { RepoDetailPanel } from "./pages/RepoCi";
-import { LandingTabs } from "./components/LandingTabs";
+import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
+import { EpicsPlansContent } from "./pages/EpicsPlans";
 import { VmDetail } from "./pages/VmDetail";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { LiveDeployments } from "./pages/LiveDeployments";
@@ -145,9 +146,8 @@ function App() {
                 />
                 <Routes>
                   {/* Cockpit is the DEFAULT page of the deployment UI (operator 2026-06-23).
-                      The per-service home shell (ServiceList + deploy/monitor tabs) moved to
-                      /home; /repos, /alerts, /epics, /fleet still fall through to the `*`
-                      shell below, and /service/* deep-links are unchanged. */}
+                      The per-service home shell (ServiceList + deploy/monitor tabs) lives at
+                      /home (the `*` fall-through below); /service/* deep-links are unchanged. */}
                   <Route path="/" element={<Navigate to="/cockpit" replace />} />
                   <Route path="/cockpit" element={<Cockpit />} />
                   <Route path="/vm-deployments" element={<VmDeployments />} />
@@ -158,12 +158,30 @@ function App() {
                   <Route path="/ops/live-deployments" element={<LiveDeployments />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
-                  {/* /repos falls through to the home shell (`*`) so Repos CI renders as a
-                      first-class LandingTabs tab, not a separate full-page app. */}
                   <Route path="/safety-ops" element={<SafetyOps />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
                   <Route path="/research/execution-backtests" element={<ExecutionBacktests />} />
+                  {/* Epics is its own page now — it was a LandingTabs tab, and that bar is
+                      gone (operator 2026-07-17: the top bar already lists every screen, so a
+                      second 6-item bar under it was pure duplication). */}
+                  <Route
+                    path="/epics"
+                    element={
+                      <main className="w-full app-shell-gutter py-4">
+                        <EpicsPlansContent />
+                      </main>
+                    }
+                  />
+                  {/* The other four LandingTabs tabs were DUPLICATES of cockpit tabs — the same
+                      components under a second chrome. With the bar gone they redirect to the
+                      canonical tab, which keeps every existing deep-link working.
+                      /fleet + /infra both land on the Fleet tab: it embeds BOTH the git and the
+                      infra sections (cockpit-fleet-git / cockpit-fleet-infra). */}
+                  <Route path="/repos" element={<Navigate to="/cockpit?tab=ci" replace />} />
+                  <Route path="/alerts" element={<Navigate to="/cockpit?tab=alerts" replace />} />
+                  <Route path="/fleet" element={<Navigate to="/cockpit?tab=fleet" replace />} />
+                  <Route path="/infra" element={<Navigate to="/cockpit?tab=fleet" replace />} />
                   <Route
                     path="*"
                     element={
@@ -535,7 +553,7 @@ function App() {
                                 );
                               })()
                             ) : (
-                              <LandingTabs onSelectService={setSelectedService} />
+                              <ServicesOverviewTab onSelectService={setSelectedService} />
                             )}
                           </div>
                         </div>

@@ -4,17 +4,16 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  BarChart2,
   Boxes,
   CircleDollarSign,
   Database,
   FlaskConical,
   GitBranch,
   Layers,
-  Radio,
   Rocket,
   Server,
   ShieldCheck,
+  Trophy,
   X,
 } from "lucide-react";
 
@@ -24,22 +23,67 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   desc: string;
+  /** Compact label for the always-visible cockpit bar (the dropdown uses `label`). */
+  short?: string;
 };
-type NavGroup = { heading: string; items: NavItem[] };
+/** `legacy: true` = the redundant-route quarantine (see NAV_GROUPS). */
+type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
 
 /**
  * Single source of truth for the top-bar page navigation. Consumed by the desktop
  * dropdown (NavMenu) and the mobile hamburger list (Header) so the two never drift.
- * Internal operator tool — every deployment/health/research surface is one click from
- * the top-left trigger; the trigger no longer force-navigates to /cockpit (operator
- * 2026-07-08 — the cockpit was a forced full-page trip, this is a dismissable menu).
+ * Internal operator tool — every surface is one click from the top-left trigger; the
+ * trigger does not force-navigate (operator 2026-07-08 — dismissable menu).
+ *
+ * ONE ENTRY PER SCREEN (2026-07-17 nav audit). The menu previously mixed chromes —
+ * some entries pointed at a cockpit tab, others at the standalone page holding the
+ * SAME component — so which chrome you got depended on which item you clicked, and
+ * the same content appeared under two labels. Every canonical entry below now points
+ * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` and
+ * `/vm-deployments` are canonical because they have no cockpit twin (the cockpit's
+ * Fleet tab embeds only a COMPACT vm-deployments view).
+ *
+ * The `legacy` group is the legacy URLs, kept visible-but-quarantined so the operator can
+ * compare chromes before deciding what to delete. Two kinds live here now: routes that
+ * still render a SECOND COPY of the screen (compare them against the canonical entry), and
+ * — since the LandingTabs bar was deleted 2026-07-17 — routes that merely REDIRECT to the
+ * canonical tab (kept so old bookmarks/deep-links survive). Listing the redirects here is
+ * also what keeps them reachable: `scripts/orphan-audit.ts` fails a declared route with no
+ * inbound <Link>, and the whitelist's three reason prefixes (MACHINE-ONLY / API-HANDLER /
+ * UNAUTHENTICATED-FUNNEL) deliberately have no "compat redirect" category. Delete the group
+ * — and the routes — together.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
     heading: "Overview",
     items: [
-      { id: "cockpit", to: "/cockpit", label: "Cockpit", icon: Activity, desc: "Unified health hub" },
-      { id: "home", to: "/home", label: "Home (services)", icon: Server, desc: "Per-service shell" },
+      {
+        id: "cockpit",
+        to: "/cockpit",
+        label: "Cockpit",
+        icon: Activity,
+        desc: "Health rollup — default page",
+        short: "Health",
+      },
+      {
+        id: "home",
+        to: "/home",
+        label: "Home (services)",
+        icon: Server,
+        desc: "Service picker → per-service tabs",
+        // "Home", not "Services": the home shell's own sidebar heading IS "Services",
+        // and two identical labels on one screen is an ambiguity (both for the operator
+        // and for every getByText("Services") locator).
+        short: "Home",
+      },
+      {
+        id: "epics",
+        to: "/epics",
+        label: "Epics & Plans",
+        icon: Trophy,
+        desc: "Roadmap + plan status",
+        short: "Epics",
+      },
     ],
   },
   {
@@ -47,52 +91,119 @@ export const NAV_GROUPS: NavGroup[] = [
     // (operator 2026-07-08); mode is now a filter inside the unified all-modes table.
     heading: "Deploy & Deployments",
     items: [
-      { id: "deploy", to: "/cockpit?tab=deploy", label: "Deploy Console", icon: Rocket, desc: "Launch / rollback" },
+      {
+        id: "deploy",
+        to: "/cockpit?tab=deploy",
+        label: "Deploy Console",
+        icon: Rocket,
+        desc: "Launch / rollback",
+        short: "Deploy",
+      },
       {
         id: "deployments",
         to: "/cockpit?tab=deployments",
         label: "Deployments",
-        icon: Boxes,
-        desc: "Live · batch · paper (unified)",
+        icon: Layers,
+        desc: "Live · batch · paper + live ops",
+        short: "Deployments",
       },
       {
         id: "vm-deployments",
         to: "/vm-deployments",
         label: "VM Deployments",
         icon: Server,
-        desc: "Per-VM launch history",
+        desc: "Per-VM launch history (full)",
+        short: "VMs",
       },
-      { id: "live-ops", to: "/ops/live-deployments", label: "Live Ops", icon: Radio, desc: "Running services + feeds" },
+    ],
+  },
+  {
+    heading: "Data",
+    items: [
+      {
+        // Data Status is a PER-SERVICE tab (/service/<name>/data-status) — 8 services have
+        // one, so a single nav entry has to name a default. instruments-service is the
+        // canonical pick: it's the service the cockpit's own Data Coverage tile reads
+        // (health_overview._coverage_tile -> read_coverage_rollup_if_fresh("instruments-service")).
+        // Switch service from the sidebar once you're there.
+        id: "data-status",
+        to: "/service/instruments-service/data-status",
+        label: "Data Status",
+        icon: Database,
+        desc: "Coverage · manifest (instruments-service)",
+        short: "Data Status",
+      },
+      {
+        id: "consolidators",
+        to: "/cockpit?tab=consolidators",
+        label: "Consolidators",
+        icon: Boxes,
+        desc: "Index age · shard fallback",
+        short: "Consolidators",
+      },
     ],
   },
   {
     heading: "Fleet & Cost",
     items: [
-      { id: "fleet", to: "/cockpit?tab=fleet", label: "Fleet VMs", icon: Layers, desc: "GCP + AWS census · orphans" },
-      { id: "fleet-git", to: "/fleet", label: "Fleet Git", icon: GitBranch, desc: "Slot / worktree health" },
       {
-        id: "consolidators",
-        to: "/cockpit?tab=consolidators",
-        label: "Consolidators",
-        icon: Database,
-        desc: "Index age · shard fallback",
+        id: "fleet",
+        to: "/cockpit?tab=fleet",
+        label: "Fleet",
+        icon: Layers,
+        desc: "Census · orphans · git · infra",
+        short: "Fleet",
       },
-      { id: "costs", to: "/ops/costs", label: "Costs", icon: CircleDollarSign, desc: "Tri-cloud spend breakdown" },
+      {
+        id: "costs",
+        to: "/ops/costs",
+        label: "Costs",
+        icon: CircleDollarSign,
+        desc: "Tri-cloud spend breakdown",
+        short: "Costs",
+      },
     ],
   },
   {
     heading: "Repos & Alerts",
     items: [
-      { id: "repos", to: "/repos", label: "Repos / CI", icon: GitBranch, desc: "Last-green · promotion lag" },
-      { id: "alerts", to: "/alerts", label: "Alerts", icon: AlertCircle, desc: "Open alerts by class" },
-      { id: "epics", to: "/epics", label: "Epics & Plans", icon: Database, desc: "Roadmap + plan status" },
+      {
+        id: "repos",
+        to: "/cockpit?tab=ci",
+        label: "Repos / CI",
+        icon: GitBranch,
+        desc: "Last-green · promotion lag",
+        short: "CI",
+      },
+      {
+        id: "alerts",
+        to: "/cockpit?tab=alerts",
+        label: "Alerts & Logs",
+        icon: AlertCircle,
+        desc: "Open alerts + log stream",
+        short: "Alerts",
+      },
     ],
   },
   {
     heading: "Safety & Chaos",
     items: [
-      { id: "safety", to: "/safety-ops", label: "Safety Ops", icon: ShieldCheck, desc: "Kill-switch + guardrails" },
-      { id: "chaos", to: "/chaos", label: "Chaos", icon: AlertTriangle, desc: "Resilience testing" },
+      {
+        id: "safety",
+        to: "/cockpit?tab=safety",
+        label: "Safety Ops",
+        icon: ShieldCheck,
+        desc: "Kill-switch + guardrails",
+        short: "Safety",
+      },
+      {
+        id: "chaos",
+        to: "/cockpit?tab=chaos",
+        label: "Chaos",
+        icon: AlertTriangle,
+        desc: "Resilience testing",
+        short: "Chaos",
+      },
     ],
   },
   {
@@ -102,27 +213,109 @@ export const NAV_GROUPS: NavGroup[] = [
         id: "launch",
         to: "/cockpit?tab=launch",
         label: "Launch Console",
-        icon: Rocket,
-        desc: "ML / strategy / exec launch",
+        icon: FlaskConical,
+        desc: "ML · strategy · execution backtests",
+        short: "Launch",
       },
-      { id: "ml", to: "/research/ml-experiments", label: "ML Experiments", icon: FlaskConical, desc: "Training runs" },
+    ],
+  },
+  {
+    heading: "Duplicate routes — pending removal",
+    legacy: true,
+    items: [
       {
-        id: "strategy",
+        id: "dup-deployments",
+        to: "/deployments",
+        label: "/deployments",
+        icon: Layers,
+        desc: "same component as Deployments",
+      },
+      { id: "dup-repos", to: "/repos", label: "/repos", icon: GitBranch, desc: "redirects → Repos / CI" },
+      { id: "dup-alerts", to: "/alerts", label: "/alerts", icon: AlertCircle, desc: "redirects → Alerts & Logs" },
+      { id: "dup-fleet-git", to: "/fleet", label: "/fleet", icon: GitBranch, desc: "redirects → Fleet (git section)" },
+      {
+        id: "dup-fleet-infra",
+        to: "/infra",
+        label: "/infra",
+        icon: Activity,
+        desc: "redirects → Fleet (infra section)",
+      },
+      {
+        id: "dup-live-ops",
+        to: "/ops/live-deployments",
+        label: "/ops/live-deployments",
+        icon: Activity,
+        desc: "folded into Deployments",
+      },
+      { id: "dup-chaos", to: "/chaos", label: "/chaos", icon: AlertTriangle, desc: "same component as Chaos" },
+      {
+        id: "dup-safety",
+        to: "/safety-ops",
+        label: "/safety-ops",
+        icon: ShieldCheck,
+        desc: "same component as Safety Ops",
+      },
+      {
+        id: "dup-ml",
+        to: "/research/ml-experiments",
+        label: "/research/ml-experiments",
+        icon: FlaskConical,
+        desc: "folded into Launch",
+      },
+      {
+        id: "dup-strategy",
         to: "/research/strategy-backtests",
-        label: "Strategy Backtests",
-        icon: BarChart2,
-        desc: "Strategy sims",
+        label: "/research/strategy-backtests",
+        icon: FlaskConical,
+        desc: "folded into Launch",
       },
       {
-        id: "exec",
+        id: "dup-exec",
         to: "/research/execution-backtests",
-        label: "Execution Backtests",
-        icon: Boxes,
-        desc: "Execution sims",
+        label: "/research/execution-backtests",
+        icon: FlaskConical,
+        desc: "folded into Launch",
       },
     ],
   },
 ];
+
+/** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */
+export const NAV_GROUPS_CANONICAL = NAV_GROUPS.filter((g) => !g.legacy);
+
+/** The 14 canonical entries, flat + in group order. Drives BOTH the dropdown and the cockpit bar. */
+export const NAV_ITEMS_CANONICAL = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
+
+/**
+ * The cockpit tab a nav entry selects, or `null` if it navigates to its own route.
+ * `/cockpit` (no query) is the default `health` tab. Lets the always-visible cockpit
+ * bar render tab-switchers and route-links from the SAME list as the dropdown, so the
+ * two can never drift.
+ */
+export function cockpitTabIdFor(to: string): string | null {
+  const [path, query] = to.split("?");
+  if (path !== "/cockpit") return null;
+  return query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
+}
+
+/**
+ * Is `to` the screen currently on display? Shared by the dropdown and the always-visible
+ * top bar so their highlight rules can't diverge. Cockpit entries compare the `?tab=`
+ * param (bare `/cockpit` == the default `health` tab); everything else matches the path
+ * (or a deeper detail route under it, e.g. /deployments/:name keeps Deployments lit).
+ */
+export function navItemIsActive(to: string, pathname: string, search: string): boolean {
+  const [path] = to.split("?");
+  if (path === "/cockpit") {
+    if (pathname !== "/cockpit") return false;
+    const current = new URLSearchParams(search).get("tab") ?? "health";
+    return current === (cockpitTabIdFor(to) ?? "health");
+  }
+  return pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
+}
+
+/** The redundant-route quarantine, rendered apart from the canonical grid. */
+const LEGACY_GROUP = NAV_GROUPS.find((g) => g.legacy);
 
 /** Flattened {to,label} list for the mobile hamburger menu (same source as the dropdown). */
 export const NAV_LINKS_FLAT = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ to: i.to, label: i.label })));
@@ -147,17 +340,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
 
   if (!open) return null;
 
-  const isActive = (to: string): boolean => {
-    const [path, query] = to.split("?");
-    // Cockpit entries are per-tab: match the ?tab= param (base /cockpit == the default health tab).
-    if (path === "/cockpit") {
-      if (location.pathname !== "/cockpit") return false;
-      const current = new URLSearchParams(location.search).get("tab") ?? "health";
-      const want = query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
-      return current === want;
-    }
-    return location.pathname === path || (path !== "/" && location.pathname.startsWith(path + "/"));
-  };
+  const isActive = (to: string): boolean => navItemIsActive(to, location.pathname, location.search);
 
   return (
     <>
@@ -175,7 +358,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
         role="menu"
         aria-label="Primary navigation"
         data-testid="nav-menu"
-        className="absolute left-2 top-full z-50 mt-1 w-[min(92vw,760px)] rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 shadow-2xl"
+        className="absolute left-2 top-full z-50 mt-1 max-h-[min(80vh,720px)] w-[min(92vw,760px)] overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Go to</span>
@@ -190,7 +373,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
           </button>
         </div>
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          {NAV_GROUPS.map((group) => (
+          {NAV_GROUPS_CANONICAL.map((group) => (
             <div key={group.heading}>
               <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 {group.heading}
@@ -230,6 +413,45 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
             </div>
           ))}
         </div>
+
+        {/* Redundant-route quarantine — every entry here renders the SAME component as a
+            canonical entry above, just under different chrome. Kept clickable so the two
+            can be compared side by side; delete this whole group once the standalone
+            routes are redirected into their cockpit tab. */}
+        {LEGACY_GROUP ? (
+          <div className="mt-4 border-t border-[var(--color-border-default)] pt-3" data-testid="nav-menu-legacy">
+            <div className="mb-1.5 flex items-baseline gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent-orange)]">
+                {LEGACY_GROUP.heading}
+              </span>
+              <span className="text-[10px] text-[var(--color-text-muted)]">
+                same content as above — different chrome
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {LEGACY_GROUP.items.map((item) => {
+                const active = isActive(item.to);
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.to}
+                    onClick={onClose}
+                    role="menuitem"
+                    title={item.desc}
+                    data-testid={`nav-menu-item-${item.id}`}
+                    className={`rounded border px-2 py-1 font-mono text-[11px] transition-colors ${
+                      active
+                        ? "border-[var(--color-accent-orange)]/50 bg-[var(--color-accent-orange)]/10 text-[var(--color-accent-orange)]"
+                        : "border-[var(--color-border-default)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     </>
   );

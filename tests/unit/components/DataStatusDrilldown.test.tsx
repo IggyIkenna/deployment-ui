@@ -156,6 +156,100 @@ describe("InstrumentsModal", () => {
     expect(screen.getByText("Download CSV")).toBeTruthy();
   });
 
+  // P4-B: SPOT_ASSET / DeFi rows expose a copyable on-chain contract address.
+  // The address is only rendered when the backend actually supplied one — CeFi
+  // rows carry no on-chain address, so nothing must render for them.
+  it("renders a copyable contract address for a row that has one", async () => {
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [
+        {
+          instrument_id: "UNISWAP_V3-ETHEREUM:POOL:USDC-WETH-5",
+          file_uri: "gs://b/i.parquet",
+          size_bytes: 1024,
+          base_asset_contract_address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        },
+      ],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          category: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    const btn = await screen.findByTestId("contract-address-UNISWAP_V3-ETHEREUM:POOL:USDC-WETH-5");
+    // The row elides the address, so the FULL value must stay reachable.
+    expect(btn.getAttribute("data-address")).toBe("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+    expect(btn.getAttribute("title")).toContain("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+    // Elided display keeps the row readable.
+    expect(btn.textContent).toContain("0xa0b8");
+    expect(btn.textContent).toContain("eb48");
+  });
+
+  it("copies the FULL address (not the elided display) to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [
+        {
+          instrument_id: "P1",
+          file_uri: "gs://b/i.parquet",
+          size_bytes: 1024,
+          base_asset_contract_address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        },
+      ],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          category: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(await screen.findByTestId("contract-address-P1"));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+    });
+  });
+
+  it("renders NO address affordance for a row without one (honest absence)", async () => {
+    (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...basePolymarketListing,
+      instruments: [
+        { instrument_id: "BINANCE-SPOT:SPOT_PAIR:BTC-USDT", file_uri: "gs://b/i.parquet", size_bytes: 1024 },
+      ],
+    });
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "market-tick-data-service",
+          category: "prediction",
+          venue: "POLYMARKET",
+          day: "2025-04-01",
+          instrument_type: "OTHER",
+          data_type: "trades",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText("BINANCE-SPOT:SPOT_PAIR:BTC-USDT");
+    expect(screen.queryByTestId("contract-address-BINANCE-SPOT:SPOT_PAIR:BTC-USDT")).toBeNull();
+  });
+
   it("shows 'Load more' when has_more and pages through", async () => {
     const fetchSpy = api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>;
     fetchSpy

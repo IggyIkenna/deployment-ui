@@ -2,6 +2,7 @@ import { ChevronRight, Loader2, RefreshCw, Trophy } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FixtureRow, FixturesByLeagueAndDay } from "../api/client";
 import { fetchFixturesBrowse } from "../api/client";
+import { useDebounce } from "../hooks/useDebounce";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -57,22 +58,55 @@ function groupForDisplay(leagues: FixturesByLeagueAndDay): LeagueGroup[] {
   });
 }
 
+/** Default window the browser opens on, as day offsets from today (UTC). */
+const DEFAULT_DAYS_BACK = 7;
+const DEFAULT_DAYS_FORWARD = 30;
+/** Server-side span cap (`fixtures_browser._MAX_WINDOW_SPAN_DAYS`) — a wider
+ *  range is truncated by the API, so say so rather than silently under-report. */
+const MAX_SPAN_DAYS = 120;
+
+/** ISO `YYYY-MM-DD` for today (UTC) offset by `delta` days. */
+function isoDayOffsetUtc(delta: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+function spanDays(startIso: string, endIso: string): number | null {
+  const a = Date.parse(`${startIso}T00:00:00Z`);
+  const b = Date.parse(`${endIso}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) {
+    return null;
+  }
+  return Math.abs(Math.round((b - a) / 86_400_000));
+}
+
 export function FixturesBrowser() {
-  const [daysBack, setDaysBack] = useState(7);
-  const [daysForward, setDaysForward] = useState(30);
+  // Real dates (not the old days-back/forward counters) so any historical range
+  // is reachable — the relative window could only ever address 60 days from today.
+  const [startDate, setStartDate] = useState(() => isoDayOffsetUtc(-DEFAULT_DAYS_BACK));
+  const [endDate, setEndDate] = useState(() => isoDayOffsetUtc(DEFAULT_DAYS_FORWARD));
   const [leagueId, setLeagueId] = useState("");
+  const [team, setTeam] = useState("");
   const [leagues, setLeagues] = useState<FixturesByLeagueAndDay>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Each distinct text value is a fresh windowed GCS read server-side, so
+  // debounce rather than refetch per keystroke (house `useDebounce`, same
+  // pattern CatalogueExplorer/DataStatusDrilldown use for their search boxes).
+  const debouncedLeagueId = useDebounce(leagueId, 300);
+  const debouncedTeam = useDebounce(team, 300);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await fetchFixturesBrowse({
-        days_back: daysBack,
-        days_forward: daysForward,
-        league_id: leagueId.trim() || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        league_id: debouncedLeagueId.trim() || undefined,
+        team: debouncedTeam.trim() || undefined,
       });
       setLeagues(data);
     } catch (e) {
@@ -81,7 +115,7 @@ export function FixturesBrowser() {
     } finally {
       setLoading(false);
     }
-  }, [daysBack, daysForward, leagueId]);
+  }, [startDate, endDate, debouncedLeagueId, debouncedTeam]);
 
   useEffect(() => {
     void load();
@@ -89,6 +123,7 @@ export function FixturesBrowser() {
 
   const grouped = useMemo(() => groupForDisplay(leagues), [leagues]);
   const totalFixtures = useMemo(() => grouped.reduce((acc, g) => acc + g.fixtureCount, 0), [grouped]);
+  const span = useMemo(() => spanDays(startDate, endDate), [startDate, endDate]);
 
   return (
     <Card data-testid="fixtures-browser-card">
@@ -121,34 +156,30 @@ export function FixturesBrowser() {
         </div>
         <div className="flex flex-wrap items-end gap-3 pt-2">
           <div className="space-y-1">
-            <Label htmlFor="fb-days-back" className="text-[10px] uppercase text-[var(--color-text-muted)]">
-              Days back
+            <Label htmlFor="fb-start-date" className="text-[10px] uppercase text-[var(--color-text-muted)]">
+              From date
             </Label>
             <Input
-              id="fb-days-back"
-              type="number"
-              min={0}
-              max={60}
-              className="h-8 w-24 text-xs font-mono"
-              value={daysBack}
-              onChange={(ev) => setDaysBack(Math.max(0, Math.min(60, Number(ev.target.value) || 0)))}
+              id="fb-start-date"
+              type="date"
+              className="h-8 w-36 text-xs font-mono"
+              value={startDate}
+              onChange={(ev) => setStartDate(ev.target.value)}
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="fb-days-forward" className="text-[10px] uppercase text-[var(--color-text-muted)]">
-              Days forward
+            <Label htmlFor="fb-end-date" className="text-[10px] uppercase text-[var(--color-text-muted)]">
+              To date
             </Label>
             <Input
-              id="fb-days-forward"
-              type="number"
-              min={0}
-              max={60}
-              className="h-8 w-24 text-xs font-mono"
-              value={daysForward}
-              onChange={(ev) => setDaysForward(Math.max(0, Math.min(60, Number(ev.target.value) || 0)))}
+              id="fb-end-date"
+              type="date"
+              className="h-8 w-36 text-xs font-mono"
+              value={endDate}
+              onChange={(ev) => setEndDate(ev.target.value)}
             />
           </div>
-          <div className="space-y-1 min-w-[12rem] flex-1">
+          <div className="space-y-1 min-w-[9rem] flex-1">
             <Label htmlFor="fb-league" className="text-[10px] uppercase text-[var(--color-text-muted)]">
               League id (optional)
             </Label>
@@ -160,11 +191,29 @@ export function FixturesBrowser() {
               onChange={(ev) => setLeagueId(ev.target.value)}
             />
           </div>
+          <div className="space-y-1 min-w-[9rem] flex-1">
+            <Label htmlFor="fb-team" className="text-[10px] uppercase text-[var(--color-text-muted)]">
+              Team (optional)
+            </Label>
+            <Input
+              id="fb-team"
+              className="h-8 text-xs"
+              placeholder="e.g. Arsenal"
+              value={team}
+              onChange={(ev) => setTeam(ev.target.value)}
+              data-testid="fixtures-browser-team"
+            />
+          </div>
         </div>
         {!loading && !error && (
           <p className="text-[10px] text-[var(--color-text-muted)]" data-testid="fixtures-browser-window-note">
-            Showing {totalFixtures.toLocaleString()} fixture{totalFixtures === 1 ? "" : "s"} in the last {daysBack} /
-            next {daysForward} days (not the full historical catalogue).
+            Showing {totalFixtures.toLocaleString()} fixture{totalFixtures === 1 ? "" : "s"} from {startDate} to{" "}
+            {endDate}
+            {leagueId.trim() ? ` · league ${leagueId.trim()}` : ""}
+            {team.trim() ? ` · team ~ "${team.trim()}"` : ""}
+            {span != null && span > MAX_SPAN_DAYS
+              ? ` — range spans ${span} days; the API reads only the first ${MAX_SPAN_DAYS}.`
+              : " (windowed — not the full historical catalogue)."}
           </p>
         )}
       </CardHeader>
