@@ -46,9 +46,17 @@ function mockResponse(instruments: InstrumentCatalogueRow[], total = instruments
 
 describe("CatalogueExplorer", () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let optionsSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(api, "fetchInstrumentCatalogue").mockResolvedValue(mockResponse([CAPTURED_ROW, FAILED_ROW]));
+    optionsSpy = vi.spyOn(api, "fetchCatalogueFilterOptions").mockResolvedValue({
+      service: "instruments-service",
+      asset_group: "cefi",
+      venues: ["BINANCE-SPOT", "OKX-SPOT"],
+      instrument_types: ["SPOT_PAIR"],
+      data_types: ["instruments"],
+    });
   });
 
   afterEach(() => {
@@ -145,5 +153,55 @@ describe("CatalogueExplorer", () => {
     const n = fetchSpy.mock.calls.length;
     fireEvent.click(screen.getByTestId("catalogue-explorer-refresh"));
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(n));
+  });
+
+  // F3 (live UI review round 3): venue/instrument_type/data_type are dropdowns
+  // of the real distinct values, not free-text.
+  it("populates the venue/type/data_type dropdowns from the distinct-values endpoint", async () => {
+    render(<CatalogueExplorer />);
+    await waitFor(() => expect(optionsSpy).toHaveBeenCalledWith(expect.objectContaining({ asset_group: "cefi" })));
+    const venueSelect = screen.getByTestId("catalogue-explorer-venue-select") as HTMLSelectElement;
+    await waitFor(() => {
+      expect(Array.from(venueSelect.options).map((o) => o.value)).toEqual(["", "BINANCE-SPOT", "OKX-SPOT"]);
+    });
+    const typeSelect = screen.getByTestId("catalogue-explorer-instrument-type-select") as HTMLSelectElement;
+    expect(Array.from(typeSelect.options).map((o) => o.value)).toEqual(["", "SPOT_PAIR"]);
+    const dataTypeSelect = screen.getByTestId("catalogue-explorer-data-type-select") as HTMLSelectElement;
+    expect(Array.from(dataTypeSelect.options).map((o) => o.value)).toEqual(["", "instruments"]);
+  });
+
+  it("selecting a venue refetches the list narrowed to that venue", async () => {
+    render(<CatalogueExplorer />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByTestId("catalogue-explorer-venue-select"), { target: { value: "OKX-SPOT" } });
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenLastCalledWith(expect.objectContaining({ venue: "OKX-SPOT", offset: 0 })),
+    );
+  });
+
+  it("an all-blank axis leaves only the 'Any' option (honest-absence, no fabricated value)", async () => {
+    optionsSpy.mockResolvedValue({
+      service: "instruments-service",
+      asset_group: "sports",
+      venues: [], // sports venue is 100% blank server-side
+      instrument_types: ["FIXTURE"],
+      data_types: [],
+    });
+    render(<CatalogueExplorer />);
+    const venueSelect = screen.getByTestId("catalogue-explorer-venue-select") as HTMLSelectElement;
+    await waitFor(() => expect(Array.from(venueSelect.options).map((o) => o.value)).toEqual([""]));
+  });
+
+  it("changing the asset group clears the venue narrow + refetches filter options", async () => {
+    render(<CatalogueExplorer />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByTestId("catalogue-explorer-venue-select"), { target: { value: "OKX-SPOT" } });
+    await waitFor(() => expect(fetchSpy).toHaveBeenLastCalledWith(expect.objectContaining({ venue: "OKX-SPOT" })));
+
+    fireEvent.change(screen.getByTestId("catalogue-explorer-asset-group-select"), { target: { value: "tradfi" } });
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenLastCalledWith(expect.objectContaining({ asset_group: "tradfi", venue: undefined })),
+    );
+    await waitFor(() => expect(optionsSpy).toHaveBeenCalledWith(expect.objectContaining({ asset_group: "tradfi" })));
   });
 });

@@ -8,55 +8,58 @@ describe("FixturesBrowser", () => {
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(api, "fetchFixturesBrowse").mockResolvedValue({
-      EPL: {
-        "2026-04-21": [
-          {
-            fixture_id: "fx-1",
-            kickoff_utc: "2026-04-21T15:30:00.000Z",
-            league_id: "EPL",
-            home_team_id: "t1",
-            away_team_id: "t2",
-            home_team_name: "Arsenal",
-            away_team_name: "Chelsea",
-            venue_id: "v1",
-            venue_name: "Emirates",
-            status: "NS",
-            round: "Regular Season - 10",
-          },
-        ],
-        "2026-04-22": [
-          {
-            fixture_id: "fx-2",
-            kickoff_utc: "2026-04-22T12:00:00.000Z",
-            league_id: "EPL",
-            home_team_id: "t3",
-            away_team_id: "t4",
-            home_team_name: "Liverpool",
-            away_team_name: "Everton",
-            venue_id: "v2",
-            venue_name: "Anfield",
-            status: "NS",
-            round: "Regular Season - 11",
-          },
-        ],
+      leagues: {
+        EPL: {
+          "2026-04-21": [
+            {
+              fixture_id: "fx-1",
+              kickoff_utc: "2026-04-21T15:30:00.000Z",
+              league_id: "EPL",
+              home_team_id: "t1",
+              away_team_id: "t2",
+              home_team_name: "Arsenal",
+              away_team_name: "Chelsea",
+              venue_id: "v1",
+              venue_name: "Emirates",
+              status: "NS",
+              round: "Regular Season - 10",
+            },
+          ],
+          "2026-04-22": [
+            {
+              fixture_id: "fx-2",
+              kickoff_utc: "2026-04-22T12:00:00.000Z",
+              league_id: "EPL",
+              home_team_id: "t3",
+              away_team_id: "t4",
+              home_team_name: "Liverpool",
+              away_team_name: "Everton",
+              venue_id: "v2",
+              venue_name: "Anfield",
+              status: "NS",
+              round: "Regular Season - 11",
+            },
+          ],
+        },
+        MLS: {
+          "2026-04-21": [
+            {
+              fixture_id: "fx-3",
+              kickoff_utc: "2026-04-21T23:00:00.000Z",
+              league_id: "MLS",
+              home_team_id: "t5",
+              away_team_id: "t6",
+              home_team_name: "LAFC",
+              away_team_name: "LA Galaxy",
+              venue_id: "v3",
+              venue_name: "BMO Stadium",
+              status: "NS",
+              round: "Regular Season",
+            },
+          ],
+        },
       },
-      MLS: {
-        "2026-04-21": [
-          {
-            fixture_id: "fx-3",
-            kickoff_utc: "2026-04-21T23:00:00.000Z",
-            league_id: "MLS",
-            home_team_id: "t5",
-            away_team_id: "t6",
-            home_team_name: "LAFC",
-            away_team_name: "LA Galaxy",
-            venue_id: "v3",
-            venue_name: "BMO Stadium",
-            status: "NS",
-            round: "Regular Season",
-          },
-        ],
-      },
+      leagueNames: { EPL: "English Premier League", MLS: "Major League Soccer" },
     });
   });
 
@@ -101,11 +104,31 @@ describe("FixturesBrowser", () => {
   });
 
   it("shows an empty state when no fixtures are returned in the window", async () => {
-    fetchSpy.mockResolvedValue({});
+    fetchSpy.mockResolvedValue({ leagues: {}, leagueNames: {} });
     render(<FixturesBrowser />);
     await waitFor(() => {
       expect(screen.getByTestId("fixtures-browser-empty")).toBeTruthy();
     });
+  });
+
+  it("renders the human league name (UAC) with the raw id as a subtitle", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(screen.getByTestId("fixtures-browser-league-EPL")).toBeTruthy());
+    // The group header shows the display_name, not the raw id…
+    expect(screen.getByTestId("fixtures-browser-league-name-EPL").textContent).toBe("English Premier League");
+    // …and the raw id stays visible as a muted subtitle for discoverability.
+    const eplGroup = screen.getByTestId("fixtures-browser-league-EPL");
+    expect(eplGroup.textContent).toContain("EPL");
+  });
+
+  it("falls back to the raw league id when no human name resolved (honest-absence)", async () => {
+    fetchSpy.mockResolvedValue({
+      leagues: { "999999": { "2026-04-21": [] } },
+      leagueNames: {}, // id not in the registry -> absent -> UI shows the raw id
+    });
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(screen.getByTestId("fixtures-browser-league-name-999999")).toBeTruthy());
+    expect(screen.getByTestId("fixtures-browser-league-name-999999").textContent).toBe("999999");
   });
 
   it("refresh button re-invokes the API with the current window", async () => {

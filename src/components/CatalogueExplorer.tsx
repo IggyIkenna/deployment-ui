@@ -1,7 +1,7 @@
 import { Database, Download, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { InstrumentCatalogueRow } from "../api/client";
-import { buildCatalogueCsvDownloadUrl, fetchInstrumentCatalogue } from "../api/client";
+import type { CatalogueFilterOptions, InstrumentCatalogueRow } from "../api/client";
+import { buildCatalogueCsvDownloadUrl, fetchCatalogueFilterOptions, fetchInstrumentCatalogue } from "../api/client";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -45,18 +45,26 @@ function captureStatusBadgeVariant(status: string): "success" | "warning" | "err
  * SAME filters as the on-screen list (search + mvp_only + narrows) so the
  * export never drifts from what's rendered.
  */
+const EMPTY_FILTER_OPTIONS: Omit<CatalogueFilterOptions, "service" | "asset_group"> = {
+  venues: [],
+  instrument_types: [],
+  data_types: [],
+};
+
 export function CatalogueExplorer({ service = "instruments-service" }: { service?: string }) {
   const [assetGroup, setAssetGroup] = useState("cefi");
-  const [venueInput, setVenueInput] = useState("");
+  // venue / instrument_type / data_type are now discrete dropdown selections
+  // (F3) — "" is the "Any" default. Only search remains free-text/debounced.
   const [venue, setVenue] = useState("");
-  const [instrumentTypeInput, setInstrumentTypeInput] = useState("");
   const [instrumentType, setInstrumentType] = useState("");
-  const [dataTypeInput, setDataTypeInput] = useState("");
   const [dataType, setDataType] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [mvpOnly, setMvpOnly] = useState(false);
   const [offset, setOffset] = useState(0);
+  // Distinct values for the dropdowns, scoped to the current (service, asset_group).
+  const [filterOptions, setFilterOptions] =
+    useState<Omit<CatalogueFilterOptions, "service" | "asset_group">>(EMPTY_FILTER_OPTIONS);
 
   const [rows, setRows] = useState<InstrumentCatalogueRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -64,20 +72,37 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debounce the free-text narrows (venue / instrument_type / data_type /
-  // search) so a keystroke doesn't fire a request per character; the
-  // asset_group select + MVP toggle are discrete and fetch immediately (via
-  // their own handlers below, which also reset pagination).
+  // Debounce only the free-text search box (a keystroke shouldn't fire a request
+  // per character); the asset_group / venue / instrument_type / data_type selects
+  // + MVP toggle are discrete and fetch immediately via their handlers below.
   useEffect(() => {
     const t = setTimeout(() => {
-      setVenue(venueInput.trim());
-      setInstrumentType(instrumentTypeInput.trim());
-      setDataType(dataTypeInput.trim());
       setSearch(searchInput.trim());
       setOffset(0);
     }, 300);
     return () => clearTimeout(t);
-  }, [venueInput, instrumentTypeInput, dataTypeInput, searchInput]);
+  }, [searchInput]);
+
+  // Load distinct venue/instrument_type/data_type values for the current
+  // (service, asset_group) so the filter dropdowns offer only REAL values (F3).
+  // A failed/aborted fetch just leaves the dropdowns at "Any" — never blocks the
+  // list. handleAssetGroupChange clears stale options synchronously so a venue
+  // from the previous asset group can't briefly appear for the new one.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchCatalogueFilterOptions({ service, asset_group: assetGroup, signal: controller.signal })
+      .then((opts) =>
+        setFilterOptions({
+          venues: opts.venues,
+          instrument_types: opts.instrument_types,
+          data_types: opts.data_types,
+        }),
+      )
+      .catch(() => {
+        /* keep whatever options are current — the narrows still work as free "Any". */
+      });
+    return () => controller.abort();
+  }, [service, assetGroup]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +137,28 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
 
   function handleAssetGroupChange(value: string) {
     setAssetGroup(value);
+    // A venue/instrument_type/data_type valid for one asset group won't exist in
+    // another — reset the narrows and clear the stale dropdown options so they
+    // repopulate from the new asset group's catalogue.
+    setVenue("");
+    setInstrumentType("");
+    setDataType("");
+    setFilterOptions(EMPTY_FILTER_OPTIONS);
+    setOffset(0);
+  }
+
+  function handleVenueChange(value: string) {
+    setVenue(value);
+    setOffset(0);
+  }
+
+  function handleInstrumentTypeChange(value: string) {
+    setInstrumentType(value);
+    setOffset(0);
+  }
+
+  function handleDataTypeChange(value: string) {
+    setDataType(value);
     setOffset(0);
   }
 
@@ -196,40 +243,58 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
             <Label htmlFor="ce-venue" className="text-[10px] uppercase text-[var(--color-text-muted)]">
               Venue
             </Label>
-            <Input
+            <select
               id="ce-venue"
-              className="h-8 text-xs"
-              placeholder="optional"
-              value={venueInput}
-              onChange={(ev) => setVenueInput(ev.target.value)}
-              data-testid="catalogue-explorer-venue-input"
-            />
+              className={SELECT_CLASSNAME}
+              value={venue}
+              onChange={(ev) => handleVenueChange(ev.target.value)}
+              data-testid="catalogue-explorer-venue-select"
+            >
+              <option value="">Any venue</option>
+              {filterOptions.venues.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1 min-w-[8rem]">
             <Label htmlFor="ce-instrument-type" className="text-[10px] uppercase text-[var(--color-text-muted)]">
               Instrument type
             </Label>
-            <Input
+            <select
               id="ce-instrument-type"
-              className="h-8 text-xs"
-              placeholder="optional"
-              value={instrumentTypeInput}
-              onChange={(ev) => setInstrumentTypeInput(ev.target.value)}
-              data-testid="catalogue-explorer-instrument-type-input"
-            />
+              className={SELECT_CLASSNAME}
+              value={instrumentType}
+              onChange={(ev) => handleInstrumentTypeChange(ev.target.value)}
+              data-testid="catalogue-explorer-instrument-type-select"
+            >
+              <option value="">Any type</option>
+              {filterOptions.instrument_types.map((it) => (
+                <option key={it} value={it}>
+                  {it}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1 min-w-[8rem]">
             <Label htmlFor="ce-data-type" className="text-[10px] uppercase text-[var(--color-text-muted)]">
               Data type
             </Label>
-            <Input
+            <select
               id="ce-data-type"
-              className="h-8 text-xs"
-              placeholder="optional"
-              value={dataTypeInput}
-              onChange={(ev) => setDataTypeInput(ev.target.value)}
-              data-testid="catalogue-explorer-data-type-input"
-            />
+              className={SELECT_CLASSNAME}
+              value={dataType}
+              onChange={(ev) => handleDataTypeChange(ev.target.value)}
+              data-testid="catalogue-explorer-data-type-select"
+            >
+              <option value="">Any data type</option>
+              {filterOptions.data_types.map((dt) => (
+                <option key={dt} value={dt}>
+                  {dt}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1 min-w-[12rem] flex-1">
             <Label htmlFor="ce-search" className="text-[10px] uppercase text-[var(--color-text-muted)]">
