@@ -4407,60 +4407,105 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Mirrors the real ``FixturesByLeagueAndDay`` shape (deployment-api
   // routes/fixtures_browse.py).
   if (path.startsWith("/api/fixtures/browse")) {
-    return json({
-      leagues: {
-        EPL: {
-          "2026-07-16": [
-            {
-              fixture_id: "epl-1001",
-              kickoff_utc: "2026-07-16T15:00:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-ars",
-              away_team_id: "t-che",
-              home_team_name: "Arsenal",
-              away_team_name: "Chelsea",
-              venue_id: "v-emi",
-              venue_name: "Emirates Stadium",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-          "2026-07-17": [
-            {
-              fixture_id: "epl-1002",
-              kickoff_utc: "2026-07-17T18:30:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-liv",
-              away_team_id: "t-mci",
-              home_team_name: "Liverpool",
-              away_team_name: "Manchester City",
-              venue_id: "v-anf",
-              venue_name: "Anfield",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-        },
-        MLS: {
-          "2026-07-16": [
-            {
-              fixture_id: "mls-2001",
-              kickoff_utc: "2026-07-16T23:00:00+00:00",
-              league_id: "MLS",
-              home_team_id: "t-lafc",
-              away_team_id: "t-lag",
-              home_team_name: "LAFC",
-              away_team_name: "LA Galaxy",
-              venue_id: "v-bmo",
-              venue_name: "BMO Stadium",
-              status: "NS",
-              round: "Regular Season",
-            },
-          ],
-        },
+    // Honour the date/league/team narrows (operator ask 2026-07-17) rather than
+    // always returning the full set — an unfiltered mock makes the filter bar
+    // look BROKEN locally (you type a team and nothing changes).
+    // Structural local mirror of the client's `FixtureRow` — declared here
+    // rather than imported from ../api/client to avoid a circular import
+    // (client.ts pulls in this module to intercept fetches).
+    type MockFixtureRow = {
+      fixture_id: string;
+      kickoff_utc: string;
+      league_id: string;
+      home_team_id: string;
+      away_team_id: string;
+      home_team_name: string;
+      away_team_name: string;
+      venue_id: string;
+      venue_name: string;
+      status: string;
+      round: string;
+    };
+    const browseQs = new URLSearchParams(path.split("?")[1] ?? "");
+    const teamNeedle = (browseQs.get("team") ?? "").trim().toLowerCase();
+    const leagueNeedle = (browseQs.get("league_id") ?? "").trim();
+    const startDay = (browseQs.get("start_date") ?? "").trim();
+    const endDay = (browseQs.get("end_date") ?? "").trim();
+    const allLeagues: Record<string, Record<string, MockFixtureRow[]>> = {
+      EPL: {
+        "2026-07-16": [
+          {
+            fixture_id: "epl-1001",
+            kickoff_utc: "2026-07-16T15:00:00+00:00",
+            league_id: "EPL",
+            home_team_id: "t-ars",
+            away_team_id: "t-che",
+            home_team_name: "Arsenal",
+            away_team_name: "Chelsea",
+            venue_id: "v-emi",
+            venue_name: "Emirates Stadium",
+            status: "NS",
+            round: "Regular Season - 1",
+          },
+        ],
+        "2026-07-17": [
+          {
+            fixture_id: "epl-1002",
+            kickoff_utc: "2026-07-17T18:30:00+00:00",
+            league_id: "EPL",
+            home_team_id: "t-liv",
+            away_team_id: "t-mci",
+            home_team_name: "Liverpool",
+            away_team_name: "Manchester City",
+            venue_id: "v-anf",
+            venue_name: "Anfield",
+            status: "NS",
+            round: "Regular Season - 1",
+          },
+        ],
       },
-      mock: true,
-    });
+      MLS: {
+        "2026-07-16": [
+          {
+            fixture_id: "mls-2001",
+            kickoff_utc: "2026-07-16T23:00:00+00:00",
+            league_id: "MLS",
+            home_team_id: "t-lafc",
+            away_team_id: "t-lag",
+            home_team_name: "LAFC",
+            away_team_name: "LA Galaxy",
+            venue_id: "v-bmo",
+            venue_name: "BMO Stadium",
+            status: "NS",
+            round: "Regular Season",
+          },
+        ],
+      },
+    };
+
+    const matchesTeam = (fx: MockFixtureRow): boolean =>
+      !teamNeedle ||
+      [fx.home_team_name, fx.away_team_name, fx.home_team_id, fx.away_team_id].some((v) =>
+        String(v).toLowerCase().includes(teamNeedle),
+      );
+    const inDayRange = (day: string): boolean => (!startDay || day >= startDay) && (!endDay || day <= endDay);
+
+    const filteredLeagues: Record<string, Record<string, MockFixtureRow[]>> = {};
+    for (const [lid, byDay] of Object.entries(allLeagues)) {
+      if (leagueNeedle && lid !== leagueNeedle) {
+        continue;
+      }
+      for (const [day, fixtures] of Object.entries(byDay)) {
+        if (!inDayRange(day)) {
+          continue;
+        }
+        const kept = fixtures.filter(matchesTeam);
+        if (kept.length > 0) {
+          (filteredLeagues[lid] ??= {})[day] = kept;
+        }
+      }
+    }
+    return json({ leagues: filteredLeagues, mock: true });
   }
   if (path.startsWith("/api/instruments/upcoming-expiries")) {
     return json({

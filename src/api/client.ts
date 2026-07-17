@@ -969,6 +969,12 @@ export async function fetchFixturesBrowse(opts?: {
   days_back?: number;
   days_forward?: number;
   league_id?: string;
+  /** Case-insensitive substring on home/away team name or id (either side). */
+  team?: string;
+  /** Absolute window start (YYYY-MM-DD, UTC) — overrides `days_back`. */
+  start_date?: string;
+  /** Absolute window end (YYYY-MM-DD, UTC) — overrides `days_forward`. */
+  end_date?: string;
   signal?: AbortSignal;
 }): Promise<FixturesByLeagueAndDay> {
   const searchParams = new URLSearchParams();
@@ -980,6 +986,15 @@ export async function fetchFixturesBrowse(opts?: {
   }
   if (opts?.league_id) {
     searchParams.set("league_id", opts.league_id);
+  }
+  if (opts?.team) {
+    searchParams.set("team", opts.team);
+  }
+  if (opts?.start_date) {
+    searchParams.set("start_date", opts.start_date);
+  }
+  if (opts?.end_date) {
+    searchParams.set("end_date", opts.end_date);
   }
   const q = searchParams.toString();
   const path = `/fixtures/browse${q ? `?${q}` : ""}`;

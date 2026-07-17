@@ -110,12 +110,28 @@ describe("FixturesBrowser", () => {
 
   it("refresh button re-invokes the API with the current window", async () => {
     render(<FixturesBrowser />);
-    await waitFor(() =>
-      expect(fetchSpy).toHaveBeenCalledWith({ days_back: 7, days_forward: 30, league_id: undefined }),
-    );
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
     const n = fetchSpy.mock.calls.length;
     fireEvent.click(screen.getByTestId("fixtures-browser-refresh"));
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(n));
+  });
+
+  it("opens on the default window expressed as ABSOLUTE dates (today-7 .. today+30)", async () => {
+    // The old UI could only send days_back/days_forward, which can never reach
+    // further than 60 days from today — absolute dates are what make an
+    // arbitrary historical date searchable at all.
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+
+    const args = fetchSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(args.start_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(args.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(args.league_id).toBeUndefined();
+    expect(args.team).toBeUndefined();
+    const spanDays =
+      (Date.parse(`${String(args.end_date)}T00:00:00Z`) - Date.parse(`${String(args.start_date)}T00:00:00Z`)) /
+      86_400_000;
+    expect(spanDays).toBe(37);
   });
 
   it("changing the league filter triggers a refetch with the new value", async () => {
@@ -124,6 +140,60 @@ describe("FixturesBrowser", () => {
 
     fireEvent.change(screen.getByLabelText(/League id/i), { target: { value: "EPL" } });
 
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith({ days_back: 7, days_forward: 30, league_id: "EPL" }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(expect.objectContaining({ league_id: "EPL" })));
+  });
+
+  it("changing the team filter triggers a refetch with the team value", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByTestId("fixtures-browser-team"), { target: { value: "Arsenal" } });
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(expect.objectContaining({ team: "Arsenal" })));
+  });
+
+  it("picking an arbitrary historical date range refetches with those absolute dates", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByLabelText(/From date/i), { target: { value: "2024-08-01" } });
+    fireEvent.change(screen.getByLabelText(/To date/i), { target: { value: "2024-08-31" } });
+
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ start_date: "2024-08-01", end_date: "2024-08-31" }),
+      ),
+    );
+  });
+
+  it("combines date + league + team into one query", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByLabelText(/From date/i), { target: { value: "2025-01-01" } });
+    fireEvent.change(screen.getByLabelText(/To date/i), { target: { value: "2025-01-31" } });
+    fireEvent.change(screen.getByLabelText(/League id/i), { target: { value: "EPL" } });
+    fireEvent.change(screen.getByTestId("fixtures-browser-team"), { target: { value: "Arsenal" } });
+
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith({
+        start_date: "2025-01-01",
+        end_date: "2025-01-31",
+        league_id: "EPL",
+        team: "Arsenal",
+      }),
+    );
+  });
+
+  it("warns when the chosen range exceeds the server-side span cap", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(screen.getByTestId("fixtures-browser-window-note")).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText(/From date/i), { target: { value: "2020-01-01" } });
+    fireEvent.change(screen.getByLabelText(/To date/i), { target: { value: "2026-01-01" } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("fixtures-browser-window-note").textContent).toMatch(/reads only the first 120/);
+    });
   });
 });
