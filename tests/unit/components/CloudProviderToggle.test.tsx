@@ -80,18 +80,24 @@ describe("CloudProviderToggle — Header renders toggle buttons", () => {
 
   it("renders GCP and AWS buttons in the header", () => {
     renderHeaderWithProvider();
+    // Cloud toggle lives in the StatusMenu panel since the 2026-07-17 top-bar rebuild.
+    fireEvent.click(screen.getByTestId("status-menu-trigger"));
     expect(screen.getByText("GCP")).toBeTruthy();
     expect(screen.getByText("AWS")).toBeTruthy();
   });
 
   it("clicking AWS calls clearCache (cache-clear contract)", async () => {
     renderHeaderWithProvider();
+    // Cloud toggle lives in the StatusMenu panel since the 2026-07-17 top-bar rebuild.
+    fireEvent.click(screen.getByTestId("status-menu-trigger"));
     fireEvent.click(screen.getByText("AWS"));
     await waitFor(() => expect(apiClient.clearCache).toHaveBeenCalled());
   });
 
   it("clicking GCP when already GCP does NOT call clearCache (noop guard)", async () => {
     renderHeaderWithProvider();
+    // Cloud toggle lives in the StatusMenu panel since the 2026-07-17 top-bar rebuild.
+    fireEvent.click(screen.getByTestId("status-menu-trigger"));
     // default target is gcp; clicking gcp again should be a no-op
     fireEvent.click(screen.getByText("GCP"));
     await Promise.resolve();
@@ -197,7 +203,7 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   beforeEach(() => {
     // Simulate `vite preview` against locally-running backends.
     // Direct assignment works in Vitest (import.meta.env is a plain object).
-     
+
     (import.meta.env as Record<string, unknown>)["DEV"] = false;
     vi.spyOn(apiClient, "clearCache").mockResolvedValue({
       status: "ok",
@@ -206,7 +212,6 @@ describe("CloudProviderToggle — local-prod port routing (DEV=false)", () => {
   });
 
   afterEach(() => {
-     
     (import.meta.env as Record<string, unknown>)["DEV"] = true;
     vi.restoreAllMocks();
   });

@@ -423,6 +423,9 @@ test.describe("Flow 3: Cloud provider switching", () => {
     await page.getByText("instruments").first().click();
     await page.waitForLoadState("networkidle");
 
+    // The cloud toggle moved into the StatusMenu panel (2026-07-17 top-bar rebuild).
+    await page.getByTestId("status-menu-trigger").click();
+
     // Verify GCP is initially selected
     const gcpBtn = page.getByRole("button", { name: "GCP" });
     const awsBtn = page.getByRole("button", { name: "AWS" });

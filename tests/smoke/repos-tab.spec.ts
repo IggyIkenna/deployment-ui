@@ -307,7 +307,9 @@ test.describe("Repos CI page", () => {
     await page.goto("/repos");
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
 
-    // Switch to AWS → the overview refetch carries ?provider=aws.
+    // Switch to AWS → the overview refetch carries ?provider=aws. The toggle moved into
+    // the StatusMenu panel in the 2026-07-17 top-bar rebuild, so open the chip first.
+    await page.getByTestId("status-menu-trigger").click();
     await page.getByTestId("cloud-toggle-aws").click();
     await expect
       .poll(() =>

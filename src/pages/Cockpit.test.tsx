@@ -1,9 +1,13 @@
 /**
  * Unit test for the Cockpit page (scaffold stage).
  *
- * Asserts the page renders its header, the Health landing tile grid (every
- * monitoring domain present), all 7 tab triggers, and ?tab= deep-linking —
- * guarding the IA before per-pane data wiring. No API mocks needed (placeholders).
+ * Asserts the page renders its shell, the Health landing tile grid (every monitoring
+ * domain present), and ?tab= deep-linking — guarding the IA before per-pane data wiring.
+ * No API mocks needed (placeholders).
+ *
+ * The tab BAR is no longer this page's: it was lifted into the top bar so it shows on
+ * every route (operator 2026-07-17), so its triggers are asserted in TopNavBar.test.tsx.
+ * This page still owns which pane `?tab=` renders, which is what the deep-link test pins.
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,25 +23,12 @@ function renderAt(path: string) {
   );
 }
 
-// live/batch/paper collapsed into ONE "deployments" tab (operator 2026-07-08 merge).
-const TAB_IDS = ["health", "deploy", "deployments", "fleet", "consolidators"];
-
 describe("Cockpit", () => {
-  it("renders the page shell + title", () => {
+  it("renders the page shell without a title block (the top bar says where you are)", () => {
     renderAt("/cockpit");
     expect(screen.getByTestId("cockpit-page")).toBeTruthy();
-    expect(screen.getByText("Cockpit")).toBeTruthy();
-  });
-
-  it("renders the core tab triggers (incl. the merged Deployments tab)", () => {
-    renderAt("/cockpit");
-    for (const id of TAB_IDS) {
-      expect(screen.getByTestId(`cockpit-tab-${id}`)).toBeTruthy();
-    }
-    // The retired per-mode tabs are gone.
-    for (const id of ["live", "batch", "paper"]) {
-      expect(screen.queryByTestId(`cockpit-tab-${id}`)).toBeNull();
-    }
+    // The "Cockpit" heading block was removed — it was pure vertical spend.
+    expect(screen.queryByText("unified deployment & health observability")).toBeNull();
   });
 
   it("Health is the default tab and shows the full monitoring tile grid", () => {

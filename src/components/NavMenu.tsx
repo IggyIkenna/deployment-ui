@@ -65,7 +65,10 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Home (services)",
         icon: Server,
         desc: "Service picker → per-service tabs",
-        short: "Services",
+        // "Home", not "Services": the home shell's own sidebar heading IS "Services",
+        // and two identical labels on one screen is an ambiguity (both for the operator
+        // and for every getByText("Services") locator).
+        short: "Home",
       },
       {
         id: "epics",
@@ -265,6 +268,22 @@ export function cockpitTabIdFor(to: string): string | null {
   return query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
 }
 
+/**
+ * Is `to` the screen currently on display? Shared by the dropdown and the always-visible
+ * top bar so their highlight rules can't diverge. Cockpit entries compare the `?tab=`
+ * param (bare `/cockpit` == the default `health` tab); everything else matches the path
+ * (or a deeper detail route under it, e.g. /deployments/:name keeps Deployments lit).
+ */
+export function navItemIsActive(to: string, pathname: string, search: string): boolean {
+  const [path] = to.split("?");
+  if (path === "/cockpit") {
+    if (pathname !== "/cockpit") return false;
+    const current = new URLSearchParams(search).get("tab") ?? "health";
+    return current === (cockpitTabIdFor(to) ?? "health");
+  }
+  return pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
+}
+
 /** The redundant-route quarantine, rendered apart from the canonical grid. */
 const LEGACY_GROUP = NAV_GROUPS.find((g) => g.legacy);
 
@@ -291,17 +310,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
 
   if (!open) return null;
 
-  const isActive = (to: string): boolean => {
-    const [path, query] = to.split("?");
-    // Cockpit entries are per-tab: match the ?tab= param (base /cockpit == the default health tab).
-    if (path === "/cockpit") {
-      if (location.pathname !== "/cockpit") return false;
-      const current = new URLSearchParams(location.search).get("tab") ?? "health";
-      const want = query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
-      return current === want;
-    }
-    return location.pathname === path || (path !== "/" && location.pathname.startsWith(path + "/"));
-  };
+  const isActive = (to: string): boolean => navItemIsActive(to, location.pathname, location.search);
 
   return (
     <>

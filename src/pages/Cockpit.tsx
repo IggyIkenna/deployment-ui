@@ -33,7 +33,6 @@ import {
   CircleDollarSign,
   Clock,
   Database,
-  ExternalLink,
   GitBranch,
   Github,
   HelpCircle,
@@ -44,7 +43,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
 import { DeploymentsContent } from "./Deployments";
@@ -59,7 +58,6 @@ import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
-import { cockpitTabIdFor, NAV_ITEMS_CANONICAL } from "../components/NavMenu";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
@@ -1378,54 +1376,12 @@ export function Cockpit() {
 
   return (
     <main className="w-full app-shell-gutter py-4" data-testid="cockpit-page">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30">
-          <ShieldCheck className="h-5 w-5 text-[var(--color-accent-cyan)]" />
-        </span>
-        <div>
-          <h1 className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">Cockpit</h1>
-          <p className="text-xs text-[var(--color-text-tertiary)] font-mono">
-            unified deployment & health observability — health · deploy · deployments · fleet
-          </p>
-        </div>
-      </div>
-
+      {/* No page header + no tab bar here: the tab bar was lifted into the top bar
+          (TopNavBar) so it is visible on EVERY route, not just this one, and the
+          "Cockpit" title block was pure vertical spend — the top bar already says
+          where you are (operator 2026-07-17). `?tab=` still drives which pane renders;
+          the Tabs value is fed from the URL, so the header's Links select it. */}
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        {/* The always-visible bar — the A/B twin of the top-left dropdown. Both render from
-            the SAME NAV_ITEMS_CANONICAL list (one entry per screen), so the bar and the
-            dropdown can never drift apart. An entry whose `to` is a cockpit tab switches
-            the tab in place; the four with no cockpit twin (Services / Epics / VMs / Costs)
-            are Links that navigate to their own route — they are visually separated so it's
-            obvious which entries leave the cockpit (and take this bar with them). */}
-        <TabsList variant="pill" data-testid="cockpit-tabbar" className="mb-6 flex w-full flex-wrap gap-1">
-          {NAV_ITEMS_CANONICAL.map((item) => {
-            const Icon = item.icon;
-            const tabId = cockpitTabIdFor(item.to);
-            const label = item.short ?? item.label;
-            if (tabId) {
-              return (
-                <TabsTrigger key={item.id} value={tabId} className="gap-2" data-testid={`cockpit-tab-${tabId}`}>
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </TabsTrigger>
-              );
-            }
-            return (
-              <Link
-                key={item.id}
-                to={item.to}
-                title={`${item.desc} — leaves the cockpit`}
-                data-testid={`cockpit-navlink-${item.id}`}
-                className="flex items-center gap-2 rounded-md border border-dashed border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-accent-cyan)]/40 hover:text-[var(--color-text-primary)]"
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </Link>
-            );
-          })}
-        </TabsList>
-
         <TabsContent value="health">
           <HealthTab />
         </TabsContent>

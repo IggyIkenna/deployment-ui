@@ -86,26 +86,43 @@ test("redundant routes are quarantined in a labelled group, not mixed into the n
   await expect(page.getByTestId("nav-menu-item-dup-chaos")).toBeVisible();
 });
 
-test("the always-visible cockpit bar carries the same 14 entries as the dropdown", async ({ page }) => {
+test("the always-visible top bar carries the same 14 entries as the dropdown", async ({ page }) => {
   await page.goto("/cockpit");
-  await expect(page.getByTestId("cockpit-tabbar")).toBeVisible();
+  await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 10 in-place tab switchers + the 4 screens with no cockpit twin = the dropdown's 14.
-  const tabs = page.locator('[data-testid^="cockpit-tab-"]');
-  const links = page.locator('[data-testid^="cockpit-navlink-"]');
-  await expect(tabs).toHaveCount(10);
-  await expect(links).toHaveCount(4);
+  // 10 cockpit tabs + the 4 screens with no cockpit twin = the dropdown's 14.
+  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
+  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(4);
 
-  // The four route-links are the ones the cockpit cannot host in-place.
   for (const id of ["home", "epics", "vm-deployments", "costs"]) {
     await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
   }
 });
 
-test("a cockpit bar link navigates to its own route", async ({ page }) => {
+test("the top bar stays visible OFF the cockpit — the point of lifting it out", async ({ page }) => {
+  // Regression: as a cockpit TabsList, the bar vanished on exactly the 4 entries that
+  // navigate away (Services / Epics / VMs / Costs), so it could never be the primary nav.
+  await page.goto("/ops/costs");
+  await expect(page.getByTestId("top-nav-bar")).toBeVisible();
+  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
+
+  // ...and a cockpit tab is still one click away from a non-cockpit route.
+  await page.getByTestId("cockpit-tab-fleet").click();
+  await expect(page).toHaveURL(/\/cockpit\?tab=fleet/);
+  await expect(page.getByTestId("cockpit-fleet")).toBeVisible({ timeout: 15_000 });
+});
+
+test("a top-bar route link navigates to its own route", async ({ page }) => {
   await page.goto("/cockpit");
   await page.getByTestId("cockpit-navlink-costs").click();
   await expect(page).toHaveURL(/\/ops\/costs/);
+});
+
+test("the top bar is the only nav chrome — the cockpit no longer renders its own", async ({ page }) => {
+  await page.goto("/cockpit");
+  // The old in-page TabsList + "Cockpit" title block are gone; the top bar carries both jobs.
+  await expect(page.getByTestId("cockpit-tabbar")).toHaveCount(0);
+  await expect(page.getByText("unified deployment & health observability")).toHaveCount(0);
 });
 
 test("/infra renders Fleet Infra even when a service was previously selected", async ({ page }) => {

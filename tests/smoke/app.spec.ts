@@ -310,14 +310,17 @@ test.describe("App Layout & Core UI", () => {
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Unified Trading Deployment")).toBeVisible();
+    // Brand shrank to "UTS" so the top bar could carry the page nav (operator 2026-07-17).
+    await expect(page.getByText("UTS")).toBeVisible();
   });
 
   test("renders API status badge", async ({ page }) => {
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("API", { exact: true })).toBeVisible();
+    // The API status lives behind the StatusMenu chip since the 2026-07-17 top-bar rebuild.
+    await page.getByTestId("status-menu-trigger").click();
+    await expect(page.getByTestId("status-menu").getByText("API", { exact: true })).toBeVisible();
   });
 
   test("renders 7 layer section headers in sidebar", async ({ page }) => {
@@ -496,17 +499,23 @@ test.describe("DeployForm — Batch Mode", () => {
     await expect(page.getByText("Live", { exact: true })).toBeVisible();
   });
 
-  test("Deploy tab shows Cloud Provider (GCP and AWS buttons)", async ({ page }) => {
+  // The GCP/AWS toggle is the HEADER's (DeployForm has no picker of its own — it only
+  // renders the unauthenticated warning off the active target). It moved into the
+  // StatusMenu panel in the 2026-07-17 top-bar rebuild, so open the chip first.
+  test("Cloud Provider toggle offers GCP and AWS", async ({ page }) => {
+    await page.getByTestId("status-menu-trigger").click();
     await expect(page.getByRole("button", { name: "GCP" })).toBeVisible();
     await expect(page.getByRole("button", { name: "AWS" })).toBeVisible();
   });
 
   test("clicking AWS shows unauthenticated warning", async ({ page }) => {
+    await page.getByTestId("status-menu-trigger").click();
     await page.getByRole("button", { name: "AWS" }).click();
     await expect(page.getByText(/AWS configured but unauthenticated/)).toBeVisible();
   });
 
   test("switching back to GCP hides AWS warning", async ({ page }) => {
+    await page.getByTestId("status-menu-trigger").click();
     await page.getByRole("button", { name: "AWS" }).click();
     await page.getByRole("button", { name: "GCP" }).click();
     await expect(page.getByText(/AWS configured but unauthenticated/)).not.toBeVisible();
@@ -654,7 +663,7 @@ test.describe("Layout Validation — Nothing Cut Off", () => {
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    const elements = ["Services", "L1: Root", "Unified Trading Deployment"];
+    const elements = ["Services", "L1: Root", "UTS"];
 
     for (const text of elements) {
       const el = page.getByText(text).first();
@@ -699,8 +708,9 @@ test.describe("Clear Cache Button", () => {
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    // Use the header's Clear Cache button specifically (there may be another in DataStatusTab)
-    const clearBtn = page.getByText("Clear Cache").first();
+    // The header's Clear Cache moved into the StatusMenu panel (2026-07-17 rebuild).
+    await page.getByTestId("status-menu-trigger").click();
+    const clearBtn = page.getByTestId("status-menu").getByText("Clear Cache");
     await expect(clearBtn).toBeVisible();
     await clearBtn.click();
 

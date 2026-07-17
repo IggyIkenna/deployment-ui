@@ -39,14 +39,33 @@ async function mockBase(page: Page) {
 
 // ── Env-tier badge ────────────────────────────────────────────────────────
 
-test.describe("Header — env-tier badge", () => {
-  test("shows DEV badge on localhost (green text)", async ({ page }) => {
+test.describe("Header — status menu (env tier + utilities)", () => {
+  // The env badge, cloud toggle, Clear Cache, API status, storage badge and version were
+  // always-on chips in the top bar until 2026-07-17; they now live behind the StatusMenu
+  // chip so the bar can carry the page nav. The chip itself keeps the two signals you must
+  // not have to click for: the health dot and LIVE-vs-MOCK.
+
+  async function openStatus(page: import("@playwright/test").Page) {
+    await page.getByTestId("status-menu-trigger").click();
+    await expect(page.getByTestId("status-menu")).toBeVisible();
+  }
+
+  test("the collapsed chip still surfaces the data mode without a click", async ({ page }) => {
     await mockBase(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    // The badge renders the uppercase tier from resolveEnvTier()
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
+    // Playwright runs the UI with VITE_MOCK_API=true — mock must never be hidden.
+    await expect(page.getByTestId("status-menu-trigger")).toContainText("MOCK");
+  });
+
+  test("shows DEV badge on localhost (green text)", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+    await openStatus(page);
+
+    const badge = page.getByTestId("env-tier-badge");
     await expect(badge).toBeVisible();
     await expect(badge).toContainText("DEV");
   });
@@ -55,64 +74,59 @@ test.describe("Header — env-tier badge", () => {
     await mockBase(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
+    await openStatus(page);
 
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
-    await expect(badge).toHaveClass(/text-green-400/);
+    await expect(page.getByTestId("env-tier-badge")).toHaveClass(/text-green-400/);
   });
 
-  test("clicking env badge opens tooltip with env/api/cloud rows", async ({ page }) => {
+  test("status menu shows env/api/cloud rows", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+    await openStatus(page);
+
+    const menu = page.getByTestId("status-menu");
+    await expect(menu.getByText("Environment")).toBeVisible();
+    await expect(menu.getByText(/env:/)).toBeVisible();
+    await expect(menu.getByText(/api:/)).toBeVisible();
+    await expect(menu.getByText(/cloud:/)).toBeVisible();
+  });
+
+  test("status menu shows 'dev' as env value + localhost in the api URL", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+    await openStatus(page);
+
+    const menu = page.getByTestId("status-menu");
+    await expect(menu).toContainText("dev");
+    await expect(menu.getByText(/localhost.*\/api/)).toBeVisible();
+  });
+
+  test("status menu carries the utilities the top bar used to show", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+    await openStatus(page);
+
+    // Nothing was dropped in the move — just relocated one click away.
+    await expect(page.getByTestId("cloud-toggle-gcp")).toBeVisible();
+    await expect(page.getByTestId("cloud-toggle-aws")).toBeVisible();
+    await expect(page.getByText("Clear Cache")).toBeVisible();
+  });
+
+  test("status menu dismisses on outside click and on Escape", async ({ page }) => {
     await mockBase(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
 
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
-    await badge.click();
+    await openStatus(page);
+    await page.locator("body").click({ position: { x: 10, y: 400 } });
+    await expect(page.getByTestId("status-menu")).toHaveCount(0);
 
-    // Tooltip should show env/api/cloud info
-    await expect(page.getByText("Environment")).toBeVisible();
-    await expect(page.getByText(/env:/)).toBeVisible();
-    await expect(page.getByText(/api:/)).toBeVisible();
-    await expect(page.getByText(/cloud:/)).toBeVisible();
-  });
-
-  test("tooltip shows 'dev' as env value", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/home");
-    await page.waitForLoadState("networkidle");
-
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
-    await badge.click();
-
-    // Scope to the tooltip popover (absolute positioned div)
-    const tooltip = page.locator("div.absolute.right-0.top-full");
-    await expect(tooltip).toBeVisible();
-    await expect(tooltip).toContainText("dev");
-  });
-
-  test("tooltip shows localhost in api URL", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/home");
-    await page.waitForLoadState("networkidle");
-
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
-    await badge.click();
-
-    await expect(page.getByText(/localhost.*\/api/)).toBeVisible();
-  });
-
-  test("tooltip dismisses on blur", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/home");
-    await page.waitForLoadState("networkidle");
-
-    const badge = page.getByRole("button", { name: /Environment: dev/i });
-    await badge.click();
-    await expect(page.getByText("Environment")).toBeVisible();
-
-    // Click elsewhere to blur
-    await page.locator("body").click({ position: { x: 10, y: 10 } });
-    await page.waitForTimeout(300); // onBlur timeout is 150ms
-    await expect(page.getByText("Environment")).not.toBeVisible();
+    await openStatus(page);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("status-menu")).toHaveCount(0);
   });
 });
 
