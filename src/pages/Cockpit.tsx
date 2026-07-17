@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   BarChart2,
@@ -43,14 +43,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Tabs, TabsContent } from "../components/ui/tabs";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
-import { DeploymentsContent } from "./Deployments";
-import { DeploymentDetail } from "./DeploymentDetail";
 import { VmDeploymentsContent } from "./VmDeployments";
 import { FleetOrphansContent } from "./FleetOrphans";
-import { LiveDeploymentsContent } from "./LiveDeployments";
 import { FleetInfraContent } from "./FleetInfra";
 import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
@@ -133,7 +129,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Boxes,
     status: "placeholder",
     metric: "targets · running · stale · failed — one flat grid",
-    to: "/cockpit?tab=deployments",
+    to: "/deployments",
   },
   {
     id: "fleet",
@@ -141,7 +137,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Server,
     status: "placeholder",
     metric: "running · zombie · OOM · unknown · incl. orchestrator",
-    to: "/cockpit?tab=fleet",
+    to: "/fleet",
   },
   {
     id: "consolidators",
@@ -149,7 +145,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Database,
     status: "placeholder",
     metric: "index age · shard fallback",
-    to: "/cockpit?tab=consolidators",
+    to: "/consolidators",
   },
   {
     id: "coverage",
@@ -169,7 +165,7 @@ const HEALTH_TILES: Tile[] = [
     icon: GitBranch,
     status: "placeholder",
     metric: "last-green · promotion lag",
-    to: "/repos",
+    to: "/ci",
   },
   {
     id: "github",
@@ -177,7 +173,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Github,
     status: "placeholder",
     metric: "rate-limit · Actions minutes",
-    to: "/repos",
+    to: "/ci",
   },
   {
     id: "billing",
@@ -195,7 +191,6 @@ const HEALTH_TILES: Tile[] = [
 // duplicate top-nav links are removed; each becomes its own embedded tab next.
 const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; to: string }[] = [
   { id: "vm-deployments", label: "VM Deployments", icon: Server, to: "/vm-deployments" },
-  { id: "live-ops", label: "Live Ops", icon: Radio, to: "/ops/live-deployments" },
   { id: "chaos", label: "Chaos (resilience testing)", icon: AlertTriangle, to: "/chaos" },
   { id: "safety-ops", label: "Safety Ops", icon: ShieldCheck, to: "/safety-ops" },
   { id: "ml", label: "ML Experiments", icon: BarChart2, to: "/research/ml-experiments" },
@@ -1317,156 +1312,105 @@ function ConsolidatorsTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Cockpit panes as plain-route page components (2026-07-17 — retire `?tab=`).
+//
+// Each pane is now its own top-level route (/cockpit, /deploy, /fleet, …) instead of a
+// `?tab=` value the old `Cockpit()` switch-rendered. The shared chrome (Header + TopNavBar)
+// already lives OUTSIDE <Routes> in App.tsx, so it persists across these routes with no
+// layout-route needed. The Deployments pane (its LiveOps fold + the ?detail= slide-over)
+// moved to Deployments.tsx as `DeploymentsPage`, next to the content it renders.
+// ---------------------------------------------------------------------------
 
-/**
- * The tab ids this page can render — the `?tab=` whitelist (an unknown value falls back
- * to `health`). Labels + icons are NOT here: the bar renders from NAV_ITEMS_CANONICAL so
- * it and the top-left dropdown always show the same 14 entries. Adding a tab means adding
- * it here AND to NAV_GROUPS; the nav L2 smoke fails if a nav entry names a tab this list
- * doesn't know (the pane wouldn't mount).
- */
-const COCKPIT_TAB_IDS = [
-  "health",
-  "deploy",
-  "deployments",
-  "fleet",
-  "consolidators",
-  "ci",
-  "alerts",
-  "launch",
-  "chaos",
-  "safety",
-] as const;
+/** Shared page shell for every cockpit pane — the full-width gutter wrapper. */
+const PANE_SHELL = "w-full app-shell-gutter py-4";
 
-type CockpitTabId = (typeof COCKPIT_TAB_IDS)[number];
-
-const VALID_TABS = new Set<string>(COCKPIT_TAB_IDS);
-
-export function Cockpit() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const raw = searchParams.get("tab") ?? "health";
-  const activeTab: CockpitTabId = (VALID_TABS.has(raw) ? raw : "health") as CockpitTabId;
-
-  const onTabChange = useCallback(
-    (tab: string) => {
-      const next = new URLSearchParams(searchParams);
-      next.set("tab", tab);
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams],
-  );
-
-  // In-cockpit drill-down: a Deployments row sets `?detail=<name>` (the cockpit owns
-  // `?tab`; `?detail` is an orthogonal param) → the per-target DeploymentDetail opens in a
-  // slide-over (chrome-less embed) instead of navigating away to /deployments/:name.
-  const detail = searchParams.get("detail");
-  const openDetail = useCallback(
-    (name: string) => {
-      const next = new URLSearchParams(searchParams);
-      next.set("detail", name);
-      setSearchParams(next, { replace: false });
-    },
-    [searchParams, setSearchParams],
-  );
-  const closeDetail = useCallback(() => {
-    const next = new URLSearchParams(searchParams);
-    next.delete("detail");
-    setSearchParams(next, { replace: false });
-  }, [searchParams, setSearchParams]);
-
+/** `/cockpit` — the health rollup (the default landing page). */
+export function CockpitHealth() {
   return (
-    <main className="w-full app-shell-gutter py-4" data-testid="cockpit-page">
-      {/* No page header + no tab bar here: the tab bar was lifted into the top bar
-          (TopNavBar) so it is visible on EVERY route, not just this one, and the
-          "Cockpit" title block was pure vertical spend — the top bar already says
-          where you are (operator 2026-07-17). `?tab=` still drives which pane renders;
-          the Tabs value is fed from the URL, so the header's Links select it. */}
-      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsContent value="health">
-          <HealthTab />
-        </TabsContent>
-        <TabsContent value="deploy">
-          <DeployTab />
-        </TabsContent>
-        <TabsContent value="deployments">
-          <div data-testid="cockpit-deployments">
-            {/* MERGED live/batch/paper — one flat all-modes inventory (Mode is a filter). */}
-            <DeploymentsContent embedded onDrill={openDetail} />
-            {/* Fold /ops/live-deployments — the live-mode VM list + WS event/log tail
-                (Phase 0.5 "Fold /ops/live-deployments"). Chrome-less, no ?tab collision. */}
-            <div className="mt-6" data-testid="cockpit-live-ops">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
-                Live ops — running services + event/log stream
-              </h2>
-              <ErrorBoundary fallbackTitle="Live ops failed to load">
-                <LiveDeploymentsContent />
-              </ErrorBoundary>
-            </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="fleet">
-          <FleetTab />
-        </TabsContent>
-        <TabsContent value="consolidators">
-          <ConsolidatorsTab />
-        </TabsContent>
-        <TabsContent value="ci">
-          <div data-testid="cockpit-ci">
-            <RepoCiContent />
-          </div>
-        </TabsContent>
-        <TabsContent value="alerts">
-          <div data-testid="cockpit-alerts">
-            <AlertsLogsTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="launch">
-          <div data-testid="cockpit-launch">
-            <LaunchTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="chaos">
-          <div data-testid="cockpit-chaos">
-            <ChaosContent />
-          </div>
-        </TabsContent>
-        <TabsContent value="safety">
-          <div data-testid="cockpit-safety">
-            <SafetyOpsContent />
-          </div>
-        </TabsContent>
-      </Tabs>
+    <main className={PANE_SHELL} data-testid="cockpit-page">
+      <HealthTab />
+    </main>
+  );
+}
 
-      {/* In-cockpit drill-down slide-over — a row's per-target detail (events + log tail)
-          opens here instead of navigating to /deployments/:name (Phase 0.5). */}
-      {detail ? (
-        <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/50"
-          data-testid="cockpit-detail-overlay"
-          onClick={closeDetail}
-        >
-          <div
-            className="h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--color-border-default)] bg-[var(--color-bg-primary)] p-4 shadow-xl"
-            data-testid="cockpit-detail-panel"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
-                Deployment detail
-              </span>
-              <button
-                type="button"
-                onClick={closeDetail}
-                data-testid="cockpit-detail-close"
-                className="rounded-md border border-[var(--color-border-default)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              >
-                Close ✕
-              </button>
-            </div>
-            <DeploymentDetail name={detail} embedded />
-          </div>
-        </div>
-      ) : null}
+/** `/deploy` — the deploy console. */
+export function CockpitDeploy() {
+  return (
+    <main className={PANE_SHELL}>
+      <DeployTab />
+    </main>
+  );
+}
+
+/** `/fleet` — census · orphans · git · infra. */
+export function CockpitFleet() {
+  return (
+    <main className={PANE_SHELL}>
+      <FleetTab />
+    </main>
+  );
+}
+
+/** `/consolidators` — per-asset_group manifest-consolidator health. */
+export function CockpitConsolidators() {
+  return (
+    <main className={PANE_SHELL}>
+      <ConsolidatorsTab />
+    </main>
+  );
+}
+
+/** `/ci` — repos / CI health (last-green · promotion lag). */
+export function CockpitCi() {
+  return (
+    <main className={PANE_SHELL}>
+      <div data-testid="cockpit-ci">
+        <RepoCiContent />
+      </div>
+    </main>
+  );
+}
+
+/** `/alerts` — open alerts + log stream. */
+export function CockpitAlerts() {
+  return (
+    <main className={PANE_SHELL}>
+      <div data-testid="cockpit-alerts">
+        <AlertsLogsTab />
+      </div>
+    </main>
+  );
+}
+
+/** `/launch` — ML · strategy · execution backtest launch consoles. */
+export function CockpitLaunch() {
+  return (
+    <main className={PANE_SHELL}>
+      <div data-testid="cockpit-launch">
+        <LaunchTab />
+      </div>
+    </main>
+  );
+}
+
+/** `/chaos` — resilience testing. */
+export function CockpitChaos() {
+  return (
+    <main className={PANE_SHELL}>
+      <div data-testid="cockpit-chaos">
+        <ChaosContent />
+      </div>
+    </main>
+  );
+}
+
+/** `/safety-ops` — kill-switch + guardrails. */
+export function CockpitSafety() {
+  return (
+    <main className={PANE_SHELL}>
+      <div data-testid="cockpit-safety">
+        <SafetyOpsContent />
+      </div>
     </main>
   );
 }

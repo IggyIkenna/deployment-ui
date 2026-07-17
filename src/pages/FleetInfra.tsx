@@ -149,7 +149,7 @@ function buildTiles(
               ? `${overview.repos.length} repo(s) monitored`
               : `${overview.stuck_prs.length} PR(s) stuck`,
           tone: overview.stuck_prs.length === 0 ? "green" : "red",
-          href: "/repos",
+          href: "/ci",
         }
       : {
           id: "ci-status",
@@ -157,7 +157,7 @@ function buildTiles(
           value: "—",
           detail: "Loading…",
           tone: "gray",
-          href: "/repos",
+          href: "/ci",
         };
 
   return [vmsRunning, centralVmUp, consolidatorFresh, fleetGitClean, ciGreen];

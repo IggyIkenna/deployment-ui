@@ -12,8 +12,10 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Deployments observability page (unified all-modes)", () => {
   test("the /deployments page renders one flat table with every mode + a Mode filter", async ({ page }) => {
-    await page.goto("/deployments");
-    await expect(page).toHaveURL(/\/deployments$/);
+    // status=all so completed/failed + paper rows show alongside running (the default is
+    // running — live-first). On the plain route this is a real filter deep-link (the fix).
+    await page.goto("/deployments?status=all");
+    await expect(page).toHaveURL(/status=all/);
     await expect(page.getByTestId("deployments-page")).toBeVisible();
     // Mode is a FILTER now, not per-mode tabs.
     await expect(page.getByTestId("umbrella-tab-LIVE")).toHaveCount(0);
@@ -32,7 +34,8 @@ test.describe("Deployments observability page (unified all-modes)", () => {
   });
 
   test("the mode filter (umbrella deep-link) surfaces the failed/137 (OOM) batch row", async ({ page }) => {
-    await page.goto("/deployments?umbrella=batch");
+    // status=all reveals the failed row (default running would hide it); umbrella=batch scopes mode.
+    await page.goto("/deployments?umbrella=batch&status=all");
     const row = page.getByTestId("deployment-row-sports-backfill-20260621");
     await expect(row).toBeVisible();
     await expect(page.getByTestId("status-sports-backfill-20260621")).toContainText("failed");
@@ -51,9 +54,12 @@ test.describe("Deployments observability page (unified all-modes)", () => {
   });
 
   test("per-target detail drills down with exit code, run.log link, timeline + log tail", async ({ page }) => {
-    await page.goto("/deployments?umbrella=batch");
+    await page.goto("/deployments?umbrella=batch&status=all");
     await page.getByTestId("deployment-link-sports-backfill-20260621").click();
-    await expect(page).toHaveURL(/\/deployments\/sports-backfill-20260621$/);
+    // A row opens the in-context slide-over (deep-linkable via ?detail=), not a full-page nav.
+    // The standalone full page still exists at /deployments/:name (Alerts deep-links to it).
+    await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
+    await expect(page).toHaveURL(/detail=sports-backfill-20260621/);
     await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
     await expect(page.getByTestId("deployment-detail-title")).toContainText("sports-backfill-20260621");
     await expect(page.getByTestId("detail-exit-code")).toContainText("137 (OOM)");

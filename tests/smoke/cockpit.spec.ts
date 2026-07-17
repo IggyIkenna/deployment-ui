@@ -88,7 +88,7 @@ test.describe("Cockpit — scaffold IA", () => {
 
   test("each tab switches and renders its pane", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
@@ -155,11 +155,12 @@ test.describe("Cockpit — scaffold IA", () => {
  * old Live/Batch/Paper tabs were merged into one Deployments tab (operator 2026-07-08); mode
  * is a FILTER inside the flat all-modes table. Note: NO page.route mock here — the dev
  * mock-api serves /api/deployments/inventory + /vm-deployments so the folded components get
- * real-shaped data (the cockpit owns ?tab=; embedded filters are local state, no ?umbrella=).
+ * real-shaped data. Filters are URL-backed on the plain /deployments route (2026-07-17: the
+ * `?tab=` scheme + the embedded local-state dual-path were retired).
  */
 test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () => {
   test("Deployments tab renders the folded all-modes inventory with a real live row", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     // Merged view: mode is a FILTER (no per-mode umbrella tabs).
@@ -173,7 +174,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Live row drill opens the per-target detail IN the cockpit (Phase 0.5 slide-over)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     // Clicking a row opens the chrome-less DeploymentDetail in a slide-over (no nav-away).
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
@@ -189,7 +190,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Deployments tab rows carry pause/stop/restart VM controls (Phase 6)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     // A running LIVE VM row exposes the operator controls (reuse /api/vm/admin/{vm}/*).
     await expect(page.getByTestId("vm-controls-defi-live-capture-1")).toBeVisible();
@@ -205,7 +206,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Deploy tab embeds the launch/rollback console + build & deployment history (Phase 6)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deploy");
+    await page.goto("/deploy");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deploy-console")).toBeVisible();
     await expect(page.getByTestId("deploy-no-service")).toBeVisible();
@@ -220,7 +221,8 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("merged table shows the batch failed/137 (OOM) row", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    // status=all so the failed batch row shows (default is running — live-first).
+    await page.goto("/deployments?status=all");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     const row = page.getByTestId("deployment-row-sports-backfill-20260621");
@@ -230,7 +232,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("merged table shows paper rows alongside live + batch (all modes in one grid)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     await expect(page.getByTestId("deployment-matrix")).toBeVisible();
@@ -241,7 +243,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Fleet tab renders the real VM census (every VM accounted for)", async ({ page }) => {
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
     // The reconciliation alarm cards stay (wire to /api/fleet/reconciliation in Phase 4) …
@@ -253,7 +255,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   // ── Deployment-observability expansion (plan deployment_obs_ui_popover_health_2026_07_09) ──
 
   test("all 6 compute kinds render kind badges; services show Mode='—' (Open-Q1)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("deployment-matrix")).toBeVisible();
     for (const kind of ["VM", "CLOUD_RUN_JOB", "CLOUD_RUN_SERVICE", "ECS_SERVICE", "LAMBDA", "CLOUD_FUNCTION"]) {
@@ -265,7 +267,8 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("composite Health column names each VM state + the service sub-taxonomy (Open-Q2/Q7)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    // status=all so the non-running rows (dead / hung / disk-full / paper) are in view.
+    await page.goto("/deployments?status=all");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("feed-health-defi-live-capture-1")).toHaveText("working");
     await expect(page.getByTestId("feed-health-defi-paper-trading-1")).toContainText("oom-risk");
@@ -279,7 +282,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Resources column shows cpu/mem/disk for VMs; honest '—' for a no-sample row", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     const vm = page.getByTestId("resources-defi-live-capture-1");
     await expect(vm).toContainText("58"); // cpu
@@ -289,7 +292,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("name-click detail panel shows the /detail work-health vector for a VM", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
     await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
@@ -300,7 +303,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("detail panel: a service shows structural task counts + no /proc vector", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("deployment-link-uts-execution-service-prod").click();
     await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
@@ -310,7 +313,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("detail panel: console deep-link is built per kind (GCE VM vs ECS service)", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
     await expect(page.getByTestId("detail-console-link")).toHaveAttribute(
@@ -326,7 +329,7 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Kind filter isolates a single kind (services found despite Mode='—')", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     const before = await page.getByTestId("deployment-matrix").locator("tbody tr").count();
     expect(before).toBeGreaterThan(4);
@@ -347,20 +350,20 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
     await mockBase(page);
     // The log-tail opens an EventSource (SSE) that holds the connection open, so
     // `networkidle` never settles — wait on DOM + the explicit testids instead.
-    await page.goto("/cockpit?tab=alerts");
+    await page.goto("/alerts");
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByTestId("cockpit-alerts-logs")).toBeVisible();
     await expect(page.getByTestId("cockpit-logs-target")).toBeVisible();
     await expect(page.getByTestId("cockpit-logs-empty")).toBeVisible();
     // deep-link ?logs=<target> auto-opens the streaming panel (alert → logs flow)
-    await page.goto("/cockpit?tab=alerts&logs=strategy-live-csb-001");
+    await page.goto("/alerts?logs=strategy-live-csb-001");
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByTestId("cockpit-logs-empty")).toHaveCount(0);
   });
 
   test("Launch tab folds the ML / Strategy / Execution sub-tabs", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/cockpit?tab=launch");
+    await page.goto("/launch");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-launch")).toBeVisible();
     await expect(page.getByTestId("cockpit-launch-tab-strategy")).toBeVisible();
@@ -370,16 +373,17 @@ test.describe("Cockpit — CI / Alerts&Logs / Launch / Safety embedded folds", (
 
   test("Safety tab folds the SafetyOps console + CI tab folds RepoCi (no crash)", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/cockpit?tab=safety");
+    await page.goto("/safety-ops");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("safety-ops-heading")).toBeVisible();
+    // The CI entry is its own plain route now — clicking it navigates to /ci and mounts cockpit-ci.
     await page.getByTestId("cockpit-tab-ci").click();
-    await expect(page.getByTestId("cockpit-page")).toBeVisible();
+    await expect(page.getByTestId("cockpit-ci")).toBeVisible();
   });
 
   test("Chaos tab folds without crashing on the {injections:[...]} envelope", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/cockpit?tab=chaos");
+    await page.goto("/chaos");
     await page.waitForLoadState("networkidle");
     // Regression: the backend returns `{injections:[...]}` (not a bare array). The client must
     // unwrap it — before the fix `injections.map` threw and the tab rendered empty.
@@ -401,7 +405,7 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
   test("Deployments tab Health column shows the composite WORK-health verdict (not just fresh/stale)", async ({
     page,
   }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     // The server-derived composite (WS-D.3) wins the Health column over raw freshness:
     // a genuinely-progressing live VM reads "working"…
@@ -429,14 +433,14 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
  */
 test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
   test("Deployments tab folds the live-ops running-services + event/log surface", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-live-ops")).toBeVisible();
     await expect(page.getByTestId("live-deployments-content")).toBeVisible();
   });
 
   test("Fleet tab folds the infra/orchestrator + git-health surfaces", async ({ page }) => {
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
@@ -452,7 +456,7 @@ test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
  */
 test.describe("Cockpit — Fleet orphan inventory + reap/delete", () => {
   test("Fleet tab shows the idle-spend rollup + stopped-VM table with reap-verdicts", async ({ page }) => {
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("fleet-orphans")).toBeVisible();
     // Idle-spend rollup cards from the mock inventory (4 stopped, 1 reapable, $18.85 idle, $2.60 reclaimable).
@@ -467,7 +471,7 @@ test.describe("Cockpit — Fleet orphan inventory + reap/delete", () => {
   });
 
   test("bulk reap is dry-run-first → confirm dialog lists candidates → executes", async ({ page }) => {
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     // The in-app mock resolves after networkidle, so wait for the inventory to populate the
     // button (it is disabled until data loads) before driving the reap flow.
@@ -482,7 +486,7 @@ test.describe("Cockpit — Fleet orphan inventory + reap/delete", () => {
   });
 
   test("per-instance delete is gated behind a confirm dialog", async ({ page }) => {
-    await page.goto("/cockpit?tab=fleet");
+    await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
     // Wait for the row to render (in-app mock resolves after networkidle) before clicking.
     await expect(page.getByTestId("orphan-row-cefi-binance-spot-20260601")).toBeVisible();
@@ -510,7 +514,7 @@ test.describe("Cockpit — Launch tab nested-form fix", () => {
       }
     });
     await mockBase(page);
-    await page.goto("/cockpit?tab=launch");
+    await page.goto("/launch");
     await page.waitForLoadState("networkidle");
     // ML is the default Launch sub-tab; its form contains the cost-estimate panel.
     await expect(page.getByTestId("cost-estimate-form")).toBeVisible();
@@ -533,7 +537,7 @@ test.describe("Cockpit — Launch tab nested-form fix", () => {
  */
 test.describe("Cockpit — operator additions O1–O4", () => {
   test("O1: Consolidators drill-down renders the real per-consolidator index age (not —)", async ({ page }) => {
-    await page.goto("/cockpit?tab=consolidators");
+    await page.goto("/consolidators");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-consolidators")).toBeVisible();
     await expect(page.getByTestId("cockpit-consolidators-error")).toHaveCount(0);
@@ -558,7 +562,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O3: merged inventory shows status-filter chips with counts that drive the filter", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deployments")).toBeVisible();
     const chips = page.getByTestId("status-filter-chips");
@@ -577,7 +581,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O4: deployment drill-down surfaces the alerts + restart/escalation lifecycle card", async ({ page }) => {
-    await page.goto("/cockpit?tab=deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await page.getByTestId("deployment-link-defi-live-capture-1").click();
     await expect(page.getByTestId("cockpit-detail-panel")).toBeVisible();
@@ -592,7 +596,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
 
   test("O5: consolidator backlog counts render + the throughput sparkline accumulates", async ({ page }) => {
     test.setTimeout(60_000); // waits for a 2nd 30s poll to accumulate the sparkline
-    await page.goto("/cockpit?tab=consolidators");
+    await page.goto("/consolidators");
     await page.waitForLoadState("networkidle");
     // The defi market-data consolidator is behind in the mock (pending / total shards) — the real
     // "keeping up?" magnitude. Assert the pending/total backlog cell renders a concrete count.
@@ -608,7 +612,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O6: fired-but-empty verdict + oldest-unmerged-shard age render (WS-3)", async ({ page }) => {
-    await page.goto("/cockpit?tab=consolidators");
+    await page.goto("/consolidators");
     await page.waitForLoadState("networkidle");
     // The mock features-onchain-defi consolidator: its Cloud Run execution SUCCEEDED but the index is
     // stale → the data-correctness verdict is fired-but-empty (ran green, wrote nothing).
@@ -623,7 +627,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   });
 
   test("O7: consolidator run-summary + not-reporting states render (WS-3 latest.json)", async ({ page }) => {
-    await page.goto("/cockpit?tab=consolidators");
+    await page.goto("/consolidators");
     await page.waitForLoadState("networkidle");
     // A LIVE consolidator self-reports its last run (from latest.json).
     const run = page.getByTestId("cockpit-consolidator-run-market-data-cefi");
@@ -639,7 +643,7 @@ test.describe("Cockpit — operator additions O1–O4", () => {
   test("O8: phantom/reprobe audit summary renders on market-data cards, absent on non-audit kinds (WS-3)", async ({
     page,
   }) => {
-    await page.goto("/cockpit?tab=consolidators");
+    await page.goto("/consolidators");
     await page.waitForLoadState("networkidle");
     // A market-data AG carries the dark-actor audits — cefi has phantoms (amber) + a re-probe line.
     const audit = page.getByTestId("cockpit-consolidator-audit-market-data-cefi");

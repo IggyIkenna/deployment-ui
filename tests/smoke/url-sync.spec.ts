@@ -27,7 +27,7 @@ test.describe("URL ↔ view sync", () => {
     // durable property is the same one: the service view must not survive the navigation.
     await page.goto("/service/market-tick-data-service/deploy");
     await page.goto("/repos");
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     await expect(page.getByTestId("cockpit-ci")).toBeVisible();
     await expect(page.getByTestId("repo-ci-table")).toBeVisible();
     // The service shell must be GONE, not merely covered.
@@ -51,11 +51,11 @@ test.describe("URL ↔ view sync", () => {
     // redirect uses `replace`, so it never traps you in a bounce loop — that is the property
     // this pins).
     await page.goto("/repos");
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     await page.getByTestId("repo-dropdown").selectOption("execution-service");
     await page.goto("/service/execution-service/builds");
     await page.goBack();
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     await expect(page.getByTestId("cockpit-ci")).toBeVisible();
   });
 });

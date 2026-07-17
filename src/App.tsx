@@ -44,22 +44,29 @@ import { ServiceUrlSync } from "./components/ServiceUrlSync";
 import { ToastStack } from "./components/ToastStack";
 import { CloudProviderProvider } from "./contexts/CloudProviderContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
-import { Chaos } from "./pages/Chaos";
-import { Cockpit } from "./pages/Cockpit";
+import {
+  CockpitHealth,
+  CockpitDeploy,
+  CockpitFleet,
+  CockpitConsolidators,
+  CockpitCi,
+  CockpitAlerts,
+  CockpitLaunch,
+  CockpitChaos,
+  CockpitSafety,
+} from "./pages/Cockpit";
 import { CostObservability } from "./pages/CostObservability";
-import { Deployments } from "./pages/Deployments";
+import { DeploymentsPage } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
 import { RepoDetailPanel } from "./pages/RepoCi";
 import { ServicesOverviewTab } from "./components/ServicesOverviewTab";
 import { EpicsPlansContent } from "./pages/EpicsPlans";
 import { VmDetail } from "./pages/VmDetail";
 import { ExecutionBacktests } from "./pages/ExecutionBacktests";
-import { LiveDeployments } from "./pages/LiveDeployments";
 import { MlExperiments } from "./pages/MlExperiments";
 import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VmDeployments } from "./pages/VmDeployments";
-import { SafetyOps } from "./pages/SafetyOps";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -149,22 +156,30 @@ function App() {
                       The per-service home shell (ServiceList + deploy/monitor tabs) lives at
                       /home (the `*` fall-through below); /service/* deep-links are unchanged. */}
                   <Route path="/" element={<Navigate to="/cockpit" replace />} />
-                  <Route path="/cockpit" element={<Cockpit />} />
+                  {/* One URL scheme — plain routes (operator 2026-07-17, retired `?tab=`). Each
+                      former cockpit tab is now its own top-level route; the shared chrome (Header
+                      + TopNavBar) lives above <Routes>, so it persists across all of them with no
+                      layout route needed. */}
+                  <Route path="/cockpit" element={<CockpitHealth />} />
+                  <Route path="/deploy" element={<CockpitDeploy />} />
+                  <Route path="/deployments" element={<DeploymentsPage />} />
+                  <Route path="/deployments/:name" element={<DeploymentDetail />} />
+                  <Route path="/fleet" element={<CockpitFleet />} />
+                  <Route path="/consolidators" element={<CockpitConsolidators />} />
+                  <Route path="/ci" element={<CockpitCi />} />
+                  <Route path="/alerts" element={<CockpitAlerts />} />
+                  <Route path="/launch" element={<CockpitLaunch />} />
+                  <Route path="/chaos" element={<CockpitChaos />} />
+                  <Route path="/safety-ops" element={<CockpitSafety />} />
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
-                  <Route path="/deployments" element={<Deployments />} />
-                  <Route path="/deployments/:name" element={<DeploymentDetail />} />
-                  <Route path="/chaos" element={<Chaos />} />
-                  <Route path="/ops/live-deployments" element={<LiveDeployments />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
-                  <Route path="/safety-ops" element={<SafetyOps />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
                   <Route path="/research/execution-backtests" element={<ExecutionBacktests />} />
-                  {/* Epics is its own page now — it was a LandingTabs tab, and that bar is
-                      gone (operator 2026-07-17: the top bar already lists every screen, so a
-                      second 6-item bar under it was pure duplication). */}
+                  {/* Epics is its own page (was a LandingTabs tab; that bar was deleted
+                      2026-07-17 — the top bar already lists every screen). */}
                   <Route
                     path="/epics"
                     element={
@@ -173,15 +188,11 @@ function App() {
                       </main>
                     }
                   />
-                  {/* The other four LandingTabs tabs were DUPLICATES of cockpit tabs — the same
-                      components under a second chrome. With the bar gone they redirect to the
-                      canonical tab, which keeps every existing deep-link working.
-                      /fleet + /infra both land on the Fleet tab: it embeds BOTH the git and the
-                      infra sections (cockpit-fleet-git / cockpit-fleet-infra). */}
-                  <Route path="/repos" element={<Navigate to="/cockpit?tab=ci" replace />} />
-                  <Route path="/alerts" element={<Navigate to="/cockpit?tab=alerts" replace />} />
-                  <Route path="/fleet" element={<Navigate to="/cockpit?tab=fleet" replace />} />
-                  <Route path="/infra" element={<Navigate to="/cockpit?tab=fleet" replace />} />
+                  {/* Compat redirects for old bookmarks only (no nav entry): `?tab=` is gone,
+                      so these forward to the canonical plain route. /repos → /ci, /infra →
+                      /fleet (the Fleet route embeds both git + infra sections). */}
+                  <Route path="/repos" element={<Navigate to="/ci" replace />} />
+                  <Route path="/infra" element={<Navigate to="/fleet" replace />} />
                   <Route
                     path="*"
                     element={

@@ -11,7 +11,7 @@ test("the top bar's Fleet tab renders the infra tile grid", async ({ page }) => 
   // section INSIDE the cockpit Fleet tab now, and /infra redirects there.
   await page.goto("/cockpit");
   await page.getByTestId("cockpit-tab-fleet").click();
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+  await expect(page).toHaveURL(/\/fleet$/);
   await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible();
   await expect(page.getByTestId("fleet-infra-page")).toBeVisible();
   await expect(page.getByTestId("infra-tiles")).toBeVisible();
@@ -19,7 +19,7 @@ test("the top bar's Fleet tab renders the infra tile grid", async ({ page }) => 
 
 test("deep-link to /infra redirects onto the Fleet tab", async ({ page }) => {
   await page.goto("/infra");
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+  await expect(page).toHaveURL(/\/fleet$/);
   await expect(page.getByTestId("fleet-infra-page")).toBeVisible();
   await expect(page.getByTestId("cockpit-tab-fleet")).toHaveAttribute("aria-current", "page");
 });
@@ -56,7 +56,7 @@ test("clicking fleet-git tile lands on the Fleet surface", async ({ page }) => {
   // The tile still links /fleet — which redirects onto the cockpit Fleet tab (2026-07-17).
   await page.goto("/infra");
   await page.getByTestId("infra-tile-fleet-git").click();
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+  await expect(page).toHaveURL(/\/fleet$/);
   await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 });
 
@@ -64,6 +64,6 @@ test("clicking ci-status tile lands on the CI surface", async ({ page }) => {
   // The tile still links /repos — which redirects onto the cockpit CI tab (2026-07-17).
   await page.goto("/infra");
   await page.getByTestId("infra-tile-ci-status").click();
-  await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+  await expect(page).toHaveURL(/\/ci$/);
   await expect(page.getByTestId("cockpit-ci")).toBeVisible();
 });

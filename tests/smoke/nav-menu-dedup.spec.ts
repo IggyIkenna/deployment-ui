@@ -19,15 +19,15 @@ import { expect, test } from "@playwright/test";
 /** Canonical entries: [nav item id, expected URL, a testid that proves the screen mounted]. */
 const CANONICAL: [string, string, string][] = [
   ["cockpit", "/cockpit", "cockpit-page"],
-  ["deploy", "/cockpit?tab=deploy", "cockpit-deploy"],
-  ["deployments", "/cockpit?tab=deployments", "cockpit-deployments"],
-  ["fleet", "/cockpit?tab=fleet", "cockpit-fleet"],
-  ["consolidators", "/cockpit?tab=consolidators", "cockpit-page"],
-  ["repos", "/cockpit?tab=ci", "cockpit-ci"],
-  ["alerts", "/cockpit?tab=alerts", "cockpit-alerts"],
-  ["launch", "/cockpit?tab=launch", "cockpit-launch"],
-  ["chaos", "/cockpit?tab=chaos", "cockpit-chaos"],
-  ["safety", "/cockpit?tab=safety", "cockpit-safety"],
+  ["deploy", "/deploy", "cockpit-deploy"],
+  ["deployments", "/deployments", "cockpit-deployments"],
+  ["fleet", "/fleet", "cockpit-fleet"],
+  ["consolidators", "/consolidators", "cockpit-consolidators"],
+  ["repos", "/ci", "cockpit-ci"],
+  ["alerts", "/alerts", "cockpit-alerts"],
+  ["launch", "/launch", "cockpit-launch"],
+  ["chaos", "/chaos", "cockpit-chaos"],
+  ["safety", "/safety-ops", "cockpit-safety"],
 ];
 
 async function openNav(page: import("@playwright/test").Page) {
@@ -75,21 +75,15 @@ test("nav lists each destination exactly once (no duplicate hrefs)", async ({ pa
   expect(new Set(hrefs).size).toBe(hrefs.length);
 });
 
-test("redundant routes are quarantined in a labelled group, not mixed into the nav", async ({ page }) => {
+test("the legacy duplicate-route quarantine is gone — one plain route per screen", async ({ page }) => {
+  // 2026-07-17: the UI moved to one plain-URL scheme; `?tab=` and the whole "pending removal"
+  // quarantine group (and its routes) were deleted. Neither the group nor any dup- entry exists.
   await page.goto("/cockpit");
   await openNav(page);
 
-  const legacy = page.getByTestId("nav-menu-legacy");
-  await expect(legacy).toBeVisible();
-  await expect(legacy).toContainText(/pending removal/i);
-  // The folded standalones live ONLY here — never as a canonical entry.
-  await expect(page.getByTestId("nav-menu-item-dup-chaos")).toBeVisible();
-  await expect(page.getByTestId("nav-menu-item-dup-deployments")).toBeVisible();
-  // The retired LandingTabs URLs stay listed as REDIRECTS — that keeps old deep-links alive
-  // and keeps the routes reachable for scripts/orphan-audit.ts (a declared route with no
-  // inbound <Link> fails the gate, and "compat redirect" is not a whitelistable reason).
-  for (const id of ["dup-repos", "dup-alerts", "dup-fleet-git", "dup-fleet-infra"]) {
-    await expect(page.getByTestId(`nav-menu-item-${id}`)).toBeVisible();
+  await expect(page.getByTestId("nav-menu-legacy")).toHaveCount(0);
+  for (const id of ["dup-deployments", "dup-live-ops", "dup-chaos", "dup-repos", "dup-fleet-git"]) {
+    await expect(page.getByTestId(`nav-menu-item-${id}`)).toHaveCount(0);
   }
 });
 
@@ -115,7 +109,7 @@ test("the top bar stays visible OFF the cockpit — the point of lifting it out"
 
   // ...and a cockpit tab is still one click away from a non-cockpit route.
   await page.getByTestId("cockpit-tab-fleet").click();
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet/);
+  await expect(page).toHaveURL(/\/fleet/);
   await expect(page.getByTestId("cockpit-fleet")).toBeVisible({ timeout: 15_000 });
 });
 
@@ -146,19 +140,17 @@ test("the top bar is the only nav chrome — the cockpit no longer renders its o
   await expect(page.getByText("unified deployment & health observability")).toHaveCount(0);
 });
 
-test("the retired LandingTabs routes redirect into their cockpit tab", async ({ page }) => {
-  // /repos /alerts /fleet /infra were LandingTabs tabs rendering the same components as
-  // cockpit tabs. The bar is gone (2026-07-17); these keep every old deep-link working.
-  // /fleet AND /infra both land on the Fleet tab — it embeds the git + infra sections.
-  for (const [from, tab] of [
-    ["/repos", "ci"],
-    ["/alerts", "alerts"],
-    ["/fleet", "fleet"],
-    ["/infra", "fleet"],
+test("bookmark-compat redirects forward the old ?tab= URLs to their plain route", async ({ page }) => {
+  // 2026-07-17: /alerts and /fleet are now canonical PLAIN routes (no redirect). Only /repos and
+  // /infra survive as bookmark-compat redirects — /repos → /ci, /infra → /fleet (the Fleet route
+  // embeds the git + infra sections). No nav entry points at them.
+  for (const [from, dest, mounted] of [
+    ["/repos", "/ci", "cockpit-ci"],
+    ["/infra", "/fleet", "cockpit-fleet"],
   ]) {
     await page.goto(from);
-    await expect(page).toHaveURL(new RegExp(`/cockpit\\?tab=${tab}`));
-    await expect(page.getByTestId(`cockpit-${tab}`)).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveURL(new RegExp(`\\${dest}$`));
+    await expect(page.getByTestId(mounted)).toBeVisible({ timeout: 15_000 });
   }
 });
 
@@ -169,6 +161,6 @@ test("a redirect fires even when a service was previously selected", async ({ pa
   await expect(page.getByTestId("services-overview")).toBeVisible({ timeout: 15_000 });
 
   await page.goto("/infra");
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet/);
+  await expect(page).toHaveURL(/\/fleet/);
   await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible({ timeout: 15_000 });
 });

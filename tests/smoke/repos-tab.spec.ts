@@ -9,7 +9,7 @@ test.describe("Repos CI page", () => {
   test("the /repos page renders all panels", async ({ page }) => {
     // /repos redirects into the cockpit CI tab (LandingTabs deleted 2026-07-17).
     await page.goto("/repos");
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     await expect(page.getByTestId("promotion-drain-panel")).toBeVisible();
     await expect(page.getByTestId("sit-run-panel")).toBeVisible();
@@ -218,7 +218,7 @@ test.describe("Repos CI page", () => {
     // (2026-07-17), so the sibling surfaces to check are now the cockpit's.
     await page.goto("/cockpit");
     await page.getByTestId("cockpit-tab-ci").click();
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     const tab = page.getByTestId("cockpit-ci");
     await expect(tab).toBeVisible();
     await expect(tab.getByTestId("repo-ci-page")).toBeVisible();
@@ -232,7 +232,7 @@ test.describe("Repos CI page", () => {
 
   test("deep-link to /repos opens the Repos CI tab in the unified pane", async ({ page }) => {
     await page.goto("/repos");
-    await expect(page).toHaveURL(/\/cockpit\?tab=ci$/);
+    await expect(page).toHaveURL(/\/ci$/);
     await expect(page.getByTestId("cockpit-ci")).toBeVisible();
     await expect(page.getByTestId("repo-ci-page")).toBeVisible();
     // Sibling tabs present (proves the pane, not a standalone page).

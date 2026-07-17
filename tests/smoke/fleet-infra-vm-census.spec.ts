@@ -101,6 +101,6 @@ test("existing fleet-git tile click-through still works", async ({ page }) => {
   // /fleet redirects onto the cockpit Fleet tab since the LandingTabs bar was deleted.
   await page.goto("/infra");
   await page.getByTestId("infra-tile-fleet-git").click();
-  await expect(page).toHaveURL(/\/cockpit\?tab=fleet$/);
+  await expect(page).toHaveURL(/\/fleet$/);
   await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 });
