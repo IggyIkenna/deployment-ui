@@ -959,34 +959,6 @@ export async function fetchUpcomingFixtures(opts?: {
   return res.fixtures ?? [];
 }
 
-/** One sports fixture row from ``GET /fixtures/browse`` (deployment-api). Same shape as ``UpcomingFixture``. */
-export type FixtureRow = UpcomingFixture;
-
-/** ``league_id -> day (YYYY-MM-DD, UTC) -> fixtures`` from ``GET /fixtures/browse``. */
-export type FixturesByLeagueAndDay = Record<string, Record<string, FixtureRow[]>>;
-
-export async function fetchFixturesBrowse(opts?: {
-  days_back?: number;
-  days_forward?: number;
-  league_id?: string;
-  signal?: AbortSignal;
-}): Promise<FixturesByLeagueAndDay> {
-  const searchParams = new URLSearchParams();
-  if (opts?.days_back != null) {
-    searchParams.set("days_back", String(opts.days_back));
-  }
-  if (opts?.days_forward != null) {
-    searchParams.set("days_forward", String(opts.days_forward));
-  }
-  if (opts?.league_id) {
-    searchParams.set("league_id", opts.league_id);
-  }
-  const q = searchParams.toString();
-  const path = `/fixtures/browse${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ leagues: FixturesByLeagueAndDay; mock?: boolean }>(path, { signal: opts?.signal });
-  return res.leagues ?? {};
-}
-
 /**
  * One instrument row from ``GET /instruments/new-listings`` or
  * ``GET /instruments/upcoming-expiries`` (deployment-api

@@ -4407,65 +4407,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
-  // P9 fixtures browser (operator request) — league -> day -> fixtures rows.
-  // Mirrors the real ``FixturesByLeagueAndDay`` shape (deployment-api
-  // routes/fixtures_browse.py).
-  if (path.startsWith("/api/fixtures/browse")) {
-    return json({
-      leagues: {
-        EPL: {
-          "2026-07-16": [
-            {
-              fixture_id: "epl-1001",
-              kickoff_utc: "2026-07-16T15:00:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-ars",
-              away_team_id: "t-che",
-              home_team_name: "Arsenal",
-              away_team_name: "Chelsea",
-              venue_id: "v-emi",
-              venue_name: "Emirates Stadium",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-          "2026-07-17": [
-            {
-              fixture_id: "epl-1002",
-              kickoff_utc: "2026-07-17T18:30:00+00:00",
-              league_id: "EPL",
-              home_team_id: "t-liv",
-              away_team_id: "t-mci",
-              home_team_name: "Liverpool",
-              away_team_name: "Manchester City",
-              venue_id: "v-anf",
-              venue_name: "Anfield",
-              status: "NS",
-              round: "Regular Season - 1",
-            },
-          ],
-        },
-        MLS: {
-          "2026-07-16": [
-            {
-              fixture_id: "mls-2001",
-              kickoff_utc: "2026-07-16T23:00:00+00:00",
-              league_id: "MLS",
-              home_team_id: "t-lafc",
-              away_team_id: "t-lag",
-              home_team_name: "LAFC",
-              away_team_name: "LA Galaxy",
-              venue_id: "v-bmo",
-              venue_name: "BMO Stadium",
-              status: "NS",
-              round: "Regular Season",
-            },
-          ],
-        },
-      },
-      mock: true,
-    });
-  }
   if (path.startsWith("/api/instruments/upcoming-expiries")) {
     return json({
       upcoming_expiries: [
