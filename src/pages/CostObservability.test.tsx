@@ -14,8 +14,8 @@ vi.mock("../api/deploymentApi", () => ({
 
 const summary: api.CostSummaryResponse = {
   days: 30,
-  // The window the API resolved — what the "Custom" pill seeds from, so the picker opens on the
-  // window already on screen instead of jumping somewhere the operator didn't ask for.
+  // The window the API resolved. The date inputs render THESE rather than dates derived locally,
+  // so the fields always describe the numbers beside them.
   start_date: "2026-06-09",
   end_date: "2026-06-10",
   total: 15426.52, // net (what you pay) = gross 18000.00 − credits 2573.48
