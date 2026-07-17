@@ -135,9 +135,29 @@ describe("TypedReasonBadges", () => {
 });
 
 describe("Typed-reason taxonomy SSOT (deployment-api parity)", () => {
-  // Closed-set guard against drift from deployment-api
-  // _FAILURE_PILLAR_KEYS + _EMPTY_REASON_KEYS. If deployment-api adds a
-  // new key, this test fails until the UI taxonomy is updated.
+  // IMPORTANT — what this describe block actually guards, and what it does NOT:
+  //
+  // Both fixtures below are a MANUALLY-SYNCED SNAPSHOT of deployment-api's
+  // `_FAILURE_PILLAR_KEYS` / `EMPTY_REASON_KEYS`
+  // (`services/data_status/coverage_metrics.py`), hand-copied here. This is NOT
+  // a cross-repo check — deployment-ui's CI checks out this repo alone, so a
+  // test here cannot read deployment-api's source file. A prior version of this
+  // test named itself "matches deployment-api" while comparing the UI const
+  // only to a second hardcoded copy in THIS SAME FILE — both copies drifted
+  // together for months (~28 backend reasons went silently unrendered) and the
+  // test stayed green throughout, because it was structurally incapable of
+  // catching real backend drift. Fixed 2026-07-17 (coverage-exclusions
+  // denominator study) by backfilling every missing key + meta entry to match
+  // the CURRENT backend list, and re-labeling the guard honestly below.
+  //
+  // What this test DOES catch: a future PR that edits `EMPTY_REASON_KEYS` /
+  // `FAILURE_PILLAR_KEYS` in `TypedReasonBadges.tsx` without updating this
+  // fixture (or vice versa) — i.e. accidental same-repo drift. What it does
+  // NOT catch: deployment-api adding/renaming a reason without a matching UI
+  // PR. Real automated cross-repo parity requires a test with BOTH repos
+  // checked out — that belongs in system-integration-tests, not here. Filed as
+  // a follow-up: see the plan todo in
+  // sports_manifest_canonicalisation_2026_06_01.md.
   const EXPECTED_FAILURE_PILLARS: readonly string[] = [
     "failed_timestamp_bias",
     "failed_malformed",
@@ -149,32 +169,63 @@ describe("Typed-reason taxonomy SSOT (deployment-api parity)", () => {
     "failed_missing_available_at",
     "failed_other",
   ];
+  // Snapshot of deployment-api's EMPTY_REASON_KEYS (coverage_metrics.py:206-252)
+  // as of unified-api-contracts' EmptyConfirmedReason enum, 2026-07-17. Order
+  // does not matter (compared as a set below) — MEMBERSHIP is the invariant.
   const EXPECTED_EMPTY_REASONS: readonly string[] = [
     "EXPECTED_HOLIDAY",
     "EXPECTED_WEEKEND",
     "EXPECTED_PAUSED_LEAGUE",
     "EXPECTED_PRE_SOURCE_COVERAGE_START",
     "EXPECTED_PRE_GENESIS_CHAIN",
+    "EXPECTED_CHAIN_AGGREGATE",
     "EXPECTED_PRE_VENUE_LAUNCH",
     "EXPECTED_INSTRUMENT_NOT_LISTED",
     "EXPECTED_INSTRUMENT_DELISTED",
     "EXPECTED_PARTIAL_HALF_DAY",
+    "EXPECTED_OUTSIDE_TRADING_HOURS",
+    "EXPECTED_OUTSIDE_TRANSFER_WINDOW",
+    "EXPECTED_PRE_SEASON",
+    "EXPECTED_POST_SEASON",
+    "EXPECTED_SOURCE_DOES_NOT_COVER_LEAGUE",
+    "EXPECTED_SOURCE_DOES_NOT_OFFER_DATA_TYPE",
     "EXPECTED_REFDATA_CADENCE_CHANGE",
     "EXPECTED_DEPRECATED_DATA_TYPE",
+    "EXPECTED_KNOWN_SOURCE_GAP",
     // Bounded evidenced out-of-bounds range (UAC COVERAGE_EXCLUSIONS). OUT OF MODEL
     // (clipped from the coverage denominator) — so it MUST render as its own badge:
     // an out-of-model range that is invisible is indistinguishable from data we lost.
     "EXPECTED_UPSTREAM_OUT_OF_BOUNDS",
+    "EXPECTED_UPSTREAM_EMPTY",
+    "EXPECTED_OUT_OF_COVERAGE_WINDOW",
+    "EXPECTED_FIXTURE_CANCELLED",
+    "EXPECTED_FIXTURE_POSTPONED",
+    "EXPECTED_NO_FIXTURE",
+    "EXPECTED_NO_MAPPING",
+    "EXPECTED_OUTSIDE_PROCESSING_SCOPE",
+    "EXPECTED_LEGACY_MIGRATION_MISSING_EXPIRY",
+    "EXPECTED_NO_FUNDING_RATE_TICKS",
+    "EXPECTED_NO_PNL_STREAM",
+    "EXPECTED_PROTOCOL_PAUSED",
+    "EXPECTED_PAST_SOURCE_COVERAGE_END",
+    "EXPECTED_SOURCE_DELIVERY_LAG",
+    "EXPECTED_BOOKMAKER_NO_LEAGUE_COVERAGE",
+    "EXPECTED_NO_PROVIDER_COVERAGE",
+    "EXPECTED_NOT_ENOUGH_TVL",
+    "EXPECTED_WRITE_GATE_NAN_THRESHOLD_EXCEEDED",
     "SOURCE_RETURNED_ZERO",
+    "NO_INPUT_AVAILABLE",
+    "LEG_ABSENT_LEFT",
+    "LEG_ABSENT_RIGHT",
     "empty_unclassified",
   ];
 
-  it("FAILURE_PILLAR_KEYS matches deployment-api _FAILURE_PILLAR_KEYS", () => {
-    expect([...FAILURE_PILLAR_KEYS]).toEqual([...EXPECTED_FAILURE_PILLARS]);
+  it("FAILURE_PILLAR_KEYS matches the pinned deployment-api snapshot", () => {
+    expect([...FAILURE_PILLAR_KEYS].sort()).toEqual([...EXPECTED_FAILURE_PILLARS].sort());
   });
 
-  it("EMPTY_REASON_KEYS matches deployment-api _EMPTY_REASON_KEYS", () => {
-    expect([...EMPTY_REASON_KEYS]).toEqual([...EXPECTED_EMPTY_REASONS]);
+  it("EMPTY_REASON_KEYS matches the pinned deployment-api snapshot (manual sync, not cross-repo)", () => {
+    expect([...EMPTY_REASON_KEYS].sort()).toEqual([...EXPECTED_EMPTY_REASONS].sort());
   });
 
   it("every failure pillar has a meta entry", () => {
