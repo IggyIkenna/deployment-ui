@@ -9,12 +9,8 @@
 
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import {
-  fetchShardDetail,
-  type CaptureStatusLiteral,
-  type ShardDetailResponse,
-} from "../api/client";
-import { ModalShell } from "./DataStatusDrilldown";
+import { fetchShardDetail, type CaptureStatusLiteral, type ShardDetailResponse } from "../api/client";
+import { InstrumentsModal, ModalShell } from "./DataStatusDrilldown";
 import { ServiceEmissionStateBadge } from "./ServiceEmissionStateBadge";
 
 export interface ShardDetailCoordInput {
@@ -61,9 +57,7 @@ function captureStatusBadgeColor(status: CaptureStatusLiteral): string {
   }
 }
 
-function payloadTabTitle(
-  shardClass: ShardDetailResponse["shard_class"],
-): string {
+function payloadTabTitle(shardClass: ShardDetailResponse["shard_class"]): string {
   switch (shardClass) {
     case "grouped":
       return "Instruments in this shard";
@@ -83,16 +77,10 @@ function renderDictTable(
   opts: { columns?: string[]; limit?: number } = {},
 ): ReactElement {
   if (rows.length === 0) {
-    return (
-      <div className="text-xs italic text-[var(--color-text-muted)] py-2">
-        No rows.
-      </div>
-    );
+    return <div className="text-xs italic text-[var(--color-text-muted)] py-2">No rows.</div>;
   }
   const columns =
-    opts.columns && opts.columns.length > 0
-      ? opts.columns
-      : Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+    opts.columns && opts.columns.length > 0 ? opts.columns : Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
   const display = opts.limit !== undefined ? rows.slice(0, opts.limit) : rows;
   const truncated = opts.limit !== undefined && rows.length > opts.limit;
   return (
@@ -102,10 +90,7 @@ function renderDictTable(
           <thead className="sticky top-0 bg-[var(--color-bg-secondary)]">
             <tr className="border-b border-[var(--color-border)]">
               {columns.map((c) => (
-                <th
-                  key={c}
-                  className="text-left py-1 px-2 font-mono font-medium"
-                >
+                <th key={c} className="text-left py-1 px-2 font-mono font-medium">
                   {c}
                 </th>
               ))}
@@ -113,32 +98,19 @@ function renderDictTable(
           </thead>
           <tbody>
             {display.map((row, i) => (
-              <tr
-                key={i}
-                className="border-b border-[var(--color-border-subtle)]"
-              >
+              <tr key={i} className="border-b border-[var(--color-border-subtle)]">
                 {columns.map((c) => {
                   const value = row[c];
                   if (value === null || value === undefined) {
                     return (
-                      <td
-                        key={c}
-                        className="py-0.5 px-2 italic text-[var(--color-text-muted)]"
-                      >
+                      <td key={c} className="py-0.5 px-2 italic text-[var(--color-text-muted)]">
                         NULL
                       </td>
                     );
                   }
-                  const text =
-                    typeof value === "object"
-                      ? JSON.stringify(value)
-                      : String(value);
+                  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
                   return (
-                    <td
-                      key={c}
-                      className="py-0.5 px-2 font-mono whitespace-nowrap"
-                      title={text}
-                    >
+                    <td key={c} className="py-0.5 px-2 font-mono whitespace-nowrap" title={text}>
                       {text.length > 80 ? `${text.slice(0, 77)}…` : text}
                     </td>
                   );
@@ -149,10 +121,7 @@ function renderDictTable(
         </table>
       </div>
       {truncated && (
-        <div
-          className="text-[10px] text-[var(--color-text-muted)] mt-1"
-          data-testid="shard-detail-truncation-note"
-        >
+        <div className="text-[10px] text-[var(--color-text-muted)] mt-1" data-testid="shard-detail-truncation-note">
           Showing first {opts.limit} of {rows.length} rows.
         </div>
       )}
@@ -160,18 +129,22 @@ function renderDictTable(
   );
 }
 
-export function ShardDetailModal({
-  coord,
-  onClose,
-}: {
-  coord: ShardDetailCoordInput;
-  onClose: () => void;
-}) {
+export function ShardDetailModal({ coord, onClose }: { coord: ShardDetailCoordInput; onClose: () => void }) {
   const [detail, setDetail] = useState<ShardDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<ShardDetailTab>("schema");
   const [csvDownloading, setCsvDownloading] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
+  // Nested nested-modal trigger — reuses InstrumentsModalStandard's search +
+  // pagination + multi-select + MVP-toggle CSV flow (DataStatusDrilldown.tsx)
+  // for "grouped" shards (many instruments per venue-day-type), which this
+  // modal's read-only truncated payload table doesn't offer. Historically
+  // this flow was reachable via a now-dead `DataStatusTab` state
+  // (`instrumentsModal`) that commit f4a8e4e (2026-04-24) stopped setting
+  // when CeFi per-data-type date chips were rerouted to ShardDetailModal —
+  // this nested trigger restores reachability. Mirrors the existing
+  // schemaOpen nested-modal pattern in DataStatusDrilldown.tsx.
+  const [browseInstruments, setBrowseInstruments] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,10 +185,7 @@ export function ShardDetailModal({
   if (error) {
     return (
       <ModalShell title={title} onClose={onClose}>
-        <div
-          className="text-xs text-[var(--color-accent-red)]"
-          data-testid="shard-detail-error"
-        >
+        <div className="text-xs text-[var(--color-accent-red)]" data-testid="shard-detail-error">
           Error: {error}
         </div>
       </ModalShell>
@@ -232,9 +202,7 @@ export function ShardDetailModal({
     );
   }
 
-  const coreColumns = detail.schema.columns.filter(
-    (c) => c.provided_by_venues === null,
-  );
+  const coreColumns = detail.schema.columns.filter((c) => c.provided_by_venues === null);
   const venueSpecificColumns = detail.schema.columns.filter(
     (c) => c.provided_by_venues !== null && c.provided_by_venues.length > 0,
   );
@@ -256,11 +224,7 @@ export function ShardDetailModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const safeName =
-        `${coord.data_type}_${coord.day}_${coord.venue ?? "noVenue"}`.replace(
-          /[^a-zA-Z0-9_.-]/g,
-          "_",
-        );
+      const safeName = `${coord.data_type}_${coord.day}_${coord.venue ?? "noVenue"}`.replace(/[^a-zA-Z0-9_.-]/g, "_");
       a.download = `${safeName}.csv`;
       document.body.appendChild(a);
       a.click();
@@ -316,10 +280,7 @@ export function ShardDetailModal({
            * deployment-api ``ShardGcsMetadata``). Both render as muted
            * placeholders when null/undefined (pre-v8 manifest rows).
            */}
-          <ServiceEmissionStateBadge
-            state={detail.gcs.service_emission_state}
-            compact
-          />
+          <ServiceEmissionStateBadge state={detail.gcs.service_emission_state} compact />
           {detail.gcs.pipeline_mode && (
             <span
               className="px-1 py-0 rounded border text-[9px] font-mono text-[var(--color-text-muted)] border-[var(--color-border-subtle)]"
@@ -339,9 +300,7 @@ export function ShardDetailModal({
           <span>rows: {detail.gcs.row_count ?? "—"}</span>
           <span>
             captured:{" "}
-            {detail.gcs.captured_at
-              ? `${relativeTime(detail.gcs.captured_at)} (${detail.gcs.captured_at})`
-              : "—"}
+            {detail.gcs.captured_at ? `${relativeTime(detail.gcs.captured_at)} (${detail.gcs.captured_at})` : "—"}
           </span>
           <span>shard_class: {detail.shard_class}</span>
         </div>
@@ -358,10 +317,7 @@ export function ShardDetailModal({
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-[var(--color-border)] mb-2">
         <TabButton id="schema" label="Schema" />
-        <TabButton
-          id="sample"
-          label={`Sample rows (${detail.sample_rows.length})`}
-        />
+        <TabButton id="sample" label={`Sample rows (${detail.sample_rows.length})`} />
         <TabButton id="payload" label={payloadTabTitle(detail.shard_class)} />
         <TabButton id="download" label="Download" />
       </div>
@@ -375,17 +331,14 @@ export function ShardDetailModal({
             </div>
           )}
           {detail.schema.message && (
-            <div className="text-[10px] text-[var(--color-text-muted)] italic">
-              {detail.schema.message}
-            </div>
+            <div className="text-[10px] text-[var(--color-text-muted)] italic">{detail.schema.message}</div>
           )}
           <div className="text-[10px] text-[var(--color-text-muted)]">
             Source: <span className="font-mono">{detail.schema.source}</span>
             {detail.schema.symbol_column && (
               <>
                 {" · "}
-                symbol_column:{" "}
-                <span className="font-mono">{detail.schema.symbol_column}</span>
+                symbol_column: <span className="font-mono">{detail.schema.symbol_column}</span>
               </>
             )}
           </div>
@@ -413,24 +366,13 @@ export function ShardDetailModal({
                       className="border-b border-[var(--color-border-subtle)]"
                       data-testid={`shard-detail-column-${col.name}`}
                     >
-                      <td
-                        className={
-                          "font-mono py-0.5 pr-2 " +
-                          (col.required ? "" : "italic")
-                        }
-                      >
-                        {col.name}
-                      </td>
+                      <td className={"font-mono py-0.5 pr-2 " + (col.required ? "" : "italic")}>{col.name}</td>
                       <td className="font-mono py-0.5 pr-2">{col.dtype}</td>
-                      <td className="py-0.5 pr-2">
-                        {col.nullable ? "yes" : "no"}
-                      </td>
+                      <td className="py-0.5 pr-2">{col.nullable ? "yes" : "no"}</td>
                       <td className="py-0.5 pr-2 text-[var(--color-text-muted)]">
                         {col.required ? "required" : "optional"}
                       </td>
-                      <td className="text-[var(--color-text-muted)] py-0.5">
-                        {col.description}
-                      </td>
+                      <td className="text-[var(--color-text-muted)] py-0.5">{col.description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -462,18 +404,9 @@ export function ShardDetailModal({
                       className="border-b border-[var(--color-border-subtle)]"
                       data-testid={`shard-detail-column-${col.name}`}
                     >
-                      <td
-                        className={
-                          "font-mono py-0.5 pr-2 " +
-                          (col.required ? "" : "italic")
-                        }
-                      >
-                        {col.name}
-                      </td>
+                      <td className={"font-mono py-0.5 pr-2 " + (col.required ? "" : "italic")}>{col.name}</td>
                       <td className="font-mono py-0.5 pr-2">{col.dtype}</td>
-                      <td className="py-0.5 pr-2">
-                        {col.nullable ? "yes" : "no"}
-                      </td>
+                      <td className="py-0.5 pr-2">{col.nullable ? "yes" : "no"}</td>
                       <td className="py-0.5 pr-2 text-[var(--color-text-muted)]">
                         {col.required ? "required" : "optional"}
                       </td>
@@ -485,9 +418,7 @@ export function ShardDetailModal({
                           {(col.provided_by_venues ?? []).join(", ")}
                         </span>
                       </td>
-                      <td className="text-[var(--color-text-muted)] py-0.5">
-                        {col.description}
-                      </td>
+                      <td className="text-[var(--color-text-muted)] py-0.5">{col.description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -496,9 +427,7 @@ export function ShardDetailModal({
           )}
 
           {coreColumns.length === 0 && venueSpecificColumns.length === 0 && (
-            <div className="text-xs italic text-[var(--color-text-muted)]">
-              No columns declared.
-            </div>
+            <div className="text-xs italic text-[var(--color-text-muted)]">No columns declared.</div>
           )}
         </div>
       )}
@@ -525,17 +454,23 @@ export function ShardDetailModal({
           {detail.shard_class === "grouped" &&
             detail.payload_grouped &&
             renderDictTable(detail.payload_grouped.instrument_list)}
+          {detail.shard_class === "grouped" && detail.coord.venue && (
+            <button
+              type="button"
+              data-testid="shard-detail-browse-instruments"
+              onClick={() => setBrowseInstruments(true)}
+              className="text-xs underline text-[var(--color-accent-cyan)] hover:text-[var(--color-text-primary)]"
+            >
+              Browse &amp; search all instruments →
+            </button>
+          )}
           {detail.shard_class === "per_symbol" && (
             <div className="text-xs font-mono p-2 rounded border border-[var(--color-border-subtle)]">
               <div>
-                instrument_id:{" "}
-                <span className="font-mono">
-                  {coord.instrument_id ?? "(none)"}
-                </span>
+                instrument_id: <span className="font-mono">{coord.instrument_id ?? "(none)"}</span>
               </div>
               <div>
-                instrument_type:{" "}
-                <span className="font-mono">{coord.instrument_type}</span>
+                instrument_type: <span className="font-mono">{coord.instrument_type}</span>
               </div>
               <div>
                 venue: <span className="font-mono">{coord.venue ?? "—"}</span>
@@ -544,23 +479,15 @@ export function ShardDetailModal({
           )}
           {detail.shard_class === "reference" &&
             detail.payload_reference &&
-            renderDictTable(
-              detail.payload_reference.instrument_definitions as Record<
-                string,
-                unknown
-              >[],
-              { limit: REFERENCE_ROW_LIMIT },
-            )}
+            renderDictTable(detail.payload_reference.instrument_definitions as Record<string, unknown>[], {
+              limit: REFERENCE_ROW_LIMIT,
+            })}
           {detail.shard_class === "fixtures" &&
             detail.payload_fixtures &&
             renderDictTable(
-              (
-                detail.payload_fixtures.fixtures as Record<string, unknown>[]
-              ).map((fx) => ({
+              (detail.payload_fixtures.fixtures as Record<string, unknown>[]).map((fx) => ({
                 ...fx,
-                markets: Array.isArray(fx.markets)
-                  ? (fx.markets as unknown[]).join(", ")
-                  : (fx.markets as unknown),
+                markets: Array.isArray(fx.markets) ? (fx.markets as unknown[]).join(", ") : (fx.markets as unknown),
               })),
               {
                 columns: ["home_team", "away_team", "kickoff_ts", "markets"],
@@ -570,10 +497,7 @@ export function ShardDetailModal({
       )}
 
       {tab === "download" && (
-        <div
-          data-testid="shard-detail-tab-body-download"
-          className="space-y-3 text-xs"
-        >
+        <div data-testid="shard-detail-tab-body-download" className="space-y-3 text-xs">
           <div className="flex flex-col gap-2">
             <button
               type="button"
@@ -583,9 +507,7 @@ export function ShardDetailModal({
               }}
               disabled={!parquetUrl || missingShard}
               title={
-                !parquetUrl || missingShard
-                  ? "shard not present — nothing to download"
-                  : "Open signed parquet URL"
+                !parquetUrl || missingShard ? "shard not present — nothing to download" : "Open signed parquet URL"
               }
               className="px-3 py-1.5 text-xs rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)] hover:text-[var(--color-bg-primary)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -596,29 +518,35 @@ export function ShardDetailModal({
               data-testid="shard-detail-download-csv"
               onClick={downloadCsv}
               disabled={!csvUrl || missingShard || csvDownloading}
-              title={
-                !csvUrl || missingShard
-                  ? "shard not present — nothing to download"
-                  : "Download the projected CSV"
-              }
+              title={!csvUrl || missingShard ? "shard not present — nothing to download" : "Download the projected CSV"}
               className="px-3 py-1.5 text-xs rounded border border-[var(--color-accent-green)] text-[var(--color-accent-green)] hover:bg-[var(--color-accent-green)] hover:text-[var(--color-bg-primary)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {csvDownloading ? "Downloading…" : "Download CSV (projected)"}
             </button>
           </div>
           {csvError && (
-            <div
-              className="text-[var(--color-accent-red)]"
-              data-testid="shard-detail-csv-error"
-            >
+            <div className="text-[var(--color-accent-red)]" data-testid="shard-detail-csv-error">
               CSV download failed: {csvError}
             </div>
           )}
           <div className="text-[10px] text-[var(--color-text-muted)] italic">
-            CSV contains the columns declared in the schema — venue-specific
-            columns that aren&apos;t present for this shard are omitted.
+            CSV contains the columns declared in the schema — venue-specific columns that aren&apos;t present for this
+            shard are omitted.
           </div>
         </div>
+      )}
+      {browseInstruments && detail.coord.venue && (
+        <InstrumentsModal
+          coord={{
+            service: detail.coord.service,
+            asset_group: detail.coord.asset_group,
+            venue: detail.coord.venue,
+            day: detail.coord.day,
+            instrument_type: detail.coord.instrument_type,
+            data_type: detail.coord.data_type,
+          }}
+          onClose={() => setBrowseInstruments(false)}
+        />
       )}
     </ModalShell>
   );

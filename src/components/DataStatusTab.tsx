@@ -53,7 +53,7 @@ import type {
   DataStatusResponse,
 } from "../types";
 import { BreakdownsAccordion } from "./BreakdownsAccordion";
-import { BucketCountsBadge, InstrumentsModal, SchemaModal, type ShardCoordinate } from "./DataStatusDrilldown";
+import { BucketCountsBadge, SchemaModal, type ShardCoordinate } from "./DataStatusDrilldown";
 import { ExecutionDataStatus } from "./ExecutionDataStatus";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { FeatureFamilyBreakdown, groupFeatureGroupsByFamily } from "./FeatureFamilyBreakdown";
@@ -483,8 +483,11 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   );
   const [venueDetailLoading, setVenueDetailLoading] = useState(false);
 
-  // Schema / per-day instrument drill-down modals
-  const [instrumentsModal, setInstrumentsModal] = useState<ShardCoordinate | null>(null);
+  // Schema drill-down modal. (The sibling per-day instrument-browse modal,
+  // `instrumentsModal`, was removed 2026-07-17 — genuinely dead since commit
+  // f4a8e4e (2026-04-24) rerouted its only opener to ShardDetailModal without
+  // cleaning up the state; ShardDetailModal now nests InstrumentsModal itself
+  // for "grouped" shards, restoring reachability. See P6 UI evidence.)
   const [schemaModal, setSchemaModal] = useState<Omit<ShardCoordinate, "day"> | null>(null);
   // DEFI per-pool drill-down modal — backed by /api/data-status/pools/breakdown.
   const [poolBreakdownModal, setPoolBreakdownModal] = useState<{
@@ -6253,8 +6256,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             </DialogContent>
           </Dialog>
 
-          {/* Drill-down modals — schema / per-day instruments + CSV download */}
-          {instrumentsModal && <InstrumentsModal coord={instrumentsModal} onClose={() => setInstrumentsModal(null)} />}
+          {/* Drill-down modals — schema + CSV download. (Per-day instrument
+              browsing now nests inside ShardDetailModal — see its
+              `browseInstruments` state.) */}
           {schemaModal && (
             // Schema lookup is venue-level (data_type schema doesn't change per
             // day), so the click sites don't carry a ``day`` -- the modal's
