@@ -21,7 +21,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 // `/home` is the per-service home shell (cockpit is the default `/`); the others are
 // LandingTabs sub-routes. All clear the service selection.
-const LANDING_PATHS = new Set(["/home", "/epics", "/repos", "/alerts", "/fleet"]);
+// MUST stay in sync with LandingTabs.tabForPath — a LandingTabs path missing here keeps
+// the stale service view on screen instead of the landing tab (`/infra` did exactly that
+// until 2026-07-17).
+const LANDING_PATHS = new Set(["/home", "/epics", "/repos", "/alerts", "/fleet", "/infra"]);
 
 interface ServiceUrlSyncProps {
   selectedService: string | null;

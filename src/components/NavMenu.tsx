@@ -4,17 +4,15 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  BarChart2,
-  Boxes,
   CircleDollarSign,
   Database,
   FlaskConical,
   GitBranch,
   Layers,
-  Radio,
   Rocket,
   Server,
   ShieldCheck,
+  Trophy,
   X,
 } from "lucide-react";
 
@@ -25,21 +23,35 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   desc: string;
 };
-type NavGroup = { heading: string; items: NavItem[] };
+/** `legacy: true` = the redundant-route quarantine (see NAV_GROUPS). */
+type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
 
 /**
  * Single source of truth for the top-bar page navigation. Consumed by the desktop
  * dropdown (NavMenu) and the mobile hamburger list (Header) so the two never drift.
- * Internal operator tool — every deployment/health/research surface is one click from
- * the top-left trigger; the trigger no longer force-navigates to /cockpit (operator
- * 2026-07-08 — the cockpit was a forced full-page trip, this is a dismissable menu).
+ * Internal operator tool — every surface is one click from the top-left trigger; the
+ * trigger does not force-navigate (operator 2026-07-08 — dismissable menu).
+ *
+ * ONE ENTRY PER SCREEN (2026-07-17 nav audit). The menu previously mixed chromes —
+ * some entries pointed at a cockpit tab, others at the standalone page holding the
+ * SAME component — so which chrome you got depended on which item you clicked, and
+ * the same content appeared under two labels. Every canonical entry below now points
+ * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` and
+ * `/vm-deployments` are canonical because they have no cockpit twin (the cockpit's
+ * Fleet tab embeds only a COMPACT vm-deployments view).
+ *
+ * The `legacy` group is the standalone duplicates, kept visible-but-quarantined so
+ * the operator can compare chromes before deciding what to delete. It is intended to
+ * be DELETED once the standalone routes are redirected (nav-audit Option A) — it is
+ * not a permanent section.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
     heading: "Overview",
     items: [
-      { id: "cockpit", to: "/cockpit", label: "Cockpit", icon: Activity, desc: "Unified health hub" },
-      { id: "home", to: "/home", label: "Home (services)", icon: Server, desc: "Per-service shell" },
+      { id: "cockpit", to: "/cockpit", label: "Cockpit", icon: Activity, desc: "Health rollup — default page" },
+      { id: "home", to: "/home", label: "Home (services)", icon: Server, desc: "Service picker → per-service tabs" },
+      { id: "epics", to: "/epics", label: "Epics & Plans", icon: Trophy, desc: "Roadmap + plan status" },
     ],
   },
   {
@@ -52,24 +64,28 @@ export const NAV_GROUPS: NavGroup[] = [
         id: "deployments",
         to: "/cockpit?tab=deployments",
         label: "Deployments",
-        icon: Boxes,
-        desc: "Live · batch · paper (unified)",
+        icon: Layers,
+        desc: "Live · batch · paper + live ops",
       },
       {
         id: "vm-deployments",
         to: "/vm-deployments",
         label: "VM Deployments",
         icon: Server,
-        desc: "Per-VM launch history",
+        desc: "Per-VM launch history (full)",
       },
-      { id: "live-ops", to: "/ops/live-deployments", label: "Live Ops", icon: Radio, desc: "Running services + feeds" },
     ],
   },
   {
     heading: "Fleet & Cost",
     items: [
-      { id: "fleet", to: "/cockpit?tab=fleet", label: "Fleet VMs", icon: Layers, desc: "GCP + AWS census · orphans" },
-      { id: "fleet-git", to: "/fleet", label: "Fleet Git", icon: GitBranch, desc: "Slot / worktree health" },
+      {
+        id: "fleet",
+        to: "/cockpit?tab=fleet",
+        label: "Fleet",
+        icon: Layers,
+        desc: "Census · orphans · git · infra",
+      },
       {
         id: "consolidators",
         to: "/cockpit?tab=consolidators",
@@ -83,16 +99,27 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     heading: "Repos & Alerts",
     items: [
-      { id: "repos", to: "/repos", label: "Repos / CI", icon: GitBranch, desc: "Last-green · promotion lag" },
-      { id: "alerts", to: "/alerts", label: "Alerts", icon: AlertCircle, desc: "Open alerts by class" },
-      { id: "epics", to: "/epics", label: "Epics & Plans", icon: Database, desc: "Roadmap + plan status" },
+      { id: "repos", to: "/cockpit?tab=ci", label: "Repos / CI", icon: GitBranch, desc: "Last-green · promotion lag" },
+      {
+        id: "alerts",
+        to: "/cockpit?tab=alerts",
+        label: "Alerts & Logs",
+        icon: AlertCircle,
+        desc: "Open alerts + log stream",
+      },
     ],
   },
   {
     heading: "Safety & Chaos",
     items: [
-      { id: "safety", to: "/safety-ops", label: "Safety Ops", icon: ShieldCheck, desc: "Kill-switch + guardrails" },
-      { id: "chaos", to: "/chaos", label: "Chaos", icon: AlertTriangle, desc: "Resilience testing" },
+      {
+        id: "safety",
+        to: "/cockpit?tab=safety",
+        label: "Safety Ops",
+        icon: ShieldCheck,
+        desc: "Kill-switch + guardrails",
+      },
+      { id: "chaos", to: "/cockpit?tab=chaos", label: "Chaos", icon: AlertTriangle, desc: "Resilience testing" },
     ],
   },
   {
@@ -102,27 +129,71 @@ export const NAV_GROUPS: NavGroup[] = [
         id: "launch",
         to: "/cockpit?tab=launch",
         label: "Launch Console",
-        icon: Rocket,
-        desc: "ML / strategy / exec launch",
+        icon: FlaskConical,
+        desc: "ML · strategy · execution backtests",
       },
-      { id: "ml", to: "/research/ml-experiments", label: "ML Experiments", icon: FlaskConical, desc: "Training runs" },
+    ],
+  },
+  {
+    heading: "Duplicate routes — pending removal",
+    legacy: true,
+    items: [
       {
-        id: "strategy",
+        id: "dup-deployments",
+        to: "/deployments",
+        label: "/deployments",
+        icon: Layers,
+        desc: "same component as Deployments",
+      },
+      {
+        id: "dup-live-ops",
+        to: "/ops/live-deployments",
+        label: "/ops/live-deployments",
+        icon: Activity,
+        desc: "folded into Deployments",
+      },
+      { id: "dup-fleet-git", to: "/fleet", label: "/fleet", icon: GitBranch, desc: "folded into Fleet (Git)" },
+      { id: "dup-fleet-infra", to: "/infra", label: "/infra", icon: Activity, desc: "folded into Fleet (Infra)" },
+      { id: "dup-repos", to: "/repos", label: "/repos", icon: GitBranch, desc: "same component as Repos / CI" },
+      { id: "dup-alerts", to: "/alerts", label: "/alerts", icon: AlertCircle, desc: "wrapped by Alerts & Logs" },
+      { id: "dup-chaos", to: "/chaos", label: "/chaos", icon: AlertTriangle, desc: "same component as Chaos" },
+      {
+        id: "dup-safety",
+        to: "/safety-ops",
+        label: "/safety-ops",
+        icon: ShieldCheck,
+        desc: "same component as Safety Ops",
+      },
+      {
+        id: "dup-ml",
+        to: "/research/ml-experiments",
+        label: "/research/ml-experiments",
+        icon: FlaskConical,
+        desc: "folded into Launch",
+      },
+      {
+        id: "dup-strategy",
         to: "/research/strategy-backtests",
-        label: "Strategy Backtests",
-        icon: BarChart2,
-        desc: "Strategy sims",
+        label: "/research/strategy-backtests",
+        icon: FlaskConical,
+        desc: "folded into Launch",
       },
       {
-        id: "exec",
+        id: "dup-exec",
         to: "/research/execution-backtests",
-        label: "Execution Backtests",
-        icon: Boxes,
-        desc: "Execution sims",
+        label: "/research/execution-backtests",
+        icon: FlaskConical,
+        desc: "folded into Launch",
       },
     ],
   },
 ];
+
+/** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */
+export const NAV_GROUPS_CANONICAL = NAV_GROUPS.filter((g) => !g.legacy);
+
+/** The redundant-route quarantine, rendered apart from the canonical grid. */
+const LEGACY_GROUP = NAV_GROUPS.find((g) => g.legacy);
 
 /** Flattened {to,label} list for the mobile hamburger menu (same source as the dropdown). */
 export const NAV_LINKS_FLAT = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ to: i.to, label: i.label })));
@@ -175,7 +246,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
         role="menu"
         aria-label="Primary navigation"
         data-testid="nav-menu"
-        className="absolute left-2 top-full z-50 mt-1 w-[min(92vw,760px)] rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 shadow-2xl"
+        className="absolute left-2 top-full z-50 mt-1 max-h-[min(80vh,720px)] w-[min(92vw,760px)] overflow-y-auto rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Go to</span>
@@ -190,7 +261,7 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
           </button>
         </div>
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          {NAV_GROUPS.map((group) => (
+          {NAV_GROUPS_CANONICAL.map((group) => (
             <div key={group.heading}>
               <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 {group.heading}
@@ -230,6 +301,45 @@ export function NavMenu({ open, onClose }: { open: boolean; onClose: () => void 
             </div>
           ))}
         </div>
+
+        {/* Redundant-route quarantine — every entry here renders the SAME component as a
+            canonical entry above, just under different chrome. Kept clickable so the two
+            can be compared side by side; delete this whole group once the standalone
+            routes are redirected into their cockpit tab. */}
+        {LEGACY_GROUP ? (
+          <div className="mt-4 border-t border-[var(--color-border-default)] pt-3" data-testid="nav-menu-legacy">
+            <div className="mb-1.5 flex items-baseline gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent-orange)]">
+                {LEGACY_GROUP.heading}
+              </span>
+              <span className="text-[10px] text-[var(--color-text-muted)]">
+                same content as above — different chrome
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {LEGACY_GROUP.items.map((item) => {
+                const active = isActive(item.to);
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.to}
+                    onClick={onClose}
+                    role="menuitem"
+                    title={item.desc}
+                    data-testid={`nav-menu-item-${item.id}`}
+                    className={`rounded border px-2 py-1 font-mono text-[11px] transition-colors ${
+                      active
+                        ? "border-[var(--color-accent-orange)]/50 bg-[var(--color-accent-orange)]/10 text-[var(--color-accent-orange)]"
+                        : "border-[var(--color-border-default)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-secondary)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     </>
   );
