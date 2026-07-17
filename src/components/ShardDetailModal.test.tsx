@@ -4,9 +4,7 @@ import { ShardDetailModal } from "./ShardDetailModal";
 import * as api from "../api/client";
 import type { ShardDetailResponse } from "../api/client";
 
-function baseResponse(
-  overrides: Partial<ShardDetailResponse> = {},
-): ShardDetailResponse {
+function baseResponse(overrides: Partial<ShardDetailResponse> = {}): ShardDetailResponse {
   return {
     coord: {
       service: "market-tick-data-service",
@@ -204,9 +202,96 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-payload")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-payload"));
-    expect(
-      screen.getByTestId("shard-detail-tab-body-payload").textContent,
-    ).toContain("BTC-PERP");
+    expect(screen.getByTestId("shard-detail-tab-body-payload").textContent).toContain("BTC-PERP");
+  });
+
+  // P6 UI reachability fix (data_status_page_ux_and_canonicalisation_2026_07_16
+  // P6) — InstrumentsModalStandard (search + pagination + multi-select CSV +
+  // MVP toggle/badge) was unreachable from the live UI (its only opener was
+  // removed by commit f4a8e4e without cleanup). ShardDetailModal now nests it
+  // for "grouped" shards via a "Browse & search all instruments" trigger.
+  it("grouped payload — 'Browse & search all instruments' opens the nested InstrumentsModal", async () => {
+    fetchSpy.mockResolvedValue(
+      baseResponse({
+        coord: {
+          service: "market-tick-data-service",
+          asset_group: "CEFI",
+          instrument_type: "PERPETUAL",
+          data_type: "OPTIONS_CHAIN",
+          day: "2026-04-18",
+          venue: "DERIBIT",
+          underlying: null,
+          instrument_id: null,
+        },
+        shard_class: "grouped",
+        payload_per_symbol: null,
+        payload_grouped: {
+          instrument_list: [
+            { key: "BTC-PERP", type: "PERPETUAL" },
+            { key: "ETH-PERP", type: "PERPETUAL" },
+          ],
+        },
+      }),
+    );
+    const instrumentsSpy = vi.spyOn(api, "fetchInstrumentsForShard").mockResolvedValue({
+      service: "market-tick-data-service",
+      asset_group: "CEFI",
+      venue: "DERIBIT",
+      day: "2026-04-18",
+      instrument_type: "PERPETUAL",
+      data_type: "OPTIONS_CHAIN",
+      bundling: "per_symbol",
+      bucket: "b",
+      prefix: "p",
+      instruments: [{ instrument_id: "BTC-PERP", file_uri: "gs://b/x.parquet", size_bytes: 10, is_mvp: true }],
+      total_count: 1,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+      search: "",
+    });
+    vi.spyOn(api, "fetchShardInfo").mockResolvedValue({
+      service: "market-tick-data-service",
+      asset_group: "CEFI",
+      venue: "DERIBIT",
+      day: "2026-04-18",
+      data_type: "OPTIONS_CHAIN",
+      instrument_types: [{ name: "PERPETUAL", bundling: "per_symbol" }],
+      recommended_instrument_type: "PERPETUAL",
+    });
+
+    render(
+      <ShardDetailModal
+        coord={{
+          service: "market-tick-data-service",
+          asset_group: "CEFI",
+          instrument_type: "PERPETUAL",
+          data_type: "OPTIONS_CHAIN",
+          day: "2026-04-18",
+          venue: "DERIBIT",
+        }}
+        onClose={() => {}}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("shard-detail-tab-payload")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByTestId("shard-detail-tab-payload"));
+
+    const browseBtn = screen.getByTestId("shard-detail-browse-instruments");
+    fireEvent.click(browseBtn);
+
+    await waitFor(() => {
+      expect(instrumentsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ service: "market-tick-data-service", asset_group: "CEFI", venue: "DERIBIT" }),
+      );
+    });
+    await waitFor(() => {
+      // Unambiguous — "BTC-PERP" also appears in the read-only payload table
+      // behind the nested modal, so scope to InstrumentsModalStandard's own
+      // per-instrument row testid.
+      expect(screen.getByTestId("shard-row-BTC-PERP")).toBeTruthy();
+    });
   });
 
   it("renders reference payload with first-500 truncation note", async () => {
@@ -238,9 +323,7 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-payload")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-payload"));
-    expect(
-      screen.getByTestId("shard-detail-truncation-note").textContent,
-    ).toContain("500");
+    expect(screen.getByTestId("shard-detail-truncation-note").textContent).toContain("500");
   });
 
   it("renders fixtures payload with home/away/kickoff columns", async () => {
@@ -285,9 +368,7 @@ describe("ShardDetailModal", () => {
 
   it("download tab — parquet button opens signed URL in new tab", async () => {
     fetchSpy.mockResolvedValue(baseResponse());
-    const openSpy = vi
-      .spyOn(window, "open")
-      .mockReturnValue({} as unknown as Window);
+    const openSpy = vi.spyOn(window, "open").mockReturnValue({} as unknown as Window);
 
     render(
       <ShardDetailModal
@@ -307,15 +388,10 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-download")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-download"));
-    const btn = screen.getByTestId(
-      "shard-detail-download-parquet",
-    ) as HTMLButtonElement;
+    const btn = screen.getByTestId("shard-detail-download-parquet") as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
     fireEvent.click(btn);
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://storage.googleapis.com/signed?token=abc",
-      "_blank",
-    );
+    expect(openSpy).toHaveBeenCalledWith("https://storage.googleapis.com/signed?token=abc", "_blank");
   });
 
   it("download tab — csv button calls fetch", async () => {
@@ -328,14 +404,10 @@ describe("ShardDetailModal", () => {
     );
     // jsdom lacks createObjectURL / revokeObjectURL
     if (!URL.createObjectURL) {
-      (
-        URL as unknown as { createObjectURL: (b: Blob) => string }
-      ).createObjectURL = () => "blob:fake";
+      (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL = () => "blob:fake";
     }
     if (!URL.revokeObjectURL) {
-      (
-        URL as unknown as { revokeObjectURL: (u: string) => void }
-      ).revokeObjectURL = () => {};
+      (URL as unknown as { revokeObjectURL: (u: string) => void }).revokeObjectURL = () => {};
     }
 
     render(
@@ -356,14 +428,10 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-download")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-download"));
-    const csv = screen.getByTestId(
-      "shard-detail-download-csv",
-    ) as HTMLButtonElement;
+    const csv = screen.getByTestId("shard-detail-download-csv") as HTMLButtonElement;
     fireEvent.click(csv);
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/data-status/shard-detail/csv?id=xyz",
-      );
+      expect(fetchMock).toHaveBeenCalledWith("/api/data-status/shard-detail/csv?id=xyz");
     });
   });
 
@@ -403,20 +471,14 @@ describe("ShardDetailModal", () => {
       expect(screen.getByTestId("shard-detail-tab-download")).toBeTruthy();
     });
     fireEvent.click(screen.getByTestId("shard-detail-tab-download"));
-    const parquet = screen.getByTestId(
-      "shard-detail-download-parquet",
-    ) as HTMLButtonElement;
-    const csv = screen.getByTestId(
-      "shard-detail-download-csv",
-    ) as HTMLButtonElement;
+    const parquet = screen.getByTestId("shard-detail-download-parquet") as HTMLButtonElement;
+    const csv = screen.getByTestId("shard-detail-download-csv") as HTMLButtonElement;
     expect(parquet.disabled).toBe(true);
     expect(csv.disabled).toBe(true);
 
     // Sample rows tab shows the empty sentinel
     fireEvent.click(screen.getByTestId("shard-detail-tab-sample"));
-    expect(
-      screen.getByTestId("shard-detail-tab-body-sample").textContent,
-    ).toContain("No rows");
+    expect(screen.getByTestId("shard-detail-tab-body-sample").textContent).toContain("No rows");
 
     // capture_status badge reads "missing"
     const cap = screen.getByTestId("shard-detail-capture-status");
@@ -486,9 +548,7 @@ describe("ShardDetailModal", () => {
     await waitFor(() => {
       expect(screen.getByTestId("shard-detail-error-reason")).toBeTruthy();
     });
-    expect(
-      screen.getByTestId("shard-detail-error-reason").textContent,
-    ).toContain("429");
+    expect(screen.getByTestId("shard-detail-error-reason").textContent).toContain("429");
   });
 
   it("renders schema-only venue-specific columns (no core columns)", async () => {
