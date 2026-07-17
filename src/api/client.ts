@@ -2591,6 +2591,14 @@ export interface ShardInstrumentEntry {
   // every instrument dict now carries is_mvp regardless of the mvp_only
   // toggle, so the drill-down can badge MVP rows even when browsing "all".
   is_mvp?: boolean;
+  /**
+   * P4-B: on-chain contract address of the instrument's BASE leg, read from the
+   * (venue, day) bundle's own column. **ABSENT vs null are different and both
+   * honest**: absent = this venue has no on-chain address at all (all of CeFi —
+   * the bundle carries no such column); null = the column exists but this row's
+   * cell is blank. Never a fabricated or zero address.
+   */
+  base_asset_contract_address?: string | null;
 }
 
 export interface InstrumentsForShardResponse {

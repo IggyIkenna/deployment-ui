@@ -4231,6 +4231,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           capture_status: "captured",
           error_reason: "",
           attempted_at: `${day}T00:10:00+00:00`,
+          // P4-B: on-chain BASE-leg address (real WETH mainnet address, so the
+          // copyable affordance renders against a plausible value in mock mode).
+          // The two rows below deliberately OMIT the field — that is the honest
+          // CeFi shape (no on-chain address), and it keeps the mock exercising
+          // both branches of the render gate.
+          base_asset_contract_address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
         },
         {
           instrument_id: `${venue}-EMPTY-1`,
