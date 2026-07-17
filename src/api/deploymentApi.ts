@@ -410,6 +410,10 @@ export interface CloudSummary {
 
 export interface CostSummaryResponse {
   days: number;
+  // Resolved window bounds (inclusive, ISO) — what the numbers actually describe. Echoed on every
+  // view so an explicit range is distinguishable from a trailing preset of the same length.
+  start_date?: string;
+  end_date?: string;
   total: number; // NET grand total — what you actually pay
   gross: number; // usage cost before credits
   credit: number; // credits applied (<= 0)
@@ -467,6 +471,8 @@ export interface CostBreakdownResponse {
   dimension: CostDimension;
   cloud: CloudFilter;
   days: number;
+  start_date?: string; // resolved window bounds (inclusive, ISO) — see CostSummaryResponse
+  end_date?: string;
   total: number; // TRUE window total for this dimension (all groups, pre-cap) — consistent across tabs
   total_groups?: number; // distinct real groups before the top-N cap (excludes synthetic aggregate rows)
   rows: CostBreakdownRow[];
@@ -479,12 +485,35 @@ export interface CostTimeseriesPoint {
 
 export interface CostTimeseriesResponse {
   days: number;
+  start_date?: string; // resolved window bounds (inclusive, ISO) — see CostSummaryResponse
+  end_date?: string;
   clouds: CostCloud[];
   points: CostTimeseriesPoint[];
 }
 
-export async function fetchCostSummary(days = 30, refresh = false): Promise<CostSummaryResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/costs/summary?days=${days}&refresh=${refresh}`);
+/** An operator-picked window. Both bounds are ISO `YYYY-MM-DD` and INCLUSIVE, matching the API. */
+export interface CostDateRange {
+  start: string;
+  end: string;
+}
+
+/**
+ * The window half of a cost query: an explicit range when given, else the trailing `days` preset.
+ *
+ * The API takes one or the other (`start_date`+`end_date` override `days`), so sending both would
+ * leave which-one-wins to the server. Emitting exactly one keeps the request self-describing.
+ */
+function costWindowQs(days: number, range?: CostDateRange): string {
+  return range ? `start_date=${range.start}&end_date=${range.end}` : `days=${days}`;
+}
+
+export async function fetchCostSummary(
+  days = 30,
+  refresh = false,
+  range?: CostDateRange,
+): Promise<CostSummaryResponse> {
+  const qs = `?${costWindowQs(days, range)}&refresh=${refresh}`;
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/summary${qs}`);
   return handleResponse<CostSummaryResponse>(response);
 }
 
@@ -494,9 +523,10 @@ export async function fetchCostBreakdown(
   days = 30,
   refresh = false,
   labelKey: CostLabelKey = "purpose",
+  range?: CostDateRange,
 ): Promise<CostBreakdownResponse> {
   const label = dimension === "label" ? `&label_key=${labelKey}` : "";
-  const qs = `?dimension=${dimension}&cloud=${cloud}&days=${days}&refresh=${refresh}${label}`;
+  const qs = `?dimension=${dimension}&cloud=${cloud}&${costWindowQs(days, range)}&refresh=${refresh}${label}`;
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/breakdown${qs}`);
   return handleResponse<CostBreakdownResponse>(response);
 }
@@ -505,8 +535,9 @@ export async function fetchCostTimeseries(
   days = 30,
   cloud: CloudFilter = "all",
   refresh = false,
+  range?: CostDateRange,
 ): Promise<CostTimeseriesResponse> {
-  const qs = `?days=${days}&cloud=${cloud}&refresh=${refresh}`;
+  const qs = `?${costWindowQs(days, range)}&cloud=${cloud}&refresh=${refresh}`;
   const response = await fetch(`${DEPLOYMENT_API}/api/costs/timeseries${qs}`);
   return handleResponse<CostTimeseriesResponse>(response);
 }

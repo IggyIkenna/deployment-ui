@@ -385,4 +385,91 @@ test.describe("Cost Observability page", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByText(/quick guide/i)).toHaveCount(0);
   });
+
+  // --- date range (pw:L2) ----------------------------------------------------
+  // The window control is presets + an always-visible explicit range. Plan:
+  // unified-trading-pm/plans/active/cost_observability_ui_2026_07_08.md (date-range follow-up).
+
+  test("shows the date range up front, populated from the window the API resolved", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-total")).toBeVisible();
+
+    // No "Custom" mode to enter — the range is the window, always on screen.
+    await expect(page.getByTestId("cost-date-range")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Custom" })).toHaveCount(0);
+
+    // Seeded from the API's ECHOED bounds, so the dates describe the numbers beside them.
+    const start = page.getByTestId("cost-range-start");
+    const end = page.getByTestId("cost-range-end");
+    await expect(start).not.toHaveValue("");
+    await expect(end).not.toHaveValue("");
+    await expect(page.getByText(/last 30 days/i)).toBeVisible();
+  });
+
+  test("a preset repopulates the date range with its resolved window", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-total")).toBeVisible();
+    const startBefore = await page.getByTestId("cost-range-start").inputValue();
+
+    await page.getByRole("button", { name: "7d" }).click();
+
+    // The dates must MOVE with the preset — a control whose fields don't track the selection is
+    // exactly the "looks filtered but isn't" failure this page can't afford.
+    await expect(page.getByText(/last 7 days/i)).toBeVisible();
+    await expect(page.getByTestId("cost-range-start")).not.toHaveValue(startBefore);
+    await expect(page.getByRole("button", { name: "7d" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("hand-picking a window refilters the page and deselects every preset", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-total")).toBeVisible();
+    await expect(page.getByRole("button", { name: "30d" })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByTestId("cost-range-start").fill("2026-06-01");
+    await page.getByTestId("cost-range-end").fill("2026-06-10");
+
+    // 1-10 June is a real 10-day window; the KPI band must say so...
+    await expect(page.getByText(/last 10 days/i)).toBeVisible();
+    // ...and no preset may stay lit, since none of them describes this window.
+    for (const label of ["7d", "30d", "90d"]) {
+      await expect(page.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "false");
+    }
+  });
+
+  test("bounds the date inputs so an inverted range is unreachable", async ({ page }) => {
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-total")).toBeVisible();
+
+    // The API 400s an inverted range; the control cannot express one in the first place.
+    const start = page.getByTestId("cost-range-start");
+    const end = page.getByTestId("cost-range-end");
+    await expect(start).toHaveAttribute("max", await end.inputValue());
+    await expect(end).toHaveAttribute("min", await start.inputValue());
+  });
+
+  test("a stale slower window never clobbers a fresher one after a rapid date edit", async ({ page }) => {
+    // Regression, found by driving the LIVE page (the mocked unit tests couldn't see it): editing
+    // two date fields issues two windows a moment apart, and a real cost window is a ~10s cache
+    // miss, so the earlier request routinely resolves LAST. `loadBreakdown` already guarded this;
+    // `loadCore` did not, and the KPI band rendered one window behind its own dates.
+    await page.addInitScript(() => {
+      (window as typeof window & { __mockSummaryDelayMs?: Record<string, number> }).__mockSummaryDelayMs = {
+        "2026-06-01:2026-06-10": 1500, // the 10-day window resolves LATE
+      };
+    });
+    await page.goto("/ops/costs");
+    await expect(page.getByTestId("cost-total")).toBeVisible();
+
+    await page.getByTestId("cost-range-start").fill("2026-06-01");
+    await page.getByTestId("cost-range-end").fill("2026-06-10"); // slow: 10 days
+    await page.getByTestId("cost-range-start").fill("2026-06-02"); // fast: 9 days, supersedes it
+
+    await expect(page.getByText(/last 9 days/i)).toBeVisible();
+    // Let the superseded 10-day response land — it must be dropped, not painted over the fresher
+    // window the operator is actually looking at.
+    await page.waitForTimeout(2500);
+    await expect(page.getByText(/last 9 days/i)).toBeVisible();
+    await expect(page.getByText(/last 10 days/i)).toHaveCount(0);
+    await expect(page.getByTestId("cost-range-start")).toHaveValue("2026-06-02");
+  });
 });
