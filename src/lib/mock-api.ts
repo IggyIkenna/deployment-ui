@@ -3794,10 +3794,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  if (path.match(/^\/api\/data-status/)) {
-    return json(MOCK_DATA_STATUS);
-  }
-
   // Cloud builds
   if (path === "/api/cloud-builds" || path === "/cloud-builds/triggers" || path === "/api/cloud-builds/triggers") {
     return json({
@@ -5191,6 +5187,23 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Fleet infra-VM health (AO /api/fleet/summary proxy)
   if (path === "/api/fleet/infra-vm-health") {
     return json(mockInfraVmHealth());
+  }
+
+  // Generic /api/data-status/* fallback (the turbo coverage-summary shape) —
+  // MUST be the last data-status check in this function. Every specific
+  // /api/data-status/<endpoint> handler above (catalogue, prediction-catalogue,
+  // instruments-for-shard, honest-coverage, turbo, manifest, venue-filters,
+  // list-files, download-catalogue-csv, instruments, instrument-availability,
+  // ...) needs to match FIRST; this used to sit near the top of the function
+  // (pre-dating most of those routes, added 2026-06-16) and silently shadowed
+  // every one of them for over a month — any /api/data-status/<anything> request
+  // matched this regex before reaching its own specific handler further down,
+  // so those endpoints always got the big turbo MOCK_DATA_STATUS payload instead
+  // of their own real response shape (found 2026-07-17 while browser-verifying
+  // the Catalogue Explorer — it silently returned {asset_groups: {...}} instead
+  // of {instruments: [...], total_count, label, ...}). Keep this LAST.
+  if (path.match(/^\/api\/data-status/)) {
+    return json(MOCK_DATA_STATUS);
   }
 
   return json({ error: "Mock: no handler", path }, 404);
