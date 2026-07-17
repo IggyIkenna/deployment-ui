@@ -48,18 +48,18 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("renders the 4 screens with no cockpit twin as route links", () => {
+  it("renders the 5 screens with no cockpit twin as route links", () => {
     renderAt("/cockpit");
-    for (const id of ["home", "epics", "vm-deployments", "costs"]) {
+    for (const id of ["home", "epics", "vm-deployments", "data-status", "costs"]) {
       expect(screen.getByTestId(`cockpit-navlink-${id}`)).toBeTruthy();
     }
   });
 
-  it("shows all 14 canonical entries — the same list as the dropdown", () => {
+  it("shows all 15 canonical entries — the same list as the dropdown", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(14);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {

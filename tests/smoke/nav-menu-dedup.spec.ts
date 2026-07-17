@@ -86,15 +86,15 @@ test("redundant routes are quarantined in a labelled group, not mixed into the n
   await expect(page.getByTestId("nav-menu-item-dup-chaos")).toBeVisible();
 });
 
-test("the always-visible top bar carries the same 14 entries as the dropdown", async ({ page }) => {
+test("the always-visible top bar carries the same 15 entries as the dropdown", async ({ page }) => {
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 10 cockpit tabs + the 4 screens with no cockpit twin = the dropdown's 14.
+  // 10 cockpit tabs + the 5 screens with no cockpit twin = the dropdown's 15.
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
-  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(4);
+  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(5);
 
-  for (const id of ["home", "epics", "vm-deployments", "costs"]) {
+  for (const id of ["home", "epics", "vm-deployments", "data-status", "costs"]) {
     await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
   }
 });
@@ -116,6 +116,20 @@ test("a top-bar route link navigates to its own route", async ({ page }) => {
   await page.goto("/cockpit");
   await page.getByTestId("cockpit-navlink-costs").click();
   await expect(page).toHaveURL(/\/ops\/costs/);
+});
+
+test("Data Status is one click from the top bar and really selects the tab", async ({ page }) => {
+  // Data Status is a PER-SERVICE tab, so the nav entry names a default service
+  // (instruments-service — the one the cockpit's Data Coverage tile reads). The deep-link
+  // must land ON the tab, not just on the service view's default (Deploy) tab — that's the
+  // failure mode ServiceUrlSync's state/URL race produces, and it is invisible from the URL.
+  await page.goto("/cockpit");
+  await page.getByTestId("cockpit-navlink-data-status").click();
+  await expect(page).toHaveURL(/\/service\/instruments-service\/data-status/);
+
+  const tab = page.getByRole("tab", { name: "Data Status" });
+  await expect(tab).toBeVisible({ timeout: 20_000 });
+  await expect(tab).toHaveAttribute("data-state", "active");
 });
 
 test("the top bar is the only nav chrome — the cockpit no longer renders its own", async ({ page }) => {

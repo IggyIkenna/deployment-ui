@@ -4,6 +4,7 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  Boxes,
   CircleDollarSign,
   Database,
   FlaskConical,
@@ -112,6 +113,32 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    heading: "Data",
+    items: [
+      {
+        // Data Status is a PER-SERVICE tab (/service/<name>/data-status) — 8 services have
+        // one, so a single nav entry has to name a default. instruments-service is the
+        // canonical pick: it's the service the cockpit's own Data Coverage tile reads
+        // (health_overview._coverage_tile -> read_coverage_rollup_if_fresh("instruments-service")).
+        // Switch service from the sidebar once you're there.
+        id: "data-status",
+        to: "/service/instruments-service/data-status",
+        label: "Data Status",
+        icon: Database,
+        desc: "Coverage · manifest (instruments-service)",
+        short: "Data Status",
+      },
+      {
+        id: "consolidators",
+        to: "/cockpit?tab=consolidators",
+        label: "Consolidators",
+        icon: Boxes,
+        desc: "Index age · shard fallback",
+        short: "Consolidators",
+      },
+    ],
+  },
+  {
     heading: "Fleet & Cost",
     items: [
       {
@@ -121,14 +148,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Layers,
         desc: "Census · orphans · git · infra",
         short: "Fleet",
-      },
-      {
-        id: "consolidators",
-        to: "/cockpit?tab=consolidators",
-        label: "Consolidators",
-        icon: Database,
-        desc: "Index age · shard fallback",
-        short: "Consolidators",
       },
       {
         id: "costs",

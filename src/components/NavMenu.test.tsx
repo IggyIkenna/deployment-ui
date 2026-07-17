@@ -65,8 +65,9 @@ describe("NAV_GROUPS canonical entries", () => {
   it("reach the screens that have NO cockpit twin", () => {
     const reached = new Set(canonicalItems.map((i) => i.to));
     // /home = service picker, /epics = plans, /ops/costs = spend, /vm-deployments = full
-    // per-VM history (the cockpit Fleet tab embeds only a compact view).
-    for (const to of ["/home", "/epics", "/ops/costs", "/vm-deployments"]) {
+    // per-VM history (the cockpit Fleet tab embeds only a compact view), and Data Status
+    // is a per-service tab so it defaults to the canonical instruments-service.
+    for (const to of ["/home", "/epics", "/ops/costs", "/vm-deployments", "/service/instruments-service/data-status"]) {
       expect(reached).toContain(to);
     }
   });
@@ -116,11 +117,12 @@ describe("cockpit bar / dropdown shared source", () => {
     expect(cockpitTabIdFor("/vm-deployments")).toBeNull();
   });
 
-  it("splits the 14 into cockpit tabs vs route links exactly as the bar renders them", () => {
+  it("splits the canonical entries into cockpit tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 10 cockpit tabs + the 4 screens with no cockpit twin = the 14 canonical entries.
+    // 10 cockpit tabs + the 5 screens with no cockpit twin = 15 canonical entries.
     expect(tabs).toHaveLength(10);
-    expect(links).toEqual(["home", "epics", "vm-deployments", "costs"]);
+    expect(links).toEqual(["home", "epics", "vm-deployments", "data-status", "costs"]);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 });
