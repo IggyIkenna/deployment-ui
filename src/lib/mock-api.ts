@@ -2559,11 +2559,41 @@ function mockCostDates(days: number): string[] {
     new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0, 10),
   );
 }
+/** The resolved window for a mock cost query — mirrors the real service's `_resolve_window`. */
+interface MockCostWindow {
+  days: number;
+  dates: string[];
+  start: string;
+  end: string;
+}
+/**
+ * Resolve `start_date`+`end_date` (inclusive) else the trailing `days`, exactly as the backend does.
+ *
+ * Mock mode has to honour the range for the same reason the fixtures are copied from the UAC SSOT
+ * rather than invented: a mock that quietly ignored `start_date` would answer every window with
+ * "last 30 days", so the picker would look like it worked while the numbers never moved — mock mode
+ * agreeing with a bug, which is worse than having no mock.
+ */
+function mockCostWindow(params: URLSearchParams): MockCostWindow {
+  const start = params.get("start_date");
+  const end = params.get("end_date");
+  if (start && end) {
+    const dates: string[] = [];
+    for (let d = new Date(`${start}T00:00:00Z`); d <= new Date(`${end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    if (dates.length > 0) return { days: dates.length, dates, start, end };
+  }
+  const days = Number(params.get("days") ?? 30);
+  const dates = mockCostDates(days);
+  return { days, dates, start: dates[0] ?? "", end: dates[dates.length - 1] ?? "" };
+}
 function mockCostDaily(cloud: string, days: number): number[] {
   const c = MOCK_COST_CLOUDS[cloud];
   return Array.from({ length: days }, (_, i) => Math.max(0, +(c.base + c.wobble * Math.sin(i / 3)).toFixed(4)));
 }
-function mockCostSummary(days: number) {
+function mockCostSummary(win: MockCostWindow) {
+  const days = win.days;
   const clouds = ["gcp", "aws", "github"].map((cloud) => {
     const daily = mockCostDaily(cloud, days);
     const net = +daily.reduce((a, b) => a + b, 0).toFixed(2);
@@ -2591,29 +2621,35 @@ function mockCostSummary(days: number) {
   const credit = +clouds.reduce((a, c) => a + c.credit, 0).toFixed(2);
   return {
     days,
+    start_date: win.start,
+    end_date: win.end,
     total,
     gross,
     credit,
     run_rate_daily: +(total / days).toFixed(2),
     delta_pct: 8.1,
-    dates: mockCostDates(days),
+    dates: win.dates,
     clouds,
-    provisional_days: 2,
+    // A window that ENDS in the past has nothing unreconciled in it — the provisional band is a
+    // trailing-edge artifact, so a historical range must not claim one.
+    provisional_days: win.end >= mockCostDates(1)[0] ? 2 : 0,
     generated_at: new Date().toISOString(),
   };
 }
-function mockCostTimeseries(days: number, cloud: string) {
+function mockCostTimeseries(win: MockCostWindow, cloud: string) {
   const clouds = cloud === "all" ? ["gcp", "aws", "github"] : [cloud];
   const daily: Record<string, number[]> = {};
-  clouds.forEach((c) => (daily[c] = mockCostDaily(c, days)));
-  const dates = mockCostDates(days);
+  clouds.forEach((c) => (daily[c] = mockCostDaily(c, win.days)));
   return {
-    days,
+    days: win.days,
+    start_date: win.start,
+    end_date: win.end,
     clouds,
-    points: dates.map((date, i) => ({ date, values: Object.fromEntries(clouds.map((c) => [c, daily[c][i]])) })),
+    points: win.dates.map((date, i) => ({ date, values: Object.fromEntries(clouds.map((c) => [c, daily[c][i]])) })),
   };
 }
-function mockCostBreakdown(dimension: string, cloud: string, days: number) {
+function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow) {
+  const days = win.days;
   const scale = days / 30;
   // 6th element = purchase_option (spot | on-demand | other); only meaningful for compute rows
   // on the resource/service dimensions, mirrors the backend's rank-based fold onto those groups.
@@ -2761,7 +2797,7 @@ function mockCostBreakdown(dimension: string, cloud: string, days: number) {
   rows.sort((a, b) => b.cost - a.cost);
   // total_groups = distinct groups before the backend's top-N cap; the mock fixtures are small
   // (< cap) so nothing is folded, but the field is present so the UI's coverage hint renders.
-  return { dimension, cloud, days, total, total_groups: rows.length, rows };
+  return { dimension, cloud, days, start_date: win.start, end_date: win.end, total, total_groups: rows.length, rows };
 }
 
 // ── Consolidator mock: animate the backlog so the sparklines actually move in dev ──
@@ -2805,10 +2841,19 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // Cost observability (mirrors deployment-api routes/costs.py) — /ops/costs page
   if (path.startsWith("/api/costs/")) {
     const params = new URL(url, "http://mock").searchParams;
-    const days = Number(params.get("days") ?? 30);
+    const win = mockCostWindow(params);
     const cloud = params.get("cloud") ?? "all";
     const dimension = params.get("dimension") ?? "service";
-    if (path === "/api/costs/summary") return json(mockCostSummary(days));
+    if (path === "/api/costs/summary") {
+      // Test-only hook (mirrors __mockBreakdownDelayMs): make ONE window's summary resolve slower
+      // than a later one so a spec can deterministically reproduce the out-of-order-response race
+      // that `loadCore`'s reqId guard exists to stop. Keyed by the full `start:end` window — a
+      // `days`-only key can't tell two same-length windows apart, which is the whole hazard.
+      const winDelay = (window as typeof window & { __mockSummaryDelayMs?: Record<string, number> })
+        .__mockSummaryDelayMs?.[`${win.start}:${win.end}`];
+      if (winDelay) await delay(winDelay);
+      return json(mockCostSummary(win));
+    }
     if (path === "/api/costs/breakdown") {
       // Test-only hook (mirrors __mockErrors/__mockRequests): a spec can make one dimension's
       // response resolve slower than another to deterministically reproduce the out-of-order-
@@ -2817,9 +2862,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       const extraDelay = (window as typeof window & { __mockBreakdownDelayMs?: Record<string, number> })
         .__mockBreakdownDelayMs?.[dimension];
       if (extraDelay) await delay(extraDelay);
-      return json(mockCostBreakdown(dimension, cloud, days));
+      return json(mockCostBreakdown(dimension, cloud, win));
     }
-    if (path === "/api/costs/timeseries") return json(mockCostTimeseries(days, cloud));
+    if (path === "/api/costs/timeseries") return json(mockCostTimeseries(win, cloud));
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —

@@ -14,6 +14,10 @@ vi.mock("../api/deploymentApi", () => ({
 
 const summary: api.CostSummaryResponse = {
   days: 30,
+  // The window the API resolved. The date inputs render THESE rather than dates derived locally,
+  // so the fields always describe the numbers beside them.
+  start_date: "2026-06-09",
+  end_date: "2026-06-10",
   total: 15426.52, // net (what you pay) = gross 18000.00 − credits 2573.48
   gross: 18000.0,
   credit: -2573.48,
@@ -355,7 +359,7 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By region" }));
     await waitFor(() =>
-      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false, "purpose"),
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("region", "all", 30, false, "purpose", undefined),
     );
   });
 
@@ -460,7 +464,7 @@ describe("CostObservability", () => {
     await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "By SKU" }));
     await waitFor(() =>
-      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false, "purpose"),
+      expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("sku", "all", 30, false, "purpose", undefined),
     );
     // The SKU dimension's note + the top-driver SKU fixture row both render.
     expect(screen.getByText("Google/AWS SKU")).toBeInTheDocument();
@@ -477,6 +481,138 @@ describe("CostObservability", () => {
     render(<CostObservability />);
     await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "7d" }));
-    await waitFor(() => expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(7, false));
+    // `undefined` window arg = "no explicit range" — a preset click must send `days`, not a range.
+    await waitFor(() => expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(7, false, undefined));
+  });
+
+  // --- date range ------------------------------------------------------------
+
+  it("shows the date range up front, populated from the window the API resolved", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+
+    // Always visible (no Custom mode to enter), and showing the summary's ECHOED bounds rather
+    // than dates derived locally — so the fields describe the numbers actually on screen.
+    expect(screen.getByTestId("cost-date-range")).toBeInTheDocument();
+    expect(screen.getByTestId("cost-range-start")).toHaveValue("2026-06-09");
+    expect(screen.getByTestId("cost-range-end")).toHaveValue("2026-06-10");
+  });
+
+  it("repopulates the date range from the preset's resolved window", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-range-start")).toHaveValue("2026-06-09"));
+
+    // A preset click sends `days` (the server owns "today"), and the inputs then take the window
+    // it echoed back — here the 7d fixture resolves to a different span than the initial 30d.
+    vi.mocked(api.fetchCostSummary).mockResolvedValue({
+      ...summary,
+      days: 7,
+      start_date: "2026-06-04",
+      end_date: "2026-06-10",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "7d" }));
+
+    await waitFor(() => expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(7, false, undefined));
+    await waitFor(() => expect(screen.getByTestId("cost-range-start")).toHaveValue("2026-06-04"));
+    expect(screen.getByTestId("cost-range-end")).toHaveValue("2026-06-10");
+  });
+
+  it("refetches every view with an explicit range when a date is edited", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "2026-06-01" } });
+
+    const range = { start: "2026-06-01", end: "2026-06-10" };
+    await waitFor(() => expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(30, false, range));
+    // The trend + the resource table must move with the KPIs — a page showing one window's total
+    // over another window's rows is worse than no filter at all.
+    expect(vi.mocked(api.fetchCostTimeseries)).toHaveBeenCalledWith(30, "all", false, range);
+    expect(vi.mocked(api.fetchCostBreakdown)).toHaveBeenCalledWith("resource", "all", 30, false, "purpose", range);
+  });
+
+  it("deselects every preset once the dates are hand-picked", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "30d" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "2026-06-01" } });
+
+    // 1-10 June is not "the last 30 days" — leaving 30d lit would misdescribe the window.
+    for (const label of ["7d", "30d", "90d"]) {
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "false");
+    }
+  });
+
+  it("returning to a preset drops the range and sends days again", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "2026-06-01" } });
+    await waitFor(() =>
+      expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(30, false, {
+        start: "2026-06-01",
+        end: "2026-06-10",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "90d" }));
+
+    await waitFor(() => expect(vi.mocked(api.fetchCostSummary)).toHaveBeenCalledWith(90, false, undefined));
+    expect(screen.getByRole("button", { name: "90d" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("never renders a slower earlier window over a newer one", async () => {
+    // Regression (found by driving the live page, not the mocks): editing `start` then `end`
+    // issues two windows a moment apart, and a cost window is an ~10s cache miss, so the FIRST
+    // request routinely resolves LAST. Without an ordering guard in loadCore the KPI band showed
+    // the stale window's total next to the new window's dates.
+    // Both edits move `start` only — moving `end` earlier than `start` is rejected by the picker's
+    // own min/max bounds, so it can't stage the race.
+    const slowOld = { ...summary, total: 111.11, start_date: "2026-06-01", end_date: "2026-06-10" };
+    const fastNew = { ...summary, total: 222.22, start_date: "2026-06-02", end_date: "2026-06-10" };
+
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+
+    // First edit: resolves LATE with its (by then stale) numbers.
+    let releaseOld: (v: typeof slowOld) => void = () => {};
+    vi.mocked(api.fetchCostSummary).mockReturnValueOnce(
+      new Promise<typeof slowOld>((res) => {
+        releaseOld = res;
+      }),
+    );
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "2026-06-01" } });
+
+    // Second edit: resolves immediately with the CURRENT window.
+    vi.mocked(api.fetchCostSummary).mockResolvedValue(fastNew);
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "2026-06-02" } });
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toHaveTextContent("222.22"));
+
+    // Now let the stale one land — it must be dropped, not painted over the fresher window.
+    releaseOld(slowOld);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByTestId("cost-total")).toHaveTextContent("222.22");
+    expect(screen.getByTestId("cost-total")).not.toHaveTextContent("111.11");
+  });
+
+  it("bounds the inputs so an inverted range is unreachable", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+
+    // The API 400s an inverted range; the control simply can't express one.
+    expect(screen.getByTestId("cost-range-start")).toHaveAttribute("max", "2026-06-10");
+    expect(screen.getByTestId("cost-range-end")).toHaveAttribute("min", "2026-06-09");
+  });
+
+  it("ignores a cleared date instead of querying a half-open window", async () => {
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total")).toBeInTheDocument());
+    vi.mocked(api.fetchCostSummary).mockClear();
+
+    fireEvent.change(screen.getByTestId("cost-range-start"), { target: { value: "" } });
+
+    // A blank bound would be sent as `start_date=` and rejected — the picker holds its last good
+    // value instead, so a mid-edit input can never produce a failed request.
+    expect(screen.getByTestId("cost-range-start")).toHaveValue("2026-06-09");
+    expect(vi.mocked(api.fetchCostSummary)).not.toHaveBeenCalled();
   });
 });

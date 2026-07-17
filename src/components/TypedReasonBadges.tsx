@@ -7,13 +7,13 @@
  * deployment-api@453836d + @7d57056). The closed-set taxonomies SSOT'd
  * here mirror the deployment-api keys exactly.
  *
- * Empty reasons (``empty_confirmed`` rows bucketed by ``error_reason``):
- *   EXPECTED_HOLIDAY / EXPECTED_WEEKEND / EXPECTED_PAUSED_LEAGUE /
- *   EXPECTED_PRE_SOURCE_COVERAGE_START / EXPECTED_PRE_GENESIS_CHAIN /
- *   EXPECTED_PRE_VENUE_LAUNCH / EXPECTED_INSTRUMENT_NOT_LISTED /
- *   EXPECTED_INSTRUMENT_DELISTED / EXPECTED_PARTIAL_HALF_DAY /
- *   EXPECTED_REFDATA_CADENCE_CHANGE / EXPECTED_DEPRECATED_DATA_TYPE /
- *   SOURCE_RETURNED_ZERO / empty_unclassified (legacy back-fill catch-all).
+ * Empty reasons (``empty_confirmed`` rows bucketed by ``error_reason``): the full
+ * closed-set list is the ``EMPTY_REASON_KEYS`` array below (kept 1:1 with
+ * deployment-api's ``EMPTY_REASON_KEYS`` in ``services/data_status/coverage_metrics.py``
+ * — a "matches deployment-api" parity test lives in ``TypedReasonBadges.test.tsx``, but
+ * it's a MANUALLY-SYNCED pinned snapshot, not a cross-repo check; see that file's
+ * comment for why real automated parity belongs in system-integration-tests).
+ * empty_unclassified is the legacy back-fill catch-all, not a UAC-declared reason.
  *
  * Failure pillars (``attempted_failed`` rows bucketed by typed-error class):
  *   failed_timestamp_bias / failed_malformed / failed_cluster /
@@ -38,15 +38,43 @@ export const EMPTY_REASON_KEYS = [
   "EXPECTED_WEEKEND",
   "EXPECTED_PAUSED_LEAGUE",
   "EXPECTED_PRE_SOURCE_COVERAGE_START",
+  "EXPECTED_PAST_SOURCE_COVERAGE_END",
+  "EXPECTED_SOURCE_DELIVERY_LAG",
   "EXPECTED_PRE_GENESIS_CHAIN",
   "EXPECTED_PRE_VENUE_LAUNCH",
   "EXPECTED_INSTRUMENT_NOT_LISTED",
   "EXPECTED_INSTRUMENT_DELISTED",
+  "EXPECTED_NOT_ENOUGH_TVL",
   "EXPECTED_PARTIAL_HALF_DAY",
-  "EXPECTED_REFDATA_CADENCE_CHANGE",
+  "EXPECTED_OUTSIDE_TRADING_HOURS",
+  "EXPECTED_OUTSIDE_TRANSFER_WINDOW",
+  "EXPECTED_PRE_SEASON",
+  "EXPECTED_POST_SEASON",
+  "EXPECTED_SOURCE_DOES_NOT_COVER_LEAGUE",
+  "EXPECTED_SOURCE_DOES_NOT_OFFER_DATA_TYPE",
+  "EXPECTED_CHAIN_AGGREGATE",
+  "EXPECTED_BOOKMAKER_NO_LEAGUE_COVERAGE",
+  "EXPECTED_NO_PROVIDER_COVERAGE",
+  "EXPECTED_OUT_OF_COVERAGE_WINDOW",
   "EXPECTED_DEPRECATED_DATA_TYPE",
+  "EXPECTED_REFDATA_CADENCE_CHANGE",
+  "EXPECTED_KNOWN_SOURCE_GAP",
+  "EXPECTED_PROTOCOL_PAUSED",
   "EXPECTED_UPSTREAM_OUT_OF_BOUNDS",
+  "EXPECTED_OUTSIDE_PROCESSING_SCOPE",
+  "EXPECTED_UPSTREAM_EMPTY",
+  "EXPECTED_FIXTURE_POSTPONED",
+  "EXPECTED_FIXTURE_CANCELLED",
+  "EXPECTED_NO_FIXTURE",
+  "EXPECTED_NO_MAPPING",
+  "EXPECTED_LEGACY_MIGRATION_MISSING_EXPIRY",
+  "EXPECTED_NO_FUNDING_RATE_TICKS",
+  "EXPECTED_NO_PNL_STREAM",
+  "EXPECTED_WRITE_GATE_NAN_THRESHOLD_EXCEEDED",
   "SOURCE_RETURNED_ZERO",
+  "NO_INPUT_AVAILABLE",
+  "LEG_ABSENT_LEFT",
+  "LEG_ABSENT_RIGHT",
   "empty_unclassified",
 ] as const;
 
@@ -85,6 +113,17 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
     description: "Date predates the source's earliest covered day (UAC SOURCE_COVERAGE_START)",
     color: "var(--color-accent-cyan)",
   },
+  EXPECTED_PAST_SOURCE_COVERAGE_END: {
+    short: "past-source-end",
+    description: "Date is after the archive's documented coverage end (sister of pre-source-start)",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_SOURCE_DELIVERY_LAG: {
+    short: "delivery-lag",
+    description:
+      "TradFi source returned 0 rows for an in-window day near the live edge — temporary ingest lag, expected to backfill",
+    color: "var(--color-accent-amber)",
+  },
   EXPECTED_PRE_GENESIS_CHAIN: {
     short: "pre-genesis",
     description: "Date predates the chain's genesis block",
@@ -105,25 +144,156 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
     description: "Instrument was already delisted at this date",
     color: "var(--color-accent-cyan)",
   },
+  EXPECTED_NOT_ENOUGH_TVL: {
+    short: "sub-tvl",
+    description: "DeFi pool/market exists on-chain but its TVL is below the MVP capture threshold",
+    color: "var(--color-accent-cyan)",
+  },
   EXPECTED_PARTIAL_HALF_DAY: {
     short: "half-day",
     description: "Venue partial-session day (early close / late open)",
     color: "var(--color-accent-blue)",
   },
-  EXPECTED_REFDATA_CADENCE_CHANGE: {
-    short: "refdata-cadence",
-    description: "Reference-data cadence change explains the absence",
+  EXPECTED_OUTSIDE_TRADING_HOURS: {
+    short: "outside-hours",
+    description: "Intra-day shard falls outside the venue's published trading-session hours",
+    color: "var(--color-accent-blue)",
+  },
+  EXPECTED_OUTSIDE_TRANSFER_WINDOW: {
+    short: "outside-transfer",
+    description: "Sports transfer-records date is outside the country's published transfer registration window",
+    color: "var(--color-accent-blue)",
+  },
+  EXPECTED_PRE_SEASON: {
+    short: "pre-season",
+    description: "Sports shard date precedes the league season's published kick-off date",
     color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_POST_SEASON: {
+    short: "post-season",
+    description: "Sports shard date is after the season's documented final fixture (pair of pre-season)",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_SOURCE_DOES_NOT_COVER_LEAGUE: {
+    short: "no-league-coverage",
+    description: "The source legitimately doesn't cover this league/season pair (e.g. Understat's fixed whitelist)",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_SOURCE_DOES_NOT_OFFER_DATA_TYPE: {
+    short: "no-data-type",
+    description: "The venue's batch source structurally has no historical endpoint for this data type, ever",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_CHAIN_AGGREGATE: {
+    short: "chain-aggregate",
+    description: "TradFi chain-level aggregate catalogue row (blank instrument_id) — no downloadable bar data exists",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_BOOKMAKER_NO_LEAGUE_COVERAGE: {
+    short: "no-bookmaker-coverage",
+    description: "An Odds-API bookmaker's observed corpus shows it has never priced this league",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_NO_PROVIDER_COVERAGE: {
+    short: "no-provider-coverage",
+    description: "API-Football's observed corpus shows this (league, enrichment entity) pair has never produced a row",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_OUT_OF_COVERAGE_WINDOW: {
+    short: "out-of-scope-window",
+    description: "Data type still valid + restorable, but currently out of the operator-acked MVP coverage scope",
+    color: "var(--color-accent-purple)",
   },
   EXPECTED_DEPRECATED_DATA_TYPE: {
     short: "deprecated",
     description: "Data type was deprecated for this venue at this date",
     color: "var(--color-accent-cyan)",
   },
+  EXPECTED_REFDATA_CADENCE_CHANGE: {
+    short: "refdata-cadence",
+    description: "Reference-data cadence change explains the absence",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_KNOWN_SOURCE_GAP: {
+    short: "known-gap",
+    description: "Documented mid-history source gap that doesn't fit the launch/coverage-start/genesis primitives",
+    color: "var(--color-accent-purple)",
+  },
+  EXPECTED_PROTOCOL_PAUSED: {
+    short: "protocol-paused",
+    description: "DeFi protocol pause window (migration, wind-down, chain-level outage) with a known resume date",
+    color: "var(--color-accent-purple)",
+  },
+  EXPECTED_OUTSIDE_PROCESSING_SCOPE: {
+    short: "outside-scope",
+    description: "Instrument exists in the catalog but isn't in the downstream service's MVP subscription list",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_UPSTREAM_EMPTY: {
+    short: "upstream-empty",
+    description: "Downstream service skipped this shard because the upstream manifest was already empty/unattempted",
+    color: "var(--color-accent-amber)",
+  },
+  EXPECTED_FIXTURE_POSTPONED: {
+    short: "postponed",
+    description: "Sports fixture postponed before kickoff with no rescheduled date in the current pipeline window",
+    color: "var(--color-accent-purple)",
+  },
+  EXPECTED_FIXTURE_CANCELLED: {
+    short: "cancelled",
+    description: "Sports fixture was cancelled outright (no reschedule)",
+    color: "var(--color-accent-purple)",
+  },
+  EXPECTED_NO_FIXTURE: {
+    short: "no-fixture",
+    description: "No fixture scheduled for this (league, day) per the canonical fixtures manifest",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_NO_MAPPING: {
+    short: "no-mapping",
+    description: "Canonical entity exists but the source-specific provider mapping to fetch it is absent",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_LEGACY_MIGRATION_MISSING_EXPIRY: {
+    short: "missing-expiry",
+    description: "Pre-2026-05-13 tradfi futures/options row lacks expiration and couldn't be back-filled at migration",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_NO_FUNDING_RATE_TICKS: {
+    short: "no-funding-ticks",
+    description: "Perp funding-rate parquet exists for this (venue, symbol, day) but every funding_rate row is null",
+    color: "var(--color-accent-amber)",
+  },
+  EXPECTED_NO_PNL_STREAM: {
+    short: "no-pnl-stream",
+    description: "No upstream strategy PnL stream event for this date + archetype (strategy not yet running)",
+    color: "var(--color-accent-amber)",
+  },
+  EXPECTED_WRITE_GATE_NAN_THRESHOLD_EXCEEDED: {
+    short: "nan-threshold",
+    description: "Feature computation ran but the result exceeded the write-gate's NaN threshold — write rejected",
+    color: "var(--color-accent-amber)",
+  },
   SOURCE_RETURNED_ZERO: {
     short: "source-zero",
     description: "Source replied 200 with zero rows — honest absence (live-tradeable but illiquid)",
     color: "var(--color-accent-yellow)",
+  },
+  NO_INPUT_AVAILABLE: {
+    short: "no-input",
+    description: "Downstream compute skipped because an upstream input had attempted_failed status, not honest-empty",
+    color: "var(--color-accent-red)",
+  },
+  LEG_ABSENT_LEFT: {
+    short: "leg-absent-left",
+    description: "Cross-instrument paired calc: the LEFT leg was empty_confirmed for this date",
+    color: "var(--color-accent-amber)",
+  },
+  LEG_ABSENT_RIGHT: {
+    short: "leg-absent-right",
+    description:
+      "Cross-instrument paired calc: the RIGHT leg was empty_confirmed for this date (pair of leg-absent-left)",
+    color: "var(--color-accent-amber)",
   },
   empty_unclassified: {
     short: "unclassified",

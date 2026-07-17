@@ -20,6 +20,7 @@ import {
   type CostBreakdownResponse,
   type CostBreakdownRow,
   type CostCloud,
+  type CostDateRange,
   type CostDimension,
   type CostLabelKey,
   type CostSummaryResponse,
@@ -38,6 +39,31 @@ const CLOUDS: Record<CostCloud, { label: string; color: string }> = {
 const CLOUD_ORDER: CostCloud[] = ["gcp", "aws", "github"];
 
 const RANGES = [7, 30, 90] as const;
+// The preset pills are shortcuts that POPULATE the always-visible date range, not a separate mode.
+// `""` = no preset is active because the operator edited the dates directly — the pills simply
+// deselect rather than lying about which window is on screen.
+type WindowSel = "7" | "30" | "90" | "";
+const WINDOW_OPTIONS: { value: WindowSel; label: string }[] = RANGES.map((r) => ({
+  value: String(r) as WindowSel,
+  label: `${r}d`,
+}));
+// Longest selectable span — mirrors the API's own 366-day cap (routes/costs.py MAX_RANGE_DAYS), so
+// the picker can't offer a range the backend will 400 on.
+const MAX_RANGE_DAYS = 366;
+
+/** Local-calendar ISO `YYYY-MM-DD` — `toISOString()` would shift the day for anyone behind UTC. */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function isoToday(): string {
+  return isoDay(new Date());
+}
+function isoDaysBefore(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() - n);
+  return isoDay(d);
+}
+
 const CLOUD_FILTERS: { value: CloudFilter; label: string }[] = [
   { value: "all", label: "All clouds" },
   { value: "gcp", label: "GCP" },
@@ -292,6 +318,73 @@ function Segmented<T extends string | number>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ---------- date-range picker ----------
+/**
+ * Two native date inputs bounding an INCLUSIVE `[start, end]` window — always visible, and always
+ * showing the window currently on screen (a preset click repopulates it from the API's echoed
+ * bounds; editing a field selects that exact range instead).
+ *
+ * Native `<input type="date">` on purpose: it's keyboard- and screen-reader-accessible, localizes
+ * its own display, and adds no dependency. The `min`/`max` attributes do the real work — they make
+ * the three windows the API rejects (inverted, >366 days, ending in the future) unreachable from
+ * the UI rather than merely error-handled, so the operator never sees a 400 for a range the
+ * control itself offered. `onCommit` only fires for a value that passes those bounds, so a
+ * half-typed date can never be sent as a query.
+ */
+function DateRangePicker({ range, onCommit }: { range: CostDateRange; onCommit: (r: CostDateRange) => void }) {
+  const today = isoToday();
+  // Keep the span inside the API cap from BOTH ends, so whichever field the operator moves first
+  // stays legal without silently rewriting the other one.
+  const earliestStart = isoDaysBefore(range.end, MAX_RANGE_DAYS - 1);
+  const latestEnd = (() => {
+    const cap = isoDaysBefore(today, 0);
+    const spanCap = isoDaysBefore(range.start, -(MAX_RANGE_DAYS - 1));
+    return spanCap < cap ? spanCap : cap;
+  })();
+
+  // No wrapper chrome: each input carries its own border so it sits flush with the Segmented pills
+  // and the icon buttons. A bordered box AROUND bordered-looking inputs read as a second, taller
+  // control next to the pills.
+  // h-[34px] matches the Segmented pills (34.25px) and the icon buttons (34px) — measured, not
+  // guessed; a native date input's intrinsic height is ~30px and read as a shorter, misaligned box.
+  const field =
+    "h-[34px] rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2 " +
+    "font-mono text-[12.5px] leading-none text-[var(--color-text-primary)] outline-none transition-colors " +
+    "hover:border-[var(--color-border-emphasis)] focus:border-[var(--color-accent)]";
+
+  return (
+    <div className="inline-flex items-center gap-1.5" data-testid="cost-date-range">
+      <input
+        type="date"
+        aria-label="Range start date"
+        data-testid="cost-range-start"
+        value={range.start}
+        min={earliestStart}
+        max={range.end}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v && v <= range.end && v >= earliestStart) onCommit({ ...range, start: v });
+        }}
+        className={field}
+      />
+      <span className="text-[12.5px] text-[var(--color-text-tertiary)]">→</span>
+      <input
+        type="date"
+        aria-label="Range end date"
+        data-testid="cost-range-end"
+        value={range.end}
+        min={range.start}
+        max={latestEnd}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v && v >= range.start && v <= latestEnd) onCommit({ ...range, end: v });
+        }}
+        className={field}
+      />
     </div>
   );
 }
@@ -1902,6 +1995,12 @@ function CostHelpDialog({
 
 export function CostObservability() {
   const [days, setDays] = useState<number>(30);
+  // null = a trailing `days` preset is active, so the SERVER resolves the window and the date
+  // inputs display whatever it echoed back. Non-null = the operator typed an explicit window,
+  // which takes precedence. Presets deliberately keep sending `days` rather than dates computed
+  // here: the server's "today" is UTC and the browser's is local, so a locally-derived preset
+  // would show an end date a day off for anyone ahead of UTC.
+  const [range, setRange] = useState<CostDateRange | null>(null);
   const [cloud, setCloud] = useState<CloudFilter>("all");
   const [currency, setCurrency] = useState<Ccy>("USD");
   const [dimension, setDimension] = useState<CostDimension>("service");
@@ -1916,36 +2015,71 @@ export function CostObservability() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A stable identity for the selected window. The breakdown's freshness can't be judged on `days`
+  // alone once ranges exist — a 30-day hand-picked range and the 30d preset share a length but are
+  // different windows — so requests are tagged with this instead.
+  const windowKey = range ? `${range.start}:${range.end}` : `days:${days}`;
+  const windowArg = range ?? undefined;
+
+  // What the date inputs SHOW: the hand-picked range, else the window the API actually resolved for
+  // the active preset. The local fallback only covers the first paint (before any response has
+  // landed) — every rendered value after that is the server's own, so the dates on screen always
+  // describe the numbers on screen.
+  const shownRange: CostDateRange = range ?? {
+    start: summary?.start_date ?? isoDaysBefore(isoToday(), days - 1),
+    end: summary?.end_date ?? isoToday(),
+  };
+
+  // Same ordering guard `loadBreakdown` carries, for the same reason: only the LATEST-issued
+  // request may apply its response. Two date inputs commit back-to-back (editing `start` then
+  // `end` issues two windows in a second), and a cost window is a cache miss — a ~10s GCS/DuckDB
+  // load for the window PLUS its prior-comparison window — so an earlier, slower request routinely
+  // lands after a newer one. Without this the KPI band renders one window behind the dates beside
+  // it: measured live, picking 1-15 May displayed the previous 7d total ($2,352.32) while the
+  // correct $2,410.28 arrived and was discarded.
+  const coreReqId = useRef(0);
   const loadCore = useCallback(
     async (force: boolean) => {
+      const reqId = ++coreReqId.current;
       const [s, t, res] = await Promise.all([
-        fetchCostSummary(days, force),
-        fetchCostTimeseries(days, cloud, force),
-        fetchCostBreakdown("resource", cloud, days, force),
+        fetchCostSummary(days, force, windowArg),
+        fetchCostTimeseries(days, cloud, force, windowArg),
+        fetchCostBreakdown("resource", cloud, days, force, "purpose", windowArg),
       ]);
+      if (reqId !== coreReqId.current) return; // a newer window is in flight — drop this one
       setSummary(s);
       setTs(t);
       setResources(res.rows);
     },
-    [days, cloud],
+    [days, cloud, windowArg],
   );
   // Guards against an in-flight, slower request (e.g. a dimension switched away from) resolving
   // AFTER a newer one and clobbering fresher state with stale rows — only the latest-issued
   // request's response is ever applied.
   const breakdownReqId = useRef(0);
+  const [breakdownWindow, setBreakdownWindow] = useState("");
   const loadBreakdown = useCallback(
     async (force: boolean) => {
       const reqId = ++breakdownReqId.current;
-      const result = await fetchCostBreakdown(dimension, cloud, days, force, labelKey);
-      if (reqId === breakdownReqId.current) setBreakdown(result);
+      const key = windowKey;
+      const result = await fetchCostBreakdown(dimension, cloud, days, force, labelKey, windowArg);
+      if (reqId === breakdownReqId.current) {
+        setBreakdown(result);
+        setBreakdownWindow(key);
+      }
     },
-    [dimension, cloud, days, labelKey],
+    [dimension, cloud, days, labelKey, windowArg, windowKey],
   );
   // True once `breakdown` actually reflects the CURRENTLY selected dimension/cloud/range — false
   // during the gap between changing a filter and its fetch resolving, so the table body never
   // renders the prior fetch's rows under the new column header (see BreakdownPanel `stale`).
+  // The window is compared by the REQUESTED key, not the response's `days`: only the client knows
+  // whether it asked for a preset or an equal-length explicit range.
   const breakdownFresh =
-    breakdown != null && breakdown.dimension === dimension && breakdown.cloud === cloud && breakdown.days === days;
+    breakdown != null &&
+    breakdown.dimension === dimension &&
+    breakdown.cloud === cloud &&
+    breakdownWindow === windowKey;
 
   useEffect(() => {
     let alive = true;
@@ -1962,7 +2096,7 @@ export function CostObservability() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, cloud]);
+  }, [days, cloud, windowKey]);
 
   useEffect(() => {
     loadBreakdown(false).catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load breakdown"));
@@ -2018,11 +2152,16 @@ export function CostObservability() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
-            options={RANGES.map((r) => ({ value: r, label: `${r}d` }))}
-            value={days}
-            onChange={setDays}
+            options={WINDOW_OPTIONS}
+            // No pill is active once the dates are hand-picked — the range below is the window.
+            value={range ? "" : (String(days) as WindowSel)}
+            onChange={(v) => {
+              setRange(null); // back to a server-resolved trailing window; the inputs repopulate from it
+              setDays(Number(v));
+            }}
             label="Time range"
           />
+          <DateRangePicker range={shownRange} onCommit={setRange} />
           <Segmented options={CLOUD_FILTERS} value={cloud} onChange={setCloud} label="Cloud filter" />
           <Segmented options={CURRENCIES} value={currency} onChange={setCurrency} label="Currency" />
           <button
