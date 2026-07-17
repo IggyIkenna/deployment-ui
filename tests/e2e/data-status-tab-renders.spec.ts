@@ -112,15 +112,18 @@ for (const svc of MOCK_SERVICES) {
     page.on("pageerror", (err) => errors.push(err.message));
     const { statusLog } = await setupMocks(page);
 
-    await page.goto("/home");
-    await page.waitForLoadState("networkidle");
-
-    // Click the service in the sidebar.
-    await page.getByText(svc.name, { exact: true }).first().click();
-    await page.waitForLoadState("networkidle");
-
-    // Click the Data Status tab.
-    await page.getByRole("tab", { name: "Data Status" }).click();
+    // Deep-link straight to the service's Data Status tab via the current
+    // `/service/{name}/{tab}` URL scheme (see `ServiceUrlSync.tsx`) instead of
+    // the retired `/home` + sidebar-text-click flow: `/home` itself still
+    // renders (it falls through to the `*` catch-all route in `App.tsx`), but
+    // the sidebar's visible label strips the "-service" suffix
+    // (`ServiceList.tsx`'s `ServiceItem` renders
+    // `serviceName.replace("-service", "").replace(/-/g, " ")`), so
+    // `getByText(svc.name, { exact: true })` never matches for any service
+    // whose name ends in "-service" — the rendered text is e.g. "instruments",
+    // not "instruments-service". The deep link sidesteps that mismatch
+    // entirely and matches how the app's own header nav links to this tab.
+    await page.goto(`/service/${svc.name}/data-status`);
     await page.waitForLoadState("networkidle");
 
     // The tab content should be visible.
