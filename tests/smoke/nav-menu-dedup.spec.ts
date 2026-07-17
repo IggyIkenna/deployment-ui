@@ -86,6 +86,28 @@ test("redundant routes are quarantined in a labelled group, not mixed into the n
   await expect(page.getByTestId("nav-menu-item-dup-chaos")).toBeVisible();
 });
 
+test("the always-visible cockpit bar carries the same 14 entries as the dropdown", async ({ page }) => {
+  await page.goto("/cockpit");
+  await expect(page.getByTestId("cockpit-tabbar")).toBeVisible();
+
+  // 10 in-place tab switchers + the 4 screens with no cockpit twin = the dropdown's 14.
+  const tabs = page.locator('[data-testid^="cockpit-tab-"]');
+  const links = page.locator('[data-testid^="cockpit-navlink-"]');
+  await expect(tabs).toHaveCount(10);
+  await expect(links).toHaveCount(4);
+
+  // The four route-links are the ones the cockpit cannot host in-place.
+  for (const id of ["home", "epics", "vm-deployments", "costs"]) {
+    await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
+  }
+});
+
+test("a cockpit bar link navigates to its own route", async ({ page }) => {
+  await page.goto("/cockpit");
+  await page.getByTestId("cockpit-navlink-costs").click();
+  await expect(page).toHaveURL(/\/ops\/costs/);
+});
+
 test("/infra renders Fleet Infra even when a service was previously selected", async ({ page }) => {
   // Regression: ServiceUrlSync.LANDING_PATHS omitted "/infra", so navigating to it with a
   // service selected kept the stale per-service view on screen (nav audit 2026-07-17).

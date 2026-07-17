@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { NAV_GROUPS, NAV_GROUPS_CANONICAL, NAV_LINKS_FLAT } from "./NavMenu";
+import { cockpitTabIdFor, NAV_GROUPS, NAV_GROUPS_CANONICAL, NAV_ITEMS_CANONICAL, NAV_LINKS_FLAT } from "./NavMenu";
 
 const canonicalItems = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
 const legacyItems = NAV_GROUPS.filter((g) => g.legacy).flatMap((g) => g.items);
@@ -93,5 +93,34 @@ describe("legacy quarantine", () => {
 describe("NAV_LINKS_FLAT (mobile hamburger parity)", () => {
   it("covers every entry the desktop dropdown shows", () => {
     expect(NAV_LINKS_FLAT).toHaveLength(canonicalItems.length + legacyItems.length);
+  });
+});
+
+describe("cockpit bar / dropdown shared source", () => {
+  it("NAV_ITEMS_CANONICAL is exactly the canonical entries, in group order", () => {
+    expect(NAV_ITEMS_CANONICAL).toEqual(canonicalItems);
+  });
+
+  it("every canonical entry has a compact label for the bar", () => {
+    const missing = NAV_ITEMS_CANONICAL.filter((i) => !i.short).map((i) => i.id);
+    expect(missing).toEqual([]);
+  });
+
+  it("cockpitTabIdFor maps cockpit entries to their tab and others to null", () => {
+    expect(cockpitTabIdFor("/cockpit")).toBe("health"); // bare /cockpit == default tab
+    expect(cockpitTabIdFor("/cockpit?tab=consolidators")).toBe("consolidators");
+    expect(cockpitTabIdFor("/cockpit?tab=ci")).toBe("ci");
+    // Entries with no cockpit twin navigate to their own route.
+    expect(cockpitTabIdFor("/home")).toBeNull();
+    expect(cockpitTabIdFor("/ops/costs")).toBeNull();
+    expect(cockpitTabIdFor("/vm-deployments")).toBeNull();
+  });
+
+  it("splits the 14 into cockpit tabs vs route links exactly as the bar renders them", () => {
+    const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
+    const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
+    // 10 cockpit tabs + the 4 screens with no cockpit twin = the 14 canonical entries.
+    expect(tabs).toHaveLength(10);
+    expect(links).toEqual(["home", "epics", "vm-deployments", "costs"]);
   });
 });

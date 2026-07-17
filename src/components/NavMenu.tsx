@@ -22,6 +22,8 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   desc: string;
+  /** Compact label for the always-visible cockpit bar (the dropdown uses `label`). */
+  short?: string;
 };
 /** `legacy: true` = the redundant-route quarantine (see NAV_GROUPS). */
 type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
@@ -49,9 +51,30 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     heading: "Overview",
     items: [
-      { id: "cockpit", to: "/cockpit", label: "Cockpit", icon: Activity, desc: "Health rollup — default page" },
-      { id: "home", to: "/home", label: "Home (services)", icon: Server, desc: "Service picker → per-service tabs" },
-      { id: "epics", to: "/epics", label: "Epics & Plans", icon: Trophy, desc: "Roadmap + plan status" },
+      {
+        id: "cockpit",
+        to: "/cockpit",
+        label: "Cockpit",
+        icon: Activity,
+        desc: "Health rollup — default page",
+        short: "Health",
+      },
+      {
+        id: "home",
+        to: "/home",
+        label: "Home (services)",
+        icon: Server,
+        desc: "Service picker → per-service tabs",
+        short: "Services",
+      },
+      {
+        id: "epics",
+        to: "/epics",
+        label: "Epics & Plans",
+        icon: Trophy,
+        desc: "Roadmap + plan status",
+        short: "Epics",
+      },
     ],
   },
   {
@@ -59,13 +82,21 @@ export const NAV_GROUPS: NavGroup[] = [
     // (operator 2026-07-08); mode is now a filter inside the unified all-modes table.
     heading: "Deploy & Deployments",
     items: [
-      { id: "deploy", to: "/cockpit?tab=deploy", label: "Deploy Console", icon: Rocket, desc: "Launch / rollback" },
+      {
+        id: "deploy",
+        to: "/cockpit?tab=deploy",
+        label: "Deploy Console",
+        icon: Rocket,
+        desc: "Launch / rollback",
+        short: "Deploy",
+      },
       {
         id: "deployments",
         to: "/cockpit?tab=deployments",
         label: "Deployments",
         icon: Layers,
         desc: "Live · batch · paper + live ops",
+        short: "Deployments",
       },
       {
         id: "vm-deployments",
@@ -73,6 +104,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "VM Deployments",
         icon: Server,
         desc: "Per-VM launch history (full)",
+        short: "VMs",
       },
     ],
   },
@@ -85,6 +117,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Fleet",
         icon: Layers,
         desc: "Census · orphans · git · infra",
+        short: "Fleet",
       },
       {
         id: "consolidators",
@@ -92,20 +125,36 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Consolidators",
         icon: Database,
         desc: "Index age · shard fallback",
+        short: "Consolidators",
       },
-      { id: "costs", to: "/ops/costs", label: "Costs", icon: CircleDollarSign, desc: "Tri-cloud spend breakdown" },
+      {
+        id: "costs",
+        to: "/ops/costs",
+        label: "Costs",
+        icon: CircleDollarSign,
+        desc: "Tri-cloud spend breakdown",
+        short: "Costs",
+      },
     ],
   },
   {
     heading: "Repos & Alerts",
     items: [
-      { id: "repos", to: "/cockpit?tab=ci", label: "Repos / CI", icon: GitBranch, desc: "Last-green · promotion lag" },
+      {
+        id: "repos",
+        to: "/cockpit?tab=ci",
+        label: "Repos / CI",
+        icon: GitBranch,
+        desc: "Last-green · promotion lag",
+        short: "CI",
+      },
       {
         id: "alerts",
         to: "/cockpit?tab=alerts",
         label: "Alerts & Logs",
         icon: AlertCircle,
         desc: "Open alerts + log stream",
+        short: "Alerts",
       },
     ],
   },
@@ -118,8 +167,16 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Safety Ops",
         icon: ShieldCheck,
         desc: "Kill-switch + guardrails",
+        short: "Safety",
       },
-      { id: "chaos", to: "/cockpit?tab=chaos", label: "Chaos", icon: AlertTriangle, desc: "Resilience testing" },
+      {
+        id: "chaos",
+        to: "/cockpit?tab=chaos",
+        label: "Chaos",
+        icon: AlertTriangle,
+        desc: "Resilience testing",
+        short: "Chaos",
+      },
     ],
   },
   {
@@ -131,6 +188,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Launch Console",
         icon: FlaskConical,
         desc: "ML · strategy · execution backtests",
+        short: "Launch",
       },
     ],
   },
@@ -191,6 +249,21 @@ export const NAV_GROUPS: NavGroup[] = [
 
 /** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */
 export const NAV_GROUPS_CANONICAL = NAV_GROUPS.filter((g) => !g.legacy);
+
+/** The 14 canonical entries, flat + in group order. Drives BOTH the dropdown and the cockpit bar. */
+export const NAV_ITEMS_CANONICAL = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
+
+/**
+ * The cockpit tab a nav entry selects, or `null` if it navigates to its own route.
+ * `/cockpit` (no query) is the default `health` tab. Lets the always-visible cockpit
+ * bar render tab-switchers and route-links from the SAME list as the dropdown, so the
+ * two can never drift.
+ */
+export function cockpitTabIdFor(to: string): string | null {
+  const [path, query] = to.split("?");
+  if (path !== "/cockpit") return null;
+  return query ? (new URLSearchParams(query).get("tab") ?? "health") : "health";
+}
 
 /** The redundant-route quarantine, rendered apart from the canonical grid. */
 const LEGACY_GROUP = NAV_GROUPS.find((g) => g.legacy);

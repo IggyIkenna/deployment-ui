@@ -33,12 +33,12 @@ import {
   CircleDollarSign,
   Clock,
   Database,
+  ExternalLink,
   GitBranch,
   Github,
   HelpCircle,
   Layers,
   Radio,
-  Rocket,
   Server,
   ShieldCheck,
 } from "lucide-react";
@@ -59,6 +59,7 @@ import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
+import { cockpitTabIdFor, NAV_ITEMS_CANONICAL } from "../components/NavMenu";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
@@ -1319,22 +1320,29 @@ function ConsolidatorsTab() {
 
 // ---------------------------------------------------------------------------
 
-const COCKPIT_TABS = [
-  { id: "health", label: "Health", icon: ShieldCheck },
-  { id: "deploy", label: "Deploy", icon: Rocket },
-  { id: "deployments", label: "Deployments", icon: Boxes },
-  { id: "fleet", label: "Fleet", icon: Server },
-  { id: "consolidators", label: "Consolidators", icon: Database },
-  { id: "ci", label: "CI", icon: GitBranch },
-  { id: "alerts", label: "Alerts & Logs", icon: AlertTriangle },
-  { id: "launch", label: "Launch", icon: Rocket },
-  { id: "chaos", label: "Chaos", icon: AlertTriangle },
-  { id: "safety", label: "Safety Ops", icon: ShieldCheck },
+/**
+ * The tab ids this page can render — the `?tab=` whitelist (an unknown value falls back
+ * to `health`). Labels + icons are NOT here: the bar renders from NAV_ITEMS_CANONICAL so
+ * it and the top-left dropdown always show the same 14 entries. Adding a tab means adding
+ * it here AND to NAV_GROUPS; the nav L2 smoke fails if a nav entry names a tab this list
+ * doesn't know (the pane wouldn't mount).
+ */
+const COCKPIT_TAB_IDS = [
+  "health",
+  "deploy",
+  "deployments",
+  "fleet",
+  "consolidators",
+  "ci",
+  "alerts",
+  "launch",
+  "chaos",
+  "safety",
 ] as const;
 
-type CockpitTabId = (typeof COCKPIT_TABS)[number]["id"];
+type CockpitTabId = (typeof COCKPIT_TAB_IDS)[number];
 
-const VALID_TABS = new Set<string>(COCKPIT_TABS.map((t) => t.id));
+const VALID_TABS = new Set<string>(COCKPIT_TAB_IDS);
 
 export function Cockpit() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1383,14 +1391,37 @@ export function Cockpit() {
       </div>
 
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList variant="pill" className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 mb-6">
-          {COCKPIT_TABS.map((t) => {
-            const Icon = t.icon;
+        {/* The always-visible bar — the A/B twin of the top-left dropdown. Both render from
+            the SAME NAV_ITEMS_CANONICAL list (one entry per screen), so the bar and the
+            dropdown can never drift apart. An entry whose `to` is a cockpit tab switches
+            the tab in place; the four with no cockpit twin (Services / Epics / VMs / Costs)
+            are Links that navigate to their own route — they are visually separated so it's
+            obvious which entries leave the cockpit (and take this bar with them). */}
+        <TabsList variant="pill" data-testid="cockpit-tabbar" className="mb-6 flex w-full flex-wrap gap-1">
+          {NAV_ITEMS_CANONICAL.map((item) => {
+            const Icon = item.icon;
+            const tabId = cockpitTabIdFor(item.to);
+            const label = item.short ?? item.label;
+            if (tabId) {
+              return (
+                <TabsTrigger key={item.id} value={tabId} className="gap-2" data-testid={`cockpit-tab-${tabId}`}>
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </TabsTrigger>
+              );
+            }
             return (
-              <TabsTrigger key={t.id} value={t.id} className="gap-2" data-testid={`cockpit-tab-${t.id}`}>
+              <Link
+                key={item.id}
+                to={item.to}
+                title={`${item.desc} — leaves the cockpit`}
+                data-testid={`cockpit-navlink-${item.id}`}
+                className="flex items-center gap-2 rounded-md border border-dashed border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-accent-cyan)]/40 hover:text-[var(--color-text-primary)]"
+              >
                 <Icon className="h-4 w-4" />
-                {t.label}
-              </TabsTrigger>
+                {label}
+                <ExternalLink className="h-3 w-3 opacity-60" />
+              </Link>
             );
           })}
         </TabsList>
