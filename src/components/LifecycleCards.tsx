@@ -172,6 +172,22 @@ function LifecycleCard({
                   )}
                   <span>·</span>
                   <span>{row.instrument_type || "—"}</span>
+                  {row.available_from_is_venue_first_day && (
+                    <>
+                      <span>·</span>
+                      <span
+                        className="text-amber-600"
+                        data-testid={`${testIdPrefix}-venue-first-day-${row.instrument_id}`}
+                        title={
+                          "This date is the earliest the catalogue holds for this venue, so it may reflect when the " +
+                          "pipeline first captured the venue rather than a real listing date. The venue declared no " +
+                          "listing date, so the catalogue fell back to first-observed."
+                        }
+                      >
+                        ⚠ listing date unconfirmed
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

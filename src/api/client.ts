@@ -1019,6 +1019,15 @@ export interface CatalogueLifecycleRow {
   available_from: string;
   available_to: string;
   mvp: boolean;
+  /**
+   * True when this row's `available_from` is the EARLIEST date the catalogue holds
+   * for its venue — so the "listing date" may just be when the pipeline onboarded
+   * the venue, not a real listing. The catalogue stores
+   * MIN(first_day_observed, venue_declared_date) without recording which side won,
+   * so this coincidence is the only available signal. A fact, not a verdict: a
+   * venue that genuinely launched on its first captured day looks identical.
+   */
+  available_from_is_venue_first_day: boolean;
 }
 
 export async function fetchNewListings(opts?: {

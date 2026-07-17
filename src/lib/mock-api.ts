@@ -4386,6 +4386,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-07-15",
           available_to: "",
           mvp: true,
+          available_from_is_venue_first_day: false,
         },
         {
           instrument_id: "AAVE_V3-ETHEREUM-POOL-WETH",
@@ -4398,6 +4399,24 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-07-12",
           available_to: "",
           mvp: false,
+          available_from_is_venue_first_day: false,
+        },
+        // Models the REAL onboarding-flood false positive found on prod GCS
+        // 2026-07-17 (COINBASE-CDE: 99 rows all stamped the venue's first
+        // captured day, with expiries out to 2030) so mock mode renders the
+        // "listing date unconfirmed" affordance.
+        {
+          instrument_id: "COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220",
+          instrument_type: "FUTURE",
+          asset_group: "cefi",
+          venue: "COINBASE-CDE",
+          chain: "",
+          base_asset: "BTC",
+          raw_symbol: "BTC-20DEC30-CDE",
+          available_from: "2026-07-10",
+          available_to: "2030-12-20",
+          mvp: false,
+          available_from_is_venue_first_day: true,
         },
       ],
       mock: true,
@@ -4521,6 +4540,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-06-01",
           available_to: "2026-09-19",
           mvp: true,
+          available_from_is_venue_first_day: false,
         },
         {
           instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
@@ -4533,6 +4553,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           available_from: "2026-06-15",
           available_to: "2026-09-26",
           mvp: false,
+          available_from_is_venue_first_day: false,
         },
       ],
       mock: true,
