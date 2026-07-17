@@ -1,0 +1,1905 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Artifact Pipeline — design mock</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+        --color-bg-primary: #0a0a0b;
+        --color-bg-secondary: #111113;
+        --color-bg-tertiary: #18181b;
+        --color-bg-elevated: #1c1c1f;
+        --color-text-primary: #fafafa;
+        --color-text-secondary: #a1a1aa;
+        --color-text-tertiary: #71717a;
+        --color-text-muted: #52525b;
+        --color-border-default: #27272a;
+        --color-border-subtle: #1f1f23;
+        --color-border-emphasis: #3f3f46;
+        --color-accent: #22d3ee;
+        --color-accent-dim: rgba(34, 211, 238, 0.15);
+        --color-accent-green: #4ade80;
+        --color-accent-amber: #fbbf24;
+        --color-accent-red: #f87171;
+        --color-accent-blue: #60a5fa;
+        --color-accent-purple: #a78bfa;
+        --color-bg-hover: #27272a;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--color-bg-primary);
+        color: var(--color-text-primary);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        padding: 24px;
+      }
+      .mono {
+        font-family: var(--font-mono);
+      }
+      .wrap {
+        max-width: 1560px;
+        margin: 0 auto;
+      }
+
+      /* ---------- mock-only banner ---------- */
+      .mockbar {
+        border: 1px dashed var(--color-accent);
+        background: var(--color-accent-dim);
+        border-radius: var(--radius-md);
+        padding: 10px 14px;
+        margin-bottom: 20px;
+        font-size: 12.5px;
+        color: var(--color-text-secondary);
+      }
+      .mockbar b {
+        color: var(--color-accent);
+      }
+
+      /* ---------- header ---------- */
+      .pagehead {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+      }
+      .icon-box {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.25), rgba(167, 139, 250, 0.25));
+        border: 1px solid var(--color-border-default);
+        display: grid;
+        place-items: center;
+        font-size: 19px;
+        flex: none;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .subtitle {
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        font-family: var(--font-mono);
+      }
+      .head-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ---------- controls (mirror the shipped costs page) ---------- */
+      .seg {
+        display: inline-flex;
+        background: var(--color-bg-tertiary);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        padding: 2px;
+        gap: 2px;
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 11px;
+        border: 0;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font-family: inherit;
+        font-size: 12.5px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.12s;
+      }
+      .seg button:hover {
+        color: var(--color-text-primary);
+      }
+      .seg button.on {
+        background: var(--color-accent-dim);
+        color: var(--color-accent);
+        font-weight: 600;
+      }
+      .field {
+        height: 34px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border-default);
+        background: var(--color-bg-tertiary);
+        padding: 0 8px;
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        color: var(--color-text-primary);
+        outline: none;
+        transition: border-color 0.12s;
+      }
+      .field:hover {
+        border-color: var(--color-border-emphasis);
+      }
+      .field:focus {
+        border-color: var(--color-accent);
+      }
+      .dash {
+        color: var(--color-text-muted);
+        font-size: 12px;
+      }
+      .btn {
+        height: 34px;
+        padding: 0 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border-default);
+        background: var(--color-bg-tertiary);
+        color: var(--color-text-secondary);
+        font-family: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: var(--color-border-emphasis);
+        color: var(--color-text-primary);
+      }
+
+      /* ---------- tabs ---------- */
+      .tabs {
+        display: flex;
+        gap: 2px;
+        border-bottom: 1px solid var(--color-border-default);
+        margin: 18px 0 0;
+      }
+      .tabs button {
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        color: var(--color-text-tertiary);
+        font-family: inherit;
+        font-size: 13.5px;
+        padding: 9px 15px;
+        cursor: pointer;
+        margin-bottom: -1px;
+      }
+      .tabs button:hover {
+        color: var(--color-text-primary);
+      }
+      .tabs button.on {
+        color: var(--color-accent);
+        border-bottom-color: var(--color-accent);
+        font-weight: 600;
+      }
+      .tabs .cnt {
+        color: var(--color-text-muted);
+        font-size: 11px;
+        margin-left: 5px;
+      }
+
+      /* ---------- stat strip ---------- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+        gap: 10px;
+        margin: 18px 0;
+      }
+      .stat {
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        padding: 11px 13px;
+      }
+      .stat .k {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-muted);
+      }
+      .stat .v {
+        font-size: 21px;
+        font-weight: 600;
+        margin-top: 3px;
+        font-family: var(--font-mono);
+      }
+      .stat .s {
+        font-size: 11px;
+        color: var(--color-text-tertiary);
+        margin-top: 1px;
+      }
+
+      /* ---------- table ---------- */
+      .card {
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .tscroll {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      th {
+        text-align: left;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-muted);
+        font-weight: 500;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--color-border-default);
+        background: var(--color-bg-tertiary);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      th:hover {
+        color: var(--color-text-secondary);
+      }
+      td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--color-border-subtle);
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      tbody tr {
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: var(--color-bg-tertiary);
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      /* ---------- pills ---------- */
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 19px;
+        padding: 0 7px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        border: 1px solid;
+      }
+      .p-green {
+        color: var(--color-accent-green);
+        border-color: rgba(74, 222, 128, 0.3);
+        background: rgba(74, 222, 128, 0.1);
+      }
+      .p-red {
+        color: var(--color-accent-red);
+        border-color: rgba(248, 113, 113, 0.3);
+        background: rgba(248, 113, 113, 0.1);
+      }
+      .p-amber {
+        color: var(--color-accent-amber);
+        border-color: rgba(251, 191, 36, 0.3);
+        background: rgba(251, 191, 36, 0.1);
+      }
+      .p-purple {
+        color: var(--color-accent-purple);
+        border-color: rgba(167, 139, 250, 0.3);
+        background: rgba(167, 139, 250, 0.1);
+      }
+      .p-cyan {
+        color: var(--color-accent);
+        border-color: rgba(34, 211, 238, 0.3);
+        background: rgba(34, 211, 238, 0.1);
+      }
+      .p-blue {
+        color: var(--color-accent-blue);
+        border-color: rgba(96, 165, 250, 0.3);
+        background: rgba(96, 165, 250, 0.1);
+      }
+      .p-grey {
+        color: var(--color-text-tertiary);
+        border-color: var(--color-border-emphasis);
+        background: var(--color-bg-tertiary);
+      }
+      .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .spin {
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+
+      .sha {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--color-accent-blue);
+        text-decoration: none;
+        border-bottom: 1px dotted rgba(96, 165, 250, 0.4);
+      }
+      .sha:hover {
+        color: var(--color-accent);
+      }
+      .dim {
+        color: var(--color-text-tertiary);
+      }
+      .muted {
+        color: var(--color-text-muted);
+      }
+      .unk {
+        color: var(--color-text-muted);
+        font-style: italic;
+        font-size: 11.5px;
+      }
+      .digest {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--color-accent);
+      }
+      .lnk {
+        color: var(--color-text-muted);
+        text-decoration: none;
+      }
+      .lnk:hover {
+        color: var(--color-accent);
+      }
+      .fail-txt {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--color-accent-red);
+        max-width: 340px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+      }
+
+      /* ---------- drawer ---------- */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        z-index: 40;
+      }
+      .scrim.on {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 640px;
+        max-width: 94vw;
+        background: var(--color-bg-secondary);
+        border-left: 1px solid var(--color-border-default);
+        z-index: 50;
+        transform: translateX(100%);
+        transition: transform 0.18s ease;
+        overflow-y: auto;
+      }
+      .drawer.on {
+        transform: none;
+      }
+      .dhead {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--color-border-default);
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        background: var(--color-bg-secondary);
+      }
+      .dbody {
+        padding: 18px;
+      }
+      .sect {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-muted);
+        margin: 20px 0 8px;
+      }
+      .sect:first-child {
+        margin-top: 0;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 138px 1fr;
+        gap: 5px 12px;
+        font-size: 12.5px;
+      }
+      .kv dt {
+        color: var(--color-text-muted);
+      }
+      .kv dd {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        word-break: break-all;
+      }
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 9px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        border: 1px solid transparent;
+      }
+      .step.bad {
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.3);
+      }
+      .step .nm {
+        font-family: var(--font-mono);
+        flex: 1;
+      }
+      .step .du {
+        color: var(--color-text-muted);
+        font-size: 11px;
+        font-family: var(--font-mono);
+      }
+      .bar {
+        height: 3px;
+        border-radius: 999px;
+        background: var(--color-border-emphasis);
+      }
+      pre.log {
+        background: var(--color-bg-primary);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-sm);
+        padding: 10px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--color-text-secondary);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+      .x {
+        background: transparent;
+        border: 0;
+        color: var(--color-text-muted);
+        font-size: 20px;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .x:hover {
+        color: var(--color-text-primary);
+      }
+
+      .note {
+        font-size: 11.5px;
+        color: var(--color-text-tertiary);
+        padding: 9px 12px;
+        background: var(--color-bg-tertiary);
+        border-top: 1px solid var(--color-border-subtle);
+      }
+      .note b {
+        color: var(--color-text-secondary);
+      }
+      .hide {
+        display: none;
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-size: 11.5px;
+        color: var(--color-text-tertiary);
+        padding: 9px 12px;
+        border-top: 1px solid var(--color-border-subtle);
+        background: var(--color-bg-tertiary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="mockbar">
+        <b>DESIGN MOCK — not wired to anything.</b> Every row is <b>real data</b> probed live from GCP
+        <span class="mono">central-element-323112</span> + AWS <span class="mono">427895769566</span> on 2026-07-17 —
+        real build IDs, SHAs, digests, tags, bucket counts, timestamps. Where the pipeline genuinely can't answer, the
+        cell says <i>unknown</i> rather than guessing. <b>Cross-lane check that works:</b> build
+        <span class="mono">68193fc4</span> and tarball <span class="mono">mtds-code.manifest.json</span> independently
+        report the same commit <span class="mono">2d9fd62</span> — the two lanes agree.
+      </div>
+
+      <div class="pagehead">
+        <div class="icon-box">📦</div>
+        <div>
+          <h1>Artifact Pipeline</h1>
+          <div class="subtitle">/ops/artifacts</div>
+        </div>
+        <div class="head-right">
+          <div class="seg" id="preset">
+            <button data-d="1">24h</button>
+            <button data-d="7" class="on">7d</button>
+            <button data-d="30">30d</button>
+          </div>
+          <input class="field" type="date" id="d0" value="2026-07-10" />
+          <span class="dash">→</span>
+          <input class="field" type="date" id="d1" value="2026-07-17" />
+          <button class="btn" title="Refresh">⟳</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button data-t="run" class="on">What's running <span class="cnt">16</span></button>
+        <button data-t="deploy">Deploy timeline <span class="cnt">192/svc</span></button>
+        <button data-t="pipe">Pipeline <span class="cnt">2,000+</span></button>
+        <button data-t="art">Artifacts <span class="cnt">~1.5 TB</span></button>
+        <button data-t="health">Health <span class="cnt">10</span></button>
+      </div>
+
+      <!-- ============================= RUNNING ============================= -->
+      <section id="v-run">
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Pinned to a digest</div>
+            <div class="v" style="color: var(--color-accent-green)">2</div>
+            <div class="s">provably reproducible</div>
+          </div>
+          <div class="stat">
+            <div class="k">Pinned to a SHA tag</div>
+            <div class="v" style="color: var(--color-accent-green)">4</div>
+            <div class="s">traceable to a commit</div>
+          </div>
+          <div class="stat">
+            <div class="k">Floating <span class="mono">:latest</span></div>
+            <div class="v" style="color: var(--color-accent-red)">11</div>
+            <div class="s">restart = unknown code</div>
+          </div>
+          <div class="stat">
+            <div class="k">Hand-deployed</div>
+            <div class="v" style="color: var(--color-accent-red)">3</div>
+            <div class="s">bypassed the pipeline</div>
+          </div>
+          <div class="stat">
+            <div class="k">No matching build</div>
+            <div class="v" style="color: var(--color-accent-amber)">6</div>
+            <div class="s">provenance unknown</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tscroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Target</th>
+                  <th>Kind</th>
+                  <th>Cloud</th>
+                  <th>Artifact it runs</th>
+                  <th>Resolved digest</th>
+                  <th>Built from</th>
+                  <th>Deployed</th>
+                  <th>By</th>
+                  <th>Drift</th>
+                </tr>
+              </thead>
+              <tbody id="tb-run"></tbody>
+            </table>
+          </div>
+          <div class="legend">
+            <span
+              ><span class="pill p-green"><span class="dot"></span>pinned</span> digest or SHA tag → provable
+              lineage</span
+            >
+            <span
+              ><span class="pill p-red"><span class="dot"></span>floating</span> <span class="mono">:latest</span> →
+              next restart may silently change code</span
+            >
+            <span
+              ><span class="pill p-red"><span class="dot"></span>hand</span> deployed by a human, not the pipeline</span
+            >
+            <span
+              ><span class="pill p-amber"><span class="dot"></span>stale</span> newer green build exists</span
+            >
+            <span
+              ><span class="pill p-grey"><span class="dot"></span>unknown</span> honestly unresolvable — never faked
+              green</span
+            >
+          </div>
+          <div class="note">
+            <b>This view does not exist today.</b> <span class="mono">_image_signal</span> answers the
+            <i>image-level</i> question ("is main's code built into the latest image?") and was explicitly scoped "v1
+            image-level, not runtime-level" — so nothing currently resolves what a workload is <i>actually</i> running.
+            The join works: a Cloud Run revision resolves even a <span class="mono">:latest</span> pin to a real digest
+            in <span class="mono">status.imageDigest</span>.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= PIPELINE ============================= -->
+      <section id="v-pipe" class="hide">
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Builds in window</div>
+            <div class="v">2,000</div>
+            <div class="s">~81/day · both clouds</div>
+          </div>
+          <div class="stat">
+            <div class="k">Success rate</div>
+            <div class="v" style="color: var(--color-accent-green)">87%</div>
+            <div class="s">GCP 89% · AWS 74%</div>
+          </div>
+          <div class="stat">
+            <div class="k">Failed</div>
+            <div class="v" style="color: var(--color-accent-red)">104</div>
+            <div class="s">click any row for why</div>
+          </div>
+          <div class="stat">
+            <div class="k">Median duration</div>
+            <div class="v">3m41s</div>
+            <div class="s">p95 9m12s</div>
+          </div>
+          <div class="stat">
+            <div class="k">Wasted (dup SHA)</div>
+            <div class="v" style="color: var(--color-accent-amber)">18</div>
+            <div class="s">same commit built 2×</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tscroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Repo</th>
+                  <th>Lane</th>
+                  <th>Cloud</th>
+                  <th>Status</th>
+                  <th>Triggered by</th>
+                  <th>Commit</th>
+                  <th>Branch</th>
+                  <th>Started</th>
+                  <th>Took</th>
+                  <th>Produced</th>
+                  <th>Why it failed</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tb-pipe"></tbody>
+            </table>
+          </div>
+          <div class="note">
+            Both clouds carry a structured failure reason already — GCP
+            <span class="mono">failureInfo{type,detail}</span>, AWS
+            <span class="mono">phases[].contexts[]{statusCode,message}</span>. Click a row for the step timeline.
+            <b>Nothing persists these today</b> — the failure watcher only posts free text to Slack, and stamps
+            <span class="mono">repo: unified-trading-pm</span> instead of the repo that actually failed.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= DEPLOY TIMELINE ============================= -->
+      <section id="v-deploy" class="hide">
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Deploys in window</div>
+            <div class="v">192</div>
+            <div class="s">uts-shared-deployment-api alone</div>
+          </div>
+          <div class="stat">
+            <div class="k">Config-only redeploys</div>
+            <div class="v" style="color: var(--color-accent-amber)">40%</div>
+            <div class="s">same digest — nothing changed</div>
+          </div>
+          <div class="stat">
+            <div class="k">Failed deploys</div>
+            <div class="v" style="color: var(--color-accent-red)">2</div>
+            <div class="s">App Runner, independent of build</div>
+          </div>
+          <div class="stat">
+            <div class="k">Declared, not running</div>
+            <div class="v" style="color: var(--color-accent-amber)">3</div>
+            <div class="s">ECS uts-defi-prod · 0 tasks</div>
+          </div>
+          <div class="stat">
+            <div class="k">History retained free</div>
+            <div class="v" style="color: var(--color-accent-green)">72d</div>
+            <div class="s">back to 2026-05-06</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tscroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Workload</th>
+                  <th>Revision / op</th>
+                  <th>Cloud</th>
+                  <th>Change</th>
+                  <th>Digest</th>
+                  <th>Built from</th>
+                  <th>When</th>
+                  <th>By</th>
+                </tr>
+              </thead>
+              <tbody id="tb-deploy"></tbody>
+            </table>
+          </div>
+          <div class="legend">
+            <span
+              ><span class="pill p-blue"><span class="dot"></span>new code</span> digest changed</span
+            >
+            <span
+              ><span class="pill p-grey"><span class="dot"></span>config-only</span> same digest redeployed — nothing
+              shipped</span
+            >
+            <span
+              ><span class="pill p-amber"><span class="dot"></span>rollback</span> digest reverted to an earlier
+              one</span
+            >
+            <span
+              ><span class="pill p-red"><span class="dot"></span>failed</span> deploy failed even though the build was
+              green</span
+            >
+          </div>
+          <div class="note">
+            <b>This is the "final stage, fully" — and it's free.</b> Cloud Run keeps every deploy as a numbered revision
+            (192 for this one service, back to 2026-05-06) with its digest, timestamp, and deployer — the platform
+            retains it at no cost. Revision N was live from its timestamp until N+1, so this table
+            <b>also answers "what was running on date X"</b> — the original deployments-page question. The churn is
+            real: <b>~40% of these deploys changed nothing</b> (same digest), and AWS App Runner
+            <span class="mono">uts-deployment-api-prod</span> is <b>PAUSED</b> today after two failed deploys — a
+            failure the build feed can't see, because the build was green and the <i>deploy</i> is what broke.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= ARTIFACTS ============================= -->
+      <section id="v-art" class="hide">
+        <div class="stats">
+          <div class="stat">
+            <div class="k">GCP Artifact Registry</div>
+            <div class="v" style="color: var(--color-accent-amber)">1.5 TB</div>
+            <div class="s"><span class="mono">unified-trading-system</span></div>
+          </div>
+          <div class="stat">
+            <div class="k">AR repositories</div>
+            <div class="v">40</div>
+            <div class="s">~24 look legacy/orphaned</div>
+          </div>
+          <div class="stat">
+            <div class="k">ECR repositories</div>
+            <div class="v">20</div>
+            <div class="s">ap-northeast-1</div>
+          </div>
+          <div class="stat">
+            <div class="k">Untagged / SHA-only</div>
+            <div class="v" style="color: var(--color-accent-amber)">high</div>
+            <div class="s">version tag stopped ~late Jun</div>
+          </div>
+          <div class="stat">
+            <div class="k">Est. registry spend</div>
+            <div class="v">~$152<span style="font-size: 12px">/mo</span></div>
+            <div class="s">ties into /ops/costs</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tscroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Repo</th>
+                  <th>Cloud</th>
+                  <th>Registry</th>
+                  <th>Tags</th>
+                  <th>Digest</th>
+                  <th>Pushed</th>
+                  <th>Size</th>
+                  <th>Running?</th>
+                </tr>
+              </thead>
+              <tbody id="tb-art"></tbody>
+            </table>
+          </div>
+          <div class="note">
+            <b>The two clouds share no common tag key.</b> GCP tags by short-SHA (<span class="mono">6aad829</span>);
+            AWS ECR tags by version + <span class="mono">latest</span> and carries <b>no git SHA at all</b> — so "what
+            commit is this ECR image?" is unanswerable from ECR alone and must be joined via the CodeBuild record.
+            Version tags stopped appearing on GCP images around late June, which lines up with the router reading a
+            <span class="mono">version</span> field no sender ever sends.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= HEALTH ============================= -->
+      <section id="v-health" class="hide">
+        <div class="card" style="margin-top: 18px">
+          <div class="tscroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Condition</th>
+                  <th>Severity</th>
+                  <th>Count</th>
+                  <th>What it means</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="tb-health"></tbody>
+            </table>
+          </div>
+          <div class="note">
+            These are <b>measured</b>, not hypothetical — each was found during the audit by probing the live clouds or
+            reading the workflow source. This tab is what turns the page from a viewer into something that tells you
+            when the pipeline itself is broken.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================= DRAWER ============================= -->
+    <div class="scrim" id="scrim"></div>
+    <aside class="drawer" id="drawer">
+      <div class="dhead">
+        <div style="flex: 1">
+          <div style="font-size: 15px; font-weight: 600" id="dr-title">—</div>
+          <div class="subtitle mono" id="dr-sub">—</div>
+        </div>
+        <button class="x" id="dr-x">×</button>
+      </div>
+      <div class="dbody" id="dr-body"></div>
+    </aside>
+
+    <script>
+      /* ---------------- REAL probed data (2026-07-17, live) ---------------- */
+
+      const AR = "asia-northeast1-docker.pkg.dev/central-element-323112";
+
+      const running = [
+        {
+          t: "client-reporting-api",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "unified-trading-system/client-reporting-api:dqssotfix",
+          dig: null,
+          from: null,
+          dep: "2026-06-23T18:03:38Z",
+          by: "ikenna@odum-research.com",
+          drift: ["hand", "unknown"],
+          why: "Tag <span class='mono'>dqssotfix</span> matches no build, no version, no commit. A human pushed it 24 days ago. <span class='mono'>/api/repo-ci/overview</span> reports <span class='mono'>build=None</span> for this repo — image-level is blind here.",
+        },
+        {
+          t: "dp-alerting-subscriber",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "unified-trading-system/alerting-service:latest",
+          dig: "sha256:4aec40bfb24b94a27a75fb7ce5287f1f58a700273dbdfb8e6501487d491077c6",
+          from: "17f4369",
+          dep: "2026-06-24T16:12:51Z",
+          by: "ikenna@odum-research.com",
+          drift: ["floating"],
+          why: "Runs a floating <span class='mono'>:latest</span>. The revision pins digest <span class='mono'>4aec40bf</span> today, but any restart/redeploy silently picks up whatever <span class='mono'>:latest</span> points at then.",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "unified-trading-system/deployment-api:f4e828c",
+          dig: "sha256:77a40d7534574a920ef43c60fd95ac0b4f41ac208e29e1bf557bebbba5b43015",
+          from: "f4e828c",
+          dep: "2026-07-17T13:33:15Z",
+          by: "cloudbuild.gserviceaccount.com",
+          drift: ["ok"],
+          why: "Healthy: SHA-tagged, deployed by the pipeline, resolves to a digest, traceable to commit <span class='mono'>f4e828c</span>. Also the host image for deployment-ui's SPA (bundled deploy).",
+        },
+        {
+          t: "deployment-dashboard",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "deployment-dashboard/deployment-dashboard:f000ee32…",
+          dig: "sha256:(resolves)",
+          from: "f000ee3",
+          dep: "2026-07-17T14:13:33Z",
+          by: "cloudbuild.gserviceaccount.com",
+          drift: ["ok"],
+          why: "Full 40-char SHA tag — the strictest pin in the fleet. Deployed 20 minutes ago by Cloud Build.",
+        },
+        {
+          t: "uts-prod-data-status-rollup-svc",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "unified-trading-system/deployment-api:4481d4b",
+          dig: "sha256:(resolves)",
+          from: "4481d4b",
+          dep: "2026-07-16T16:07:01Z",
+          by: "cloudbuild.gserviceaccount.com",
+          drift: ["stale"],
+          why: "SHA-pinned and traceable — but <span class='mono'>4481d4b</span> is behind <span class='mono'>f4e828c</span>, which the sibling service already runs. Same image, two versions live at once.",
+        },
+        {
+          t: "expected-universe-v2-tradfi",
+          k: "Cloud Run job",
+          c: "gcp",
+          art: "unified-trading-system/instruments-service@sha256:d569a654…",
+          dig: "sha256:d569a6548d4dde511a994c5e35f0dd043aa6f1b67c9375d1f51f3793bddee98d",
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["pinned"],
+          why: "Digest-pinned — the gold standard. Immutable and provable. Note its four sibling jobs (cefi/defi/prediction/sports) run <span class='mono'>:latest</span> instead — same job family, inconsistent pinning.",
+        },
+        {
+          t: "expected-universe-v2-cefi",
+          k: "Cloud Run job",
+          c: "gcp",
+          art: "unified-trading-system/instruments-service:latest",
+          dig: null,
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["floating"],
+          why: "Floating <span class='mono'>:latest</span> while its tradfi sibling is digest-pinned. Two jobs in one family can silently run different code.",
+        },
+        {
+          t: "features-service-sports-job",
+          k: "Cloud Run job",
+          c: "gcp",
+          art: "unified-trading-system/features-service@sha256:b7fc3d7f…",
+          dig: "sha256:b7fc3d7f7b92fe37edfae592b8c62244ecc46d5598dd4e08571508de08fb3117",
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["pinned"],
+          why: "Digest-pinned.",
+        },
+        {
+          t: "client-reporting-batch",
+          k: "Cloud Run job",
+          c: "gcp",
+          art: "unified-trading-system/client-reporting-batch:auto-202604091748",
+          dig: null,
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["hand", "unknown"],
+          why: "A timestamp tag (<span class='mono'>auto-202604091748</span> ≈ 2026-04-09). Not a SHA, not a version — a fifth tagging convention, and unresolvable to a commit.",
+        },
+        {
+          t: "market-data-query-service",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "market-data-handler/market-data-query-service:latest",
+          dig: null,
+          from: null,
+          dep: "2025-10-20T19:42:24Z",
+          by: "ikenna@odum-research.com",
+          drift: ["floating", "unknown"],
+          why: "Floating <span class='mono'>:latest</span>, hand-deployed <b>21 months ago</b>, from registry <span class='mono'>market-data-handler</span> — which isn't in the build pipeline at all.",
+        },
+        {
+          t: "visualizer-api",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "execution-services/visualizer-api:latest",
+          dig: null,
+          from: null,
+          dep: "2026-02-03T11:22:55Z",
+          by: "github-actions-deploy",
+          drift: ["floating", "unknown"],
+          why: "Registry <span class='mono'>execution-services</span> has no Cloud Build trigger — this image is built by something outside the audited pipeline.",
+        },
+        {
+          t: "odum-portal",
+          k: "Cloud Run svc",
+          c: "gcp",
+          art: "europe-west4…/cloud-run-source-deploy/odum-portal:production",
+          dig: null,
+          from: null,
+          dep: "2026-06-24T05:37:06Z",
+          by: "ikenna@odum-research.com",
+          drift: ["floating", "unknown"],
+          why: "A <span class='mono'>:production</span> env tag in <b>europe-west4</b> (every other workload is asia-northeast1), from the auto-generated <span class='mono'>cloud-run-source-deploy</span> registry.",
+        },
+        {
+          t: "uts-deployment-api-prod",
+          k: "App Runner",
+          c: "aws",
+          art: "…dkr.ecr.ap-northeast-1…/deployment-api:0.52.0",
+          dig: "sha256:660acd0596535…",
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["unknown"],
+          why: "ECR tags carry a version but <b>no git SHA</b> — so the commit is not derivable from the registry. It must be joined through the CodeBuild record's <span class='mono'>resolvedSourceVersion</span>.",
+        },
+        {
+          t: "uts-defi-prod",
+          k: "ECS cluster",
+          c: "aws",
+          art: "(5 clusters — task defs not yet enumerated)",
+          dig: null,
+          from: null,
+          dep: "—",
+          by: "—",
+          drift: ["unknown"],
+          why: "5 ECS clusters exist (uts-defi-prod, unified-trading-{dev,staging,prod}, a Batch-Fargate consolidator). Task-definition → image resolution is the AWS-side equivalent of the Cloud Run revision join.",
+        },
+        {
+          t: "mtds-backfill-vm-… (13 live)",
+          k: "GCE VM · tarball",
+          c: "gcp",
+          art: "code/mtds-code.tar.gz (floating)",
+          dig: null,
+          from: null,
+          lane: "tarball",
+          dep: "—",
+          by: "—",
+          drift: ["floating", "unknown"],
+          why: "<b>The Lane-B runtime join is broken by construction.</b> The registry entry has <span class='mono'>git_commit: \"\"</span> and <span class='mono'>image_digest: \"\"</span> on every live VM — measured on 2/13, and confirmed in code: nothing on the tarball path ever exports the env vars <span class='mono'>bom.py</span> reads. The tarball's real SHA <i>is</i> known (it's in the sidecar manifest and logged at boot) — it just never reaches the registry.",
+        },
+        {
+          t: "(any tarball VM) — dep_versions",
+          k: "GCE VM · tarball",
+          c: "gcp",
+          art: 'dep_versions: {"unified-api-contracts":"0.99.0", …}',
+          dig: null,
+          from: null,
+          lane: "tarball",
+          dep: "—",
+          by: "—",
+          drift: ["fake"],
+          why: "<b>Looks populated. Carries zero signal.</b> <span class='mono'>0.99.0</span> is the <span class='mono'>SETUPTOOLS_SCM_PRETEND_VERSION</span> fallback constant — identical on every VM regardless of actual code version, because tarballs ship without <span class='mono'>.git</span> history. This is the exact 'placeholder row that looks real' anti-pattern the workspace bans, and a page that rendered it as-is would be lying.",
+        },
+      ];
+
+      const pipeline = [
+        {
+          repo: "deployment-api",
+          lane: "image",
+          c: "gcp",
+          st: "FAILURE",
+          trig: "deployment-api-main-deploy",
+          sha: "e5d7ef1",
+          br: "main",
+          t0: "14:08:30",
+          dur: "3m48s",
+          out: "unified-trading-system/deployment-api:latest",
+          fail: 'step 8 "docker" exited 1',
+          id: "f0ba3c02-8073-1ce92d940393",
+          ftype: "USER_BUILD_STEP",
+          fdetail:
+            'Build step failure: build step 8 "gcr.io/cloud-builders/docker" failed: step exited with non-zero status: 1',
+          steps: [
+            ["fetch-tags", "ok", 14],
+            ["ensure-repo", "ok", 6],
+            ["clone-pm-scripts", "ok", 9],
+            ["cloud-sdk-isolation-check", "ok", 4],
+            ["lint", "ok", 31],
+            ["quality-gates", "ok", 96],
+            ["build-wheel", "ok", 22],
+            ["docker-build", "FAILED", 41],
+            ["publish-python", "skipped", 0],
+            ["notify-deployment", "skipped", 0],
+          ],
+        },
+        {
+          repo: "unified-api-contracts",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "unified-api-contracts-live-defi-rollout",
+          sha: "d4cbe36",
+          br: "live-defi-rollout",
+          t0: "14:09:10",
+          dur: "3m23s",
+          out: "wheel → publish-python",
+          fail: null,
+          id: "7eae0a42-0bce-45d3-a089-7d862cf0fffd",
+        },
+        {
+          repo: "deployment-service",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "deployment-service-jobs-image-build",
+          sha: "f000ee3",
+          br: "—",
+          t0: "14:08:01",
+          dur: "3m42s",
+          out: "deployment-service jobs image",
+          fail: null,
+          dup: true,
+          id: "d153f636-b3af-4ef2-917b-48906c117fba",
+        },
+        {
+          repo: "deployment-service",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "deployment-service-build",
+          sha: "f000ee3",
+          br: "—",
+          t0: "14:08:01",
+          dur: "—",
+          out: "deployment-service service image",
+          fail: null,
+          dup: true,
+          id: "942c64e3-b65d-4513-9566-b6e9a482a9e1",
+        },
+        {
+          repo: "instruments-service",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "instruments-service-prod",
+          sha: "0d50721",
+          br: "—",
+          t0: "14:08:45",
+          dur: "—",
+          out: "unified-trading-system/instruments-service",
+          fail: null,
+          id: "be69da40-c722-4c90-974d-cd41a298014d",
+        },
+        {
+          repo: "unified-trading-library",
+          lane: "image",
+          c: "aws",
+          st: "FAILED",
+          trig: "GitHub-Hookshot/227665c",
+          sha: "07555ac",
+          br: "—",
+          t0: "13:52:54",
+          dur: "1m37s",
+          out: "—",
+          fail: "COMMAND_EXECUTION_ERROR — docker build",
+          id: "unified-trading-library:bd1e1802-e156-43b1-98cc-fa065d978955",
+          ftype: "COMMAND_EXECUTION_ERROR",
+          fdetail:
+            'Error while executing command: docker build -f Dockerfile --build-arg EXTRA_PYTHON_INDEX_URL="$EXTRA_INDEX_URL" …',
+          webhook: true,
+          steps: [
+            ["SUBMITTED", "ok", 0],
+            ["QUEUED", "ok", 0],
+            ["PROVISIONING", "ok", 10],
+            ["DOWNLOAD_SOURCE", "ok", 9],
+            ["INSTALL", "ok", 31],
+            ["PRE_BUILD", "ok", 7],
+            ["BUILD", "FAILED", 0],
+            ["POST_BUILD", "ok", 35],
+            ["UPLOAD_ARTIFACTS", "ok", 0],
+            ["FINALIZING", "ok", 0],
+          ],
+        },
+        {
+          repo: "market-tick-data-service",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "market-tick-data-service-live-defi-rollout",
+          sha: "2d9fd62",
+          br: "live-defi-rollout",
+          t0: "14:04:53",
+          dur: "6m04s",
+          out: "unified-trading-system/market-tick-data-service:2d9fd62",
+          fail: null,
+          id: "68193fc4-9b40-4759-961b-74ae8848ccda",
+          xlane: true,
+        },
+        {
+          repo: "market-tick-data-service",
+          lane: "image",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "market-tick-data-service-build",
+          sha: "d28e190",
+          br: "—",
+          t0: "14:04:38",
+          dur: "6m08s",
+          out: "unified-trading-system/market-tick-data-service:d28e190",
+          fail: null,
+          id: "63ed3db1-bce7-4891-91e5-d21003f4416e",
+        },
+        {
+          repo: "market-tick-data-service",
+          lane: "tarball",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "code-tarball-refresh (cron */30)",
+          sha: "2d9fd62",
+          br: "—",
+          t0: "14:30:48",
+          dur: "—",
+          out: "code/mtds-code.tar.gz · 2.94 MiB",
+          fail: null,
+          tarball: true,
+          xlane: true,
+          id: "mtds-code.manifest.json",
+          manifest: {
+            repo: "market-tick-data-service",
+            tarball_name: "mtds-code",
+            commit_sha: "2d9fd6276be0f51c19d1fed6fb30f2f2d733e782",
+            pyproject_version: "2d9fd62",
+            git_status_clean: true,
+            created_at: "2026-07-17T14:30:48Z",
+            created_by: "create-code-tarballs.sh",
+          },
+        },
+        {
+          repo: "unified-api-contracts",
+          lane: "tarball",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "code-tarball-refresh (cron */30)",
+          sha: "d4cbe36",
+          br: "—",
+          t0: "14:30:5x",
+          dur: "—",
+          out: "code/unified-api-contracts-code.tar.gz · 8.25 MiB",
+          fail: null,
+          tarball: true,
+          id: "unified-api-contracts-code.manifest.json",
+        },
+        {
+          repo: "unified-trading-library",
+          lane: "tarball",
+          c: "gcp",
+          st: "SUCCESS",
+          trig: "code-tarball-refresh (cron */30)",
+          sha: "(manifest)",
+          br: "—",
+          t0: "14:30:5x",
+          dur: "—",
+          out: "code/unified-trading-library-code.tar.gz · 2.13 MiB",
+          fail: null,
+          tarball: true,
+          id: "unified-trading-library-code.manifest.json",
+        },
+        {
+          repo: "(all 11 repos)",
+          lane: "tarball",
+          c: "aws",
+          st: "NEVER RAN",
+          trig: "—",
+          sha: "—",
+          br: "—",
+          t0: "—",
+          dur: "—",
+          out: "s3://…/code/ — 0 objects",
+          fail: "AWS tarball lane is structurally broken",
+          tarball: true,
+          broken: true,
+        },
+      ];
+
+      const artifacts = [
+        {
+          r: "alerting-service",
+          c: "gcp",
+          reg: "unified-trading-system",
+          tags: ["d0cc311"],
+          d: "sha256:0cb6b5d1e414d…",
+          p: "2026-07-10",
+          s: "—",
+          run: "no",
+        },
+        {
+          r: "alerting-service",
+          c: "gcp",
+          reg: "unified-trading-system",
+          tags: ["2d7ab61"],
+          d: "sha256:0e8a1d262683c…",
+          p: "2026-07-10",
+          s: "—",
+          run: "no",
+        },
+        {
+          r: "alerting-service",
+          c: "gcp",
+          reg: "unified-trading-system",
+          tags: ["0.56.0", "8885d59"],
+          d: "sha256:2cc3c72c29e4…",
+          p: "2026-06-27",
+          s: "—",
+          run: "no",
+        },
+        {
+          r: "alerting-service",
+          c: "gcp",
+          reg: "unified-trading-system",
+          tags: ["0.10.0", "6aad829"],
+          d: "sha256:03f709fb41221…",
+          p: "2026-06-19",
+          s: "—",
+          run: "yes",
+          runNote: "dp-alerting-subscriber",
+        },
+        {
+          r: "deployment-api",
+          c: "aws",
+          reg: "ECR",
+          tags: ["0.52.0", "latest"],
+          d: "sha256:660acd0596535…",
+          p: "2026-06-27",
+          s: "1081.5 MB",
+          run: "yes",
+          runNote: "uts-deployment-api-prod",
+        },
+        {
+          r: "deployment-api",
+          c: "aws",
+          reg: "ECR",
+          tags: ["0.51.0"],
+          d: "sha256:7ec5a6c2f0c52…",
+          p: "2026-06-27",
+          s: "1081.4 MB",
+          run: "no",
+        },
+        {
+          r: "deployment-api",
+          c: "aws",
+          reg: "ECR",
+          tags: ["0.50.0"],
+          d: "sha256:33f3186652208…",
+          p: "2026-06-27",
+          s: "1081.4 MB",
+          run: "no",
+        },
+        {
+          r: "deployment-api",
+          c: "aws",
+          reg: "ECR",
+          tags: ["0.49.0"],
+          d: "sha256:60ee0712d4e8f…",
+          p: "2026-06-26",
+          s: "1081.4 MB",
+          run: "no",
+        },
+      ];
+
+      const health = [
+        {
+          c: "Registry repo in the SSOT does not exist",
+          sev: "high",
+          n: 1,
+          m: "codex names <span class='mono'>unified-trading</span>; the real repo is <span class='mono'>unified-trading-system</span>. Anyone following the doc hits NOT_FOUND.",
+          e: "gcloud artifacts repositories describe unified-trading → NOT_FOUND",
+        },
+        {
+          c: "Build provenance never recorded",
+          sev: "high",
+          n: 3,
+          m: "<span class='mono'>deployed_versions</span> is <span class='mono'>{dev:{},staging:{},prod:{}}</span> and <span class='mono'>deployed_versions_aws</span> doesn't exist. The write code is real but has never fired for any repo.",
+          e: "workspace-manifest.json, read directly",
+        },
+        {
+          c: "AWS tarball lane is structurally non-functional",
+          sev: "high",
+          n: 2,
+          m: "The uploader defaults to <span class='mono'>uts-prod-deployment-state</span> (exists, <span class='mono'>code/</span> has <b>0 objects</b>); the EC2 launcher expects <span class='mono'>unified-trading-deployment-scripts-427895769566</span>, which <b>does not exist at all</b>. Two different bucket names, neither populated.",
+          e: "aws s3 head-bucket → NoSuchBucket; aws_ec2_launch_lib.sh:226",
+        },
+        {
+          c: "VM runtime provenance never stamped",
+          sev: "high",
+          n: 13,
+          m: "Every live tarball VM has <span class='mono'>git_commit:\"\"</span> / <span class='mono'>image_digest:\"\"</span>. The BoM wiring exists but was never connected to the tarball path — <span class='mono'>_launch_with_tee()</span> never exports the vars <span class='mono'>bom.py</span> reads. So 'what is VM X running?' is unanswerable.",
+          e: "bom.py:98-122 + 2/13 live registry entries",
+        },
+        {
+          c: "dep_versions is fake-populated",
+          sev: "high",
+          n: 13,
+          m: "<span class='mono'>0.99.0</span> on every VM = the <span class='mono'>SETUPTOOLS_SCM_PRETEND_VERSION</span> fallback. Looks like data, differentiates nothing. Rendering it would actively mislead.",
+          e: "setup-data-pipeline-vm.sh:687",
+        },
+        {
+          c: "Router builds invisible in build history — UNVERIFIED",
+          sev: "med",
+          n: "?",
+          m: "History filters <span class='mono'>REPO_NAME</span> but the router passes <span class='mono'>_REPO_NAME</span>, no fallback. <b>I could not reproduce this:</b> all 5 builds I sampled had <span class='mono'>REPO_NAME</span> populated and <span class='mono'>_REPO_NAME</span> empty. Needs a confirmed router-triggered build before we design around it.",
+          e: "_cloud_builds_history.py:223 — claim not yet reproduced",
+        },
+        {
+          c: "version never sent → image tags lost their version",
+          sev: "med",
+          n: "fleet",
+          m: "Router reads <span class='mono'>client_payload.version</span>; no sender sends it → <span class='mono'>IMAGE_TAG=\"\"</span>. Registry corroborates: tags went version+SHA → SHA-only around late June.",
+          e: "quality-gates-v2.yml.tmpl:160 + AR tag history",
+        },
+        {
+          c: "AWS freeze-deferred builds never replay",
+          sev: "med",
+          n: 0,
+          m: "Replay filters <span class='mono'>startswith(\"deferred-build-\")</span>; the AWS artifact is named <span class='mono'>deferred-aws-build-…</span> — never matches.",
+          e: "freeze-deferred-build-replay.yml:110",
+        },
+        {
+          c: "Two triggers fire on the same commit",
+          sev: "low",
+          n: 18,
+          m: "<span class='mono'>deployment-service@f000ee3</span> built concurrently by <span class='mono'>-jobs-image-build</span> AND <span class='mono'>-build</span>. Possibly intentional (jobs image vs service image) — but nothing surfaces it, so nobody can tell intent from waste.",
+          e: "builds d153f636 + 942c64e3, both 14:08:01",
+        },
+        {
+          c: "Tarball payloads expire, manifests don't",
+          sev: "low",
+          n: "3645 vs 158",
+          m: "Cleanup regex requires <span class='mono'>\\.tar\\.gz$</span> so it never matches <span class='mono'>.manifest.json</span>. 3645 manifests survive 158 tarballs (23×). Upside: 'what SHA was tarball X on date Y' stays answerable long after the bytes are gone.",
+          e: "cleanup_old_tarballs.py:55-56 + live object counts",
+        },
+      ];
+
+      /* Deploy timeline — REAL Cloud Run revision stream for uts-shared-deployment-api
+         (probed live 2026-07-17) + AWS App Runner operation history. ch = change type,
+         computed vs the next-older revision: same digest = config-only redeploy. */
+      const deploys = [
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00192",
+          c: "gcp",
+          dig: "sha256:87d770c7bb15…",
+          from: null,
+          ch: "config",
+          at: "2026-07-17T13:31:29Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00191",
+          c: "gcp",
+          dig: "sha256:87d770c7bb15…",
+          from: null,
+          ch: "new",
+          at: "2026-07-17T12:33:26Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00190",
+          c: "gcp",
+          dig: "sha256:40b7460da2b1…",
+          from: null,
+          ch: "new",
+          at: "2026-07-17T12:05:25Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00189",
+          c: "gcp",
+          dig: "sha256:980a0ada2bc1…",
+          from: null,
+          ch: "new",
+          at: "2026-07-17T11:24:45Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00188",
+          c: "gcp",
+          dig: "sha256:71cdc1ba03ca…",
+          from: null,
+          ch: "config",
+          at: "2026-07-17T03:02:37Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00187",
+          c: "gcp",
+          dig: "sha256:71cdc1ba03ca…",
+          from: null,
+          ch: "new",
+          at: "2026-07-17T02:00:41Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00186",
+          c: "gcp",
+          dig: "sha256:ac134a336403…",
+          from: null,
+          ch: "new",
+          at: "2026-07-17T01:09:41Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00185",
+          c: "gcp",
+          dig: "sha256:bafb0ac6d9c7…",
+          from: null,
+          ch: "config",
+          at: "2026-07-16T20:51:58Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00184",
+          c: "gcp",
+          dig: "sha256:bafb0ac6d9c7…",
+          from: null,
+          ch: "config",
+          at: "2026-07-16T19:32:41Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00183",
+          c: "gcp",
+          dig: "sha256:bafb0ac6d9c7…",
+          from: null,
+          ch: "config",
+          at: "2026-07-16T17:32:54Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00182",
+          c: "gcp",
+          dig: "sha256:bafb0ac6d9c7…",
+          from: null,
+          ch: "new",
+          at: "2026-07-16T17:29:56Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00181",
+          c: "gcp",
+          dig: "sha256:924e6c4c3270…",
+          from: null,
+          ch: "new",
+          at: "2026-07-16T16:39:39Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00180",
+          c: "gcp",
+          dig: "sha256:77a40d753457…",
+          from: "f4e828c",
+          ch: "config",
+          at: "2026-07-16T16:05:29Z",
+          by: "cloudbuild",
+        },
+        {
+          t: "uts-shared-deployment-api",
+          rev: "rev 00179",
+          c: "gcp",
+          dig: "sha256:77a40d753457…",
+          from: "f4e828c",
+          ch: "new",
+          at: "2026-07-16T12:08:43Z",
+          by: "cloudbuild",
+        },
+        { sep: "AWS App Runner — operation history (the deploy can fail even when the build is green)" },
+        {
+          t: "uts-deployment-api-prod",
+          rev: "PAUSE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "paused",
+          at: "2026-05-22",
+          by: "—",
+          note: "service is PAUSED — not running today",
+        },
+        {
+          t: "uts-deployment-api-prod",
+          rev: "UPDATE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "new",
+          at: "2026-05-22",
+          by: "—",
+        },
+        {
+          t: "uts-deployment-api-prod",
+          rev: "UPDATE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "failed",
+          at: "2026-05-22",
+          by: "—",
+        },
+        {
+          t: "uts-deployment-api-prod",
+          rev: "UPDATE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "failed",
+          at: "2026-05-22",
+          by: "—",
+        },
+        { sep: "ECS uts-defi-prod — 3 services declared, 0 running tasks" },
+        {
+          t: "uts-defi-prod",
+          rev: "3 services",
+          c: "aws",
+          dig: "(task-def → image)",
+          from: null,
+          ch: "empty",
+          at: "—",
+          by: "—",
+          note: "declared but no task is running — a stalled or scaled-to-zero deploy",
+        },
+      ];
+
+      /* ---------------- render ---------------- */
+      const driftPill = (d) =>
+        ({
+          ok: '<span class="pill p-green"><span class="dot"></span>pinned</span>',
+          pinned: '<span class="pill p-green"><span class="dot"></span>digest</span>',
+          floating: '<span class="pill p-red"><span class="dot"></span>floating</span>',
+          hand: '<span class="pill p-red"><span class="dot"></span>hand</span>',
+          stale: '<span class="pill p-amber"><span class="dot"></span>stale</span>',
+          unknown: '<span class="pill p-grey"><span class="dot"></span>unknown</span>',
+          fake: '<span class="pill p-red"><span class="dot"></span>fake-populated</span>',
+        })[d] || "";
+
+      const cloudPill = (c) =>
+        c === "gcp" ? '<span class="pill p-cyan">GCP</span>' : '<span class="pill p-amber">AWS</span>';
+
+      const stPill = (s) => {
+        const m = {
+          SUCCESS: "p-green",
+          FAILURE: "p-red",
+          FAILED: "p-red",
+          WORKING: "p-purple",
+          "NEVER RAN": "p-red",
+        };
+        const spin = s === "WORKING" ? " spin" : "";
+        return `<span class="pill ${m[s] || "p-grey"}${spin}"><span class="dot"></span>${s}</span>`;
+      };
+
+      const ago = (iso) => {
+        if (!iso || iso === "—") return '<span class="muted">—</span>';
+        const d = Math.floor((Date.parse("2026-07-17T14:30:00Z") - Date.parse(iso)) / 86400000);
+        if (d > 400) return `<span style="color:var(--color-accent-red)">${Math.floor(d / 30)}mo ago</span>`;
+        if (d > 20) return `<span style="color:var(--color-accent-amber)">${d}d ago</span>`;
+        if (d >= 1) return `${d}d ago`;
+        return '<span class="dim">today</span>';
+      };
+
+      const byCell = (by) => {
+        if (!by || by === "—") return '<span class="muted">—</span>';
+        if (by.includes("@") && !by.includes("gserviceaccount"))
+          return `<span style="color:var(--color-accent-red)">${by.split("@")[0]}</span>`;
+        return `<span class="muted">${by.split(".")[0]}</span>`;
+      };
+      document.getElementById("tb-run").innerHTML = running
+        .map(
+          (r, i) => `<tr data-run="${i}">
+        <td style="font-weight:500">${r.t} ${r.lane === "tarball" ? '<span class="pill p-purple">tarball</span>' : ""}</td>
+        <td class="dim" style="font-size:11.5px">${r.k}</td>
+        <td>${cloudPill(r.c)}</td>
+        <td class="mono" style="font-size:11.5px;max-width:330px;overflow:hidden;text-overflow:ellipsis">${r.art}</td>
+        <td>${r.dig ? `<span class="digest">${r.dig.slice(0, 20)}…</span>` : r.lane === "tarball" ? '<span class="unk">n/a — tarball</span>' : '<span class="unk">unresolved</span>'}</td>
+        <td>${r.from ? `<a class="sha" href="#">${r.from}</a>` : '<span class="unk">no matching build</span>'}</td>
+        <td class="dim">${ago(r.dep)}</td>
+        <td class="dim" style="font-size:11px">${byCell(r.by)}</td>
+        <td>${r.drift.map(driftPill).join(" ")}</td>
+      </tr>`,
+        )
+        .join("");
+
+      document.getElementById("tb-pipe").innerHTML = pipeline
+        .map(
+          (b, i) => `<tr data-pipe="${i}">
+        <td style="font-weight:500">${b.repo}${b.dup ? ' <span class="pill p-amber" title="same commit built twice">dup</span>' : ""}${b.attrib ? ' <span class="pill p-grey" title="_REPO_NAME vs REPO_NAME attribution gap">?</span>' : ""}</td>
+        <td><span class="pill ${b.lane === "image" ? "p-blue" : "p-purple"}">${b.lane}</span></td>
+        <td>${cloudPill(b.c)}</td>
+        <td>${stPill(b.st)}</td>
+        <td class="mono" style="font-size:11px">${b.trig}${b.webhook ? ' <span class="pill p-amber" title="webhook, not the router the SSOT calls canonical">webhook</span>' : ""}</td>
+        <td>${b.sha === "?" ? '<span class="unk">?</span>' : `<a class="sha" href="#">${b.sha}</a>`}</td>
+        <td class="dim" style="font-size:11px">${b.br}</td>
+        <td class="dim mono" style="font-size:11px">${b.t0}</td>
+        <td class="dim mono" style="font-size:11px">${b.dur}</td>
+        <td class="mono dim" style="font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis">${b.out}</td>
+        <td>${b.fail ? `<span class="fail-txt">${b.fail}</span>` : '<span class="muted">—</span>'}</td>
+        <td><a class="lnk" href="#" title="open cloud logs">↗</a></td>
+      </tr>`,
+        )
+        .join("");
+
+      const chPill = (ch) =>
+        ({
+          new: '<span class="pill p-blue"><span class="dot"></span>new code</span>',
+          config: '<span class="pill p-grey"><span class="dot"></span>config-only</span>',
+          rollback: '<span class="pill p-amber"><span class="dot"></span>rollback</span>',
+          failed: '<span class="pill p-red"><span class="dot"></span>failed</span>',
+          paused: '<span class="pill p-amber"><span class="dot"></span>paused</span>',
+          empty: '<span class="pill p-amber"><span class="dot"></span>0 tasks</span>',
+        })[ch] || "";
+      document.getElementById("tb-deploy").innerHTML = deploys
+        .map((d) => {
+          if (d.sep)
+            return `<tr><td colspan="8" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:7px 12px">${d.sep}</td></tr>`;
+          return `<tr>
+        <td style="font-weight:500">${d.t}${d.note ? ` <span class="dim" style="font-size:10.5px">· ${d.note}</span>` : ""}</td>
+        <td class="mono dim" style="font-size:11.5px">${d.rev}</td>
+        <td>${cloudPill(d.c)}</td>
+        <td>${chPill(d.ch)}</td>
+        <td class="${d.dig.startsWith("sha") ? "digest" : "mono muted"}" style="font-size:11px">${d.dig}</td>
+        <td>${d.from ? `<a class="sha" href="#">${d.from}</a>` : '<span class="unk">—</span>'}</td>
+        <td class="dim mono" style="font-size:11px">${d.at}</td>
+        <td class="dim" style="font-size:11px">${d.by === "cloudbuild" ? '<span class="muted">pipeline</span>' : d.by === "—" ? '<span class="muted">—</span>' : `<span style="color:var(--color-accent-red)">${d.by}</span>`}</td>
+      </tr>`;
+        })
+        .join("");
+
+      document.getElementById("tb-art").innerHTML = artifacts
+        .map(
+          (a) => `<tr>
+        <td style="font-weight:500">${a.r}</td>
+        <td>${cloudPill(a.c)}</td>
+        <td class="mono dim" style="font-size:11px">${a.reg}</td>
+        <td>${a.tags.map((t) => `<span class="pill ${/^\d/.test(t) ? "p-blue" : t === "latest" ? "p-red" : "p-grey"}">${t}</span>`).join(" ")}</td>
+        <td><span class="digest">${a.d}</span></td>
+        <td class="dim">${a.p}</td>
+        <td class="dim mono" style="font-size:11px">${a.s}</td>
+        <td>${a.run === "yes" ? `<span class="pill p-green"><span class="dot"></span>live</span> <span class="dim" style="font-size:11px">${a.runNote}</span>` : '<span class="muted">—</span>'}</td>
+      </tr>`,
+        )
+        .join("");
+
+      document.getElementById("tb-health").innerHTML = health
+        .map(
+          (h) => `<tr>
+        <td style="font-weight:500;white-space:normal;max-width:260px">${h.c}</td>
+        <td><span class="pill ${h.sev === "high" ? "p-red" : h.sev === "med" ? "p-amber" : "p-grey"}">${h.sev}</span></td>
+        <td class="mono">${h.n}</td>
+        <td style="white-space:normal;max-width:460px;font-size:11.5px" class="dim">${h.m}</td>
+        <td class="mono muted" style="font-size:10.5px;white-space:normal;max-width:200px">${h.e}</td>
+      </tr>`,
+        )
+        .join("");
+
+      /* ---------------- tabs ---------------- */
+      const views = { run: "v-run", deploy: "v-deploy", pipe: "v-pipe", art: "v-art", health: "v-health" };
+      document.getElementById("tabs").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        [...document.querySelectorAll("#tabs button")].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        Object.values(views).forEach((v) => document.getElementById(v).classList.add("hide"));
+        document.getElementById(views[b.dataset.t]).classList.remove("hide");
+      });
+      document.getElementById("preset").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        [...document.querySelectorAll("#preset button")].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        const end = new Date("2026-07-17");
+        const start = new Date(end);
+        start.setDate(end.getDate() - (+b.dataset.d - 1));
+        document.getElementById("d0").value = start.toISOString().slice(0, 10);
+        document.getElementById("d1").value = end.toISOString().slice(0, 10);
+      });
+
+      /* ---------------- drawer ---------------- */
+      const scrim = document.getElementById("scrim"),
+        drawer = document.getElementById("drawer");
+      const close = () => {
+        scrim.classList.remove("on");
+        drawer.classList.remove("on");
+      };
+      scrim.onclick = close;
+      document.getElementById("dr-x").onclick = close;
+      const open = (title, sub, body) => {
+        document.getElementById("dr-title").innerHTML = title;
+        document.getElementById("dr-sub").textContent = sub;
+        document.getElementById("dr-body").innerHTML = body;
+        scrim.classList.add("on");
+        drawer.classList.add("on");
+      };
+
+      document.getElementById("tb-run").addEventListener("click", (e) => {
+        const tr = e.target.closest("tr[data-run]");
+        if (!tr) return;
+        const r = running[+tr.dataset.run];
+        open(
+          r.t,
+          r.k + " · " + r.c.toUpperCase(),
+          `<div class="sect">Verdict</div><div style="font-size:12.5px;line-height:1.6">${r.why}</div>
+           <div class="sect">Resolution chain</div>
+           <dl class="kv">
+             <dt>Declared image</dt><dd>${r.art}</dd>
+             <dt>Resolved digest</dt><dd>${r.dig || '<span class="unk">unresolved</span>'}</dd>
+             <dt>Matched build</dt><dd>${r.from || '<span class="unk">none found</span>'}</dd>
+             <dt>Git commit</dt><dd>${r.from || '<span class="unk">not derivable</span>'}</dd>
+             <dt>Deployed at</dt><dd>${r.dep}</dd>
+             <dt>Deployed by</dt><dd>${r.by}</dd>
+           </dl>
+           <div class="sect">Drift</div><div>${r.drift.map(driftPill).join(" ")}</div>`,
+        );
+      });
+
+      document.getElementById("tb-pipe").addEventListener("click", (e) => {
+        const tr = e.target.closest("tr[data-pipe]");
+        if (!tr) return;
+        const b = pipeline[+tr.dataset.pipe];
+        if (!b.steps) {
+          open(
+            b.repo,
+            b.id || "—",
+            `<div class="sect">No step detail in this mock</div><div class="dim" style="font-size:12.5px">Both clouds return a full step/phase list per build — this mock only wires it for the two failures so we can agree on the shape.</div>`,
+          );
+          return;
+        }
+        const max = Math.max(...b.steps.map((s) => s[2])) || 1;
+        open(
+          `${b.repo} ${stPill(b.st)}`,
+          b.id,
+          `<div class="sect">Why it failed</div>
+           <dl class="kv">
+             <dt>Type</dt><dd style="color:var(--color-accent-red)">${b.ftype}</dd>
+             <dt>Detail</dt><dd>${b.fdetail}</dd>
+           </dl>
+           <div class="sect">${b.c === "aws" ? "Phases" : "Steps"}</div>
+           ${b.steps
+             .map(
+               (s) => `<div class="step ${s[1] === "FAILED" ? "bad" : ""}">
+               <span style="width:13px">${s[1] === "FAILED" ? "✕" : s[1] === "skipped" ? "·" : "✓"}</span>
+               <span class="nm" style="${s[1] === "FAILED" ? "color:var(--color-accent-red)" : s[1] === "skipped" ? "color:var(--color-text-muted)" : ""}">${s[0]}</span>
+               <span style="width:130px"><span class="bar" style="width:${Math.max(3, (s[2] / max) * 100)}%;display:block;background:${s[1] === "FAILED" ? "var(--color-accent-red)" : "var(--color-border-emphasis)"}"></span></span>
+               <span class="du">${s[2]}s</span>
+             </div>`,
+             )
+             .join("")}
+           <div class="sect">Provenance</div>
+           <dl class="kv">
+             <dt>Commit</dt><dd>${b.sha}</dd>
+             <dt>Branch</dt><dd>${b.br}</dd>
+             <dt>Triggered by</dt><dd>${b.trig}</dd>
+             <dt>Produced</dt><dd>${b.out}</dd>
+           </dl>
+           <div class="sect">Log excerpt</div>
+           <pre class="log">${
+             b.c === "aws"
+               ? '[Container] Running command docker build -f Dockerfile \\\n  --build-arg EXTRA_PYTHON_INDEX_URL="$EXTRA_INDEX_URL" ...\n\nERROR: failed to solve: process did not complete successfully: exit code 1\n\n[Container] Phase complete: BUILD State: FAILED'
+               : 'Step #8 - "docker-build": ERROR: failed to solve: process "/bin/sh -c uv sync --frozen" \n  did not complete successfully: exit code: 1\nERROR\nERROR: build step 8 "gcr.io/cloud-builders/docker" failed: step exited with non-zero status: 1'
+           }</pre>
+           <div style="margin-top:14px"><a class="btn" style="display:inline-block;line-height:32px;text-decoration:none" href="#">Open in ${b.c === "aws" ? "CloudWatch" : "Cloud Build"} ↗</a></div>`,
+        );
+      });
+    </script>
+  </body>
+</html>
