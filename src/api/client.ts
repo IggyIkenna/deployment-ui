@@ -2995,6 +2995,40 @@ export function buildCatalogueCsvDownloadUrl(params: {
   return `${API_BASE}/data-status/download-catalogue-csv?${qp.toString()}`;
 }
 
+/** One distinct raw value + its row count, from ``GET /data-status/axis-value-census``. */
+export interface AxisValueCount {
+  value: string;
+  count: number;
+}
+
+/**
+ * Response from ``GET /data-status/axis-value-census`` (deployment-api
+ * ``routes/data_status/_axis_census.py``) — the non-canonical-naming /
+ * duplication detector. Reads the RAW availability manifest directly (via
+ * ``read_availability_index``, not the identity catalogue behind
+ * ``/catalogue-filter-options``), so two raw spellings of the same real
+ * value (``spot`` / ``SPOT_PAIR``) show up as two separate entries. An axis
+ * key absent from ``axes`` means the column doesn't exist for this
+ * ``(service, asset_group)`` at all (honest-absence); a present key with an
+ * empty array means the column exists but every row is blank.
+ */
+export interface AxisValueCensus {
+  service: string;
+  asset_group: string;
+  row_count: number;
+  axes: Record<string, AxisValueCount[]>;
+  truncated_axes: string[];
+}
+
+export async function fetchAxisValueCensus(opts: {
+  service: string;
+  asset_group: string;
+  signal?: AbortSignal;
+}): Promise<AxisValueCensus> {
+  const qp = new URLSearchParams({ service: opts.service, asset_group: opts.asset_group });
+  return fetchJson<AxisValueCensus>(`/data-status/axis-value-census?${qp.toString()}`, { signal: opts.signal });
+}
+
 // Services that write per-venue-day-bundle parquets and support shard CSV download.
 export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
   "instruments-service",
