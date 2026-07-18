@@ -131,6 +131,12 @@ describe("FixturesBrowser", () => {
     expect(screen.getByTestId("fixtures-browser-league-name-999999").textContent).toBe("999999");
   });
 
+  it("league filter placeholder hints at a human name, not only a raw id (F9)", () => {
+    render(<FixturesBrowser />);
+    const input = screen.getByLabelText(/League id/i) as HTMLInputElement;
+    expect(input.placeholder).toMatch(/Allsvenskan/);
+  });
+
   it("refresh button re-invokes the API with the current window", async () => {
     render(<FixturesBrowser />);
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
