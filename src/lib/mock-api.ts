@@ -4679,52 +4679,60 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // the real ``CatalogueLifecycleRow`` shape (deployment-api
   // routes/catalogue_lifecycle.py).
   if (path.startsWith("/api/instruments/new-listings")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const limit = Number(params.get("limit") ?? 50);
+    const offset = Number(params.get("offset") ?? 0);
+    const allNewListings = [
+      {
+        instrument_id: "BINANCE-SPOT-SOLUSDT",
+        instrument_type: "SPOT_PAIR",
+        asset_group: "cefi",
+        venue: "BINANCE-SPOT",
+        chain: "",
+        base_asset: "SOL",
+        raw_symbol: "SOLUSDT",
+        available_from: "2026-07-15",
+        available_to: "",
+        mvp: true,
+        available_from_is_venue_first_day: false,
+      },
+      {
+        instrument_id: "AAVE_V3-ETHEREUM-POOL-WETH",
+        instrument_type: "POOL",
+        asset_group: "defi",
+        venue: "AAVE_V3",
+        chain: "ETHEREUM",
+        base_asset: "WETH",
+        raw_symbol: "AAVE-V3-WETH-POOL",
+        available_from: "2026-07-12",
+        available_to: "",
+        mvp: false,
+        available_from_is_venue_first_day: false,
+      },
+      // Models the REAL onboarding-flood false positive found on prod GCS
+      // 2026-07-17 (COINBASE-CDE: 99 rows all stamped the venue's first
+      // captured day, with expiries out to 2030) so mock mode renders the
+      // "listing date unconfirmed" affordance.
+      {
+        instrument_id: "COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220",
+        instrument_type: "FUTURE",
+        asset_group: "cefi",
+        venue: "COINBASE-CDE",
+        chain: "",
+        base_asset: "BTC",
+        raw_symbol: "BTC-20DEC30-CDE",
+        available_from: "2026-07-10",
+        available_to: "2030-12-20",
+        mvp: false,
+        available_from_is_venue_first_day: true,
+      },
+    ];
     return json({
-      new_listings: [
-        {
-          instrument_id: "BINANCE-SPOT-SOLUSDT",
-          instrument_type: "SPOT_PAIR",
-          asset_group: "cefi",
-          venue: "BINANCE-SPOT",
-          chain: "",
-          base_asset: "SOL",
-          raw_symbol: "SOLUSDT",
-          available_from: "2026-07-15",
-          available_to: "",
-          mvp: true,
-          available_from_is_venue_first_day: false,
-        },
-        {
-          instrument_id: "AAVE_V3-ETHEREUM-POOL-WETH",
-          instrument_type: "POOL",
-          asset_group: "defi",
-          venue: "AAVE_V3",
-          chain: "ETHEREUM",
-          base_asset: "WETH",
-          raw_symbol: "AAVE-V3-WETH-POOL",
-          available_from: "2026-07-12",
-          available_to: "",
-          mvp: false,
-          available_from_is_venue_first_day: false,
-        },
-        // Models the REAL onboarding-flood false positive found on prod GCS
-        // 2026-07-17 (COINBASE-CDE: 99 rows all stamped the venue's first
-        // captured day, with expiries out to 2030) so mock mode renders the
-        // "listing date unconfirmed" affordance.
-        {
-          instrument_id: "COINBASE-CDE:FUTURE:BTC-USD@LIN-20301220",
-          instrument_type: "FUTURE",
-          asset_group: "cefi",
-          venue: "COINBASE-CDE",
-          chain: "",
-          base_asset: "BTC",
-          raw_symbol: "BTC-20DEC30-CDE",
-          available_from: "2026-07-10",
-          available_to: "2030-12-20",
-          mvp: false,
-          available_from_is_venue_first_day: true,
-        },
-      ],
+      new_listings: allNewListings.slice(offset, offset + limit),
+      total_count: allNewListings.length,
+      limit,
+      offset,
+      has_more: offset + limit < allNewListings.length,
       mock: true,
     });
   }
@@ -4808,6 +4816,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       },
     };
 
+    // league_names map (F1, round-3 UI review) — the real backend resolves the
+    // catalogue league_id to a human display_name (UAC); mirror it so the mock
+    // exercises the name-rendering path (unmapped ids stay absent → raw id).
+    const LEAGUE_DISPLAY_NAMES: Record<string, string> = {
+      EPL: "English Premier League",
+      MLS: "Major League Soccer",
+    };
+    // F9 (operator 2026-07-18): case-insensitive SUBSTRING on the raw id OR its
+    // resolved human name — mirrors the real backend's `league_matches_filter`
+    // (previously an exact match, so typing a human league name like
+    // "Allsvenskan" returned 0 rows even though the underlying id resolves to it).
+    const leagueNeedleLower = leagueNeedle.toLowerCase();
+    const matchesLeague = (lid: string): boolean =>
+      !leagueNeedleLower ||
+      lid.toLowerCase().includes(leagueNeedleLower) ||
+      (LEAGUE_DISPLAY_NAMES[lid]?.toLowerCase().includes(leagueNeedleLower) ?? false);
     const matchesTeam = (fx: MockFixtureRow): boolean =>
       !teamNeedle ||
       [fx.home_team_name, fx.away_team_name, fx.home_team_id, fx.away_team_id].some((v) =>
@@ -4817,7 +4841,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
 
     const filteredLeagues: Record<string, Record<string, MockFixtureRow[]>> = {};
     for (const [lid, byDay] of Object.entries(allLeagues)) {
-      if (leagueNeedle && lid !== leagueNeedle) {
+      if (!matchesLeague(lid)) {
         continue;
       }
       for (const [day, fixtures] of Object.entries(byDay)) {
@@ -4830,13 +4854,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         }
       }
     }
-    // league_names map (F1, round-3 UI review) — the real backend resolves the
-    // catalogue league_id to a human display_name (UAC); mirror it so the mock
-    // exercises the name-rendering path (unmapped ids stay absent → raw id).
-    const LEAGUE_DISPLAY_NAMES: Record<string, string> = {
-      EPL: "English Premier League",
-      MLS: "Major League Soccer",
-    };
     const leagueNames: Record<string, string> = {};
     for (const lid of Object.keys(filteredLeagues)) {
       const name = LEAGUE_DISPLAY_NAMES[lid];
@@ -4846,36 +4863,117 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     }
     return json({ leagues: filteredLeagues, league_names: leagueNames, mock: true });
   }
+  // F9 (2026-07-18) — flat "next N days" upcoming-fixtures mock, sibling to
+  // ``/api/fixtures/browse`` above. Self-contained (a couple of duplicated
+  // rows rather than sharing ``allLeagues``, which is block-scoped to the
+  // browse handler above) — same convention as that handler's local
+  // ``MockFixtureRow`` type (module docstring: avoid a circular import back
+  // into ../api/client). Includes a non-EPL league (Allsvenskan's numeric
+  // catalogue id) so the human-name substring filter has something to prove.
+  if (path.startsWith("/api/fixtures/upcoming")) {
+    // Structural local mirror of the client's ``UpcomingFixture`` — declared
+    // here (not shared with the browse block's ``MockFixtureRow`` above,
+    // which is block-scoped to that ``if``) for the same self-containment
+    // reason documented on that type.
+    type MockUpcomingRow = {
+      fixture_id: string;
+      kickoff_utc: string;
+      league_id: string;
+      home_team_id: string;
+      away_team_id: string;
+      home_team_name: string;
+      away_team_name: string;
+      venue_id: string;
+      venue_name: string;
+      status: string;
+      round: string;
+    };
+    const upcomingQs = new URLSearchParams(path.split("?")[1] ?? "");
+    const upcomingLeagueNeedle = (upcomingQs.get("league_id") ?? "").trim().toLowerCase();
+    const UPCOMING_LEAGUE_DISPLAY_NAMES: Record<string, string> = {
+      EPL: "English Premier League",
+      "113": "Allsvenskan",
+    };
+    const allUpcoming: MockUpcomingRow[] = [
+      {
+        fixture_id: "epl-1001",
+        kickoff_utc: "2026-07-16T15:00:00+00:00",
+        league_id: "EPL",
+        home_team_id: "t-ars",
+        away_team_id: "t-che",
+        home_team_name: "Arsenal",
+        away_team_name: "Chelsea",
+        venue_id: "v-emi",
+        venue_name: "Emirates Stadium",
+        status: "NS",
+        round: "Regular Season - 1",
+      },
+      {
+        fixture_id: "swe-3001",
+        kickoff_utc: "2026-07-19T17:00:00+00:00",
+        league_id: "113",
+        home_team_id: "t-mff",
+        away_team_id: "t-aik",
+        home_team_name: "Malmo FF",
+        away_team_name: "AIK",
+        venue_id: "v-eleda",
+        venue_name: "Eleda Stadion",
+        status: "NS",
+        round: "Round 20",
+      },
+    ];
+    const upcomingMatchesLeague = (lid: string): boolean =>
+      !upcomingLeagueNeedle ||
+      lid.toLowerCase().includes(upcomingLeagueNeedle) ||
+      (UPCOMING_LEAGUE_DISPLAY_NAMES[lid]?.toLowerCase().includes(upcomingLeagueNeedle) ?? false);
+    const filteredUpcoming = allUpcoming.filter((fx) => upcomingMatchesLeague(fx.league_id));
+    const upcomingLeagueNames: Record<string, string> = {};
+    for (const fx of filteredUpcoming) {
+      const name = UPCOMING_LEAGUE_DISPLAY_NAMES[fx.league_id];
+      if (name) {
+        upcomingLeagueNames[fx.league_id] = name;
+      }
+    }
+    return json({ fixtures: filteredUpcoming, league_names: upcomingLeagueNames, mock: true });
+  }
   if (path.startsWith("/api/instruments/upcoming-expiries")) {
+    const params = new URL(url, "http://mock").searchParams;
+    const limit = Number(params.get("limit") ?? 50);
+    const offset = Number(params.get("offset") ?? 0);
+    const allExpiries = [
+      {
+        instrument_id: "CME-ESU6",
+        instrument_type: "FUTURE",
+        asset_group: "tradfi",
+        venue: "CME",
+        chain: "",
+        base_asset: "ES",
+        raw_symbol: "ESU6",
+        available_from: "2026-06-01",
+        available_to: "2026-09-19",
+        mvp: true,
+        available_from_is_venue_first_day: false,
+      },
+      {
+        instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
+        instrument_type: "OPTION",
+        asset_group: "cefi",
+        venue: "DERIBIT",
+        chain: "",
+        base_asset: "BTC",
+        raw_symbol: "BTC-26SEP26-100000-C",
+        available_from: "2026-06-15",
+        available_to: "2026-09-26",
+        mvp: false,
+        available_from_is_venue_first_day: false,
+      },
+    ];
     return json({
-      upcoming_expiries: [
-        {
-          instrument_id: "CME-ESU6",
-          instrument_type: "FUTURE",
-          asset_group: "tradfi",
-          venue: "CME",
-          chain: "",
-          base_asset: "ES",
-          raw_symbol: "ESU6",
-          available_from: "2026-06-01",
-          available_to: "2026-09-19",
-          mvp: true,
-          available_from_is_venue_first_day: false,
-        },
-        {
-          instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
-          instrument_type: "OPTION",
-          asset_group: "cefi",
-          venue: "DERIBIT",
-          chain: "",
-          base_asset: "BTC",
-          raw_symbol: "BTC-26SEP26-100000-C",
-          available_from: "2026-06-15",
-          available_to: "2026-09-26",
-          mvp: false,
-          available_from_is_venue_first_day: false,
-        },
-      ],
+      upcoming_expiries: allExpiries.slice(offset, offset + limit),
+      total_count: allExpiries.length,
+      limit,
+      offset,
+      has_more: offset + limit < allExpiries.length,
       mock: true,
     });
   }
