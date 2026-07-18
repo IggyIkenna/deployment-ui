@@ -4564,6 +4564,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       headers: { "Content-Type": "text/csv; charset=utf-8", "X-Row-Count": "4" },
     });
   }
+  // Catalogue Explorer filter dropdowns (F3, round-3 UI review) — MUST precede
+  // the "/api/data-status/catalogue" prefix below (which this path also starts
+  // with); without a dedicated handler it fell through to the catalogue-rows
+  // shape, whose response has no `venues` array → CatalogueExplorer crashed on
+  // `.map`. Distinct values mirror the mock catalogue rows.
+  if (path.startsWith("/api/data-status/catalogue-filter-options")) {
+    const params = new URL(url, "http://mock").searchParams;
+    return json({
+      service: params.get("service") || "instruments-service",
+      asset_group: (params.get("asset_group") || "cefi").toLowerCase(),
+      venues: ["BINANCE-SPOT", "DERIBIT", "OKX-SPOT"],
+      instrument_types: ["OPTION", "SPOT_PAIR"],
+      data_types: ["instruments"],
+      mock: true,
+    });
+  }
   if (path.startsWith("/api/data-status/catalogue")) {
     const params = new URL(url, "http://mock").searchParams;
     const venue = params.get("venue")?.trim().toUpperCase() || "";
@@ -4814,7 +4830,21 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         }
       }
     }
-    return json({ leagues: filteredLeagues, mock: true });
+    // league_names map (F1, round-3 UI review) — the real backend resolves the
+    // catalogue league_id to a human display_name (UAC); mirror it so the mock
+    // exercises the name-rendering path (unmapped ids stay absent → raw id).
+    const LEAGUE_DISPLAY_NAMES: Record<string, string> = {
+      EPL: "English Premier League",
+      MLS: "Major League Soccer",
+    };
+    const leagueNames: Record<string, string> = {};
+    for (const lid of Object.keys(filteredLeagues)) {
+      const name = LEAGUE_DISPLAY_NAMES[lid];
+      if (name) {
+        leagueNames[lid] = name;
+      }
+    }
+    return json({ leagues: filteredLeagues, league_names: leagueNames, mock: true });
   }
   if (path.startsWith("/api/instruments/upcoming-expiries")) {
     return json({
