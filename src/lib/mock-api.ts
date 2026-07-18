@@ -4580,6 +4580,34 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
+  // Axis Value Census (Track-6 restoration, cefi_consolidated_closeout_2026_07_18)
+  // — the non-canonical-naming / duplication detector. Deliberately shows raw
+  // NON-canonicalised duplicate spellings (spot / SPOT_PAIR / spot_pair) so
+  // mock mode exercises the same "flag likely duplicates" UI path as real data.
+  if (path.startsWith("/api/data-status/axis-value-census")) {
+    const params = new URL(url, "http://mock").searchParams;
+    return json({
+      service: params.get("service") || "instruments-service",
+      asset_group: (params.get("asset_group") || "cefi").toLowerCase(),
+      row_count: 7,
+      axes: {
+        venue: [
+          { value: "BINANCE-SPOT", count: 3 },
+          { value: "DERIBIT", count: 2 },
+          { value: "OKX-SPOT", count: 2 },
+        ],
+        instrument_type: [
+          { value: "SPOT_PAIR", count: 2 },
+          { value: "spot", count: 1 },
+          { value: "spot_pair", count: 1 },
+          { value: "OPTION", count: 2 },
+        ],
+        data_type: [{ value: "instruments", count: 7 }],
+      },
+      truncated_axes: [],
+      mock: true,
+    });
+  }
   if (path.startsWith("/api/data-status/catalogue")) {
     const params = new URL(url, "http://mock").searchParams;
     const venue = params.get("venue")?.trim().toUpperCase() || "";

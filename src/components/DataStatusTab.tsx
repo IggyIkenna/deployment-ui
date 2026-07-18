@@ -65,6 +65,7 @@ import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
+import { AxisValueCensus } from "./AxisValueCensus";
 import { CatalogueExplorer } from "./CatalogueExplorer";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
@@ -1760,6 +1761,13 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               instruments" list, IS-only (phase-1 scope; see
               data_status_page_ux_and_canonicalisation_2026_07_16 P6). */}
           {serviceName === "instruments-service" && <CatalogueExplorer />}
+
+          {/* Track-6 restoration (cefi_consolidated_closeout_2026_07_18) — the
+              non-canonical-naming / duplication detector: distinct RAW manifest
+              values per axis, straight off read_availability_index (not the
+              identity catalogue behind CatalogueExplorer's dropdowns, and not
+              canonicalised like the drilldown/coverage-summary breakdowns). */}
+          {serviceName === "instruments-service" && <AxisValueCensus />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
