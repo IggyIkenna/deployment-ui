@@ -92,10 +92,13 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
     const controller = new AbortController();
     fetchCatalogueFilterOptions({ service, asset_group: assetGroup, signal: controller.signal })
       .then((opts) =>
+        // `?? []` guards a malformed/partial response (e.g. an endpoint that
+        // returns the wrong shape) — the option lists are always arrays so the
+        // `.map` render can never throw; a bad axis just degrades to "Any".
         setFilterOptions({
-          venues: opts.venues,
-          instrument_types: opts.instrument_types,
-          data_types: opts.data_types,
+          venues: opts.venues ?? [],
+          instrument_types: opts.instrument_types ?? [],
+          data_types: opts.data_types ?? [],
         }),
       )
       .catch(() => {
