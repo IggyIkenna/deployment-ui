@@ -195,7 +195,7 @@ export function FixturesBrowser() {
             <Input
               id="fb-league"
               className="h-8 text-xs font-mono"
-              placeholder="e.g. EPL"
+              placeholder="e.g. EPL or Allsvenskan"
               value={leagueId}
               onChange={(ev) => setLeagueId(ev.target.value)}
             />

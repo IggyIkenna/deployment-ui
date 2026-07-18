@@ -941,11 +941,22 @@ export interface UpcomingFixture {
   round: string;
 }
 
+/** Result of ``GET /fixtures/upcoming``: the flat fixture list plus a
+ *  ``league_id -> human display_name`` map (UAC-resolved server-side, same
+ *  shape as ``FixturesBrowseResult.leagueNames``). An id with no registry
+ *  entry is ABSENT from `leagueNames` (honest-absence — the UI falls back to
+ *  the raw id, never a fabricated name). */
+export interface UpcomingFixturesResult {
+  fixtures: UpcomingFixture[];
+  leagueNames: Record<string, string>;
+}
+
 export async function fetchUpcomingFixtures(opts?: {
   days?: number;
+  /** Case-insensitive substring on the raw league id or its resolved human name. */
   league_id?: string;
   signal?: AbortSignal;
-}): Promise<UpcomingFixture[]> {
+}): Promise<UpcomingFixturesResult> {
   const searchParams = new URLSearchParams();
   if (opts?.days != null) {
     searchParams.set("days", String(opts.days));
@@ -955,8 +966,12 @@ export async function fetchUpcomingFixtures(opts?: {
   }
   const q = searchParams.toString();
   const path = `/fixtures/upcoming${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ fixtures: UpcomingFixture[]; mock?: boolean }>(path, { signal: opts?.signal });
-  return res.fixtures ?? [];
+  const res = await fetchJson<{
+    fixtures: UpcomingFixture[];
+    league_names?: Record<string, string>;
+    mock?: boolean;
+  }>(path, { signal: opts?.signal });
+  return { fixtures: res.fixtures ?? [], leagueNames: res.league_names ?? {} };
 }
 
 /** One sports fixture row from ``GET /fixtures/browse`` (deployment-api). Same shape as ``UpcomingFixture``. */
@@ -1043,12 +1058,28 @@ export interface CatalogueLifecycleRow {
   available_from_is_venue_first_day: boolean;
 }
 
+/**
+ * Paginated response shape shared by ``/instruments/new-listings`` and
+ * ``/instruments/upcoming-expiries`` (F10, 2026-07-18) — mirrors
+ * ``InstrumentCatalogueResponse``'s ``total_count``/``limit``/``offset``/
+ * ``has_more`` pagination fields.
+ */
+export interface LifecyclePage {
+  rows: CatalogueLifecycleRow[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
 export async function fetchNewListings(opts?: {
   max_age_days?: number;
   asset_group?: string;
   venue?: string;
+  limit?: number;
+  offset?: number;
   signal?: AbortSignal;
-}): Promise<CatalogueLifecycleRow[]> {
+}): Promise<LifecyclePage> {
   const searchParams = new URLSearchParams();
   if (opts?.max_age_days != null) {
     searchParams.set("max_age_days", String(opts.max_age_days));
@@ -1059,20 +1090,40 @@ export async function fetchNewListings(opts?: {
   if (opts?.venue) {
     searchParams.set("venue", opts.venue);
   }
+  if (opts?.limit != null) {
+    searchParams.set("limit", String(opts.limit));
+  }
+  if (opts?.offset != null) {
+    searchParams.set("offset", String(opts.offset));
+  }
   const q = searchParams.toString();
   const path = `/instruments/new-listings${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ new_listings: CatalogueLifecycleRow[]; mock?: boolean }>(path, {
-    signal: opts?.signal,
-  });
-  return res.new_listings ?? [];
+  const res = await fetchJson<{
+    new_listings: CatalogueLifecycleRow[];
+    total_count?: number;
+    limit?: number;
+    offset?: number;
+    has_more?: boolean;
+    mock?: boolean;
+  }>(path, { signal: opts?.signal });
+  const rows = res.new_listings ?? [];
+  return {
+    rows,
+    total_count: res.total_count ?? rows.length,
+    limit: res.limit ?? opts?.limit ?? rows.length,
+    offset: res.offset ?? opts?.offset ?? 0,
+    has_more: res.has_more ?? false,
+  };
 }
 
 export async function fetchUpcomingExpiries(opts?: {
   within_days?: number;
   asset_group?: string;
   venue?: string;
+  limit?: number;
+  offset?: number;
   signal?: AbortSignal;
-}): Promise<CatalogueLifecycleRow[]> {
+}): Promise<LifecyclePage> {
   const searchParams = new URLSearchParams();
   if (opts?.within_days != null) {
     searchParams.set("within_days", String(opts.within_days));
@@ -1083,12 +1134,30 @@ export async function fetchUpcomingExpiries(opts?: {
   if (opts?.venue) {
     searchParams.set("venue", opts.venue);
   }
+  if (opts?.limit != null) {
+    searchParams.set("limit", String(opts.limit));
+  }
+  if (opts?.offset != null) {
+    searchParams.set("offset", String(opts.offset));
+  }
   const q = searchParams.toString();
   const path = `/instruments/upcoming-expiries${q ? `?${q}` : ""}`;
-  const res = await fetchJson<{ upcoming_expiries: CatalogueLifecycleRow[]; mock?: boolean }>(path, {
-    signal: opts?.signal,
-  });
-  return res.upcoming_expiries ?? [];
+  const res = await fetchJson<{
+    upcoming_expiries: CatalogueLifecycleRow[];
+    total_count?: number;
+    limit?: number;
+    offset?: number;
+    has_more?: boolean;
+    mock?: boolean;
+  }>(path, { signal: opts?.signal });
+  const rows = res.upcoming_expiries ?? [];
+  return {
+    rows,
+    total_count: res.total_count ?? rows.length,
+    limit: res.limit ?? opts?.limit ?? rows.length,
+    offset: res.offset ?? opts?.offset ?? 0,
+    has_more: res.has_more ?? false,
+  };
 }
 
 /**
