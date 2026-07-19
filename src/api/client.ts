@@ -1454,7 +1454,14 @@ export interface TurboChainStatus {
 // this type. Source:
 // unified_api_contracts/canonical/domain/features/registry.py.
 export type FeatureFamily =
-  "calendar" | "commodity" | "cross_instrument" | "delta_one" | "multi_timeframe" | "onchain" | "sports" | "volatility";
+  | "calendar"
+  | "commodity"
+  | "cross_instrument"
+  | "delta_one"
+  | "multi_timeframe"
+  | "onchain"
+  | "sports"
+  | "volatility";
 
 export const FEATURE_FAMILIES: ReadonlyArray<FeatureFamily> = [
   "calendar",
@@ -3029,6 +3036,59 @@ export async function fetchAxisValueCensus(opts: {
   return fetchJson<AxisValueCensus>(`/data-status/axis-value-census?${qp.toString()}`, { signal: opts.signal });
 }
 
+/**
+ * One distinct RAW value on an axis, with a server-computed canonical flag —
+ * from ``GET /data-status/distinct-values/{asset_group}``. Unlike the
+ * ``AxisValueCensus`` (which infers likely duplicates client-side and reads the
+ * live manifest), ``is_canonical`` here is the backend's exact, case-sensitive
+ * membership test against the UAC SSOT sets (``VENUES_BY_ASSET_GROUP`` /
+ * ``InstrumentType`` enum / ``DATA_TYPES_BY_ASSET_GROUP`` / ``MAINNET_CHAIN_IDS``).
+ */
+export interface DistinctAxisValue {
+  value: string;
+  is_canonical: boolean;
+}
+
+/** The four axes enumerated by the distinct-values endpoint. */
+export interface DistinctValuesAxes {
+  venues: DistinctAxisValue[];
+  instrument_types: DistinctAxisValue[];
+  data_types: DistinctAxisValue[];
+  chains: DistinctAxisValue[];
+}
+
+/**
+ * Response from ``GET /data-status/distinct-values/{asset_group}`` (deployment-api
+ * ``routes/data_status/_distinct_values.py``) — the RAW distinct-values
+ * enumeration surface. Sourced from the nightly honest-coverage ``coverage.json``
+ * rollup (``by_venue`` / ``by_venue_instrument_type`` / ``by_venue_data_type`` /
+ * ``by_chain`` map keys — a single bounded blob read, NOT a whole-corpus walk).
+ * Values are deliberately NOT collapsed, so an operator can eyeball drift /
+ * duplication: a value with ``is_canonical: false`` gets a badge in the UI.
+ */
+export interface DistinctValuesResponse {
+  asset_group: string;
+  source: string;
+  source_date: string;
+  generated_at: string;
+  axes: DistinctValuesAxes;
+  non_canonical_count: {
+    venues: number;
+    instrument_types: number;
+    data_types: number;
+    chains: number;
+  };
+}
+
+export async function fetchDistinctValues(opts: {
+  asset_group: string;
+  signal?: AbortSignal;
+}): Promise<DistinctValuesResponse> {
+  return fetchJson<DistinctValuesResponse>(`/data-status/distinct-values/${encodeURIComponent(opts.asset_group)}`, {
+    signal: opts.signal,
+  });
+}
+
 // Services that write per-venue-day-bundle parquets and support shard CSV download.
 export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
   "instruments-service",
@@ -3120,7 +3180,12 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
  * response body for the non-captured branches.
  */
 export type ShardDownloadStatus =
-  "captured" | "empty_confirmed" | "attempted_failed" | "never_attempted" | "path_drift" | "unknown";
+  | "captured"
+  | "empty_confirmed"
+  | "attempted_failed"
+  | "never_attempted"
+  | "path_drift"
+  | "unknown";
 
 export interface ShardDownloadResult {
   status: ShardDownloadStatus;
