@@ -66,6 +66,7 @@ import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
 import { TypedReasonBadges } from "./TypedReasonBadges";
 import { AxisValueCensus } from "./AxisValueCensus";
+import { DistinctValuesPanel } from "./DistinctValuesPanel";
 import { CatalogueExplorer } from "./CatalogueExplorer";
 import { HonestCoverageCard } from "./HonestCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
@@ -1768,6 +1769,13 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               identity catalogue behind CatalogueExplorer's dropdowns, and not
               canonicalised like the drilldown/coverage-summary breakdowns). */}
           {serviceName === "instruments-service" && <AxisValueCensus />}
+
+          {/* RAW distinct-values enumeration (cefi_consolidated_closeout_2026_07_18)
+              — every distinct raw value per axis (venues / instrument_types /
+              data_types / chains) from the honest-coverage rollup, each flagged
+              with the backend's authoritative is_canonical verdict so drift /
+              duplication is eyeball-able. */}
+          {serviceName === "instruments-service" && <DistinctValuesPanel />}
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />

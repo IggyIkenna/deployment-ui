@@ -2705,13 +2705,10 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
       ["(unlabeled)", "gcp", 8956, "GCP label", "other"],
       ["manifest-consolidator", "gcp", 3685, "GCP label", "other"],
       ["market-data-raw", "gcp", 945, "GCP label", "other"],
-      ...Array.from({ length: 125 }, (_, i): Row => [
-        `purpose-${i + 1}`,
-        "gcp",
-        +(400 - i * 2.5).toFixed(2),
-        "GCP label",
-        "other",
-      ]),
+      ...Array.from(
+        { length: 125 },
+        (_, i): Row => [`purpose-${i + 1}`, "gcp", +(400 - i * 2.5).toFixed(2), "GCP label", "other"],
+      ),
     ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
@@ -4577,6 +4574,48 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       venues: ["BINANCE-SPOT", "DERIBIT", "OKX-SPOT"],
       instrument_types: ["OPTION", "SPOT_PAIR"],
       data_types: ["instruments"],
+      mock: true,
+    });
+  }
+  // RAW distinct-values enumeration (honest-coverage-rollup sourced) — the
+  // server-side canonical-drift surface consumed by the DistinctValuesPanel.
+  // Carries NON-canonical duplicate spellings (AAVE/AAVE_V3, lending/LENDING,
+  // dex_pools/dex_pool_state, HYPERLIQUID) each with an `is_canonical` flag so
+  // mock mode exercises the same badge path as real data. Path is
+  // `/distinct-values/{asset_group}`, so it must precede the broader
+  // `/api/data-status/...` prefixes below.
+  if (path.startsWith("/api/data-status/distinct-values")) {
+    const assetGroup = (path.split("/").pop() || "defi").toLowerCase();
+    return json({
+      asset_group: assetGroup,
+      source: "honest-coverage-rollup",
+      source_date: "2026-07-18",
+      generated_at: "2026-07-18T02:14:00+00:00",
+      axes: {
+        venues: [
+          { value: "AAVE", is_canonical: false },
+          { value: "AAVE_V3", is_canonical: false },
+          { value: "UNISWAP_V3-ETHEREUM", is_canonical: true },
+          { value: "COMPOUND", is_canonical: false },
+        ],
+        instrument_types: [
+          { value: "LENDING", is_canonical: true },
+          { value: "lending", is_canonical: false },
+          { value: "POOL", is_canonical: true },
+          { value: "pool", is_canonical: false },
+        ],
+        data_types: [
+          { value: "dex_pool_state", is_canonical: true },
+          { value: "dex_pools", is_canonical: false },
+          { value: "dex_swaps", is_canonical: false },
+        ],
+        chains: [
+          { value: "ETHEREUM", is_canonical: true },
+          { value: "ARBITRUM", is_canonical: true },
+          { value: "HYPERLIQUID", is_canonical: false },
+        ],
+      },
+      non_canonical_count: { venues: 3, instrument_types: 2, data_types: 2, chains: 1 },
       mock: true,
     });
   }
