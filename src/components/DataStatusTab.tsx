@@ -61,6 +61,9 @@ import { FixtureBreakdown } from "./FixtureBreakdown";
 import { FixturesBrowser } from "./FixturesBrowser";
 import { HeatmapCalendar } from "./HeatmapCalendar";
 import { HierarchicalShardDrilldown } from "./HierarchicalShardDrilldown";
+import { NeedsAttention } from "./NeedsAttention";
+import type { NeedsAttentionItem } from "../lib/needs-attention";
+import { deriveNeedsAttention } from "../lib/needs-attention";
 import { LeafSchemaModal, type LeafSchemaModalCoord } from "./LeafSchemaModal";
 import { PoolBreakdownModal } from "./PoolBreakdownModal";
 import { ShardDetailModal, type ShardDetailCoordInput } from "./ShardDetailModal";
@@ -714,6 +717,30 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   const requestIdRef = useRef(0);
   // AbortController for cancelling in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // "Needs Attention" triage panel (top of the Data Status surface) — ranks
+  // failures/gaps/stale captures across every asset_group already loaded in
+  // `turboData`. Pure derivation lives in lib/needs-attention.ts; this just
+  // memoizes it and wires row-clicks to the existing "filter to category"
+  // affordance + scrolls the Data Coverage card into view.
+  const needsAttentionItems = useMemo(() => deriveNeedsAttention(turboData), [turboData]);
+  const dataCoverageCardRef = useRef<HTMLDivElement>(null);
+  const handleNeedsAttentionSelect = useCallback((item: NeedsAttentionItem) => {
+    setSelectedCategories([item.assetGroup]);
+    // Scrolling `dataCoverageCardRef` right here races the re-render the
+    // `setSelectedCategories` state update schedules — content above the
+    // card can grow/shrink as the category filter takes effect, moving the
+    // card AGAIN after this scroll lands (measured flake: the card was
+    // back out of viewport by the time an assertion checked). Defer past
+    // two animation frames so the scroll runs against the POST-update,
+    // painted layout instead of the stale pre-update one. "auto" (instant),
+    // not "smooth" — no need to animate a jump that's already deferred.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        dataCoverageCardRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      });
+    });
+  }, []);
 
   // Cancel any pending query
   const cancelQuery = useCallback(() => {
@@ -2216,6 +2243,8 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                           type="button"
                           variant={selectedCategories.includes(cat) ? "default" : "outline"}
                           size="sm"
+                          data-testid={`asset-group-toggle-${cat}`}
+                          data-selected={selectedCategories.includes(cat)}
                           onClick={() => {
                             setSelectedCategories((prev) =>
                               prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
@@ -3433,8 +3462,13 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           )}
           {turboData && turboData.date_range && !checkVenues && !checkDataTypes && (
             <>
+              {/* Needs Attention — cross-cutting triage panel, ranked failures >
+                  gaps > stale, ABOVE the per-category drilldown so the worst
+                  problems are visible without expanding anything. */}
+              <NeedsAttention items={needsAttentionItems} onSelect={handleNeedsAttentionSelect} />
+
               {/* Summary Card */}
-              <Card>
+              <Card ref={dataCoverageCardRef}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
