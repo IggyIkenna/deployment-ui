@@ -345,6 +345,7 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
                 <thead>
                   <tr className="text-left text-[10px] uppercase text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                     <th className="py-1.5 pr-2 font-medium">Instrument</th>
+                    <th className="py-1.5 pr-2 font-medium">Name</th>
                     <th className="py-1.5 pr-2 font-medium">Venue</th>
                     <th className="py-1.5 pr-2 font-medium">Type / data_type</th>
                     <th className="py-1.5 pr-2 font-medium">Capture status</th>
@@ -372,6 +373,21 @@ export function CatalogueExplorer({ service = "instruments-service" }: { service
                             </Badge>
                           )}
                         </div>
+                      </td>
+                      {/* Human-readable name (KRX equities: "Samsung Electronics" next to
+                          the bare 6-digit code). Honest em-dash when the instrument carries
+                          no display name (its instrument_id is already readable). */}
+                      <td
+                        className="py-1.5 pr-2 max-w-[16rem]"
+                        data-testid={`catalogue-explorer-name-${row.instrument_id}`}
+                      >
+                        {row.name ? (
+                          <span className="truncate" title={row.name}>
+                            {row.name}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--color-text-muted)]">—</span>
+                        )}
                       </td>
                       <td className="py-1.5 pr-2">
                         <Badge variant="outline" className="text-[9px] font-mono">
