@@ -599,6 +599,20 @@
         </div>
 
         <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+            "
+          >
+            <button class="btn" id="run-toggle-all">Expand all</button>
+            <span class="dim" style="font-size: 11.5px">
+              click a <b>service</b> to collapse it · click a <b>host count</b> to see the hosts
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
@@ -1811,7 +1825,8 @@
       document.getElementById("tb-run").innerHTML = runGroups
         .map((g, gi) => {
           const total = g.versions.reduce((a, v) => a + v.hosts.length, 0);
-          const head = `<tr><td colspan="7" style="background:var(--color-bg-tertiary);padding:8px 12px">
+          const head = `<tr data-svc="${gi}" style="cursor:pointer;user-select:none"><td colspan="7" style="background:var(--color-bg-tertiary);padding:8px 12px">
+              <span class="caret-svc" style="color:var(--color-text-muted);display:inline-block;width:12px">▾</span>
               <span style="font-weight:600">${g.svc}</span>
               <span class="pill ${g.lane === "tarball" ? "p-purple" : "p-cyan"}" style="margin-left:8px">${g.lane}</span>
               ${cloudPill(g.c)}
@@ -1822,7 +1837,7 @@
           const rows = g.versions
             .map((v, vi) => {
               const key = `${gi}-${vi}`;
-              const vrow = `<tr data-v="${key}">
+              const vrow = `<tr data-v="${key}" data-vgroup="${gi}">
               <td class="mono" style="font-size:11.5px;padding-left:22px">${v.ver}</td>
               <td class="mono dim" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis">${v.art}</td>
               <td>${v.from ? `<a class="sha" href="#">${v.from}</a>` : '<span class="unk">unknown</span>'}</td>
@@ -1833,7 +1848,7 @@
             </tr>`;
               const hrows = v.hosts
                 .map(
-                  (h) => `<tr class="hide" data-host="${key}">
+                  (h) => `<tr class="hide" data-host="${key}" data-hgroup="${gi}">
               <td colspan="2" class="mono" style="font-size:11px;padding-left:44px;color:var(--color-text-tertiary)">${h.n}</td>
               <td class="dim" style="font-size:11px">${h.k}</td>
               <td colspan="2" class="dim" style="font-size:11px">launched ${h.t}</td>
@@ -1959,7 +1974,36 @@
         drawer.classList.add("on");
       };
 
+      /* expand/collapse ALL — expands services AND their host lists; collapse leaves only service headers */
+      document.getElementById("run-toggle-all").addEventListener("click", (e) => {
+        const btn = e.currentTarget;
+        const expand = btn.textContent.trim() === "Expand all";
+        document
+          .querySelectorAll("#tb-run tr[data-vgroup], #tb-run tr[data-host]")
+          .forEach((r) => r.classList.toggle("hide", !expand));
+        document.querySelectorAll("#tb-run tr[data-svc]").forEach((r) => {
+          r.dataset.collapsed = expand ? "0" : "1";
+          r.querySelector(".caret-svc").textContent = expand ? "▾" : "▸";
+        });
+        document.querySelectorAll("#tb-run .caret").forEach((c) => (c.textContent = expand ? "▾" : "▸"));
+        btn.textContent = expand ? "Collapse all" : "Expand all";
+      });
+
       document.getElementById("tb-run").addEventListener("click", (e) => {
+        /* click a service header → collapse/expand its versions (hosts always fold away) */
+        const svcRow = e.target.closest("tr[data-svc]");
+        if (svcRow) {
+          const gi = svcRow.dataset.svc;
+          const collapsed = svcRow.dataset.collapsed === "1";
+          document
+            .querySelectorAll(`#tb-run tr[data-vgroup="${gi}"]`)
+            .forEach((r) => r.classList.toggle("hide", !collapsed));
+          document.querySelectorAll(`#tb-run tr[data-hgroup="${gi}"]`).forEach((r) => r.classList.add("hide"));
+          document.querySelectorAll(`#tb-run tr[data-vgroup="${gi}"] .caret`).forEach((c) => (c.textContent = "▸"));
+          svcRow.dataset.collapsed = collapsed ? "0" : "1";
+          svcRow.querySelector(".caret-svc").textContent = collapsed ? "▾" : "▸";
+          return;
+        }
         const hostsCell = e.target.closest("[data-toggle]");
         if (hostsCell) {
           const key = hostsCell.dataset.toggle;
