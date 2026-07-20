@@ -561,7 +561,7 @@
       </div>
 
       <div class="tabs" id="tabs">
-        <button data-t="run" class="on">What's running <span class="cnt">16</span></button>
+        <button data-t="run" class="on">What&#39;s running <span class="cnt">13 svc</span></button>
         <button data-t="deploy">Deploy timeline <span class="cnt">192/svc</span></button>
         <button data-t="pipe">Pipeline <span class="cnt">2,000+</span></button>
         <button data-t="art">Artifacts <span class="cnt">~1.5 TB</span></button>
@@ -572,46 +572,58 @@
       <section id="v-run">
         <div class="stats">
           <div class="stat">
-            <div class="k">Pinned to a digest</div>
-            <div class="v" style="color: var(--color-accent-green)">2</div>
-            <div class="s">provably reproducible</div>
+            <div class="k">Services running &gt;1 version</div>
+            <div class="v" style="color: var(--color-accent-amber)">4</div>
+            <div class="s">of 13 · fragmented right now</div>
           </div>
           <div class="stat">
-            <div class="k">Pinned to a SHA tag</div>
-            <div class="v" style="color: var(--color-accent-green)">4</div>
-            <div class="s">traceable to a commit</div>
+            <div class="k">Hosts on an unresolvable version</div>
+            <div class="v" style="color: var(--color-text-tertiary)">13</div>
+            <div class="s">of 27 · every tarball VM</div>
           </div>
           <div class="stat">
-            <div class="k">Floating <span class="mono">:latest</span></div>
-            <div class="v" style="color: var(--color-accent-red)">11</div>
-            <div class="s">restart = unknown code</div>
+            <div class="k">Hosts on a floating pointer</div>
+            <div class="v" style="color: var(--color-accent-red)">19</div>
+            <div class="s"><span class="mono">:latest</span> or floating tarball</div>
           </div>
           <div class="stat">
             <div class="k">Hand-deployed</div>
-            <div class="v" style="color: var(--color-accent-red)">3</div>
+            <div class="v" style="color: var(--color-accent-red)">2</div>
             <div class="s">bypassed the pipeline</div>
           </div>
           <div class="stat">
-            <div class="k">No matching build</div>
-            <div class="v" style="color: var(--color-accent-amber)">6</div>
-            <div class="s">provenance unknown</div>
+            <div class="k">Digest-pinned</div>
+            <div class="v" style="color: var(--color-accent-green)">2</div>
+            <div class="s">provably reproducible</div>
           </div>
         </div>
 
         <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+            "
+          >
+            <button class="btn" id="run-toggle-all">Expand all</button>
+            <span class="dim" style="font-size: 11.5px">
+              click a <b>service</b> to collapse it · click a <b>host count</b> to see the hosts
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
                 <tr>
-                  <th>Target</th>
-                  <th>Kind</th>
-                  <th>Cloud</th>
-                  <th>Artifact it runs</th>
-                  <th>Resolved digest</th>
+                  <th>Service / version</th>
+                  <th>Artifact</th>
                   <th>Built from</th>
-                  <th>Deployed</th>
-                  <th>By</th>
+                  <th>Hosts</th>
+                  <th>Oldest host</th>
                   <th>Drift</th>
+                  <th>Go to</th>
                 </tr>
               </thead>
               <tbody id="tb-run"></tbody>
@@ -636,13 +648,27 @@
               ><span class="pill p-grey"><span class="dot"></span>unknown</span> honestly unresolvable — never faked
               green</span
             >
+            <span
+              ><span class="pill p-amber"><span class="dot"></span>fragmented</span> more than one version of this
+              service live at once</span
+            >
           </div>
           <div class="note">
-            <b>This view does not exist today.</b> <span class="mono">_image_signal</span> answers the
-            <i>image-level</i> question ("is main's code built into the latest image?") and was explicitly scoped "v1
-            image-level, not runtime-level" — so nothing currently resolves what a workload is <i>actually</i> running.
-            The join works: a Cloud Run revision resolves even a <span class="mono">:latest</span> pin to a real digest
-            in <span class="mono">status.imageDigest</span>.
+            <b>One row per <i>version</i>, not per host.</b> The estate is an ephemeral VM fleet — a per-host table
+            would be noise, and the Deployments page already owns the host census. Click a host count to expand, or
+            <b>Go to → hosts</b> to open Deployments pre-filtered to exactly those hosts. <br /><br />
+            <b>Why fragmentation is the headline.</b> A Cloud Run service rolls forward;
+            <b>a VM never updates itself</b> — one launched 3 days ago runs 3-day-old code for its entire life. So a fix
+            shipped today never reaches VMs launched before it, and they keep writing pre-fix data. That is a
+            data-correctness problem, and nothing surfaces it today. <br /><br />
+            <b>The tarball rows are the argument for the stamp fix.</b> Those four
+            <span class="mono">features-sports</span> VMs launched in two cohorts 7h apart, and the tarball refreshes
+            every 30 min — so they are <i>probably</i> running different code. We cannot prove it, because
+            <span class="mono">git_commit</span> is <span class="mono">""</span> on all 13 live VMs (measured 40/40 in a
+            wider sample). The audit cleared a 2-line, zero-Python fix that records it going forward; until then these
+            stay ⚪ <b>unknown</b> rather than guessing. Reconstructing history was evaluated and
+            <b>deliberately dropped</b> — the honest ceiling was "±30 minutes, per repo", and a falsely precise number
+            is worse than a blank.
           </div>
         </div>
       </section>
@@ -888,200 +914,290 @@
 
       const AR = "asia-northeast1-docker.pkg.dev/central-element-323112";
 
-      const running = [
+      /* MEASURED live 2026-07-17 (Cloud Run/AR/ECR) + 2026-07-20 (GCE fleet).
+         Row unit = service x artifact VERSION, not host. Hosts nest under each version. */
+      const runGroups = [
         {
-          t: "client-reporting-api",
-          k: "Cloud Run svc",
+          svc: "deployment-api",
+          lane: "image",
           c: "gcp",
-          art: "unified-trading-system/client-reporting-api:dqssotfix",
-          dig: null,
-          from: null,
-          dep: "2026-06-23T18:03:38Z",
-          by: "ikenna@odum-research.com",
-          drift: ["hand", "unknown"],
-          why: "Tag <span class='mono'>dqssotfix</span> matches no build, no version, no commit. A human pushed it 24 days ago. <span class='mono'>/api/repo-ci/overview</span> reports <span class='mono'>build=None</span> for this repo — image-level is blind here.",
+          frag: true,
+          fragNote: "same image, two versions serving at once",
+          versions: [
+            {
+              ver: "f4e828c",
+              art: "unified-trading-system/deployment-api:f4e828c",
+              dig: "sha256:77a40d7534574a920ef43c60fd95ac0b…",
+              from: "f4e828c",
+              drift: ["ok"],
+              hosts: [{ n: "uts-shared-deployment-api", k: "Cloud Run svc", t: "2026-07-17T13:33:15Z" }],
+              why: "Healthy: SHA-tagged, pipeline-deployed, resolves to a digest, traceable to commit <span class='mono'>f4e828c</span>. Also the host image for deployment-ui's SPA (bundled deploy).",
+            },
+            {
+              ver: "4481d4b",
+              art: "unified-trading-system/deployment-api:4481d4b",
+              dig: "sha256:(resolves)",
+              from: "4481d4b",
+              drift: ["stale"],
+              hosts: [{ n: "uts-prod-data-status-rollup-svc", k: "Cloud Run svc", t: "2026-07-16T16:07:01Z" }],
+              why: "SHA-pinned and traceable, but <span class='mono'>4481d4b</span> is behind <span class='mono'>f4e828c</span> which the sibling service already runs. <b>Two versions of one image serving simultaneously</b> — exactly the fragmentation this view exists to surface.",
+            },
+          ],
         },
         {
-          t: "dp-alerting-subscriber",
-          k: "Cloud Run svc",
+          svc: "instruments-service",
+          lane: "image",
           c: "gcp",
-          art: "unified-trading-system/alerting-service:latest",
-          dig: "sha256:4aec40bfb24b94a27a75fb7ce5287f1f58a700273dbdfb8e6501487d491077c6",
-          from: "17f4369",
-          dep: "2026-06-24T16:12:51Z",
-          by: "ikenna@odum-research.com",
-          drift: ["floating"],
-          why: "Runs a floating <span class='mono'>:latest</span>. The revision pins digest <span class='mono'>4aec40bf</span> today, but any restart/redeploy silently picks up whatever <span class='mono'>:latest</span> points at then.",
+          frag: true,
+          fragNote: "one job digest-pinned, its siblings floating",
+          versions: [
+            {
+              ver: "@sha256:d569a654…",
+              art: "unified-trading-system/instruments-service@sha256:d569a654…",
+              dig: "sha256:d569a6548d4dde511a994c5e35f0dd04…",
+              from: null,
+              drift: ["pinned"],
+              hosts: [{ n: "expected-universe-v2-tradfi", k: "Cloud Run job", t: "—" }],
+              why: "Digest-pinned — the gold standard, immutable and provable. But its four sibling jobs in the same family run <span class='mono'>:latest</span>, so one job family can silently split across two code versions.",
+            },
+            {
+              ver: ":latest",
+              art: "unified-trading-system/instruments-service:latest",
+              dig: null,
+              from: null,
+              drift: ["floating"],
+              hosts: [
+                { n: "expected-universe-v2-cefi", k: "Cloud Run job", t: "—" },
+                { n: "expected-universe-v2-defi", k: "Cloud Run job", t: "—" },
+                { n: "expected-universe-v2-prediction", k: "Cloud Run job", t: "—" },
+                { n: "expected-universe-v2-sports", k: "Cloud Run job", t: "—" },
+                { n: "is-daily-enum-cefi", k: "Cloud Run job", t: "—" },
+                { n: "is-daily-enum-defi", k: "Cloud Run job", t: "—" },
+              ],
+              why: "Floating <span class='mono'>:latest</span> across six jobs while their <span class='mono'>tradfi</span> sibling is digest-pinned. Each execution may pull different code than the last, and than each other.",
+            },
+          ],
         },
         {
-          t: "uts-shared-deployment-api",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "unified-trading-system/deployment-api:f4e828c",
-          dig: "sha256:77a40d7534574a920ef43c60fd95ac0b4f41ac208e29e1bf557bebbba5b43015",
-          from: "f4e828c",
-          dep: "2026-07-17T13:33:15Z",
-          by: "cloudbuild.gserviceaccount.com",
-          drift: ["ok"],
-          why: "Healthy: SHA-tagged, deployed by the pipeline, resolves to a digest, traceable to commit <span class='mono'>f4e828c</span>. Also the host image for deployment-ui's SPA (bundled deploy).",
-        },
-        {
-          t: "deployment-dashboard",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "deployment-dashboard/deployment-dashboard:f000ee32…",
-          dig: "sha256:(resolves)",
-          from: "f000ee3",
-          dep: "2026-07-17T14:13:33Z",
-          by: "cloudbuild.gserviceaccount.com",
-          drift: ["ok"],
-          why: "Full 40-char SHA tag — the strictest pin in the fleet. Deployed 20 minutes ago by Cloud Build.",
-        },
-        {
-          t: "uts-prod-data-status-rollup-svc",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "unified-trading-system/deployment-api:4481d4b",
-          dig: "sha256:(resolves)",
-          from: "4481d4b",
-          dep: "2026-07-16T16:07:01Z",
-          by: "cloudbuild.gserviceaccount.com",
-          drift: ["stale"],
-          why: "SHA-pinned and traceable — but <span class='mono'>4481d4b</span> is behind <span class='mono'>f4e828c</span>, which the sibling service already runs. Same image, two versions live at once.",
-        },
-        {
-          t: "expected-universe-v2-tradfi",
-          k: "Cloud Run job",
-          c: "gcp",
-          art: "unified-trading-system/instruments-service@sha256:d569a654…",
-          dig: "sha256:d569a6548d4dde511a994c5e35f0dd043aa6f1b67c9375d1f51f3793bddee98d",
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["pinned"],
-          why: "Digest-pinned — the gold standard. Immutable and provable. Note its four sibling jobs (cefi/defi/prediction/sports) run <span class='mono'>:latest</span> instead — same job family, inconsistent pinning.",
-        },
-        {
-          t: "expected-universe-v2-cefi",
-          k: "Cloud Run job",
-          c: "gcp",
-          art: "unified-trading-system/instruments-service:latest",
-          dig: null,
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["floating"],
-          why: "Floating <span class='mono'>:latest</span> while its tradfi sibling is digest-pinned. Two jobs in one family can silently run different code.",
-        },
-        {
-          t: "features-service-sports-job",
-          k: "Cloud Run job",
-          c: "gcp",
-          art: "unified-trading-system/features-service@sha256:b7fc3d7f…",
-          dig: "sha256:b7fc3d7f7b92fe37edfae592b8c62244ecc46d5598dd4e08571508de08fb3117",
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["pinned"],
-          why: "Digest-pinned.",
-        },
-        {
-          t: "client-reporting-batch",
-          k: "Cloud Run job",
-          c: "gcp",
-          art: "unified-trading-system/client-reporting-batch:auto-202604091748",
-          dig: null,
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["hand", "unknown"],
-          why: "A timestamp tag (<span class='mono'>auto-202604091748</span> ≈ 2026-04-09). Not a SHA, not a version — a fifth tagging convention, and unresolvable to a commit.",
-        },
-        {
-          t: "market-data-query-service",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "market-data-handler/market-data-query-service:latest",
-          dig: null,
-          from: null,
-          dep: "2025-10-20T19:42:24Z",
-          by: "ikenna@odum-research.com",
-          drift: ["floating", "unknown"],
-          why: "Floating <span class='mono'>:latest</span>, hand-deployed <b>21 months ago</b>, from registry <span class='mono'>market-data-handler</span> — which isn't in the build pipeline at all.",
-        },
-        {
-          t: "visualizer-api",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "execution-services/visualizer-api:latest",
-          dig: null,
-          from: null,
-          dep: "2026-02-03T11:22:55Z",
-          by: "github-actions-deploy",
-          drift: ["floating", "unknown"],
-          why: "Registry <span class='mono'>execution-services</span> has no Cloud Build trigger — this image is built by something outside the audited pipeline.",
-        },
-        {
-          t: "odum-portal",
-          k: "Cloud Run svc",
-          c: "gcp",
-          art: "europe-west4…/cloud-run-source-deploy/odum-portal:production",
-          dig: null,
-          from: null,
-          dep: "2026-06-24T05:37:06Z",
-          by: "ikenna@odum-research.com",
-          drift: ["floating", "unknown"],
-          why: "A <span class='mono'>:production</span> env tag in <b>europe-west4</b> (every other workload is asia-northeast1), from the auto-generated <span class='mono'>cloud-run-source-deploy</span> registry.",
-        },
-        {
-          t: "uts-deployment-api-prod",
-          k: "App Runner",
-          c: "aws",
-          art: "…dkr.ecr.ap-northeast-1…/deployment-api:0.52.0",
-          dig: "sha256:660acd0596535…",
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["unknown"],
-          why: "ECR tags carry a version but <b>no git SHA</b> — so the commit is not derivable from the registry. It must be joined through the CodeBuild record's <span class='mono'>resolvedSourceVersion</span>.",
-        },
-        {
-          t: "uts-defi-prod",
-          k: "ECS cluster",
-          c: "aws",
-          art: "(5 clusters — task defs not yet enumerated)",
-          dig: null,
-          from: null,
-          dep: "—",
-          by: "—",
-          drift: ["unknown"],
-          why: "5 ECS clusters exist (uts-defi-prod, unified-trading-{dev,staging,prod}, a Batch-Fargate consolidator). Task-definition → image resolution is the AWS-side equivalent of the Cloud Run revision join.",
-        },
-        {
-          t: "mtds-backfill-vm-… (13 live)",
-          k: "GCE VM · tarball",
-          c: "gcp",
-          art: "code/mtds-code.tar.gz (floating)",
-          dig: null,
-          from: null,
+          svc: "features-service",
           lane: "tarball",
-          dep: "—",
-          by: "—",
-          drift: ["floating", "unknown"],
-          why: "<b>The Lane-B runtime join is broken by construction.</b> The registry entry has <span class='mono'>git_commit: \"\"</span> and <span class='mono'>image_digest: \"\"</span> on every live VM — measured on 2/13, and confirmed in code: nothing on the tarball path ever exports the env vars <span class='mono'>bom.py</span> reads. The tarball's real SHA <i>is</i> known (it's in the sidecar manifest and logged at boot) — it just never reaches the registry.",
+          c: "gcp",
+          frag: true,
+          fragNote: "2 launch cohorts ~7h apart — commits UNRESOLVABLE, so we cannot prove they differ",
+          versions: [
+            {
+              ver: "cohort B · 2026-07-20 13:19Z",
+              art: "code/features-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [
+                { n: "features-sports-sports-20260720-131907", k: "GCE VM", t: "2026-07-20T13:19:17Z" },
+                { n: "features-sports-sports-20260720-131925", k: "GCE VM", t: "2026-07-20T13:19:33Z" },
+              ],
+              why: "<b>This is the argument for the stamp fix.</b> These launched ~7h after the cohort below, and the tarball refreshes every 30 min — so they are <i>probably</i> running different code. We cannot prove it: <span class='mono'>git_commit</span> is <span class='mono'>\"\"</span> on all 13 live VMs (40/40 in a wider sample). The SHA <i>is</i> measured at boot and logged, then discarded because the setup log only uploads on failure. A 2-line, zero-Python fix records it going forward.",
+            },
+            {
+              ver: "cohort A · 2026-07-20 06:33Z",
+              art: "code/features-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [
+                { n: "features-sports-sports-20260720-063306", k: "GCE VM", t: "2026-07-20T06:33:13Z" },
+                { n: "features-sports-sports-20260720-063322", k: "GCE VM", t: "2026-07-20T06:33:29Z" },
+              ],
+              why: "Older cohort. A VM never updates itself, so whatever these pulled at boot is what they run for their whole life — writing into the same feature dataset as the newer cohort. Reconstructing the commit from the manifest timeline was evaluated and <b>deliberately dropped</b>: the honest ceiling was ±30 minutes per repo, and a falsely precise number is worse than an honest blank.",
+            },
+          ],
         },
         {
-          t: "(any tarball VM) — dep_versions",
-          k: "GCE VM · tarball",
+          svc: "features-service",
+          lane: "image",
           c: "gcp",
-          art: 'dep_versions: {"unified-api-contracts":"0.99.0", …}',
-          dig: null,
-          from: null,
+          frag: false,
+          fragNote: "same service also ships as a tarball — see the group above",
+          versions: [
+            {
+              ver: "@sha256:b7fc3d7f…",
+              art: "unified-trading-system/features-service@sha256:b7fc3d7f…",
+              dig: "sha256:b7fc3d7f7b92fe37edfae592b8c62244…",
+              from: null,
+              drift: ["pinned"],
+              hosts: [{ n: "features-service-sports-job", k: "Cloud Run job", t: "—" }],
+              why: "Digest-pinned and provable. Worth contrasting with the tarball group above: <b>the same service is deployed two ways</b> — as a digest-pinned image here, and as a floating tarball on the VM fleet where the commit is unresolvable. Same code, two very different provenance stories.",
+            },
+          ],
+        },
+        {
+          svc: "mtds (backfill)",
           lane: "tarball",
-          dep: "—",
-          by: "—",
-          drift: ["fake"],
-          why: "<b>Looks populated. Carries zero signal.</b> <span class='mono'>0.99.0</span> is the <span class='mono'>SETUPTOOLS_SCM_PRETEND_VERSION</span> fallback constant — identical on every VM regardless of actual code version, because tarballs ship without <span class='mono'>.git</span> history. This is the exact 'placeholder row that looks real' anti-pattern the workspace bans, and a page that rendered it as-is would be lying.",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: "cohort · 2026-07-20 13:43Z",
+              art: "code/mtds-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [
+                { n: "mtds-backfill-tradfi-pipelinecheck-…-597c28", k: "GCE VM", t: "2026-07-20T13:43:39Z" },
+                { n: "mtds-backfill-sports-pipelinecheck-…-55d038", k: "GCE VM", t: "2026-07-20T13:43:45Z" },
+                { n: "mtds-backfill-sports-pipelinecheck-…-5b663f", k: "GCE VM", t: "2026-07-20T13:44:25Z" },
+              ],
+              why: "One tight cohort — all three launched within 46s, so almost certainly the same tarball. Still unresolvable until the stamp lands. 4064 manifests carrying the real <span class='mono'>commit_sha</span> sit in GCS; none of it reaches the registry entry.",
+            },
+          ],
+        },
+        {
+          svc: "af-backfill",
+          lane: "tarball",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: "cohort · 2026-07-19 18:05Z",
+              art: "code/…-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [
+                { n: "af-backfill-20260719-180545", k: "GCE VM", t: "2026-07-19T18:05:54Z" },
+                { n: "af-backfill-20260719-180620", k: "GCE VM", t: "2026-07-19T18:06:28Z" },
+              ],
+              why: "Launched a day before the features cohorts — so if any shared dependency tarball changed since, these two are running older code than everything else in the fleet.",
+            },
+          ],
+        },
+        {
+          svc: "cefi (backfill)",
+          lane: "tarball",
+          c: "gcp",
+          frag: true,
+          fragNote: "2 launches ~2.5h apart",
+          versions: [
+            {
+              ver: "launch · 2026-07-20 13:04Z",
+              art: "code/cefi-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [{ n: "cefi-hyperliquid-20250525-20260720-140439", k: "GCE VM", t: "2026-07-20T13:04:43Z" }],
+              why: "Unresolvable, same as the rest of the tarball lane.",
+            },
+            {
+              ver: "launch · 2026-07-20 10:25Z",
+              art: "code/cefi-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [{ n: "cefi-queue-heavy-binancefutu-x17-…", k: "GCE VM", t: "2026-07-20T10:25:49Z" }],
+              why: "Launched ~2.5h before its sibling — five refresh windows apart, so a different tarball is likely.",
+            },
+          ],
+        },
+        {
+          svc: "canonical-migration",
+          lane: "tarball",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: "launch · 2026-07-20 12:38Z",
+              art: "code/…-code.tar.gz (pinned launcher)",
+              dig: null,
+              from: null,
+              drift: ["unknown"],
+              hosts: [{ n: "canonical-migration-defi-rebuild-…-2025d", k: "GCE VM", t: "2026-07-20T12:38:04Z" }],
+              why: "<b>This launcher family already uses the pin lane</b> (<span class='mono'>*_TARBALL_SHA</span> → immutable <span class='mono'>&lt;name&gt;@&lt;sha&gt;.tar.gz</span>, fail-closed). 5 launchers do. Extending that fleet-wide would make the recorded commit an attestation rather than a plausible claim — tracked as a separate follow-up.",
+            },
+          ],
+        },
+        {
+          svc: "vm-zombie-watchdog",
+          lane: "tarball",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: "launch · 2026-07-18 16:59Z",
+              art: "code/…-code.tar.gz (floating)",
+              dig: null,
+              from: null,
+              drift: ["floating", "unknown"],
+              hosts: [{ n: "vm-zombie-watchdog-20260718-165908", k: "GCE VM", t: "2026-07-18T16:59:10Z" }],
+              why: "Oldest VM in the fleet — running whatever the tarball was two days ago, indefinitely.",
+            },
+          ],
+        },
+        {
+          svc: "alerting-service",
+          lane: "image",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: ":latest",
+              art: "unified-trading-system/alerting-service:latest",
+              dig: "sha256:4aec40bfb24b94a27a75fb7ce5287f1f…",
+              from: "17f4369",
+              drift: ["floating", "hand"],
+              hosts: [{ n: "dp-alerting-subscriber", k: "Cloud Run svc", t: "2026-06-24T16:12:51Z" }],
+              why: "The revision pins digest <span class='mono'>4aec40bf</span> today, so we <i>can</i> resolve it — but the tag is floating, so any restart or redeploy silently picks up whatever <span class='mono'>:latest</span> points at then. Hand-deployed.",
+            },
+          ],
+        },
+        {
+          svc: "client-reporting-api",
+          lane: "image",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: ":dqssotfix",
+              art: "unified-trading-system/client-reporting-api:dqssotfix",
+              dig: null,
+              from: null,
+              drift: ["hand", "unknown"],
+              hosts: [{ n: "client-reporting-api", k: "Cloud Run svc", t: "2026-06-23T18:03:38Z" }],
+              why: "A hand-made tag matching no build, no version, no commit — pushed by a human ~4 weeks ago. <span class='mono'>/api/repo-ci/overview</span> reports <span class='mono'>build=None</span> for this repo, so the existing image-level signal is <b>blind</b> here. This row is why the runtime layer is needed.",
+            },
+          ],
+        },
+        {
+          svc: "deployment-dashboard",
+          lane: "image",
+          c: "gcp",
+          frag: false,
+          versions: [
+            {
+              ver: "f000ee32…",
+              art: "deployment-dashboard/deployment-dashboard:f000ee32…",
+              dig: "sha256:(resolves)",
+              from: "f000ee3",
+              drift: ["ok"],
+              hosts: [{ n: "deployment-dashboard", k: "Cloud Run svc", t: "2026-07-17T14:13:33Z" }],
+              why: "Full 40-char SHA tag — the strictest pin in the fleet, deployed by Cloud Build.",
+            },
+          ],
+        },
+        {
+          svc: "deployment-api (AWS)",
+          lane: "image",
+          c: "aws",
+          frag: false,
+          versions: [
+            {
+              ver: "0.52.0",
+              art: "…ecr.ap-northeast-1…/deployment-api:0.52.0",
+              dig: "sha256:660acd0596535…",
+              from: null,
+              drift: ["unknown", "paused"],
+              hosts: [{ n: "uts-deployment-api-prod (PAUSED)", k: "App Runner", t: "2026-05-22" }],
+              why: "ECR tags carry a version but <b>no git SHA</b>, so the commit is not derivable from the registry — it must be joined through the CodeBuild record's <span class='mono'>resolvedSourceVersion</span>. The service is also <b>PAUSED</b> today, after two failed deploys.",
+            },
+          ],
         },
       ];
 
@@ -1672,6 +1788,7 @@
           stale: '<span class="pill p-amber"><span class="dot"></span>stale</span>',
           unknown: '<span class="pill p-grey"><span class="dot"></span>unknown</span>',
           fake: '<span class="pill p-red"><span class="dot"></span>fake-populated</span>',
+          paused: '<span class="pill p-amber"><span class="dot"></span>paused</span>',
         })[d] || "";
 
       const cloudPill = (c) =>
@@ -1691,7 +1808,7 @@
 
       const ago = (iso) => {
         if (!iso || iso === "—") return '<span class="muted">—</span>';
-        const d = Math.floor((Date.parse("2026-07-17T14:30:00Z") - Date.parse(iso)) / 86400000);
+        const d = Math.floor((Date.parse("2026-07-20T15:00:00Z") - Date.parse(iso)) / 86400000);
         if (d > 400) return `<span style="color:var(--color-accent-red)">${Math.floor(d / 30)}mo ago</span>`;
         if (d > 20) return `<span style="color:var(--color-accent-amber)">${d}d ago</span>`;
         if (d >= 1) return `${d}d ago`;
@@ -1704,20 +1821,46 @@
           return `<span style="color:var(--color-accent-red)">${by.split("@")[0]}</span>`;
         return `<span class="muted">${by.split(".")[0]}</span>`;
       };
-      document.getElementById("tb-run").innerHTML = running
-        .map(
-          (r, i) => `<tr data-run="${i}">
-        <td style="font-weight:500">${r.t} ${r.lane === "tarball" ? '<span class="pill p-purple">tarball</span>' : ""}</td>
-        <td class="dim" style="font-size:11.5px">${r.k}</td>
-        <td>${cloudPill(r.c)}</td>
-        <td class="mono" style="font-size:11.5px;max-width:330px;overflow:hidden;text-overflow:ellipsis">${r.art}</td>
-        <td>${r.dig ? `<span class="digest">${r.dig.slice(0, 20)}…</span>` : r.lane === "tarball" ? '<span class="unk">n/a — tarball</span>' : '<span class="unk">unresolved</span>'}</td>
-        <td>${r.from ? `<a class="sha" href="#">${r.from}</a>` : '<span class="unk">no matching build</span>'}</td>
-        <td class="dim">${ago(r.dep)}</td>
-        <td class="dim" style="font-size:11px">${byCell(r.by)}</td>
-        <td>${r.drift.map(driftPill).join(" ")}</td>
-      </tr>`,
-        )
+      const driftPills = (d) => d.map((x) => driftPill(x)).join(" ");
+      document.getElementById("tb-run").innerHTML = runGroups
+        .map((g, gi) => {
+          const total = g.versions.reduce((a, v) => a + v.hosts.length, 0);
+          const head = `<tr data-svc="${gi}" style="cursor:pointer;user-select:none"><td colspan="7" style="background:var(--color-bg-tertiary);padding:8px 12px">
+              <span class="caret-svc" style="color:var(--color-text-muted);display:inline-block;width:12px">▾</span>
+              <span style="font-weight:600">${g.svc}</span>
+              <span class="pill ${g.lane === "tarball" ? "p-purple" : "p-cyan"}" style="margin-left:8px">${g.lane}</span>
+              ${cloudPill(g.c)}
+              <span class="dim" style="font-size:11.5px;margin-left:8px">${total} host${total === 1 ? "" : "s"}</span>
+              ${g.frag ? `<span class="pill p-amber" style="margin-left:8px"><span class="dot"></span>${g.versions.length} versions live</span>` : ""}
+              ${g.fragNote ? `<span class="dim" style="font-size:11px;margin-left:8px">${g.fragNote}</span>` : ""}
+            </td></tr>`;
+          const rows = g.versions
+            .map((v, vi) => {
+              const key = `${gi}-${vi}`;
+              const vrow = `<tr data-v="${key}" data-vgroup="${gi}">
+              <td class="mono" style="font-size:11.5px;padding-left:22px">${v.ver}</td>
+              <td class="mono dim" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis">${v.art}</td>
+              <td>${v.from ? `<a class="sha" href="#">${v.from}</a>` : '<span class="unk">unknown</span>'}</td>
+              <td data-toggle="${key}" style="cursor:pointer;user-select:none"><span class="caret" style="color:var(--color-text-muted)">▸</span> ${v.hosts.length}</td>
+              <td class="dim">${ago(v.hosts[v.hosts.length - 1].t)}</td>
+              <td>${driftPills(v.drift)}</td>
+              <td style="font-size:11px"><a class="sha" href="#">hosts&nbsp;↗</a> <span class="dim">·</span> <a class="sha" href="#">${g.lane === "tarball" ? "tarball" : "build"}&nbsp;↗</a></td>
+            </tr>`;
+              const hrows = v.hosts
+                .map(
+                  (h) => `<tr class="hide" data-host="${key}" data-hgroup="${gi}">
+              <td colspan="2" class="mono" style="font-size:11px;padding-left:44px;color:var(--color-text-tertiary)">${h.n}</td>
+              <td class="dim" style="font-size:11px">${h.k}</td>
+              <td colspan="2" class="dim" style="font-size:11px">launched ${h.t}</td>
+              <td colspan="2" style="font-size:11px"><a class="sha" href="#">open&nbsp;↗</a></td>
+            </tr>`,
+                )
+                .join("");
+              return vrow + hrows;
+            })
+            .join("");
+          return head + rows;
+        })
         .join("");
 
       document.getElementById("tb-pipe").innerHTML = pipeline
@@ -1831,24 +1974,73 @@
         drawer.classList.add("on");
       };
 
+      /* expand/collapse ALL — expands services AND their host lists; collapse leaves only service headers */
+      document.getElementById("run-toggle-all").addEventListener("click", (e) => {
+        const btn = e.currentTarget;
+        const expand = btn.textContent.trim() === "Expand all";
+        document
+          .querySelectorAll("#tb-run tr[data-vgroup], #tb-run tr[data-host]")
+          .forEach((r) => r.classList.toggle("hide", !expand));
+        document.querySelectorAll("#tb-run tr[data-svc]").forEach((r) => {
+          r.dataset.collapsed = expand ? "0" : "1";
+          r.querySelector(".caret-svc").textContent = expand ? "▾" : "▸";
+        });
+        document.querySelectorAll("#tb-run .caret").forEach((c) => (c.textContent = expand ? "▾" : "▸"));
+        btn.textContent = expand ? "Collapse all" : "Expand all";
+      });
+
       document.getElementById("tb-run").addEventListener("click", (e) => {
-        const tr = e.target.closest("tr[data-run]");
+        /* click a service header → collapse/expand its versions (hosts always fold away) */
+        const svcRow = e.target.closest("tr[data-svc]");
+        if (svcRow) {
+          const gi = svcRow.dataset.svc;
+          const collapsed = svcRow.dataset.collapsed === "1";
+          document
+            .querySelectorAll(`#tb-run tr[data-vgroup="${gi}"]`)
+            .forEach((r) => r.classList.toggle("hide", !collapsed));
+          document.querySelectorAll(`#tb-run tr[data-hgroup="${gi}"]`).forEach((r) => r.classList.add("hide"));
+          document.querySelectorAll(`#tb-run tr[data-vgroup="${gi}"] .caret`).forEach((c) => (c.textContent = "▸"));
+          svcRow.dataset.collapsed = collapsed ? "0" : "1";
+          svcRow.querySelector(".caret-svc").textContent = collapsed ? "▾" : "▸";
+          return;
+        }
+        const hostsCell = e.target.closest("[data-toggle]");
+        if (hostsCell) {
+          const key = hostsCell.dataset.toggle;
+          document.querySelectorAll(`tr[data-host="${key}"]`).forEach((r) => r.classList.toggle("hide"));
+          hostsCell.querySelector(".caret").textContent = hostsCell
+            .querySelector(".caret")
+            .textContent.trim()
+            .startsWith("▸")
+            ? "▾"
+            : "▸";
+          return;
+        }
+        const tr = e.target.closest("tr[data-v]");
         if (!tr) return;
-        const r = running[+tr.dataset.run];
+        const [gi, vi] = tr.dataset.v.split("-").map(Number);
+        const g = runGroups[gi],
+          v = g.versions[vi];
         open(
-          r.t,
-          r.k + " · " + r.c.toUpperCase(),
-          `<div class="sect">Verdict</div><div style="font-size:12.5px;line-height:1.6">${r.why}</div>
+          `${g.svc} <span class="mono" style="font-size:13px;color:var(--color-text-tertiary)">${v.ver}</span>`,
+          `${g.lane} · ${g.c.toUpperCase()} · ${v.hosts.length} host${v.hosts.length === 1 ? "" : "s"}`,
+          `<div class="sect">Verdict</div><div style="font-size:12.5px;line-height:1.6">${v.why}</div>
            <div class="sect">Resolution chain</div>
            <dl class="kv">
-             <dt>Declared image</dt><dd>${r.art}</dd>
-             <dt>Resolved digest</dt><dd>${r.dig || '<span class="unk">unresolved</span>'}</dd>
-             <dt>Matched build</dt><dd>${r.from || '<span class="unk">none found</span>'}</dd>
-             <dt>Git commit</dt><dd>${r.from || '<span class="unk">not derivable</span>'}</dd>
-             <dt>Deployed at</dt><dd>${r.dep}</dd>
-             <dt>Deployed by</dt><dd>${r.by}</dd>
+             <dt>Declared artifact</dt><dd>${v.art}</dd>
+             <dt>Resolved digest</dt><dd>${v.dig || '<span class="unk">unresolved</span>'}</dd>
+             <dt>Matched build</dt><dd>${v.from ? `<a class="sha" href="#">${v.from}</a>` : '<span class="unk">none found</span>'}</dd>
+             <dt>Oldest host</dt><dd>${v.hosts[v.hosts.length - 1].t}</dd>
            </dl>
-           <div class="sect">Drift</div><div>${r.drift.map(driftPill).join(" ")}</div>`,
+           <div class="sect">Hosts on this version (${v.hosts.length})</div>
+           <dl class="kv">${v.hosts.map((h) => `<dt class="mono" style="font-size:11px">${h.n}</dt><dd>${h.k} · launched ${h.t}</dd>`).join("")}</dl>
+           <div class="sect">Go to</div>
+           <div style="font-size:12px;line-height:1.9">
+             <a class="sha" href="#">Deployments, filtered to these hosts ↗</a>
+             <span class="mono dim" style="font-size:11px"> /deployments?${v.from ? `git_commit=${v.from}` : `artifact=${encodeURIComponent(v.ver)}`}</span><br />
+             <a class="sha" href="#">${g.lane === "tarball" ? "GCS tarball + manifest ↗" : "Build + logs in the cloud console ↗"}</a>
+             <span class="mono dim" style="font-size:11px"> ${g.lane === "tarball" ? "gs://deployment-scripts-…/code/" : "console.cloud.google.com/cloud-build/builds"}</span>
+           </div>`,
         );
       });
 
