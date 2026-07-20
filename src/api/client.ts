@@ -1454,14 +1454,7 @@ export interface TurboChainStatus {
 // this type. Source:
 // unified_api_contracts/canonical/domain/features/registry.py.
 export type FeatureFamily =
-  | "calendar"
-  | "commodity"
-  | "cross_instrument"
-  | "delta_one"
-  | "multi_timeframe"
-  | "onchain"
-  | "sports"
-  | "volatility";
+  "calendar" | "commodity" | "cross_instrument" | "delta_one" | "multi_timeframe" | "onchain" | "sports" | "volatility";
 
 export const FEATURE_FAMILIES: ReadonlyArray<FeatureFamily> = [
   "calendar",
@@ -2883,6 +2876,12 @@ export function buildCsvDownloadUrl(params: {
  */
 export interface InstrumentCatalogueRow {
   instrument_id: string;
+  // Human-readable display name for an opaque-coded instrument (KRX single-stock
+  // equities: "Samsung Electronics" next to the bare 6-digit code
+  // ``KRX:EQUITY:005930``). Sourced from the catalogue ``name`` column (roll-up
+  // ``_add_instrument_name`` from the UAC ``KRX_EQUITY_NAMES`` SSOT); "" for
+  // instruments whose ``instrument_id`` is already human-readable (the majority).
+  name: string;
   venue: string;
   instrument_type: string;
   data_type: string;
@@ -3180,12 +3179,7 @@ export function buildFixturesCsvDownloadUrl(params: { day: string; league_id: st
  * response body for the non-captured branches.
  */
 export type ShardDownloadStatus =
-  | "captured"
-  | "empty_confirmed"
-  | "attempted_failed"
-  | "never_attempted"
-  | "path_drift"
-  | "unknown";
+  "captured" | "empty_confirmed" | "attempted_failed" | "never_attempted" | "path_drift" | "unknown";
 
 export interface ShardDownloadResult {
   status: ShardDownloadStatus;

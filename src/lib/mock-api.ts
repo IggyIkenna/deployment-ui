@@ -2705,10 +2705,13 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
       ["(unlabeled)", "gcp", 8956, "GCP label", "other"],
       ["manifest-consolidator", "gcp", 3685, "GCP label", "other"],
       ["market-data-raw", "gcp", 945, "GCP label", "other"],
-      ...Array.from(
-        { length: 125 },
-        (_, i): Row => [`purpose-${i + 1}`, "gcp", +(400 - i * 2.5).toFixed(2), "GCP label", "other"],
-      ),
+      ...Array.from({ length: 125 }, (_, i): Row => [
+        `purpose-${i + 1}`,
+        "gcp",
+        +(400 - i * 2.5).toFixed(2),
+        "GCP label",
+        "other",
+      ]),
     ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
@@ -4551,14 +4554,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   // MVP toggle + badges have something real to narrow/exercise in mock mode.
   if (path.startsWith("/api/data-status/download-catalogue-csv")) {
     const csv =
-      "instrument_id,venue,instrument_type,data_type,capture_status,error_reason,attempted_at,is_mvp\n" +
-      "BINANCE-SPOT-BTCUSDT,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
-      "BINANCE-SPOT-ETHUSDT,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
-      "DERIBIT-BTC-26SEP26-100000-C,DERIBIT,OPTION,instruments,empty_confirmed,,2026-07-14T00:12:00+00:00,False\n" +
-      "OKX-DOGEUSDT,OKX-SPOT,SPOT_PAIR,instruments,attempted_failed,RATE_LIMIT_HIT,2026-07-13T00:14:00+00:00,False\n";
+      "instrument_id,name,venue,instrument_type,data_type,capture_status,error_reason,attempted_at,is_mvp\n" +
+      "BINANCE-SPOT-BTCUSDT,,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
+      "BINANCE-SPOT-ETHUSDT,,BINANCE-SPOT,SPOT_PAIR,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
+      "KRX:EQUITY:005930,Samsung Electronics,KRX,EQUITY,instruments,captured,,2026-07-15T00:10:00+00:00,True\n" +
+      "DERIBIT-BTC-26SEP26-100000-C,,DERIBIT,OPTION,instruments,empty_confirmed,,2026-07-14T00:12:00+00:00,False\n" +
+      "OKX-DOGEUSDT,,OKX-SPOT,SPOT_PAIR,instruments,attempted_failed,RATE_LIMIT_HIT,2026-07-13T00:14:00+00:00,False\n";
     return new Response(csv, {
       status: 200,
-      headers: { "Content-Type": "text/csv; charset=utf-8", "X-Row-Count": "4" },
+      headers: { "Content-Type": "text/csv; charset=utf-8", "X-Row-Count": "5" },
     });
   }
   // Catalogue Explorer filter dropdowns (F3, round-3 UI review) — MUST precede
@@ -4660,6 +4664,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const allRows = [
       {
         instrument_id: "BINANCE-SPOT-BTCUSDT",
+        name: "",
         venue: "BINANCE-SPOT",
         instrument_type: "SPOT_PAIR",
         data_type: "instruments",
@@ -4670,6 +4675,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       },
       {
         instrument_id: "BINANCE-SPOT-ETHUSDT",
+        name: "",
         venue: "BINANCE-SPOT",
         instrument_type: "SPOT_PAIR",
         data_type: "instruments",
@@ -4679,7 +4685,21 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         is_mvp: true,
       },
       {
+        // Opaque 6-digit KRX code carrying a human-readable issuer name — the
+        // Deliverable-1 case the Name column exists to render.
+        instrument_id: "KRX:EQUITY:005930",
+        name: "Samsung Electronics",
+        venue: "KRX",
+        instrument_type: "EQUITY",
+        data_type: "instruments",
+        capture_status: "captured",
+        error_reason: "",
+        attempted_at: "2026-07-15T00:10:00+00:00",
+        is_mvp: true,
+      },
+      {
         instrument_id: "DERIBIT-BTC-26SEP26-100000-C",
+        name: "",
         venue: "DERIBIT",
         instrument_type: "OPTION",
         data_type: "instruments",
@@ -4690,6 +4710,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       },
       {
         instrument_id: "OKX-DOGEUSDT",
+        name: "",
         venue: "OKX-SPOT",
         instrument_type: "SPOT_PAIR",
         data_type: "instruments",

@@ -6,6 +6,7 @@ import type { InstrumentCatalogueRow, InstrumentCatalogueResponse } from "../api
 
 const CAPTURED_ROW: InstrumentCatalogueRow = {
   instrument_id: "BINANCE-SPOT-BTCUSDT",
+  name: "",
   venue: "BINANCE-SPOT",
   instrument_type: "SPOT_PAIR",
   data_type: "instruments",
@@ -17,6 +18,7 @@ const CAPTURED_ROW: InstrumentCatalogueRow = {
 
 const FAILED_ROW: InstrumentCatalogueRow = {
   instrument_id: "OKX-DOGEUSDT",
+  name: "",
   venue: "OKX-SPOT",
   instrument_type: "SPOT_PAIR",
   data_type: "instruments",
@@ -24,6 +26,20 @@ const FAILED_ROW: InstrumentCatalogueRow = {
   error_reason: "RATE_LIMIT_HIT",
   attempted_at: "2026-07-13T00:14:00+00:00",
   is_mvp: false,
+};
+
+// KRX single-stock equity: opaque 6-digit code as instrument_id + a human-readable
+// issuer name — the Deliverable-1 case the Name column exists to render.
+const KRX_ROW: InstrumentCatalogueRow = {
+  instrument_id: "KRX:EQUITY:005930",
+  name: "Samsung Electronics",
+  venue: "KRX",
+  instrument_type: "EQUITY",
+  data_type: "instruments",
+  capture_status: "captured",
+  error_reason: "",
+  attempted_at: "2026-07-15T00:10:00+00:00",
+  is_mvp: true,
 };
 
 function mockResponse(instruments: InstrumentCatalogueRow[], total = instruments.length): InstrumentCatalogueResponse {
@@ -88,6 +104,18 @@ describe("CatalogueExplorer", () => {
     await waitFor(() => {
       expect(screen.getByTestId("catalogue-explorer-empty")).toBeTruthy();
     });
+  });
+
+  it("renders the human-readable Name column for an opaque-coded instrument, em-dash when blank", async () => {
+    fetchSpy.mockResolvedValue(mockResponse([KRX_ROW, CAPTURED_ROW]));
+    render(<CatalogueExplorer />);
+    await waitFor(() => expect(screen.getByTestId(`catalogue-explorer-row-${KRX_ROW.instrument_id}`)).toBeTruthy());
+    // KRX 6-digit code carries its issuer name next to the coded instrument_id.
+    expect(screen.getByTestId(`catalogue-explorer-name-${KRX_ROW.instrument_id}`).textContent).toBe(
+      "Samsung Electronics",
+    );
+    // A row with no display name renders an honest em-dash, not a blank/undefined.
+    expect(screen.getByTestId(`catalogue-explorer-name-${CAPTURED_ROW.instrument_id}`).textContent).toBe("—");
   });
 
   it("renders an MVP badge only for is_mvp rows", async () => {
