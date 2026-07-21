@@ -1183,6 +1183,9 @@ interface MockDeploymentItem {
   cost_actual_usd?: number | null; // WS-E — net cost on the most recent complete billing day (USD)
   cost_avg_7d_usd?: number | null; // WS-E — trailing-7-day average daily net cost (USD)
   cost_projected_24h_usd?: number | null; // WS-E — projected $/day if it runs 24h (USD)
+  // "complete" | "partial" | undefined — whether cost_actual_usd is a full billing day or fell
+  // back to a still-accruing partial day (WS-1 decision 4, 2026-07-20). Colour-only UI signal.
+  cost_basis?: "complete" | "partial" | null;
   // Resource summary scalars (inline Resources column). Full vector is on /detail.
   cpu_pct?: number | null;
   mem_pct?: number | null;
@@ -1254,6 +1257,7 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     cost_actual_usd: 38.4,
     cost_avg_7d_usd: 38.4,
     cost_projected_24h_usd: 38.4,
+    cost_basis: "complete",
     cpu_pct: 58,
     mem_pct: 71,
     uptime_hours: 52,
@@ -1284,6 +1288,7 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     cost_actual_usd: 41.2,
     cost_avg_7d_usd: 41.2,
     cost_projected_24h_usd: 41.2,
+    cost_basis: "partial",
     cpu_pct: 4,
     mem_pct: 63,
     disk_pct: 38,
@@ -3558,6 +3563,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const cloud = (reqUrl.searchParams.get("cloud") ?? "").toUpperCase();
     const status = reqUrl.searchParams.get("status") ?? "";
     const assetGroup = reqUrl.searchParams.get("asset_group") ?? "";
+    // WS-2 date-range overlap (`?date_from=&date_to=`) — the mock has no started_at/completed_at
+    // registry interval to replicate the real `_vm_overlap_basis` formula against, so it filters on
+    // the one timestamp every mock row already carries (`last_run_at`), inclusive on both ends. A
+    // row with no timestamp signal at all (last_run_at: null — always-on services, orphans) is
+    // NEVER filtered out, matching the backend's honest-absence pass-through.
+    const dateFrom = reqUrl.searchParams.get("date_from") ?? "";
+    const dateTo = reqUrl.searchParams.get("date_to") ?? "";
     let items = MOCK_DEPLOYMENT_INVENTORY;
     if (umbrella) {
       // EXPERIMENT folds under BATCH — a BATCH query returns experiment targets too.
@@ -3567,6 +3579,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (cloud) items = items.filter((i) => i.cloud === cloud);
     if (status) items = items.filter((i) => i.status === status);
     if (assetGroup) items = items.filter((i) => i.asset_group === assetGroup);
+    if (dateFrom) items = items.filter((i) => !i.last_run_at || i.last_run_at >= dateFrom);
+    if (dateTo) items = items.filter((i) => !i.last_run_at || i.last_run_at <= `${dateTo}T23:59:59Z`);
     const counts_by_kind: Record<string, number> = {};
     for (const i of items) counts_by_kind[i.kind] = (counts_by_kind[i.kind] ?? 0) + 1;
     return json({
