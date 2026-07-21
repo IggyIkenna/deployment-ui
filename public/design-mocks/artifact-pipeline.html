@@ -784,8 +784,9 @@
             Both clouds carry a structured failure reason already — GCP
             <span class="mono">failureInfo{type,detail}</span>, AWS
             <span class="mono">phases[].contexts[]{statusCode,message}</span>. Click a row for the step timeline.
-            <b>Nothing persists these today</b> — the failure watcher only posts free text to Slack, and stamps
-            <span class="mono">repo: unified-trading-pm</span> instead of the repo that actually failed.
+            <b>No queryable store persists these</b> — a failure only surfaces as a Slack message (the watcher was fixed
+            2026-07-20 to name the right repo and dedup), so you can't later ask "show me every timeout failure this
+            week." This page would be that store.
           </div>
         </div>
       </section>
@@ -1054,9 +1055,10 @@
           </div>
           <div class="note">
             These are <b>measured</b>, not hypothetical — each was found by probing the live clouds or reading the
-            workflow source. <b>None of them fires an alert today</b>: the failure watcher only posts free text to
-            Slack. This tab is what turns the page from a viewer into something that tells you when the pipeline itself
-            is broken — and every row links back to the view that proves it.
+            workflow source. <b>None of these conditions fires an alert today</b> — build <i>failures</i> now reach
+            Slack with the right repo (fixed 2026-07-20), but nothing watches for provenance gaps, tag drift or churn.
+            This tab is what turns the page from a viewer into something that tells you when the pipeline itself is
+            broken — and every row links back to the view that proves it.
           </div>
         </div>
       </section>
@@ -1820,13 +1822,13 @@
           e: "workspace-manifest.json, read directly",
         },
         {
-          c: "AWS tarball lane is structurally non-functional",
+          c: "AWS tarball lane bucket mismatch (real bug · AWS-deferred)",
           sev: "high",
-          n: 2,
+          n: 1,
           area: "pipeline · AWS",
           tab: "pipe",
-          m: "The uploader defaults to <span class='mono'>uts-prod-deployment-state</span> (exists, <span class='mono'>code/</span> has <b>0 objects</b>); the EC2 launcher expects <span class='mono'>unified-trading-deployment-scripts-427895769566</span>, which <b>does not exist at all</b>. Two different bucket names, neither populated.",
-          e: "aws s3 head-bucket → NoSuchBucket; aws_ec2_launch_lib.sh:226",
+          m: "The uploader now writes to <span class='mono'>uts-prod-deployment-state/code/</span> (populated 2026-07-21), but the EC2 launcher reads <span class='mono'>unified-trading-deployment-scripts-427895769566</span>, which <b>404s</b> — two different bucket names, so an AWS tarball VM couldn't fetch code. A <b>real bug</b>, but <b>AWS-deferred</b> (no credits): fix it when AWS resumes, not a live breakage today.",
+          e: "aws s3api head-bucket → 404; aws_ec2_launch_lib.sh:232,285 vs create-code-tarballs.sh",
         },
         {
           c: "VM runtime provenance never stamped",
