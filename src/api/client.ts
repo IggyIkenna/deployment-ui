@@ -3580,8 +3580,39 @@ export async function getPoolBreakdown(params: {
   return fetchJson<PoolBreakdownResponse>(`/data-status/pools/breakdown?${qp.toString()}`);
 }
 
+// Actual shape returned by GET /data-status/instrument-availability
+// (deployment_api/services/data_query_service.py::get_instrument_availability) —
+// distinct from the richer InstrumentAvailabilityResponse the UI renders. Bug B
+// (2026-07-21): the endpoint requires venue/instrument_type/instrument as
+// separate params (never instrument_key), and returns a flat
+// {daily_availability, summary, ...} shape — neither matched what this file
+// previously sent/expected, so the request 422'd or the response silently
+// rendered as empty. Reconciled here, in one place, rather than reshaping the
+// backend (its existing shape is simpler and already well-tested).
+interface RawInstrumentAvailabilityResponse {
+  venue: string;
+  instrument_type: string;
+  instrument: string;
+  date_range: { start: string; end: string };
+  effective_range: { start: string; end: string };
+  data_types: string[];
+  // date (YYYY-MM-DD) -> data_type -> was it captured that day.
+  daily_availability: Record<string, Record<string, boolean>>;
+  summary: {
+    total_days: number;
+    available_days: number;
+    missing_days: number;
+    availability_rate: number;
+  };
+  error?: string;
+}
+
 export async function getInstrumentAvailability(params: {
   instrument_key: string;
+  venue: string;
+  instrument_type: string;
+  instrument: string;
+  asset_group: string;
   start_date: string;
   end_date: string;
   data_type?: string;
@@ -3592,33 +3623,97 @@ export async function getInstrumentAvailability(params: {
   available_to?: string;
 }): Promise<InstrumentAvailabilityResponse> {
   const searchParams = new URLSearchParams();
-  searchParams.set("instrument_key", params.instrument_key);
+  searchParams.set("venue", params.venue);
+  searchParams.set("instrument_type", params.instrument_type);
+  searchParams.set("instrument", params.instrument);
   searchParams.set("start_date", params.start_date);
   searchParams.set("end_date", params.end_date);
   if (params.data_type) searchParams.set("data_type", params.data_type);
-  if (params.first_day_of_month_only) searchParams.set("first_day_of_month_only", "true");
-  if (params.service) searchParams.set("service", params.service);
-  if (params.timeframe) searchParams.set("timeframe", params.timeframe);
   if (params.available_from) searchParams.set("available_from", params.available_from);
   if (params.available_to) searchParams.set("available_to", params.available_to);
-  const raw = await fetchJson<
-    InstrumentAvailabilityResponse & {
-      parsed?: InstrumentAvailabilityResponse["parsed"] & { category?: string };
-    }
-  >(`/data-status/instrument-availability?${searchParams.toString()}`);
-  if (raw?.parsed && "category" in raw.parsed && !("asset_group" in raw.parsed)) {
-    const p = raw.parsed as Record<string, unknown>;
-    const cat = p["category"];
-    const { category: _category, ...rest } = p;
+  const raw = await fetchJson<RawInstrumentAvailabilityResponse>(
+    `/data-status/instrument-availability?${searchParams.toString()}`,
+  );
+  if (raw.error) {
     return {
-      ...raw,
+      instrument_key: params.instrument_key,
       parsed: {
-        ...rest,
-        asset_group: typeof cat === "string" ? cat : String(cat ?? ""),
-      } as InstrumentAvailabilityResponse["parsed"],
+        venue: params.venue,
+        instrument_type: params.instrument_type,
+        symbol: params.instrument,
+        asset_group: params.asset_group,
+        folder: "",
+      },
+      service: params.service ?? "",
+      bucket: "",
+      date_range: {
+        start: params.start_date,
+        end: params.end_date,
+        total_dates: 0,
+        first_day_of_month_only: !!params.first_day_of_month_only,
+      },
+      data_types_checked: [],
+      overall: { expected: 0, found: 0, missing: 0, completion_pct: 0 },
+      by_data_type: {},
+      error: raw.error,
     };
   }
-  return raw;
+
+  const byDataType: InstrumentAvailabilityResponse["by_data_type"] = {};
+  for (const dt of raw.data_types) {
+    const foundList: string[] = [];
+    const missingList: string[] = [];
+    for (const [date, perType] of Object.entries(raw.daily_availability)) {
+      if (perType[dt]) {
+        foundList.push(date);
+      } else {
+        missingList.push(date);
+      }
+    }
+    const dtTotal = foundList.length + missingList.length;
+    byDataType[dt] = {
+      dates_found: foundList.length,
+      dates_missing: missingList.length,
+      completion_pct: dtTotal > 0 ? Math.round((foundList.length / dtTotal) * 10000) / 100 : 0,
+      dates_found_list: foundList.sort(),
+      dates_missing_list: missingList.sort(),
+    };
+  }
+
+  return {
+    instrument_key: params.instrument_key,
+    parsed: {
+      venue: raw.venue,
+      instrument_type: raw.instrument_type,
+      symbol: raw.instrument,
+      asset_group: params.asset_group,
+      folder: "",
+    },
+    service: params.service ?? "",
+    bucket: "",
+    date_range: {
+      start: raw.date_range.start,
+      end: raw.date_range.end,
+      total_dates: raw.summary.total_days,
+      first_day_of_month_only: !!params.first_day_of_month_only,
+    },
+    availability_window: {
+      instrument_from: params.available_from,
+      instrument_to: params.available_to,
+      effective_start: raw.effective_range.start,
+      effective_end: raw.effective_range.end,
+      dates_in_window: raw.summary.total_days,
+    },
+    data_types_checked: raw.data_types,
+    overall: {
+      expected: raw.summary.total_days,
+      found: raw.summary.available_days,
+      missing: raw.summary.missing_days,
+      completion_pct: raw.summary.availability_rate,
+    },
+    by_data_type: byDataType,
+    timeframe: params.timeframe,
+  };
 }
 
 // ── Event stream ─────────────────────────────────────────────────────────────

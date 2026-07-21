@@ -682,6 +682,11 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   const [symbolSearchLoading, setSymbolSearchLoading] = useState(false);
   const [symbolSearchTruncated, setSymbolSearchTruncated] = useState(false);
   const symbolSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic request sequence — guards against a stale (slower, earlier-fired)
+  // search response overwriting a newer one's results if they resolve out of
+  // network-latency order (debounce alone only prevents overlapping TIMERS,
+  // not overlapping in-flight fetches).
+  const symbolSearchSeqRef = useRef(0);
 
   // Coverage summary state — auto-fetched on mount for instruments-service
   const [coverageSummary, setCoverageSummary] = useState<api.CoverageSummaryResponse | null>(null);
@@ -1049,6 +1054,8 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
 
   // Instrument search - debounced search as user types
   const searchInstrumentsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic request sequence — same stale-response guard as symbolSearchSeqRef above.
+  const instrumentSearchSeqRef = useRef(0);
   const fetchInstruments = useCallback(
     async (searchQuery: string) => {
       if (selectedCategories.length !== 1) {
@@ -1063,6 +1070,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
 
       // Debounce the search
       searchInstrumentsDebounceRef.current = setTimeout(async () => {
+        const mySeq = ++instrumentSearchSeqRef.current;
         setInstrumentSearchLoading(true);
         try {
           const result = await api.getInstrumentsList({
@@ -1070,6 +1078,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             search: searchQuery || undefined,
             limit: 50, // Show top 50 matches
           });
+          if (mySeq !== instrumentSearchSeqRef.current) return; // stale response, discard
           if (result.error) {
             setInstrumentSearchResults([]);
           } else {
@@ -1081,9 +1090,10 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             }
           }
         } catch {
+          if (mySeq !== instrumentSearchSeqRef.current) return;
           setInstrumentSearchResults([]);
         } finally {
-          setInstrumentSearchLoading(false);
+          if (mySeq === instrumentSearchSeqRef.current) setInstrumentSearchLoading(false);
         }
       }, 300); // 300ms debounce
     },
@@ -1105,16 +1115,20 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       return;
     }
     symbolSearchDebounceRef.current = setTimeout(async () => {
+      const mySeq = ++symbolSearchSeqRef.current;
       setSymbolSearchLoading(true);
       try {
         const result = await searchInstruments({ query: trimmed, limit: 50 });
+        // A newer search has since started — this response is stale, discard it.
+        if (mySeq !== symbolSearchSeqRef.current) return;
         setSymbolSearchResults(result.matches);
         setSymbolSearchTruncated(result.truncated);
       } catch {
+        if (mySeq !== symbolSearchSeqRef.current) return;
         setSymbolSearchResults([]);
         setSymbolSearchTruncated(false);
       } finally {
-        setSymbolSearchLoading(false);
+        if (mySeq === symbolSearchSeqRef.current) setSymbolSearchLoading(false);
       }
     }, 250);
   }, []);
@@ -1127,8 +1141,20 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     setInstrumentAvailabilityError(null);
 
     try {
+      // The backend keys on venue/instrument_type/instrument (never instrument_key,
+      // which it doesn't accept — Bug B). Derive the bare symbol from `symbol` when
+      // present, falling back to the trailing segment of instrument_key (its
+      // observed "VENUE::SYMBOL"-style format) since not every source populates it.
+      const bareInstrument =
+        selectedInstrument.symbol ||
+        selectedInstrument.instrument_key.split("::").pop() ||
+        selectedInstrument.instrument_key;
       const result = await api.getInstrumentAvailability({
         instrument_key: selectedInstrument.instrument_key,
+        venue: selectedInstrument.venue,
+        instrument_type: selectedInstrument.instrument_type,
+        instrument: bareInstrument,
+        asset_group: selectedCategories[0] ?? "",
         start_date: startDate,
         end_date: endDate,
         data_type: selectedDataTypes.length === 1 ? selectedDataTypes[0] : undefined,
@@ -1152,7 +1178,16 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     } finally {
       setInstrumentAvailabilityLoading(false);
     }
-  }, [selectedInstrument, startDate, endDate, selectedDataTypes, firstDayOfMonthOnly, serviceName, selectedTimeframe]);
+  }, [
+    selectedInstrument,
+    selectedCategories,
+    startDate,
+    endDate,
+    selectedDataTypes,
+    firstDayOfMonthOnly,
+    serviceName,
+    selectedTimeframe,
+  ]);
 
   // Clear instrument search state when mode changes or category changes
   useEffect(() => {
