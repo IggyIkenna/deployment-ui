@@ -429,12 +429,13 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
 });
 
 /**
- * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/infra +
- * /fleet/git surfaces IN-PLACE (reusing LiveDeploymentsContent / FleetInfraContent /
- * FleetGitContent — no nav-away, no new fetch logic). Guards Phase 0.5 "Fold
- * /ops/live-deployments + /fleet/infra + /fleet/git into Live/Fleet/Health".
+ * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/git surfaces
+ * IN-PLACE (reusing LiveDeploymentsContent / FleetGitContent — no nav-away, no new fetch
+ * logic). Guards Phase 0.5 "Fold /ops/live-deployments + /fleet/git into Live/Fleet/Health".
+ * The FleetInfra (orchestrator/infra tiles) fold was REMOVED 2026-07-21
+ * (deployment_ui_fleet_tab_consolidation_2026_07_21.md — AO owns orchestrator health now).
  */
-test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
+test.describe("Cockpit — Live-ops + Fleet-git folds", () => {
   test("Deployments tab folds the live-ops running-services + event/log surface", async ({ page }) => {
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
@@ -442,11 +443,11 @@ test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
     await expect(page.getByTestId("live-deployments-content")).toBeVisible();
   });
 
-  test("Fleet tab folds the infra/orchestrator + git-health surfaces", async ({ page }) => {
+  test("Fleet tab shows only the git-health surface (no infra/orchestrator section)", async ({ page }) => {
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
+    await expect(page.getByTestId("cockpit-fleet-infra")).toHaveCount(0);
   });
 });
 

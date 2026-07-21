@@ -5966,10 +5966,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
 
-  // Fleet VM census (vm_zombie_watchdog.py running/expected/zombie/OOM)
-  if (path === "/api/fleet/vm-census") {
-    return json(mockVmCensus());
-  }
   // Stopped/orphaned-VM inventory — GET /api/fleet/orphans → OrphanInventoryResponse.
   // One reapable ephemeral, one within-grace, one paused-live, one keep-labelled.
   if (path === "/api/fleet/orphans") {
@@ -6106,11 +6102,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       expected_missing_total: 58,
     });
   }
-  // Fleet infra-VM health (AO /api/fleet/summary proxy)
-  if (path === "/api/fleet/infra-vm-health") {
-    return json(mockInfraVmHealth());
-  }
-
   // Generic /api/data-status/* fallback (the turbo coverage-summary shape) —
   // MUST be the last data-status check in this function. Every specific
   // /api/data-status/<endpoint> handler above (catalogue, prediction-catalogue,
@@ -6129,133 +6120,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   return json({ error: "Mock: no handler", path }, 404);
-}
-
-// VM Census — mirrors deployment-api /api/fleet/vm-census (wraps vm_zombie_watchdog.py)
-// Seeds: 2 RUNNING (1 long-lived central, 1 scheduled) · 3 expected · 0 zombie ·
-// 1 OOM-terminated (the vm-0 class that was invisible — now explicitly surfaced).
-function mockVmCensus() {
-  return {
-    generated_at: new Date().toISOString(),
-    running: 2,
-    expected: 3,
-    zombie: 0,
-    oom: 1,
-    stopped: 1,
-    vms: [
-      {
-        name: "agent-orchestrator-vm-1",
-        prefix: "agent-orchestrator",
-        lifecycle_class: "LONG_LIVED_LIVE",
-        status: "RUNNING",
-        zombie: false,
-        oom: false,
-        age_min: 5760,
-        zone: "asia-northeast1-c",
-      },
-      {
-        name: "vm-manifest-consolidator-20260619",
-        prefix: "vm-manifest-consolidator",
-        lifecycle_class: "SCHEDULED_RECURRING",
-        status: "RUNNING",
-        zombie: false,
-        oom: false,
-        age_min: 35,
-        zone: "asia-northeast1-c",
-      },
-      {
-        name: "vm-defi-backfill-20260618-001",
-        prefix: "vm-defi-backfill",
-        lifecycle_class: "EPHEMERAL_BATCH",
-        status: "TERMINATED",
-        zombie: false,
-        oom: true,
-        age_min: null,
-        zone: "asia-northeast1-c",
-      },
-      {
-        name: "vm-defi-backfill-20260618-002",
-        prefix: "vm-defi-backfill",
-        lifecycle_class: "EPHEMERAL_BATCH",
-        status: "STOPPED",
-        zombie: false,
-        oom: false,
-        age_min: null,
-        zone: "asia-northeast1-c",
-      },
-    ],
-  };
-}
-
-// Infra VM Health — mirrors deployment-api /api/fleet/infra-vm-health (proxies AO /api/fleet/summary)
-// Seeds: central planning VM (healthy) + human-planning VM (1 stale slot alert).
-function mockInfraVmHealth() {
-  return {
-    available: true,
-    orchestrator_url: "https://agent-orchestrator.odum-research.com",
-    vms: [
-      {
-        id: "planning",
-        label: "Central / Orchestrator VM",
-        url: "https://api.agent-orchestrator.odum-research.com",
-        available: true,
-        error: null,
-        stale: false,
-        last_heartbeat_seconds_ago: 42,
-        summary: {
-          vm_id: "i-0c9b283b31d6b5ca7",
-          role: "planning",
-          label: "Central / Orchestrator VM",
-          slots_total: 8,
-          slots_working: 3,
-          slots_idle: 4,
-          slots_stale: 1,
-          slots_paused: 0,
-          slots_blocked: 0,
-          backlog_total: 12,
-          backlog_queued: 4,
-          alerts: [
-            {
-              severity: "warn",
-              kind: "slot_stale",
-              detail: "slot-7 has no heartbeat for >25 min",
-            },
-          ],
-          watchdog: {
-            enabled: true,
-            kills_today: 2,
-            daily_cap: 20,
-            dormant: false,
-            flapping: false,
-          },
-        },
-      },
-      {
-        id: "human-planning",
-        label: "Human Planning VM",
-        url: "",
-        available: true,
-        error: null,
-        stale: false,
-        last_heartbeat_seconds_ago: 180,
-        summary: {
-          vm_id: "i-0dd9812a96cdda5dc",
-          role: "planning",
-          label: "Human Planning VM",
-          slots_total: 4,
-          slots_working: 1,
-          slots_idle: 3,
-          slots_stale: 0,
-          slots_paused: 0,
-          slots_blocked: 0,
-          backlog_total: 0,
-          backlog_queued: 0,
-          alerts: [],
-          watchdog: null,
-        },
-      },
-    ],
-  };
 }
 
 function _mockVmDeployment(deploymentId: string, status: string) {

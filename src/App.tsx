@@ -199,7 +199,7 @@ function App() {
                   />
                   {/* Compat redirects for old bookmarks only (no nav entry): `?tab=` is gone,
                       so these forward to the canonical plain route. /repos → /ci, /infra →
-                      /fleet (the Fleet route embeds both git + infra sections). */}
+                      /fleet (FleetInfra removed 2026-07-21 — Fleet is now git-health-only). */}
                   <Route path="/repos" element={<Navigate to="/ci" replace />} />
                   <Route path="/infra" element={<Navigate to="/fleet" replace />} />
                   <Route

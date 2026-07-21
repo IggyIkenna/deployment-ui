@@ -47,7 +47,6 @@ import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
 import { VmDeploymentsContent } from "./VmDeployments";
 import { FleetOrphansContent } from "./FleetOrphans";
-import { FleetInfraContent } from "./FleetInfra";
 import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
 import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
@@ -613,17 +612,6 @@ function FleetTab() {
       <div className="mt-6">
         <ErrorBoundary fallbackTitle="Orphan inventory failed to load">
           <FleetOrphansContent />
-        </ErrorBoundary>
-      </div>
-
-      {/* Fold /fleet/infra — orchestrator/control-plane + infra VM health tiles (Phase 0.5
-          "Fold /fleet/infra into Fleet"). Chrome-less, reuses the existing component. */}
-      <div className="mt-6" data-testid="cockpit-fleet-infra">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
-          Infra & orchestrator health
-        </h2>
-        <ErrorBoundary fallbackTitle="Fleet infra failed to load">
-          <FleetInfraContent />
         </ErrorBoundary>
       </div>
 
