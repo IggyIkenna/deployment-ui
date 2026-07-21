@@ -40,15 +40,22 @@ type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
  * some entries pointed at a cockpit tab, others at the standalone page holding the
  * SAME component — so which chrome you got depended on which item you clicked, and
  * the same content appeared under two labels. Every canonical entry below now points
- * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` and
- * `/vm-deployments` are canonical because they have no cockpit twin (the cockpit's
- * Fleet tab embeds only a COMPACT vm-deployments view).
+ * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` are
+ * canonical because they have no cockpit twin. `/vm-deployments`'s archive/history
+ * table folded into Deployments' per-target detail History card (Fleet-tab
+ * consolidation, 2026-07-21), but the ROUTE itself stays live in the `legacy` group
+ * below (NOT deleted/redirected — operator decision, BLK-7cb5bbbc) because its
+ * non-compact mode is the only reachable home for 4 venue-config panels the
+ * consolidation audit never accounted for. The cockpit's Fleet tab embeds only the
+ * COMPACT `VmDeploymentsContent` (active/archive census, no venue panels).
  *
  * The `legacy` group is the legacy URLs, kept visible-but-quarantined so the operator can
- * compare chromes before deciding what to delete. Two kinds live here now: routes that
- * still render a SECOND COPY of the screen (compare them against the canonical entry), and
- * — since the LandingTabs bar was deleted 2026-07-17 — routes that merely REDIRECT to the
- * canonical tab (kept so old bookmarks/deep-links survive). Listing the redirects here is
+ * compare chromes before deciding what to delete. Three kinds live here now: routes that
+ * still render a SECOND COPY of the screen (compare them against the canonical entry); routes
+ * that merely REDIRECT to the canonical tab (kept so old bookmarks/deep-links survive, since
+ * the LandingTabs bar was deleted 2026-07-17); and a route whose PRIMARY content folded into a
+ * canonical screen but which still carries UNIQUE functionality with no other home
+ * (`/vm-deployments`'s venue-config panels — see the fold note above). Listing routes here is
  * also what keeps them reachable: `scripts/orphan-audit.ts` fails a declared route with no
  * inbound <Link>, and the whitelist's three reason prefixes (MACHINE-ONLY / API-HANDLER /
  * UNAUTHENTICATED-FUNNEL) deliberately have no "compat redirect" category. Delete the group
@@ -107,14 +114,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Layers,
         desc: "Live · batch · paper + live ops",
         short: "Deployments",
-      },
-      {
-        id: "vm-deployments",
-        to: "/vm-deployments",
-        label: "VM Deployments",
-        icon: Server,
-        desc: "Per-VM launch history (full)",
-        short: "VMs",
       },
     ],
   },
@@ -233,6 +232,28 @@ export const NAV_GROUPS: NavGroup[] = [
   // gone and the standalone/redirect duplicates it existed to compare no longer exist. /repos
   // and /infra survive only as bookmark-compat redirects in App.tsx (→ /ci, /fleet), with no
   // nav entry.
+  {
+    // Legacy quarantine REINTRODUCED (Fleet-tab consolidation, operator decision 2026-07-21 —
+    // BLK-7cb5bbbc): /vm-deployments' archive/history table folded into Deployments' per-target
+    // History card, but the route stays LIVE (not deleted/redirected) because its non-compact
+    // mode is the only reachable home for 4 venue-config panels (VenueCredentialsPanel/
+    // VenueDateRangePanel/VenueRelaunchEstimatePanel/VenueTardisWindowsPanel) — an audit gap the
+    // consolidation plan never accounted for. Removed from the canonical dropdown/bar only;
+    // still in NAV_LINKS_FLAT (mobile hamburger) + still a real route, so old bookmarks/deep-links
+    // and the venue panels stay reachable.
+    heading: "Legacy",
+    legacy: true,
+    items: [
+      {
+        id: "vm-deployments",
+        to: "/vm-deployments",
+        label: "VM Deployments (legacy)",
+        icon: Server,
+        desc: "Full per-VM history + venue config panels — folded into Deployments' History card",
+        short: "VMs",
+      },
+    ],
+  },
 ];
 
 /** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */

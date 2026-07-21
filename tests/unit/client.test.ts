@@ -34,26 +34,19 @@ describe("AbortError", async () => {
 });
 
 describe("TURBO_MODE_SERVICES", async () => {
-  const {
-    TURBO_MODE_SERVICES,
-    TURBO_SUB_DIMENSION_SERVICES,
-    UPSTREAM_CHECK_SERVICES,
-  } = await import("../../src/api/client");
+  const { TURBO_MODE_SERVICES, TURBO_SUB_DIMENSION_SERVICES, UPSTREAM_CHECK_SERVICES } =
+    await import("../../src/api/client");
 
   it("includes expected services", () => {
     expect(TURBO_MODE_SERVICES).toContain("instruments-service");
-    expect(TURBO_MODE_SERVICES).toContain("market-tick-data-handler");
+    expect(TURBO_MODE_SERVICES).toContain("market-tick-data-service");
     expect(TURBO_MODE_SERVICES).toContain("features-delta-one-service");
   });
 
   it("has sub-dimension mapping for turbo services", () => {
     expect(TURBO_SUB_DIMENSION_SERVICES["instruments-service"]).toBe("venue");
-    expect(TURBO_SUB_DIMENSION_SERVICES["market-tick-data-handler"]).toBe(
-      "data_type",
-    );
-    expect(TURBO_SUB_DIMENSION_SERVICES["features-delta-one-service"]).toBe(
-      "feature_group",
-    );
+    expect(TURBO_SUB_DIMENSION_SERVICES["market-tick-data-service"]).toBe("data_type");
+    expect(TURBO_SUB_DIMENSION_SERVICES["features-delta-one-service"]).toBe("feature_group");
   });
 
   it("lists upstream check services", () => {
@@ -122,9 +115,7 @@ describe("deploymentApi", async () => {
     );
 
     await api.fetchDeploymentHistory("my-service");
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("?service_id=my-service"),
-    );
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("?service_id=my-service"));
   });
 
   it("fetchDeploymentHistory with no service_id has no query param", async () => {

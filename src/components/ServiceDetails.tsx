@@ -223,7 +223,7 @@ function DimensionsPanel({ dimensions }: { dimensions: ReturnType<typeof useServ
 // Layer assignment for vertical positioning
 const LAYER_ORDER = [
   ["instruments-service", "corporate-actions", "features-calendar-service"],
-  ["market-tick-data-handler"],
+  ["market-tick-data-service"],
   ["market-data-processing-service"],
   ["features-delta-one-service", "features-volatility-service", "features-onchain-service"],
   ["ml-training-service", "ml-inference-service"],
@@ -235,7 +235,7 @@ const LAYER_COLORS: Record<string, string> = {
   "instruments-service": "var(--color-accent-cyan)",
   "corporate-actions": "var(--color-accent-cyan)",
   "features-calendar-service": "var(--color-accent-purple)",
-  "market-tick-data-handler": "var(--color-accent-blue)",
+  "market-tick-data-service": "var(--color-accent-blue)",
   "market-data-processing-service": "var(--color-accent-blue)",
   "features-delta-one-service": "var(--color-accent-purple)",
   "features-volatility-service": "var(--color-accent-purple)",

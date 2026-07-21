@@ -18,11 +18,7 @@ interface CLIPreviewProps {
  * 2. Map dimensions to cli_args
  * 3. Handle special cases (date ranges, boolean flags)
  */
-export function CLIPreview({
-  serviceName,
-  dimensions,
-  formValues,
-}: CLIPreviewProps) {
+export function CLIPreview({ serviceName, dimensions, formValues }: CLIPreviewProps) {
   const [copied, setCopied] = useState(false);
 
   const cliCommand = buildCLICommand(serviceName, dimensions, formValues);
@@ -41,12 +37,7 @@ export function CLIPreview({
             <Terminal className="h-4 w-4 text-[var(--color-accent-cyan)]" />
             CLI Command Preview
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopy}
-            className="h-7 px-2"
-          >
+          <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2">
             {copied ? (
               <>
                 <Check className="h-3 w-3 mr-1" />
@@ -64,8 +55,7 @@ export function CLIPreview({
       <CardContent>
         <div className="bg-[var(--color-bg-primary)] rounded-lg p-3 border border-[var(--color-border-default)]">
           <pre className="text-xs font-mono text-[var(--color-text-secondary)] whitespace-pre-wrap break-all">
-            <span className="text-[var(--color-accent-green)]">$</span>{" "}
-            {cliCommand}
+            <span className="text-[var(--color-accent-green)]">$</span> {cliCommand}
           </pre>
         </div>
         <p className="text-xs text-[var(--color-text-muted)] mt-2">
@@ -191,21 +181,11 @@ export function ContainerCommandPreview({
   // Add operation + mode flags (per codex cli-standards: --operation <op> --mode batch|live)
   const containerFlags: Record<string, string[]> = {
     "instruments-service": ["--operation", "instrument", "--mode", "batch"],
-    "market-tick-data-handler": ["--operation", "fetch", "--mode", "batch"],
-    "market-data-processing-service": [
-      "--operation",
-      "process",
-      "--mode",
-      "batch",
-    ],
+    "market-tick-data-service": ["--operation", "fetch", "--mode", "batch"],
+    "market-data-processing-service": ["--operation", "process", "--mode", "batch"],
     "features-calendar-service": ["--operation", "compute", "--mode", "batch"],
     "features-delta-one-service": ["--operation", "compute", "--mode", "batch"],
-    "features-volatility-service": [
-      "--operation",
-      "compute",
-      "--mode",
-      "batch",
-    ],
+    "features-volatility-service": ["--operation", "compute", "--mode", "batch"],
     "features-onchain-service": ["--operation", "compute", "--mode", "batch"],
     "ml-training-service": ["--operation", "train_phase1", "--mode", "batch"],
     "ml-inference-service": ["--operation", "infer", "--mode", "batch"],
@@ -236,10 +216,7 @@ export function ContainerCommandPreview({
         args.push(`--start-date ${value}`);
         args.push(`--end-date ${value}`);
       }
-    } else if (
-      dim.name === "asset_group" &&
-      serviceName === "market-data-processing-service"
-    ) {
+    } else if (dim.name === "asset_group" && serviceName === "market-data-processing-service") {
       // market-data-processing-service uses boolean flags
       args.push(`--${value}`);
     } else if (cliArg) {
@@ -249,18 +226,12 @@ export function ContainerCommandPreview({
 
   return (
     <div className="mt-4">
-      <h4 className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
-        Container Command (per shard)
-      </h4>
+      <h4 className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">Container Command (per shard)</h4>
       <div className="bg-[var(--color-bg-primary)] rounded-lg p-3 border border-[var(--color-border-default)]">
         <pre className="text-xs font-mono text-[var(--color-text-secondary)] whitespace-pre-wrap">
-          <span className="text-[var(--color-text-muted)]">
-            # Inside container:
-          </span>
+          <span className="text-[var(--color-text-muted)]"># Inside container:</span>
           {"\n"}
-          <span className="text-[var(--color-accent-purple)]">
-            python -m {serviceName.replace(/-/g, "_")}
-          </span>{" "}
+          <span className="text-[var(--color-accent-purple)]">python -m {serviceName.replace(/-/g, "_")}</span>{" "}
           {args.join(" ")}
         </pre>
       </div>

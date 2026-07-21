@@ -1,25 +1,33 @@
 /**
- * Regression spec: VM Deployments — Archive History tab (§2.P1 + canonical_vm_log_archival-005)
+ * Regression spec: VM archive history, folded into DeploymentDetail's History card
+ * (Fleet-tab consolidation, deployment_ui_fleet_tab_consolidation_2026_07_21.md).
  *
- * Covers the archive table added for completed/failed/reaped VM deployments:
+ * /vm-deployments (the old standalone archive table) is RETIRED — this spec previously
+ * exercised it directly; it now exercises the SAME content at its new home,
+ * DeploymentDetail's "History" card (VmRunHistoryCard), scoped to one target's rows:
  *   - Outcome badge shows COMPLETED / FAILED / reaped
  *   - Duration column shows formatted elapsed time
  *   - Rows Captured column shows rows_out
  *   - run.log link → durable log-archive/rolling/ path (deployment-scripts-{pid}, no 14-day TTL)
  *   - serial link → durable log-archive/serial-rolling/ path (for VMs with serial capture)
- *   - Empty archive renders "None" without JS crash
+ *   - No archived runs renders the honest empty state without a JS crash
  *
  * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright
  * route mocks for /api/ paths are bypassed. We inject vm-deployment data via
- * window.__mockVmDeploymentOverride (handled in mock-api.ts).
+ * window.__mockVmDeploymentOverride (handled in mock-api.ts) — the SAME override
+ * DeploymentDetail's VmRunHistoryCard reads through fetchVmDeployments().
  */
 
 import { expect, type Page, test } from "@playwright/test";
 
+// cefi-backfill-20260620 is a known default entry in mock-api.ts's inventory (also used by
+// run-log-panel.spec.ts) — DeploymentDetail needs a real inventory match to render its header.
+const TARGET_VM = "cefi-backfill-20260620";
+
 function makeArchiveEntry(overrides: Record<string, unknown> = {}) {
   return {
     deployment_id: "dep-archive-1",
-    vm_name: "canonical-migration-cefi-20260418-042359",
+    vm_name: TARGET_VM,
     asset_group: "CEFI",
     task: "canonical-migration",
     mode: "live",
@@ -34,11 +42,9 @@ function makeArchiveEntry(overrides: Record<string, unknown> = {}) {
     rows_out: 29987,
     rows_error: 13,
     events_emitted: 120,
-    log_uri: "gs://deployment-scripts-central-element-323112/vm-logs/canonical-migration-cefi-20260418-042359/run.log",
-    archive_run_log_uri:
-      "gs://deployment-scripts-central-element-323112/log-archive/rolling/20260418/canonical-migration-cefi-20260418-042359/run.log",
-    archive_serial_uri:
-      "gs://deployment-scripts-central-element-323112/log-archive/serial-rolling/20260418/canonical-migration-cefi-20260418-042359/serial-console.txt",
+    log_uri: `gs://deployment-scripts-central-element-323112/vm-logs/${TARGET_VM}/run.log`,
+    archive_run_log_uri: `gs://deployment-scripts-central-element-323112/log-archive/rolling/20260418/${TARGET_VM}/run.log`,
+    archive_serial_uri: `gs://deployment-scripts-central-element-323112/log-archive/serial-rolling/20260418/${TARGET_VM}/serial-console.txt`,
     machine_type: null,
     zone: null,
     uptime_hours: null,
@@ -52,38 +58,43 @@ async function injectVmDeploymentData(page: Page, recentRows: unknown[]) {
     (window as typeof window & { __mockVmDeploymentOverride?: unknown }).__mockVmDeploymentOverride = {
       active: [],
       recent: rows,
-      archive_days: 7,
+      archive_days: 30,
     };
   }, recentRows);
 }
 
-test.describe("VM Deployments — Archive History (§2.P1)", () => {
+test.describe("DeploymentDetail — VM History card (folded /vm-deployments archive)", () => {
+  // /vm-deployments stays LIVE (legacy-quarantined, not redirected — operator decision
+  // BLK-7cb5bbbc): its non-compact mode is the only reachable home for 4 venue-config panels
+  // this fold never accounted for. See tests/smoke/venue_tardis_windows.spec.ts +
+  // vm_deployments_reconcile.spec.ts for that page's own regression coverage, unaffected here.
+  test("/vm-deployments stays reachable (legacy-quarantined, off the canonical nav)", async ({ page }) => {
+    await page.goto("/vm-deployments");
+    await expect(page).toHaveURL(/\/vm-deployments$/);
+    await expect(page.getByTestId("reconcile-registry-btn")).toBeVisible();
+  });
+
   test("COMPLETED entry shows outcome badge, duration, rows captured, log link", async ({ page }) => {
     const entry = makeArchiveEntry();
     await injectVmDeploymentData(page, [entry]);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    await page.goto(`/deployments/${TARGET_VM}`);
+    await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
 
-    const row = page.getByTestId("archive-row-dep-archive-1");
+    const row = page.getByTestId("vm-history-row-dep-archive-1");
     await expect(row).toBeVisible();
 
-    // Outcome badge
-    const outcome = page.getByTestId("outcome-dep-archive-1");
+    const outcome = page.getByTestId("vm-history-outcome-dep-archive-1");
     await expect(outcome).toBeVisible();
     await expect(outcome).toContainText("COMPLETED");
 
     // Duration: started_at=04:00, completed_at=06:15 → 135m = 2h 15m
-    const duration = page.getByTestId("duration-dep-archive-1");
-    await expect(duration).toBeVisible();
-    await expect(duration).toContainText("h");
+    await expect(row).toContainText("h");
 
     // Rows captured
-    const rowsCaptured = page.getByTestId("rows-captured-dep-archive-1");
-    await expect(rowsCaptured).toBeVisible();
-    await expect(rowsCaptured).toContainText("29,987");
+    await expect(row).toContainText("29,987");
 
     // run.log link → durable log-archive/rolling/ path (canonical, no 14-day TTL)
-    const logLink = page.getByTestId("log-link-dep-archive-1");
+    const logLink = page.getByTestId("vm-history-log-link-dep-archive-1");
     await expect(logLink).toBeVisible();
     await expect(logLink).toContainText("run.log");
     const href = await logLink.getAttribute("href");
@@ -92,7 +103,7 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
     expect(href).toContain("log-archive");
 
     // serial link → durable log-archive/serial-rolling/ path
-    const serialLink = page.getByTestId("serial-link-dep-archive-1");
+    const serialLink = page.getByTestId("vm-history-serial-link-dep-archive-1");
     await expect(serialLink).toBeVisible();
     await expect(serialLink).toContainText("serial");
     const serialHref = await serialLink.getAttribute("href");
@@ -100,28 +111,24 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
     expect(serialHref).toContain("serial-rolling");
   });
 
-  test("FAILED entry shows error outcome badge with exit code", async ({ page }) => {
+  test("FAILED entry shows error outcome badge", async ({ page }) => {
     const entry = makeArchiveEntry({
       deployment_id: "dep-failed-1",
-      vm_name: "features-onchain-defi-20260420-080000",
       status: "failed",
       exit_code: 1,
       rows_out: 0,
       completed_at: "2026-04-20T09:00:00Z",
-      log_uri: "gs://deployment-scripts-central-element-323112/vm-logs/features-onchain-defi-20260420-080000/run.log",
-      archive_run_log_uri:
-        "gs://deployment-scripts-central-element-323112/log-archive/rolling/20260420/features-onchain-defi-20260420-080000/run.log",
     });
     await injectVmDeploymentData(page, [entry]);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    await page.goto(`/deployments/${TARGET_VM}`);
+    await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
 
-    const outcome = page.getByTestId("outcome-dep-failed-1");
+    const outcome = page.getByTestId("vm-history-outcome-dep-failed-1");
     await expect(outcome).toBeVisible();
     await expect(outcome).toContainText("FAILED");
 
-    const rowsCaptured = page.getByTestId("rows-captured-dep-failed-1");
-    await expect(rowsCaptured).toContainText("—");
+    const row = page.getByTestId("vm-history-row-dep-failed-1");
+    await expect(row).toContainText("—"); // rows_out=0 -> dash, not a fabricated 0
   });
 
   test("reaped entry shows warning outcome badge", async ({ page }) => {
@@ -133,24 +140,24 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       rows_out: 0,
     });
     await injectVmDeploymentData(page, [entry]);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    await page.goto(`/deployments/${TARGET_VM}`);
+    await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
 
-    const outcome = page.getByTestId("outcome-dep-reaped-1");
+    const outcome = page.getByTestId("vm-history-outcome-dep-reaped-1");
     await expect(outcome).toBeVisible();
     await expect(outcome).toContainText("reaped");
   });
 
-  test("empty archive renders None without JS crash", async ({ page }) => {
+  test("no archived runs renders the honest empty state without a JS crash", async ({ page }) => {
     await injectVmDeploymentData(page, []);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    await page.goto(`/deployments/${TARGET_VM}`);
+    await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
-    await expect(page.getByText("None").first()).toBeVisible();
+    await expect(page.getByTestId("detail-vm-history")).toContainText("No archived runs.");
   });
 
-  test("entry with no archive URIs shows dash instead of link", async ({ page }) => {
+  test("entry with no archive URIs shows dash instead of a log link", async ({ page }) => {
     const entry = makeArchiveEntry({
       deployment_id: "dep-nolog-1",
       log_uri: "",
@@ -158,9 +165,9 @@ test.describe("VM Deployments — Archive History (§2.P1)", () => {
       archive_serial_uri: "",
     });
     await injectVmDeploymentData(page, [entry]);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
+    await page.goto(`/deployments/${TARGET_VM}`);
+    await expect(page.getByTestId("deployment-detail-page")).toBeVisible();
 
-    await expect(page.getByTestId("log-link-dep-nolog-1")).not.toBeVisible();
+    await expect(page.getByTestId("vm-history-log-link-dep-nolog-1")).not.toBeVisible();
   });
 });

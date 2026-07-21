@@ -73,8 +73,7 @@ function mockFetchError(status: number, detail: string) {
       ok: false,
       status,
       statusText: `HTTP ${status}`,
-      json: () =>
-        Promise.resolve({ detail, message: detail, code: `HTTP_${status}` }),
+      json: () => Promise.resolve({ detail, message: detail, code: `HTTP_${status}` }),
     }),
   );
 }
@@ -133,9 +132,7 @@ describe("client API functions", () => {
     it("calls correct URL with service name", async () => {
       mockFetchOk({ dimensions: [] });
       await getServiceDimensions("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/services/instruments-service/dimensions",
-      );
+      expect(getFetchUrl()).toContain("/api/services/instruments-service/dimensions");
     });
   });
 
@@ -163,9 +160,7 @@ describe("client API functions", () => {
     it("calls correct URL", async () => {
       mockFetchOk({ service: "svc", default_bucket: null, buckets: [] });
       await getConfigBuckets("my-service");
-      expect(getFetchUrl()).toContain(
-        "/api/services/my-service/config-buckets",
-      );
+      expect(getFetchUrl()).toContain("/api/services/my-service/config-buckets");
     });
   });
 
@@ -189,9 +184,7 @@ describe("client API functions", () => {
     it("calls correct URL", async () => {
       mockFetchOk({ start_dates: {} });
       await getStartDates("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/config/expected-start-dates/instruments-service",
-      );
+      expect(getFetchUrl()).toContain("/api/config/expected-start-dates/instruments-service");
     });
   });
 
@@ -485,9 +478,7 @@ describe("client API functions", () => {
     it("calls /api/checklists/:service/checklist", async () => {
       mockFetchOk({ checklist: [] });
       await getChecklist("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/checklists/instruments-service/checklist",
-      );
+      expect(getFetchUrl()).toContain("/api/checklists/instruments-service/checklist");
     });
   });
 
@@ -495,9 +486,7 @@ describe("client API functions", () => {
     it("calls /api/checklists/:service/checklist/validate", async () => {
       mockFetchOk({ valid: true });
       await validateChecklist("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/checklists/instruments-service/checklist/validate",
-      );
+      expect(getFetchUrl()).toContain("/api/checklists/instruments-service/checklist/validate");
     });
   });
 
@@ -741,9 +730,7 @@ describe("client API functions", () => {
         breakdown_by_algo: {},
       });
       await getExecutionDataStatus({ config_path: "/path/to/config" });
-      expect(getFetchUrl()).toContain(
-        "/api/service-status/execution-services/data-status",
-      );
+      expect(getFetchUrl()).toContain("/api/service-status/execution-services/data-status");
       expect(getFetchUrl()).toContain("config_path=");
     });
 
@@ -801,9 +788,7 @@ describe("client API functions", () => {
         start_date: "2026-01-01",
         end_date: "2026-01-31",
       });
-      expect(getFetchUrl()).toContain(
-        "/api/service-status/execution-services/missing-shards",
-      );
+      expect(getFetchUrl()).toContain("/api/service-status/execution-services/missing-shards");
     });
 
     it("appends optional strategy, mode, timeframe, algo params", async () => {
@@ -829,9 +814,7 @@ describe("client API functions", () => {
     it("calls /api/service-status/:service/status", async () => {
       mockFetchOk({ service: "svc", status: {} });
       await getServiceStatus("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/service-status/instruments-service/status",
-      );
+      expect(getFetchUrl()).toContain("/api/service-status/instruments-service/status");
     });
   });
 
@@ -855,9 +838,7 @@ describe("client API functions", () => {
     it("calls /api/capabilities/service-asset-groups/:service", async () => {
       mockFetchOk({ service: "svc", asset_groups: [] });
       await getServiceAssetGroups("instruments-service");
-      expect(getFetchUrl()).toContain(
-        "/api/capabilities/service-asset-groups/instruments-service",
-      );
+      expect(getFetchUrl()).toContain("/api/capabilities/service-asset-groups/instruments-service");
     });
   });
 
@@ -980,60 +961,96 @@ describe("client API functions", () => {
   });
 
   describe("getInstrumentAvailability", () => {
-    const baseResponse = {
-      instrument_key: "binance/btc_usdt/spot",
-      parsed: {
-        venue: "binance",
-        instrument_type: "spot",
-        symbol: "BTC_USDT",
-        category: "cefi",
-        folder: "spot",
+    // The REAL backend shape (deployment_api/services/data_query_service.py::
+    // get_instrument_availability) — flat, keyed on venue/instrument_type/instrument,
+    // per-day-per-data_type booleans. Bug B (2026-07-21): this file previously sent
+    // instrument_key (the backend doesn't accept it — required params are venue/
+    // instrument_type/instrument) and expected a richer response shape the backend
+    // never produced. Fixed by sending the correct params and transforming this raw
+    // shape into the UI's InstrumentAvailabilityResponse client-side.
+    const rawBackendResponse = {
+      venue: "binance",
+      instrument_type: "spot",
+      instrument: "BTC_USDT",
+      date_range: { start: "2026-01-01", end: "2026-01-31" },
+      effective_range: { start: "2026-01-01", end: "2026-01-31" },
+      data_types: ["trades"],
+      daily_availability: {
+        "2026-01-01": { trades: true },
+        "2026-01-02": { trades: false },
       },
-      service: "svc",
-      bucket: "b",
-      date_range: {
-        start: "2026-01-01",
-        end: "2026-01-31",
-        total_dates: 31,
-        first_day_of_month_only: false,
-      },
-      data_types_checked: [],
-      overall: { expected: 31, found: 31, missing: 0, completion_pct: 100 },
-      by_data_type: {},
+      summary: { total_days: 2, available_days: 1, missing_days: 1, availability_rate: 50 },
     };
 
-    it("calls /api/data-status/instrument-availability with required params", async () => {
-      mockFetchOk(baseResponse);
+    it("calls /api/data-status/instrument-availability with venue/instrument_type/instrument, never instrument_key", async () => {
+      mockFetchOk(rawBackendResponse);
       await getInstrumentAvailability({
         instrument_key: "binance/btc_usdt/spot",
+        venue: "binance",
+        instrument_type: "spot",
+        instrument: "BTC_USDT",
+        asset_group: "cefi",
         start_date: "2026-01-01",
         end_date: "2026-01-31",
       });
       const url = getFetchUrl();
       expect(url).toContain("/api/data-status/instrument-availability");
-      expect(url).toContain("instrument_key=binance%2Fbtc_usdt%2Fspot");
+      expect(url).toContain("venue=binance");
+      expect(url).toContain("instrument_type=spot");
+      expect(url).toContain("instrument=BTC_USDT");
+      expect(url).not.toContain("instrument_key=");
     });
 
     it("appends optional params when provided", async () => {
-      mockFetchOk(baseResponse);
+      mockFetchOk(rawBackendResponse);
       await getInstrumentAvailability({
         instrument_key: "binance/btc_usdt/spot",
+        venue: "binance",
+        instrument_type: "spot",
+        instrument: "BTC_USDT",
+        asset_group: "cefi",
         start_date: "2026-01-01",
         end_date: "2026-01-31",
         data_type: "trades",
         first_day_of_month_only: true,
-        service: "market-tick-data-handler",
+        service: "market-tick-data-service",
         timeframe: "1h",
         available_from: "2025-01-01",
         available_to: "2026-12-31",
       });
       const url = getFetchUrl();
       expect(url).toContain("data_type=trades");
-      expect(url).toContain("first_day_of_month_only=true");
-      expect(url).toContain("service=market-tick-data-handler");
-      expect(url).toContain("timeframe=1h");
       expect(url).toContain("available_from=2025-01-01");
       expect(url).toContain("available_to=2026-12-31");
+      // first_day_of_month_only/service/timeframe are UI-local (not sent — the
+      // backend endpoint doesn't accept them); asserting they're NOT query params
+      // documents that intentionally, so a future re-add is a deliberate choice.
+      expect(url).not.toContain("first_day_of_month_only");
+      expect(url).not.toContain("service=");
+      expect(url).not.toContain("timeframe=");
+    });
+
+    it("transforms the raw daily_availability shape into per-data_type found/missing date lists", async () => {
+      mockFetchOk(rawBackendResponse);
+      const result = await getInstrumentAvailability({
+        instrument_key: "binance/btc_usdt/spot",
+        venue: "binance",
+        instrument_type: "spot",
+        instrument: "BTC_USDT",
+        asset_group: "cefi",
+        start_date: "2026-01-01",
+        end_date: "2026-01-31",
+      });
+      expect(result.overall).toEqual({ expected: 2, found: 1, missing: 1, completion_pct: 50 });
+      expect(result.by_data_type.trades.dates_found_list).toEqual(["2026-01-01"]);
+      expect(result.by_data_type.trades.dates_missing_list).toEqual(["2026-01-02"]);
+      expect(result.parsed).toEqual({
+        venue: "binance",
+        instrument_type: "spot",
+        symbol: "BTC_USDT",
+        asset_group: "cefi",
+        folder: "",
+      });
     });
   });
 
@@ -1076,11 +1093,7 @@ describe("client API functions", () => {
   describe("getLiveDeploymentHealth", () => {
     it("calls /api/deployments/:id/live-health with service and region params", async () => {
       mockFetchOk({ status: "healthy" });
-      await getLiveDeploymentHealth(
-        "dep-1",
-        "instruments-service",
-        "us-central1",
-      );
+      await getLiveDeploymentHealth("dep-1", "instruments-service", "us-central1");
       const url = getFetchUrl();
       expect(url).toContain("/api/deployments/dep-1/live-health");
       expect(url).toContain("service=instruments-service");

@@ -5,6 +5,11 @@
  * standalone page rendering the SAME component. The refactor collapsed everything onto ONE
  * plain route per screen and deleted the `?tab=` scheme + the legacy quarantine group. These
  * tests pin that contract so a future entry can't reintroduce `?tab=` or a duplicate screen.
+ *
+ * The legacy quarantine group was REINTRODUCED 2026-07-21 (Fleet-tab consolidation, BLK-7cb5bbbc)
+ * for exactly one entry, `/vm-deployments` — its archive/history folded into Deployments' History
+ * card, but the route stays live+reachable (off the canonical dropdown/bar) because its
+ * non-compact mode is the only home for 4 venue-config panels the fold never accounted for.
  */
 
 import { describe, expect, it } from "vitest";
@@ -55,25 +60,31 @@ describe("NAV_GROUPS canonical entries", () => {
 
   it("reach the screens that have NO cockpit-pane heritage", () => {
     const reached = new Set(canonicalItems.map((i) => i.to));
-    // /home = service picker, /epics = plans, /ops/costs = spend, /vm-deployments = full
-    // per-VM history (the Fleet route embeds only a compact view), and Data Status is a
-    // per-service tab so it defaults to the canonical instruments-service.
-    for (const to of ["/home", "/epics", "/ops/costs", "/vm-deployments", "/service/instruments-service/data-status"]) {
+    // /home = service picker, /epics = plans, /ops/costs = spend, and Data Status is a
+    // per-service tab so it defaults to the canonical instruments-service. /vm-deployments
+    // is legacy-quarantined (see below), NOT canonical.
+    for (const to of ["/home", "/epics", "/ops/costs", "/service/instruments-service/data-status"]) {
       expect(reached).toContain(to);
     }
+    expect(reached).not.toContain("/vm-deployments");
   });
 });
 
 describe("legacy quarantine", () => {
-  it("no longer exists — the duplicate-route group + its routes were deleted in the cutover", () => {
-    expect(NAV_GROUPS.some((g) => g.legacy)).toBe(false);
-    expect(NAV_GROUPS_CANONICAL).toEqual(NAV_GROUPS);
+  it("has exactly one entry — /vm-deployments (kept live for its venue-config panels)", () => {
+    const legacyGroups = NAV_GROUPS.filter((g) => g.legacy);
+    expect(legacyGroups).toHaveLength(1);
+    const legacyItems = legacyGroups.flatMap((g) => g.items);
+    expect(legacyItems.map((i) => i.to)).toEqual(["/vm-deployments"]);
+    // Excluded from canonical, but the route/link itself still exists (not deleted).
+    expect(NAV_GROUPS_CANONICAL.flatMap((g) => g.items).map((i) => i.to)).not.toContain("/vm-deployments");
   });
 });
 
 describe("NAV_LINKS_FLAT (mobile hamburger parity)", () => {
-  it("covers every canonical entry the desktop dropdown shows", () => {
-    expect(NAV_LINKS_FLAT).toHaveLength(canonicalItems.length);
+  it("covers every canonical entry PLUS the legacy quarantine (old bookmarks stay reachable)", () => {
+    expect(NAV_LINKS_FLAT).toHaveLength(canonicalItems.length + 1);
+    expect(NAV_LINKS_FLAT.map((l) => l.to)).toContain("/vm-deployments");
   });
 });
 
@@ -100,9 +111,10 @@ describe("cockpit bar / dropdown shared source", () => {
   it("splits the canonical entries into former-pane tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 10 former cockpit panes + the 6 screens with no pane heritage = 16 canonical entries.
+    // 10 former cockpit panes + the 5 screens with no pane heritage = 15 canonical entries
+    // (vm-deployments moved to the legacy quarantine — see "legacy quarantine" describe above).
     expect(tabs).toHaveLength(10);
-    expect(links).toEqual(["home", "epics", "vm-deployments", "data-status", "costs", "artifacts"]);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(links).toEqual(["home", "epics", "data-status", "costs", "artifacts"]);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 });
