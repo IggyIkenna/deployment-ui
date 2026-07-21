@@ -269,8 +269,10 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 574 nodes / 2433 edges (@UAC F53 uses_model edges)
-    await expect(page.getByText(/574 nodes \/ 2433 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 572 nodes / 2412 edges (2026-07-21: DRIFT-cull residue
+    // pruned -- venue:drift + collateral:drift nodes and their 21 edges removed,
+    // Track 6 defi_consolidated_closeout_2026_07_18.md)
+    await expect(page.getByText(/572 nodes \/ 2412 edges/)).toBeVisible({ timeout: 10000 });
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
@@ -288,10 +290,13 @@ test.describe("CapabilityTab", () => {
     // Wait for the verdicts view (lazy-loaded)
     await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
 
-    // Summary counts match the bundled matrix (total=21600, available=12977, blocked=8175, not_registered=448)
-    await expect(page.getByTestId("verdict-summary-total")).toContainText("21,600");
-    await expect(page.getByTestId("verdict-summary-available")).toContainText("12,977");
-    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("8,175");
+    // Summary counts match the bundled matrix (2026-07-21: DRIFT-cull residue pruned --
+    // 66 venue=drift cells removed across archetypes, Track 6
+    // defi_consolidated_closeout_2026_07_18.md; total=20544, available=12122,
+    // blocked=7974, not_registered=448 unchanged)
+    await expect(page.getByTestId("verdict-summary-total")).toContainText("20,544");
+    await expect(page.getByTestId("verdict-summary-available")).toContainText("12,122");
+    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,974");
     await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("448");
   });
 

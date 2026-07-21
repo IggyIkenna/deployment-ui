@@ -1,4 +1,5 @@
 import type { DeployJob, DeployParams, ServiceStatus } from "../types/deploymentTypes";
+import type { OrphanVerdict } from "./client";
 
 export interface BuildEntry {
   tag: string;
@@ -917,6 +918,13 @@ export interface DeploymentItem {
   // single-timestamp kind, or the unmanaged-VM fallback). null = authoritative. Colour-only in the
   // UI, no text label — same convention as cost_basis "partial".
   basis?: "approx" | null;
+  // Orphan/idle-spend join (Fleet-tab consolidation) — reused verbatim from the SAME
+  // GET /api/fleet/orphans SSOT (never a second estimator). Populated ONLY for a VM row currently
+  // STOPPED/SUSPENDED/TERMINATED; null for a running VM or any non-VM kind (honest absence).
+  reap_verdict?: OrphanVerdict | null;
+  grace_hours?: number | null; // the stopped-age threshold (hours) the verdict was computed against
+  stopped_age_hours?: number | null; // hours since last_stop_timestamp (falls back to creation)
+  monthly_disk_usd?: number | null; // ESTIMATE — same list-rate model as /api/fleet/orphans
 }
 
 // GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`

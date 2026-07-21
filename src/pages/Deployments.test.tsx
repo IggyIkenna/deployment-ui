@@ -23,11 +23,29 @@ vi.mock("../api/health", () => ({
   getDeploymentFreshness: () => Promise.reject(new Error("no freshness in test")),
 }));
 
+// Idle-spend rollup + reap/delete actions (Fleet-tab consolidation) — partial mock (the module
+// also exports pauseVm/resumeVm/cancelVm etc. that VmControls needs untouched) so tests never hit
+// a real fetch.
+const mockGetOrphans = vi.fn();
+const mockReapOrphans = vi.fn();
+const mockDeleteInstance = vi.fn();
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/client")>();
+  return {
+    ...actual,
+    getOrphans: () => mockGetOrphans(),
+    reapOrphans: (dryRun: boolean, graceHours?: number) => mockReapOrphans(dryRun, graceHours),
+    deleteInstance: (name: string, zone: string) => mockDeleteInstance(name, zone),
+  };
+});
+
+// Spreads all props through (onClick/role/data-testid/etc.) — same forwarding contract as the
+// real Card, so a click-to-filter test exercises the real handler wired via onClick.
 vi.mock("../components/ui/card", () => ({
-  Card: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
-  CardHeader: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
-  CardTitle: (p: { children: React.ReactNode }) => <h3>{p.children}</h3>,
-  CardContent: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
+  Card: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
+  CardHeader: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
+  CardTitle: (p: React.HTMLAttributes<HTMLElement>) => <h3 {...p} />,
+  CardContent: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
 }));
 
 import { DeploymentsContent } from "./Deployments";
@@ -92,6 +110,24 @@ const BATCH_ITEMS = [
     captured_progress: 100,
     run_log_uri: null,
   },
+  {
+    name: "cefi-orphan-stopped-vm",
+    kind: "VM" as const,
+    umbrella: "BATCH" as const,
+    cloud: "GCP" as const,
+    service: "market-tick-data-service",
+    asset_group: "cefi",
+    status: "stopped",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    reap_verdict: "reap" as const,
+    grace_hours: 24,
+    stopped_age_hours: 50.5,
+    monthly_disk_usd: 5.2,
+  },
 ];
 
 function summaryFor(umbrella: DeploymentUmbrella): UmbrellaSummaryResponse {
@@ -140,10 +176,22 @@ describe("Deployments page (unified all-modes table)", () => {
   beforeEach(() => {
     mockGetInventory.mockReset();
     mockGetSummary.mockReset();
+    mockGetOrphans.mockReset();
+    mockReapOrphans.mockReset();
+    mockDeleteInstance.mockReset();
     mockGetSummary.mockImplementation((u: DeploymentUmbrella) => Promise.resolve(summaryFor(u)));
     mockGetInventory.mockImplementation((filters?: DeploymentInventoryFilters) =>
       Promise.resolve(inventoryFor(filters)),
     );
+    mockGetOrphans.mockResolvedValue({
+      generated_at: "2026-07-21T00:00:00Z",
+      grace_hours: 24,
+      stopped_total: 3,
+      reapable_total: 1,
+      monthly_idle_usd: 15.6,
+      monthly_reapable_usd: 5.2,
+      orphans: [],
+    });
   });
 
   afterEach(() => {
@@ -219,5 +267,104 @@ describe("Deployments page (unified all-modes table)", () => {
       expect(screen.getByTestId("deployments-error")).toBeInTheDocument();
       expect(screen.getByText(/inventory unavailable/)).toBeInTheDocument();
     });
+  });
+
+  it("renders the idle-spend rollup cards from GET /api/fleet/orphans (Fleet-tab consolidation)", async () => {
+    renderAt("/deployments");
+    await waitFor(() => {
+      const cards = screen.getByTestId("deployments-idle-spend-cards");
+      expect(cards.textContent).toContain("3"); // stopped_total
+      expect(cards.textContent).toContain("1"); // reapable_total
+      expect(cards.textContent).toContain("$15.60"); // monthly_idle_usd
+      expect(cards.textContent).toContain("$5.20"); // monthly_reapable_usd
+    });
+  });
+
+  it("idle-spend cards render honest '—' placeholders when the orphans fetch fails", async () => {
+    mockGetOrphans.mockRejectedValue(new Error("orphans unavailable"));
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    const cards = screen.getByTestId("deployments-idle-spend-cards");
+    expect(cards.textContent).toContain("—");
+  });
+
+  it("a stopped orphan VM row shows the reap-verdict badge + stopped-age", async () => {
+    renderAt("/deployments?status=all");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-orphan-stopped-vm")).toBeInTheDocument());
+    const verdict = screen.getByTestId("orphan-verdict-cefi-orphan-stopped-vm");
+    expect(verdict.textContent).toBe("Reapable");
+    expect(screen.getByText("stopped 2.1d")).toBeInTheDocument(); // 50.5h -> 2.1d
+  });
+
+  it("a running VM row shows no reap-verdict badge (not in the orphan candidate set)", async () => {
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("orphan-verdict-defi-live-capture-1")).not.toBeInTheDocument();
+  });
+
+  it("per-instance delete: click -> confirm dialog -> confirm calls deleteInstance and refreshes", async () => {
+    mockDeleteInstance.mockResolvedValue({ name: "cefi-orphan-stopped-vm", deleted: true });
+    renderAt("/deployments?status=all");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-orphan-stopped-vm")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("orphan-delete-cefi-orphan-stopped-vm"));
+    await waitFor(() => expect(screen.getByTestId("deployments-delete-dialog")).toBeInTheDocument());
+    expect(screen.getByTestId("deployments-delete-dialog").textContent).toContain("cefi-orphan-stopped-vm");
+
+    fireEvent.click(screen.getByTestId("deployments-delete-confirm"));
+    await waitFor(() => expect(mockDeleteInstance).toHaveBeenCalledWith("cefi-orphan-stopped-vm", ""));
+    await waitFor(() => expect(screen.getByTestId("deployments-reap-action-msg").textContent).toContain("Deleted"));
+    // Dialog closes + the inventory reloads (refetch count goes up).
+    expect(screen.queryByTestId("deployments-delete-dialog")).not.toBeInTheDocument();
+  });
+
+  it("bulk reap: click -> dry-run preview dialog -> confirm calls reapOrphans(false, ...)", async () => {
+    mockReapOrphans.mockImplementation((dryRun: boolean) =>
+      Promise.resolve(
+        dryRun
+          ? {
+              dry_run: true,
+              grace_hours: 24,
+              candidate_total: 1,
+              reaped_total: 0,
+              monthly_reclaimed_usd: 0,
+              results: [
+                { name: "cefi-orphan-stopped-vm", zone: "asia-northeast1-c", monthly_disk_usd: 5.2, deleted: false },
+              ],
+            }
+          : {
+              dry_run: false,
+              grace_hours: 24,
+              candidate_total: 1,
+              reaped_total: 1,
+              monthly_reclaimed_usd: 5.2,
+              results: [
+                { name: "cefi-orphan-stopped-vm", zone: "asia-northeast1-c", monthly_disk_usd: 5.2, deleted: true },
+              ],
+            },
+      ),
+    );
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployments-reap-btn")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("deployments-reap-btn"));
+    await waitFor(() => expect(mockReapOrphans).toHaveBeenCalledWith(true, 24));
+    await waitFor(() => expect(screen.getByTestId("deployments-reap-dialog")).toBeInTheDocument());
+    expect(screen.getByTestId("deployments-reap-dialog").textContent).toContain("cefi-orphan-stopped-vm");
+
+    fireEvent.click(screen.getByTestId("deployments-reap-confirm"));
+    await waitFor(() => expect(mockReapOrphans).toHaveBeenCalledWith(false, 24));
+    await waitFor(() => expect(screen.getByTestId("deployments-reap-action-msg").textContent).toContain("Reaped 1"));
+    expect(screen.queryByTestId("deployments-reap-dialog")).not.toBeInTheDocument();
+  });
+
+  it("clicking an idle-spend rollup card applies the status=stopped filter (idle-spend discoverability)", async () => {
+    renderAt("/deployments"); // default view — status=running, stopped rows hidden
+    await waitFor(() => expect(screen.getByTestId("deployments-orphans-card-stopped")).toBeInTheDocument());
+    expect(screen.queryByTestId("deployment-row-cefi-orphan-stopped-vm")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("deployments-orphans-card-stopped"));
+    await waitFor(() => expect(mockGetInventory).toHaveBeenCalledWith(expect.objectContaining({ status: "stopped" })));
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-orphan-stopped-vm")).toBeInTheDocument());
   });
 });

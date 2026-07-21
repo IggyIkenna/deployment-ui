@@ -35,6 +35,7 @@ import {
   Network,
   RefreshCw,
   Server,
+  Trash2,
   Workflow,
   Zap,
 } from "lucide-react";
@@ -52,6 +53,17 @@ import {
   type VmHealth,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
+import {
+  deleteInstance,
+  getOrphans,
+  reapOrphans,
+  type OrphanInventoryResponse,
+  type OrphanVerdict,
+  type ReapResponse,
+} from "../api/client";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
@@ -213,6 +225,36 @@ function LeakedBadge({ item }: { item: DeploymentItem }) {
       <AlertTriangle className="h-3 w-3" />
       {item.unreleased_resources.length} leaked · ~${total.toFixed(0)}/mo est
     </span>
+  );
+}
+
+// Reap-verdict badge (Fleet-tab consolidation) — same label/variant mapping as FleetOrphans'
+// VerdictBadge, so the classification reads identically on both surfaces.
+const ORPHAN_VERDICT_LABEL: Record<OrphanVerdict, string> = {
+  reap: "Reapable",
+  keep_within_grace: "Within grace",
+  keep_not_ephemeral: "Live/recurring",
+  keep_retained: "Retained (keep)",
+  keep_no_timestamp: "No stop time",
+};
+
+function fmtStoppedAge(hours: number | null | undefined): string | null {
+  if (hours == null) return null;
+  return hours < 24 ? `${hours.toFixed(1)}h` : `${(hours / 24).toFixed(1)}d`;
+}
+
+/** Reap-verdict + stopped-age for a currently-stopped VM row — null (renders nothing) when the row
+ *  isn't in the orphan candidate set (a running VM, or any non-VM kind). */
+function OrphanVerdictCell({ item }: { item: DeploymentItem }) {
+  if (!item.reap_verdict) return null;
+  const age = fmtStoppedAge(item.stopped_age_hours);
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge variant={item.reap_verdict === "reap" ? "warning" : "outline"} data-testid={`orphan-verdict-${item.name}`}>
+        {ORPHAN_VERDICT_LABEL[item.reap_verdict]}
+      </Badge>
+      {age && <span className="text-[10px] text-[var(--color-text-muted)]">stopped {age}</span>}
+    </div>
   );
 }
 
@@ -558,6 +600,12 @@ function LastRunCell({ item, dateFiltered }: { item: DeploymentItem; dateFiltere
   );
 }
 
+/** Idle-spend rollup formatting — same fixed-2-decimal shape FleetOrphans uses ("$5.20"), so the
+ *  figure reads identically on both surfaces (same estimator, same presentation). */
+function fmtIdleUsd(usd: number): string {
+  return `$${usd.toFixed(2)}`;
+}
+
 /** Compact USD/day — "$38", "$9.1", "$0.10". */
 function costLabel(cost: number | null | undefined): string | null {
   if (cost == null) return null;
@@ -684,6 +732,11 @@ const FreshnessContext = createContext<Record<string, DeploymentFreshnessRespons
 // Standalone (no provider) → the row is a Link to the detail page.
 const DrillContext = createContext<((name: string) => void) | undefined>(undefined);
 
+// Reap/delete actions (Fleet-tab consolidation) — DeploymentRow is rendered deep inside
+// DeploymentMatrix, so the per-row delete-click handler reaches it via context (same pattern as
+// DrillContext) rather than prop-drilling through DeploymentMatrix.
+const OrphanDeleteContext = createContext<((item: DeploymentItem) => void) | undefined>(undefined);
+
 /** The single unified column set — one shape for every mode (sparse "—" where N/A). Every column
  *  except Controls carries a `sortKey` so its header can drive a click-to-sort (WS-D, 2026-07-10). */
 const UNIFIED_COLUMNS: { label: string; align?: "right"; sortKey?: SortKey }[] = [
@@ -778,6 +831,7 @@ function StatusCell({ item }: { item: DeploymentItem }) {
         {item.status}
       </Chip>
       {hb && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">hb {hb}</span>}
+      <OrphanVerdictCell item={item} />
     </td>
   );
 }
@@ -785,6 +839,7 @@ function StatusCell({ item }: { item: DeploymentItem }) {
 /** One unified row — every column, "—" where the mode doesn't populate a field. */
 function DeploymentRow({ item, dateFiltered }: { item: DeploymentItem; dateFiltered: boolean }) {
   const freshnessByName = useContext(FreshnessContext);
+  const onDeleteOrphan = useContext(OrphanDeleteContext);
   const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
 
   // Health precedence: the server-derived COMPOSITE (WS-D.3) wins when present; else it's
@@ -859,7 +914,17 @@ function DeploymentRow({ item, dateFiltered }: { item: DeploymentItem; dateFilte
         )}
       </td>
       <td className="py-1.5">
-        {item.kind === "VM" ? (
+        {item.kind === "VM" && item.reap_verdict ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDeleteOrphan?.(item)}
+            data-testid={`orphan-delete-${item.name}`}
+            title="Delete this stopped instance + its boot disk"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        ) : item.kind === "VM" ? (
           <VmControls vmName={item.name} status={item.status} />
         ) : (
           <span className="text-[10px] text-[var(--color-text-muted)]">—</span>
@@ -1216,6 +1281,17 @@ export function DeploymentsContent({
     { value: "asia-northeast1", label: "asia-northeast1 (default)" },
     { value: "all", label: "all regions" },
   ]);
+  // Idle-spend rollup (Fleet-tab consolidation) — same GET /api/fleet/orphans FleetOrphans reads,
+  // fetched independently of the main inventory load (its own endpoint, its own refresh cadence).
+  const [orphanData, setOrphanData] = useState<OrphanInventoryResponse | null>(null);
+  // Reap/delete actions (Fleet-tab consolidation) — ported from FleetOrphans' dry-run-first bulk
+  // reap + per-instance delete, same confirm-dialog safety pattern (destructive actions never fire
+  // without an explicit confirm click).
+  const [reapBusy, setReapBusy] = useState(false);
+  const [confirmReap, setConfirmReap] = useState<ReapResponse | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<DeploymentItem | null>(null);
+  const [reapActionMsg, setReapActionMsg] = useState<string | null>(null);
+  const [reapError, setReapError] = useState<string | null>(null);
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -1323,6 +1399,56 @@ export function DeploymentsContent({
   // Pauses while the tab is hidden; resumes with an immediate refresh.
   useVisibilityPausedInterval(load, 60_000);
 
+  // Idle-spend rollup — independent fetch/cadence from the main inventory load (its own endpoint).
+  const loadOrphans = useCallback(() => {
+    void getOrphans(24).then(
+      (data) => setOrphanData(data),
+      () => setOrphanData(null), // honest absence on fetch failure — cards render "—", never stale data
+    );
+  }, []);
+  useEffect(() => {
+    loadOrphans();
+  }, [loadOrphans]);
+  useVisibilityPausedInterval(loadOrphans, 60_000);
+
+  // Bulk reap: dry-run first to populate the confirm dialog with the real candidate list (never
+  // deletes on this click — same two-step pattern as FleetOrphans).
+  const previewReap = useCallback(() => {
+    setReapBusy(true);
+    setReapError(null);
+    reapOrphans(true, 24)
+      .then((r) => setConfirmReap(r))
+      .catch((err: unknown) => setReapError(err instanceof Error ? err.message : "reap dry-run failed"))
+      .finally(() => setReapBusy(false));
+  }, []);
+
+  const executeReap = useCallback(() => {
+    setReapBusy(true);
+    reapOrphans(false, 24)
+      .then((r) => {
+        setReapActionMsg(`Reaped ${r.reaped_total} VM(s) — ~${fmtIdleUsd(r.monthly_reclaimed_usd)}/mo disk reclaimed`);
+        setConfirmReap(null);
+        load();
+        loadOrphans();
+      })
+      .catch((err: unknown) => setReapError(err instanceof Error ? err.message : "reap failed"))
+      .finally(() => setReapBusy(false));
+  }, [load, loadOrphans]);
+
+  const executeDelete = useCallback(() => {
+    if (!confirmDelete) return;
+    setReapBusy(true);
+    deleteInstance(confirmDelete.name, confirmDelete.zone ?? "")
+      .then((r) => {
+        setReapActionMsg(r.deleted ? `Deleted ${r.name}` : `Delete of ${r.name} was refused`);
+        setConfirmDelete(null);
+        load();
+        loadOrphans();
+      })
+      .catch((err: unknown) => setReapError(err instanceof Error ? err.message : "delete failed"))
+      .finally(() => setReapBusy(false));
+  }, [confirmDelete, load, loadOrphans]);
+
   // Region options for the selector — dynamic from the API (default pinned first), so a new region
   // appears the moment infra lands there. Fetched once; on failure the seeded default + "all" remain.
   useEffect(() => {
@@ -1363,168 +1489,343 @@ export function DeploymentsContent({
   return (
     <DrillContext.Provider value={onDrill}>
       <FreshnessContext.Provider value={freshness}>
-        <div className="w-full" data-testid="deployments-page">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
-              Deployments
-              <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
-                live · batch · paper (unified) — every VM + Cloud Run job
-              </span>
-            </h1>
-            <div className="flex items-center gap-3">
-              <DeploymentsHelpButton />
-              <button
-                onClick={load}
-                disabled={loading}
-                aria-label="Refresh deployments"
-                data-testid="deployments-refresh"
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              </button>
-            </div>
-          </div>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">Deployments</CardTitle>
-              <div className="pt-2">
-                <DeploymentsSummaryHeader summary={summary} loading={loading && items.length === 0} />
-              </div>
-              <StrandedCostBadge items={items} />
-              {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
-              <div className="pt-3">
-                <StatusFilterChips
-                  chips={statusChips(summary)}
-                  active={statusFilter}
-                  onSelect={(v) => setParam("status", v)}
-                />
-              </div>
-              {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
-              <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
-                <DateRangeFilter
-                  from={dateFromFilter}
-                  to={dateToFilter}
-                  onChange={(key, v) => setParam(key, v)}
-                  onClear={clearDateRange}
-                />
-                <FilterSelect
-                  testId="filter-mode"
-                  label="mode"
-                  value={modeFilter}
-                  onChange={(v) => setParam("umbrella", v)}
-                  options={MODE_OPTIONS}
-                />
-                <FilterSelect
-                  testId="filter-cloud"
-                  label="cloud"
-                  value={cloudFilter}
-                  onChange={(v) => setParam("cloud", v)}
-                  options={[
-                    { value: "", label: "all" },
-                    { value: "GCP", label: "GCP" },
-                    { value: "AWS", label: "AWS" },
-                  ]}
-                />
-                <FilterSelect
-                  testId="filter-region"
-                  label="region"
-                  value={regionFilter}
-                  onChange={(v) => setParam("region", v)}
-                  options={regionOptions}
-                />
-                <FilterSelect
-                  testId="filter-status"
-                  label="status"
-                  value={statusFilter}
-                  onChange={(v) => setParam("status", v)}
-                  options={[
-                    { value: "all", label: "all" },
-                    { value: "running", label: "running" },
-                    { value: "pending", label: "pending" },
-                    { value: "succeeded", label: "succeeded" },
-                    { value: "failed", label: "failed" },
-                    { value: "stale", label: "stale" },
-                    { value: "stopped", label: "stopped" },
-                    { value: "unknown", label: "unknown" },
-                  ]}
-                />
-                <FilterSelect
-                  testId="filter-asset-group"
-                  label="asset group"
-                  value={assetGroupFilter}
-                  onChange={(v) => setParam("asset_group", v)}
-                  options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
-                />
-                <FilterSelect
-                  testId="filter-service"
-                  label="service"
-                  value={serviceFilter}
-                  onChange={(v) => setParam("service", v)}
-                  options={serviceOptions.map((s) => ({ value: s, label: s || "all" }))}
-                />
-                <KindFilterChips selected={kindFilters} onToggle={toggleKind} />
-                <FilterSelect
-                  testId="filter-launched-by"
-                  label="launched by"
-                  value={launchedByFilter}
-                  onChange={(v) => setParam("launched_by", v)}
-                  options={[
-                    { value: "", label: "all" },
-                    { value: "adhoc", label: "adhoc (unmanaged)" },
-                    { value: "deployment-api", label: "deployment-api" },
-                    { value: "control-plane", label: "control-plane" },
-                    { value: "unknown", label: "unknown" },
-                  ]}
-                />
-                <TargetSearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div
-                  role="alert"
-                  className="flex items-center gap-2 text-sm text-red-400 py-2"
-                  data-testid="deployments-error"
+        <OrphanDeleteContext.Provider value={setConfirmDelete}>
+          <div className="w-full" data-testid="deployments-page">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+                Deployments
+                <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+                  live · batch · paper (unified) — every VM + Cloud Run job
+                </span>
+              </h1>
+              <div className="flex items-center gap-3">
+                <DeploymentsHelpButton />
+                <button
+                  onClick={load}
+                  disabled={loading}
+                  aria-label="Refresh deployments"
+                  data-testid="deployments-refresh"
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
                 >
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{error}</span>
+                  <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">Deployments</CardTitle>
+                <div className="pt-2">
+                  <DeploymentsSummaryHeader summary={summary} loading={loading && items.length === 0} />
                 </div>
-              )}
-              {/* Out-of-range archive floor (decision 5) — the requested date_from predates the real
+                <StrandedCostBadge items={items} />
+                {/* Idle-spend rollup cards (Fleet-tab consolidation) — ported verbatim from
+                  FleetOrphans.tsx, same GET /api/fleet/orphans data + same estimator. */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3" data-testid="deployments-idle-spend-cards">
+                  {/* Every card applies status=stopped on click (idle-spend discoverability) — the
+                      default status filter is `running`, which otherwise hides these rows entirely. */}
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-stopped"
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs">Stopped VMs</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                        {orphanData?.stopped_total ?? "—"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-reapable"
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs">Reapable</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold text-amber-400">{orphanData?.reapable_total ?? "—"}</p>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-idle-usd"
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs">Idle disk $/mo</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                        {orphanData ? fmtIdleUsd(orphanData.monthly_idle_usd) : "—"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-reclaimable-usd"
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs">Reclaimable $/mo</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold text-emerald-400">
+                        {orphanData ? fmtIdleUsd(orphanData.monthly_reapable_usd) : "—"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {/* Bulk reap — dry-run first, ported from FleetOrphans. */}
+                <div className="flex items-center gap-3 pt-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={previewReap}
+                    disabled={reapBusy || !orphanData || orphanData.reapable_total === 0}
+                    data-testid="deployments-reap-btn"
+                  >
+                    Reap {orphanData?.reapable_total ?? 0} reapable
+                  </Button>
+                  {orphanData ? (
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                      estimate — asia-northeast1 list rates; grace {orphanData.grace_hours}h
+                    </span>
+                  ) : null}
+                </div>
+                {reapError ? (
+                  <div
+                    data-testid="deployments-reap-error"
+                    className="mt-2 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>{reapError}</span>
+                  </div>
+                ) : null}
+                {reapActionMsg ? (
+                  <div
+                    data-testid="deployments-reap-action-msg"
+                    className="mt-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"
+                  >
+                    {reapActionMsg}
+                  </div>
+                ) : null}
+                {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
+                <div className="pt-3">
+                  <StatusFilterChips
+                    chips={statusChips(summary)}
+                    active={statusFilter}
+                    onSelect={(v) => setParam("status", v)}
+                  />
+                </div>
+                {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
+                <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
+                  <DateRangeFilter
+                    from={dateFromFilter}
+                    to={dateToFilter}
+                    onChange={(key, v) => setParam(key, v)}
+                    onClear={clearDateRange}
+                  />
+                  <FilterSelect
+                    testId="filter-mode"
+                    label="mode"
+                    value={modeFilter}
+                    onChange={(v) => setParam("umbrella", v)}
+                    options={MODE_OPTIONS}
+                  />
+                  <FilterSelect
+                    testId="filter-cloud"
+                    label="cloud"
+                    value={cloudFilter}
+                    onChange={(v) => setParam("cloud", v)}
+                    options={[
+                      { value: "", label: "all" },
+                      { value: "GCP", label: "GCP" },
+                      { value: "AWS", label: "AWS" },
+                    ]}
+                  />
+                  <FilterSelect
+                    testId="filter-region"
+                    label="region"
+                    value={regionFilter}
+                    onChange={(v) => setParam("region", v)}
+                    options={regionOptions}
+                  />
+                  <FilterSelect
+                    testId="filter-status"
+                    label="status"
+                    value={statusFilter}
+                    onChange={(v) => setParam("status", v)}
+                    options={[
+                      { value: "all", label: "all" },
+                      { value: "running", label: "running" },
+                      { value: "pending", label: "pending" },
+                      { value: "succeeded", label: "succeeded" },
+                      { value: "failed", label: "failed" },
+                      { value: "stale", label: "stale" },
+                      { value: "stopped", label: "stopped" },
+                      { value: "unknown", label: "unknown" },
+                    ]}
+                  />
+                  <FilterSelect
+                    testId="filter-asset-group"
+                    label="asset group"
+                    value={assetGroupFilter}
+                    onChange={(v) => setParam("asset_group", v)}
+                    options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
+                  />
+                  <FilterSelect
+                    testId="filter-service"
+                    label="service"
+                    value={serviceFilter}
+                    onChange={(v) => setParam("service", v)}
+                    options={serviceOptions.map((s) => ({ value: s, label: s || "all" }))}
+                  />
+                  <KindFilterChips selected={kindFilters} onToggle={toggleKind} />
+                  <FilterSelect
+                    testId="filter-launched-by"
+                    label="launched by"
+                    value={launchedByFilter}
+                    onChange={(v) => setParam("launched_by", v)}
+                    options={[
+                      { value: "", label: "all" },
+                      { value: "adhoc", label: "adhoc (unmanaged)" },
+                      { value: "deployment-api", label: "deployment-api" },
+                      { value: "control-plane", label: "control-plane" },
+                      { value: "unknown", label: "unknown" },
+                    ]}
+                  />
+                  <TargetSearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 text-sm text-red-400 py-2"
+                    data-testid="deployments-error"
+                  >
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                {/* Out-of-range archive floor (decision 5) — the requested date_from predates the real
                   30-day retention window; say so explicitly rather than silently returning a
                   clipped/partial result the operator would otherwise mistake for "nothing ran". */}
-              {!error && dateRangeOutOfRange && archiveFloor && (
-                <div
-                  role="alert"
-                  className="flex items-center gap-2 text-sm text-amber-400 py-2"
-                  data-testid="deployments-date-range-out-of-range"
-                >
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span>
-                    No data before {archiveFloor} — the archive only retains 30 days; results below are clipped to that
-                    floor.
-                  </span>
+                {!error && dateRangeOutOfRange && archiveFloor && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 text-sm text-amber-400 py-2"
+                    data-testid="deployments-date-range-out-of-range"
+                  >
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>
+                      No data before {archiveFloor} — the archive only retains 30 days; results below are clipped to
+                      that floor.
+                    </span>
+                  </div>
+                )}
+                {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
+                {!error && !(loading && items.length === 0) && (
+                  <DeploymentMatrix
+                    items={items.filter((i) => {
+                      const searchQuery = searchInput.trim().toLowerCase();
+                      return (
+                        (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
+                        (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
+                        (!serviceFilter || i.service === serviceFilter) &&
+                        (!searchQuery || i.name.toLowerCase().includes(searchQuery))
+                      );
+                    })}
+                    dateFiltered={Boolean(dateFromFilter || dateToFilter)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bulk-reap confirm dialog (populated from the dry-run preview) — ported from FleetOrphans. */}
+            <Dialog open={confirmReap !== null} onClose={() => setConfirmReap(null)}>
+              <DialogContent>
+                <div data-testid="deployments-reap-dialog">
+                  <DialogHeader>
+                    <DialogTitle>Reap {confirmReap?.candidate_total ?? 0} abandoned VM(s)?</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-xs text-[var(--color-text-tertiary)]">
+                    Deletes each instance + its boot disk (~
+                    {fmtIdleUsd(confirmReap?.results.reduce((a, r) => a + r.monthly_disk_usd, 0) ?? 0)}
+                    /mo). Only ephemeral VMs stopped past the grace window are included; this cannot be undone.
+                  </p>
+                  <ul className="mt-2 max-h-40 overflow-y-auto text-xs font-mono">
+                    {(confirmReap?.results ?? []).map((r) => (
+                      <li key={r.name}>
+                        {r.name}{" "}
+                        <span className="text-[var(--color-text-tertiary)]">({fmtIdleUsd(r.monthly_disk_usd)}/mo)</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmReap(null)} disabled={reapBusy}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={executeReap}
+                      disabled={reapBusy}
+                      data-testid="deployments-reap-confirm"
+                    >
+                      Reap
+                    </Button>
+                  </div>
                 </div>
-              )}
-              {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
-              {!error && !(loading && items.length === 0) && (
-                <DeploymentMatrix
-                  items={items.filter((i) => {
-                    const searchQuery = searchInput.trim().toLowerCase();
-                    return (
-                      (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
-                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
-                      (!serviceFilter || i.service === serviceFilter) &&
-                      (!searchQuery || i.name.toLowerCase().includes(searchQuery))
-                    );
-                  })}
-                  dateFiltered={Boolean(dateFromFilter || dateToFilter)}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Per-instance delete confirm dialog — ported from FleetOrphans. */}
+            <Dialog open={confirmDelete !== null} onClose={() => setConfirmDelete(null)}>
+              <DialogContent>
+                <div data-testid="deployments-delete-dialog">
+                  <DialogHeader>
+                    <DialogTitle>Delete {confirmDelete?.name}?</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-xs text-[var(--color-text-tertiary)]">
+                    Deletes this stopped instance and its boot disk (~
+                    {fmtIdleUsd(confirmDelete?.monthly_disk_usd ?? 0)}/mo). This cannot be undone.
+                  </p>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)} disabled={reapBusy}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={executeDelete}
+                      disabled={reapBusy}
+                      data-testid="deployments-delete-confirm"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </OrphanDeleteContext.Provider>
       </FreshnessContext.Provider>
     </DrillContext.Provider>
   );
