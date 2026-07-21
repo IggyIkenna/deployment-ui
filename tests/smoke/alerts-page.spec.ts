@@ -88,6 +88,47 @@ test.describe("Alerts page", () => {
     await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
   });
 
+  test("filter bar narrows the timeline by source/severity/subject, URL-backed", async ({ page }) => {
+    // Filter bar (deployment_ui_alerts_page_rebuild_2026_07_20.md todo 3) — 5 mock rows, newest
+    // first: entry-0 execution-service/CI/CRITICAL, entry-1 unified-trading-pm/CI/INFO (SIT
+    // PASSED), entry-2 unified-trading-pm/CI/INFO (RESOLVED), entry-3 unified-trading-pm/CI/
+    // CRITICAL (CI REGRESSION), entry-4 deployment-service/VM/CRITICAL (vm_down). Filtering to
+    // "CI" drops the sole VM row, leaving exactly the 4 CI rows (entry-4 disappears).
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alert-entry-4")).toBeVisible();
+
+    await page.getByTestId("alert-filter-source").selectOption("CI");
+    await expect(page).toHaveURL(/alert_source=CI/);
+    await expect(page.getByTestId("alert-entry-4")).not.toBeVisible();
+    for (let i = 0; i < 4; i++) {
+      await expect(page.getByTestId(`alert-entry-${i}`).getByTestId("alert-domain-chip")).toContainText("CI");
+    }
+
+    // Narrow further by severity — only the two CRITICAL CI rows remain (execution-service +
+    // unified-trading-pm's CI REGRESSION), dropping the two INFO unified-trading-pm rows.
+    await page.getByTestId("alert-filter-severity").selectOption("CRITICAL");
+    await expect(page).toHaveURL(/alert_severity=CRITICAL/);
+    await expect(page.getByTestId("alert-entry-1")).toBeVisible();
+    await expect(page.getByTestId("alert-entry-2")).not.toBeVisible();
+
+    // Subject filter isolates execution-service's single CRITICAL CI alert.
+    await page.getByTestId("alert-filter-subject").selectOption("execution-service");
+    await expect(page).toHaveURL(/alert_subject=execution-service/);
+    await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
+    await expect(page.getByTestId("alert-entry-1")).not.toBeVisible();
+
+    // Resetting the source filter back to "all" (empty value) clears its URL param; the
+    // subject+severity filters stay active so the visible set is unchanged (still just entry-0).
+    await page.getByTestId("alert-filter-source").selectOption("");
+    await expect(page).not.toHaveURL(/alert_source=/);
+    await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
+  });
+
+  test("filter bar shows an explicit empty state when no alert matches", async ({ page }) => {
+    await page.goto("/alerts?alert_subject=no-such-repo");
+    await expect(page.getByTestId("alert-filter-empty")).toBeVisible();
+  });
+
   test("unified endpoint: domain chip appears on every stream and timeline entry", async ({ page }) => {
     await page.goto("/alerts");
     // Every stream row must have a domain chip.

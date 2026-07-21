@@ -4262,6 +4262,7 @@ export async function getRepoCiDetail(repo: string, provider?: RepoCiProvider): 
 export interface RepoCiAlertEntry {
   kind: string;
   timestamp: string;
+  /** The EMITTING repo/service (see subject_repo for the repo the alert is ABOUT). */
   repo: string;
   workflow_name: string;
   severity: string | null;
@@ -4270,6 +4271,15 @@ export interface RepoCiAlertEntry {
   run_url: string | null;
   /** The VM / deployment name an infra alert names → an internal /deployments/{name} deep-link (parity #4). */
   deployment_target?: string | null;
+  /** Non-CI watcher class ("worker_liveness", "git_health", etc.) — null for CI alerts. */
+  alert_class?: string | null;
+  /** The repo the alert is ABOUT (distinct from `repo`, the emitter) — absent for older rows and
+   *  for planes with no repo-scoped subject (alerting_service/zombie_watchdog). */
+  subject_repo?: string | null;
+  /** Emitting service — not yet populated by the backend (`AlertEntryDict` has no `service` key as
+   *  of deployment_ui_alerts_page_rebuild_2026_07_20 todo 3); declared here so the /alerts filter
+   *  bar is forward-compatible once deployment-api threads it through. */
+  service?: string | null;
 }
 
 export interface RepoCiAlertStream {

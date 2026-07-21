@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { useColumnSort, type ColumnSort } from "../hooks/useColumnSort";
 import { compareByColumn } from "../lib/columnSort";
+import { FilterSelect } from "../components/filters/FilterSelect";
 
 function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
@@ -59,6 +60,21 @@ function severityRank(entry: UnifiedAlertEntry): number {
   return 2;
 }
 
+/** The 3-tier severity bucket label — same tiers as severityRank, for the severity filter's
+ *  distinct option values (raw `severity`/`conclusion` strings are too varied to filter on). */
+function severityLabel(entry: UnifiedAlertEntry): string {
+  const rank = severityRank(entry);
+  if (rank === 0) return "CRITICAL";
+  if (rank === 1) return "WARNING";
+  return "INFO";
+}
+
+/** The repo the alert is ABOUT — falls back to the emitting `repo` when `subject_repo` is absent
+ *  (older rows / planes with no repo-scoped subject), matching the Subject sort column. */
+function subjectOf(entry: UnifiedAlertEntry): string {
+  return entry.subject_repo ?? entry.repo;
+}
+
 /** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
 type AlertSortKey = "timestamp" | "severity" | "source" | "subject";
 
@@ -81,7 +97,7 @@ function alertColumnSortValue(entry: UnifiedAlertEntry, key: AlertSortKey): stri
     case "source":
       return kindLabel(entry.kind);
     case "subject":
-      return entry.repo.toLowerCase();
+      return subjectOf(entry).toLowerCase();
   }
 }
 
@@ -139,6 +155,30 @@ export function AlertsContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { sort, onHeaderClick } = useColumnSort<AlertSortKey>(initialSortFromParams(searchParams));
 
+  // Filter bar (WS-5 Plan B todo 3) — source/plane, severity, subject-repo, service. URL-backed,
+  // client-side (the alert set is already fully loaded), same setParam pattern as Deployments.tsx.
+  const setParam = useCallback(
+    (key: string, value: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value) next.set(key, value);
+          else next.delete(key);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const sourceFilter = searchParams.get("alert_source") ?? "";
+  const severityFilter = searchParams.get("alert_severity") ?? "";
+  const subjectFilter = searchParams.get("alert_subject") ?? "";
+  // `service` isn't populated by the backend yet (AlertEntryDict has no `service` key) — the
+  // filter is wired defensively so it activates the moment deployment-api starts sending it,
+  // per todo 3's "options derived from the loaded normalised alert set".
+  const serviceFilter = searchParams.get("alert_service") ?? "";
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -181,6 +221,45 @@ export function AlertsContent() {
       compareByColumn(a, b, sort.key, sort.dir, alertColumnSortValue, alertDefaultCmp),
     );
   }, [data, sort]);
+
+  // Each dropdown's options derive from the distinct values in the loaded alert set (plus any
+  // active filter value, so a deep-linked filter that no longer matches any row still shows).
+  const sourceOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of data?.alerts ?? []) set.add(kindLabel(a.kind));
+    if (sourceFilter) set.add(sourceFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [data, sourceFilter]);
+  const severityOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of data?.alerts ?? []) set.add(severityLabel(a));
+    if (severityFilter) set.add(severityFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [data, severityFilter]);
+  const subjectOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of data?.alerts ?? []) if (subjectOf(a)) set.add(subjectOf(a));
+    if (subjectFilter) set.add(subjectFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [data, subjectFilter]);
+  const serviceOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of data?.alerts ?? []) if (a.service) set.add(a.service);
+    if (serviceFilter) set.add(serviceFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [data, serviceFilter]);
+
+  const filteredAlerts = useMemo(
+    () =>
+      sortedAlerts.filter(
+        (a) =>
+          (!sourceFilter || kindLabel(a.kind) === sourceFilter) &&
+          (!severityFilter || severityLabel(a) === severityFilter) &&
+          (!subjectFilter || subjectOf(a) === subjectFilter) &&
+          (!serviceFilter || a.service === serviceFilter),
+      ),
+    [sortedAlerts, sourceFilter, severityFilter, subjectFilter, serviceFilter],
+  );
 
   return (
     <div className="space-y-4" data-testid="alerts-page">
@@ -246,13 +325,48 @@ export function AlertsContent() {
             </CardContent>
           </Card>
           <Card data-testid="alert-timeline">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 space-y-2">
               <CardTitle className="text-sm">Alert timeline (newest first)</CardTitle>
+              <div className="flex flex-wrap items-center gap-3" data-testid="alert-filter-bar">
+                <FilterSelect
+                  testId="alert-filter-source"
+                  label="Source"
+                  value={sourceFilter}
+                  onChange={(v) => setParam("alert_source", v)}
+                  options={sourceOptions.map((o) => ({ value: o, label: o || "all" }))}
+                />
+                <FilterSelect
+                  testId="alert-filter-severity"
+                  label="Severity"
+                  value={severityFilter}
+                  onChange={(v) => setParam("alert_severity", v)}
+                  options={severityOptions.map((o) => ({ value: o, label: o || "all" }))}
+                />
+                <FilterSelect
+                  testId="alert-filter-subject"
+                  label="Subject"
+                  value={subjectFilter}
+                  onChange={(v) => setParam("alert_subject", v)}
+                  options={subjectOptions.map((o) => ({ value: o, label: o || "all" }))}
+                />
+                <FilterSelect
+                  testId="alert-filter-service"
+                  label="Service"
+                  value={serviceFilter}
+                  onChange={(v) => setParam("alert_service", v)}
+                  options={serviceOptions.map((o) => ({ value: o, label: o || "all" }))}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-1.5">
               {data.alerts.length === 0 && (
                 <p className="text-sm text-[var(--color-text-muted)]">
                   No alerts persisted yet — the ledger fills as notify-slack posts.
+                </p>
+              )}
+              {data.alerts.length > 0 && filteredAlerts.length === 0 && (
+                <p className="text-sm text-[var(--color-text-muted)]" data-testid="alert-filter-empty">
+                  No alerts match the active filters.
                 </p>
               )}
               {data.alerts.length > 0 && (
@@ -278,7 +392,7 @@ export function AlertsContent() {
                   })}
                 </div>
               )}
-              {sortedAlerts.map((alert, index) => (
+              {filteredAlerts.map((alert, index) => (
                 <div
                   key={`${alert.timestamp}-${index}`}
                   className="flex items-start gap-2 text-sm"
