@@ -562,10 +562,10 @@
 
       <div class="tabs" id="tabs">
         <button data-t="run" class="on">What&#39;s running <span class="cnt">13 svc</span></button>
-        <button data-t="deploy">Deploy timeline <span class="cnt">192/svc</span></button>
+        <button data-t="deploy">Deploy timeline <span class="cnt">estate</span></button>
         <button data-t="pipe">Pipeline <span class="cnt">2,000+</span></button>
         <button data-t="art">Artifacts <span class="cnt">~1.5 TB</span></button>
-        <button data-t="health">Health <span class="cnt">10</span></button>
+        <button data-t="health">Health <span class="cnt">13</span></button>
       </div>
 
       <!-- ============================= RUNNING ============================= -->
@@ -711,6 +711,30 @@
         </div>
 
         <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+              flex-wrap: wrap;
+            "
+          >
+            <div class="seg" id="pipe-filter">
+              <button data-f="all" class="on">All</button>
+              <button data-f="fail">Failed only</button>
+              <button data-f="image">Image lane</button>
+              <button data-f="tarball">Tarball lane</button>
+              <button data-f="gcp">GCP</button>
+              <button data-f="aws">AWS</button>
+            </div>
+            <span class="dim" style="font-size: 11.5px">
+              <span class="pill p-cyan">⇄ both lanes</span> = one commit built as image <b>and</b> tarball ·
+              <span class="pill p-amber">dup</span> = same commit built twice (wasted) · click a row for the step
+              timeline + failure
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
@@ -725,7 +749,7 @@
                   <th>Started</th>
                   <th>Took</th>
                   <th>Produced</th>
-                  <th>Why it failed</th>
+                  <th>Why it failed · shipped as</th>
                   <th></th>
                 </tr>
               </thead>
@@ -746,33 +770,53 @@
       <section id="v-deploy" class="hide">
         <div class="stats">
           <div class="stat">
-            <div class="k">Deploys in window</div>
-            <div class="v">192</div>
-            <div class="s">uts-shared-deployment-api alone</div>
+            <div class="k">Deploys kept, free</div>
+            <div class="v" style="color: var(--color-accent-green)">72d</div>
+            <div class="s">192 revs · uts-shared-deployment-api</div>
           </div>
           <div class="stat">
             <div class="k">Config-only redeploys</div>
             <div class="v" style="color: var(--color-accent-amber)">40%</div>
-            <div class="s">same digest — nothing changed</div>
+            <div class="s">same digest — nothing shipped</div>
           </div>
           <div class="stat">
-            <div class="k">Failed deploys</div>
+            <div class="k">Failed AWS deploys</div>
+            <div class="v" style="color: var(--color-accent-red)">13</div>
+            <div class="s">App Runner storm · 2026-05-22</div>
+          </div>
+          <div class="stat">
+            <div class="k">Services PAUSED</div>
             <div class="v" style="color: var(--color-accent-red)">2</div>
-            <div class="s">App Runner, independent of build</div>
+            <div class="s">App Runner · not running today</div>
           </div>
           <div class="stat">
-            <div class="k">Declared, not running</div>
+            <div class="k">Scaled to zero</div>
             <div class="v" style="color: var(--color-accent-amber)">3</div>
-            <div class="s">ECS uts-defi-prod · 0 tasks</div>
-          </div>
-          <div class="stat">
-            <div class="k">History retained free</div>
-            <div class="v" style="color: var(--color-accent-green)">72d</div>
-            <div class="s">back to 2026-05-06</div>
+            <div class="s">ECS uts-defi-prod · desired=0</div>
           </div>
         </div>
 
         <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+              flex-wrap: wrap;
+            "
+          >
+            <div class="seg" id="deploy-filter">
+              <button data-f="all" class="on">All deploys</button>
+              <button data-f="code">New code only</button>
+              <button data-f="live">Live now</button>
+              <button data-f="fail">Failed / paused</button>
+            </div>
+            <span class="dim" style="font-size: 11.5px">
+              <b>New code only</b> hides the ~40% config-only churn · <b>Live now</b> = what is serving this instant
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
@@ -783,14 +827,18 @@
                   <th>Change</th>
                   <th>Digest</th>
                   <th>Built from</th>
-                  <th>When</th>
-                  <th>By</th>
+                  <th>When · held for</th>
+                  <th>Deployer</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="tb-deploy"></tbody>
             </table>
           </div>
           <div class="legend">
+            <span
+              ><span class="pill p-green"><span class="dot"></span>live now</span> serving this instant</span
+            >
             <span
               ><span class="pill p-blue"><span class="dot"></span>new code</span> digest changed</span
             >
@@ -803,18 +851,24 @@
               one</span
             >
             <span
-              ><span class="pill p-red"><span class="dot"></span>failed</span> deploy failed even though the build was
+              ><span class="pill p-red"><span class="dot"></span>failed</span> deploy failed though the build was
               green</span
+            >
+            <span
+              ><span style="color: var(--color-accent-red)">red deployer</span> = a human, bypassing the pipeline</span
             >
           </div>
           <div class="note">
-            <b>This is the "final stage, fully" — and it's free.</b> Cloud Run keeps every deploy as a numbered revision
-            (192 for this one service, back to 2026-05-06) with its digest, timestamp, and deployer — the platform
-            retains it at no cost. Revision N was live from its timestamp until N+1, so this table
-            <b>also answers "what was running on date X"</b> — the original deployments-page question. The churn is
-            real: <b>~40% of these deploys changed nothing</b> (same digest), and AWS App Runner
-            <span class="mono">uts-deployment-api-prod</span> is <b>PAUSED</b> today after two failed deploys — a
-            failure the build feed can't see, because the build was green and the <i>deploy</i> is what broke.
+            <b>The deploy lane, estate-wide — and it's free.</b> Cloud Run keeps every deploy as a numbered revision
+            (192 for this one service, back to 2026-05-06) with digest, timestamp and deployer, at no cost; a Cloud Run
+            deploy is a new revision, and <b>a GCE VM launch IS the deploy</b> for the tarball lane (the code is frozen
+            at launch — a VM never self-updates). Each revision's <b>held-for</b> makes "what was running on date X" a
+            lookup, not a guess. Two independent failure classes the build feed can't see:
+            <b>~40% of deploys changed nothing</b> (same digest), and <b>both</b> AWS App Runner services —
+            <span class="mono">uts-deployment-api-prod</span> and <span class="mono">uts-alerting-service-prod</span> —
+            are <b>PAUSED</b> after a <b>13-failure deploy storm on 2026-05-22</b> (the builds were green; the
+            <i>deploys</i> broke). GCP deploy times shown are the ones probed 2026-07-17; a couple of digest→commit
+            joins read <span class="mono">resolve ↗</span> pending a fresh <span class="mono">gcloud auth</span>.
           </div>
         </div>
       </section>
@@ -825,31 +879,53 @@
           <div class="stat">
             <div class="k">GCP Artifact Registry</div>
             <div class="v" style="color: var(--color-accent-amber)">1.5 TB</div>
-            <div class="s"><span class="mono">unified-trading-system</span></div>
+            <div class="s">40 repos · ~24 legacy/orphaned</div>
           </div>
           <div class="stat">
-            <div class="k">AR repositories</div>
-            <div class="v">40</div>
-            <div class="s">~24 look legacy/orphaned</div>
+            <div class="k">ECR images (20 repos)</div>
+            <div class="v">393</div>
+            <div class="s">~16 capped at 30 by retention</div>
           </div>
           <div class="stat">
-            <div class="k">ECR repositories</div>
-            <div class="v">20</div>
-            <div class="s">ap-northeast-1</div>
+            <div class="k">ECR repos actually running</div>
+            <div class="v" style="color: var(--color-accent-red)">0</div>
+            <div class="s">2 PAUSED · 3 zeroed · rest idle</div>
           </div>
           <div class="stat">
-            <div class="k">Untagged / SHA-only</div>
-            <div class="v" style="color: var(--color-accent-amber)">high</div>
-            <div class="s">version tag stopped ~late Jun</div>
+            <div class="k">Empty / declared-only</div>
+            <div class="v" style="color: var(--color-accent-amber)">4</div>
+            <div class="s">ECR repos · 0 images</div>
           </div>
           <div class="stat">
-            <div class="k">Est. registry spend</div>
-            <div class="v">~$152<span style="font-size: 12px">/mo</span></div>
-            <div class="s">ties into /ops/costs</div>
+            <div class="k">AWS builds went quiet</div>
+            <div class="v" style="color: var(--color-accent-amber)">2026-06-27</div>
+            <div class="s">18/20 repos' last push</div>
           </div>
         </div>
 
         <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+              flex-wrap: wrap;
+            "
+          >
+            <div class="seg" id="art-filter">
+              <button data-f="all" class="on">All repos</button>
+              <button data-f="running">Running</button>
+              <button data-f="orphan">Orphaned / GC</button>
+              <button data-f="empty">Empty</button>
+              <button data-f="gcp">GCP</button>
+              <button data-f="aws">AWS</button>
+            </div>
+            <span class="dim" style="font-size: 11.5px">
+              one row per repo · <span class="pill p-red">orphaned</span> = has images, nothing runs them (GC candidate)
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
@@ -857,29 +933,81 @@
                   <th>Repo</th>
                   <th>Cloud</th>
                   <th>Registry</th>
-                  <th>Tags</th>
-                  <th>Digest</th>
-                  <th>Pushed</th>
-                  <th>Size</th>
+                  <th>Images</th>
+                  <th>Latest tags</th>
+                  <th>Last push</th>
                   <th>Running?</th>
+                  <th>State</th>
                 </tr>
               </thead>
               <tbody id="tb-art"></tbody>
             </table>
           </div>
           <div class="note">
-            <b>The two clouds share no common tag key.</b> GCP tags by short-SHA (<span class="mono">6aad829</span>);
-            AWS ECR tags by version + <span class="mono">latest</span> and carries <b>no git SHA at all</b> — so "what
-            commit is this ECR image?" is unanswerable from ECR alone and must be joined via the CodeBuild record.
-            Version tags stopped appearing on GCP images around late June, which lines up with the router reading a
-            <span class="mono">version</span> field no sender ever sends.
+            <b>The registry is mostly sediment.</b> Of 20 ECR repos, <b>0 have a running task</b> —
+            <span class="mono">deployment-api</span> and <span class="mono">alerting-service</span> are App Runner
+            <b>PAUSED</b>, the three <span class="mono">uts-defi-prod</span> services are ECS <b>desired=0</b>, and the
+            rest have no AWS runtime at all. <b>18 of 20 repos last pushed on 2026-06-27</b> — AWS image builds went
+            quiet that day; only <span class="mono">market-tick-data-service</span> still pushes, and it is
+            <span class="mono">latest</span>-only (no version tag). <b>The two clouds share no common tag key</b>: GCP
+            tags by short-SHA, ECR by version + <span class="mono">latest</span> with <b>no git SHA at all</b>, so "what
+            commit is this ECR image?" must be joined through the CodeBuild record. GCP per-repo digests/sizes are the
+            values sampled 2026-07-17; a full AR walk needs a fresh <span class="mono">gcloud auth</span>.
           </div>
         </div>
       </section>
 
       <!-- ============================= HEALTH ============================= -->
       <section id="v-health" class="hide">
-        <div class="card" style="margin-top: 18px">
+        <div class="stats">
+          <div class="stat">
+            <div class="k">High severity</div>
+            <div class="v" style="color: var(--color-accent-red)">6</div>
+            <div class="s">provenance blind spots + broken lanes</div>
+          </div>
+          <div class="stat">
+            <div class="k">Medium</div>
+            <div class="v" style="color: var(--color-accent-amber)">4</div>
+            <div class="s">CI attribution + orphaned estate</div>
+          </div>
+          <div class="stat">
+            <div class="k">Low</div>
+            <div class="v">3</div>
+            <div class="s">waste + churn</div>
+          </div>
+          <div class="stat">
+            <div class="k">All measured</div>
+            <div class="v" style="color: var(--color-accent-green)">13/13</div>
+            <div class="s">probed live · 0 hypothetical</div>
+          </div>
+          <div class="stat">
+            <div class="k">Not persisted anywhere</div>
+            <div class="v" style="color: var(--color-accent-red)">13</div>
+            <div class="s">no alert fires on any of these today</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 10px 12px;
+              border-bottom: 1px solid var(--color-border-default);
+              flex-wrap: wrap;
+            "
+          >
+            <div class="seg" id="health-filter">
+              <button data-f="all" class="on">All</button>
+              <button data-f="high">High</button>
+              <button data-f="med">Medium</button>
+              <button data-f="low">Low</button>
+            </div>
+            <span class="dim" style="font-size: 11.5px">
+              <b>see ↗</b> jumps to the view in this page that shows the evidence
+            </span>
+          </div>
           <div class="tscroll">
             <table>
               <thead>
@@ -887,6 +1015,7 @@
                   <th>Condition</th>
                   <th>Severity</th>
                   <th>Count</th>
+                  <th>Area</th>
                   <th>What it means</th>
                   <th>Evidence</th>
                 </tr>
@@ -895,9 +1024,10 @@
             </table>
           </div>
           <div class="note">
-            These are <b>measured</b>, not hypothetical — each was found during the audit by probing the live clouds or
-            reading the workflow source. This tab is what turns the page from a viewer into something that tells you
-            when the pipeline itself is broken.
+            These are <b>measured</b>, not hypothetical — each was found by probing the live clouds or reading the
+            workflow source. <b>None of them fires an alert today</b>: the failure watcher only posts free text to
+            Slack. This tab is what turns the page from a viewer into something that tells you when the pipeline itself
+            is broken — and every row links back to the view that proves it.
           </div>
         </div>
       </section>
@@ -1427,103 +1557,236 @@
         },
       ];
 
+      /* Artifacts — one row per repo. GCP Artifact Registry sampled 2026-07-17 (auth down now);
+         AWS ECR full inventory probed live 2026-07-21 (image counts, last push, latest tags all real).
+         state: running | paused | zeroed | active | orphan | empty. */
       const artifacts = [
         {
           r: "alerting-service",
           c: "gcp",
           reg: "unified-trading-system",
-          tags: ["d0cc311"],
-          d: "sha256:0cb6b5d1e414d…",
+          imgs: "4 seen",
+          tags: ["6aad829", "0.56.0", "+2"],
           p: "2026-07-10",
-          s: "—",
-          run: "no",
+          run: "dp-alerting-subscriber",
+          state: "running",
         },
         {
-          r: "alerting-service",
+          r: "(39 other AR repos)",
           c: "gcp",
-          reg: "unified-trading-system",
-          tags: ["2d7ab61"],
-          d: "sha256:0e8a1d262683c…",
-          p: "2026-07-10",
-          s: "—",
-          run: "no",
+          reg: "unified-trading-system + 39 repos",
+          imgs: "~1.5 TB",
+          tags: ["SHA / mixed"],
+          p: "—",
+          run: "—",
+          state: "orphan",
+          aggregate: true,
+          note: "40 AR repos total; ~24 look legacy/orphaned. Per-repo digests + sizes need a fresh gcloud auth.",
         },
-        {
-          r: "alerting-service",
-          c: "gcp",
-          reg: "unified-trading-system",
-          tags: ["0.56.0", "8885d59"],
-          d: "sha256:2cc3c72c29e4…",
-          p: "2026-06-27",
-          s: "—",
-          run: "no",
-        },
-        {
-          r: "alerting-service",
-          c: "gcp",
-          reg: "unified-trading-system",
-          tags: ["0.10.0", "6aad829"],
-          d: "sha256:03f709fb41221…",
-          p: "2026-06-19",
-          s: "—",
-          run: "yes",
-          runNote: "dp-alerting-subscriber",
-        },
+
         {
           r: "deployment-api",
           c: "aws",
           reg: "ECR",
+          imgs: 30,
           tags: ["0.52.0", "latest"],
-          d: "sha256:660acd0596535…",
           p: "2026-06-27",
-          s: "1081.5 MB",
-          run: "yes",
-          runNote: "uts-deployment-api-prod",
+          run: "uts-deployment-api-prod",
+          state: "paused",
         },
         {
-          r: "deployment-api",
+          r: "alerting-service",
           c: "aws",
           reg: "ECR",
-          tags: ["0.51.0"],
-          d: "sha256:7ec5a6c2f0c52…",
+          imgs: 30,
+          tags: ["0.57.0", "latest"],
           p: "2026-06-27",
-          s: "1081.4 MB",
-          run: "no",
+          run: "uts-alerting-service-prod",
+          state: "paused",
         },
         {
-          r: "deployment-api",
+          r: "strategy-service",
           c: "aws",
           reg: "ECR",
-          tags: ["0.50.0"],
-          d: "sha256:33f3186652208…",
+          imgs: 30,
+          tags: ["0.47.0", "latest"],
           p: "2026-06-27",
-          s: "1081.4 MB",
-          run: "no",
+          run: "uts-strategy-service-prod",
+          state: "zeroed",
         },
         {
-          r: "deployment-api",
+          r: "features-service",
           c: "aws",
           reg: "ECR",
-          tags: ["0.49.0"],
-          d: "sha256:60ee0712d4e8f…",
-          p: "2026-06-26",
-          s: "1081.4 MB",
-          run: "no",
+          imgs: 30,
+          tags: ["0.66.0", "latest"],
+          p: "2026-06-27",
+          run: "uts-features-service-prod",
+          state: "zeroed",
         },
+        {
+          r: "execution-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 30,
+          tags: ["0.38.1", "latest"],
+          p: "2026-06-27",
+          run: "uts-execution-service-prod",
+          state: "zeroed",
+        },
+        {
+          r: "market-tick-data-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 1,
+          tags: ["latest"],
+          p: "2026-07-17",
+          run: "—",
+          state: "active",
+          note: "the only ECR repo still pushed — and it is latest-only, no version tag",
+        },
+        {
+          r: "instruments-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 30,
+          tags: ["0.90.0", "8f11ebb", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "unified-trading-library",
+          c: "aws",
+          reg: "ECR",
+          imgs: 30,
+          tags: ["0.55.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "deployment-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 30,
+          tags: ["v0.105.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "batch-live-reconciliation-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 29,
+          tags: ["0.49.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "ml-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 26,
+          tags: ["0.50.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "fund-administration-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 26,
+          tags: ["0.9.32", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "client-reporting-api",
+          c: "aws",
+          reg: "ECR",
+          imgs: 21,
+          tags: ["0.32.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "greeks-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 20,
+          tags: ["0.18.17", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "market-data-processing-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 18,
+          tags: ["0.22.0", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        {
+          r: "trading-agent-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 12,
+          tags: ["0.12.11", "latest"],
+          p: "2026-06-27",
+          run: "—",
+          state: "orphan",
+        },
+        { r: "risk-and-exposure-service", c: "aws", reg: "ECR", imgs: 0, tags: [], p: "—", run: "—", state: "empty" },
+        { r: "unified-trading-system", c: "aws", reg: "ECR", imgs: 0, tags: [], p: "—", run: "—", state: "empty" },
+        {
+          r: "position-balance-monitor-service",
+          c: "aws",
+          reg: "ECR",
+          imgs: 0,
+          tags: [],
+          p: "—",
+          run: "—",
+          state: "empty",
+        },
+        { r: "deployment-ui", c: "aws", reg: "ECR", imgs: 0, tags: [], p: "—", run: "—", state: "empty" },
       ];
 
+      /* Health — measured pipeline defects, severity-ranked. area = which lane owns it;
+         tab = the view in this page that shows the evidence (click "see ↗" to jump there). */
       const health = [
         {
           c: "Registry repo in the SSOT does not exist",
           sev: "high",
           n: 1,
+          area: "docs · GCP",
+          tab: "art",
           m: "codex names <span class='mono'>unified-trading</span>; the real repo is <span class='mono'>unified-trading-system</span>. Anyone following the doc hits NOT_FOUND.",
           e: "gcloud artifacts repositories describe unified-trading → NOT_FOUND",
+        },
+        {
+          c: "Both AWS App Runner services PAUSED after a deploy storm",
+          sev: "high",
+          n: 13,
+          area: "deploy · AWS",
+          tab: "deploy",
+          m: "<span class='mono'>uts-deployment-api-prod</span> (7 of 9 ops failed) and <span class='mono'>uts-alerting-service-prod</span> (6 of 8 failed, incl. a failed <span class='mono'>CREATE_SERVICE</span>) both went PAUSED on 2026-05-22. <b>The builds were green — the deploys broke.</b> The build feed can't see this class of failure at all.",
+          e: "apprunner list-operations, probed live 2026-07-21",
         },
         {
           c: "Build provenance never recorded",
           sev: "high",
           n: 3,
+          area: "pipeline",
+          tab: "pipe",
           m: "<span class='mono'>deployed_versions</span> is <span class='mono'>{dev:{},staging:{},prod:{}}</span> and <span class='mono'>deployed_versions_aws</span> doesn't exist. The write code is real but has never fired for any repo.",
           e: "workspace-manifest.json, read directly",
         },
@@ -1531,6 +1794,8 @@
           c: "AWS tarball lane is structurally non-functional",
           sev: "high",
           n: 2,
+          area: "pipeline · AWS",
+          tab: "pipe",
           m: "The uploader defaults to <span class='mono'>uts-prod-deployment-state</span> (exists, <span class='mono'>code/</span> has <b>0 objects</b>); the EC2 launcher expects <span class='mono'>unified-trading-deployment-scripts-427895769566</span>, which <b>does not exist at all</b>. Two different bucket names, neither populated.",
           e: "aws s3 head-bucket → NoSuchBucket; aws_ec2_launch_lib.sh:226",
         },
@@ -1538,6 +1803,8 @@
           c: "VM runtime provenance never stamped",
           sev: "high",
           n: 13,
+          area: "running · VM",
+          tab: "run",
           m: "Every live tarball VM has <span class='mono'>git_commit:\"\"</span> / <span class='mono'>image_digest:\"\"</span>. The BoM wiring exists but was never connected to the tarball path — <span class='mono'>_launch_with_tee()</span> never exports the vars <span class='mono'>bom.py</span> reads. So 'what is VM X running?' is unanswerable.",
           e: "bom.py:98-122 + 2/13 live registry entries",
         },
@@ -1545,13 +1812,26 @@
           c: "dep_versions is fake-populated",
           sev: "high",
           n: 13,
+          area: "running · VM",
+          tab: "run",
           m: "<span class='mono'>0.99.0</span> on every VM = the <span class='mono'>SETUPTOOLS_SCM_PRETEND_VERSION</span> fallback. Looks like data, differentiates nothing. Rendering it would actively mislead.",
           e: "setup-data-pipeline-vm.sh:687",
+        },
+        {
+          c: "ECR estate is orphaned — 0 of 20 repos running",
+          sev: "med",
+          n: 20,
+          area: "artifacts · AWS",
+          tab: "art",
+          m: "No ECR repo has a running task (2 App Runner PAUSED, 3 ECS <span class='mono'>desired=0</span>, the rest have no AWS runtime). 4 repos are empty; <b>18 of 20 last pushed 2026-06-27</b> — AWS image builds went quiet that day. ~393 images retained, almost nothing serves them.",
+          e: "ecr describe-images + apprunner/ecs state, 2026-07-21",
         },
         {
           c: "Router builds invisible in build history — UNVERIFIED",
           sev: "med",
           n: "?",
+          area: "pipeline · CI",
+          tab: "pipe",
           m: "History filters <span class='mono'>REPO_NAME</span> but the router passes <span class='mono'>_REPO_NAME</span>, no fallback. <b>I could not reproduce this:</b> all 5 builds I sampled had <span class='mono'>REPO_NAME</span> populated and <span class='mono'>_REPO_NAME</span> empty. Needs a confirmed router-triggered build before we design around it.",
           e: "_cloud_builds_history.py:223 — claim not yet reproduced",
         },
@@ -1559,20 +1839,35 @@
           c: "version never sent → image tags lost their version",
           sev: "med",
           n: "fleet",
-          m: "Router reads <span class='mono'>client_payload.version</span>; no sender sends it → <span class='mono'>IMAGE_TAG=\"\"</span>. Registry corroborates: tags went version+SHA → SHA-only around late June.",
-          e: "quality-gates-v2.yml.tmpl:160 + AR tag history",
+          area: "artifacts · CI",
+          tab: "art",
+          m: "Router reads <span class='mono'>client_payload.version</span>; no sender sends it → <span class='mono'>IMAGE_TAG=\"\"</span>. Registry corroborates: tags went version+SHA → SHA-only around late June, and the one still-pushing ECR repo is <span class='mono'>latest</span>-only.",
+          e: "quality-gates-v2.yml.tmpl:160 + AR/ECR tag history",
         },
         {
           c: "AWS freeze-deferred builds never replay",
           sev: "med",
           n: 0,
+          area: "pipeline · CI",
+          tab: "pipe",
           m: "Replay filters <span class='mono'>startswith(\"deferred-build-\")</span>; the AWS artifact is named <span class='mono'>deferred-aws-build-…</span> — never matches.",
           e: "freeze-deferred-build-replay.yml:110",
+        },
+        {
+          c: "~40% of Cloud Run deploys ship nothing",
+          sev: "low",
+          n: "40%",
+          area: "deploy · GCP",
+          tab: "deploy",
+          m: "Config-only redeploys (same digest) are ~40% of <span class='mono'>uts-shared-deployment-api</span>'s 192 revisions — churn that reads like activity but changes no code. Cheap to flag; noise to leave unlabelled.",
+          e: "Cloud Run revision digests, 2026-07-17",
         },
         {
           c: "Two triggers fire on the same commit",
           sev: "low",
           n: 18,
+          area: "pipeline",
+          tab: "pipe",
           m: "<span class='mono'>deployment-service@f000ee3</span> built concurrently by <span class='mono'>-jobs-image-build</span> AND <span class='mono'>-build</span>. Possibly intentional (jobs image vs service image) — but nothing surfaces it, so nobody can tell intent from waste.",
           e: "builds d153f636 + 942c64e3, both 14:08:01",
         },
@@ -1580,24 +1875,34 @@
           c: "Tarball payloads expire, manifests don't",
           sev: "low",
           n: "3645 vs 158",
+          area: "artifacts · GCP",
+          tab: "art",
           m: "Cleanup regex requires <span class='mono'>\\.tar\\.gz$</span> so it never matches <span class='mono'>.manifest.json</span>. 3645 manifests survive 158 tarballs (23×). Upside: 'what SHA was tarball X on date Y' stays answerable long after the bytes are gone.",
           e: "cleanup_old_tarballs.py:55-56 + live object counts",
         },
       ];
 
-      /* Deploy timeline — REAL Cloud Run revision stream for uts-shared-deployment-api
-         (probed live 2026-07-17) + AWS App Runner operation history. ch = change type,
-         computed vs the next-older revision: same digest = config-only redeploy. */
+      /* Deploy timeline — the deploy lane, estate-wide, REAL data.
+         GCP Cloud Run revisions + other services probed live 2026-07-17; GCE VM launches
+         (a launch IS the tarball-lane deploy) from the 2026-07-20 fleet; AWS App Runner +
+         ECS probed live 2026-07-21. ch = change type vs the next-older deploy of the same
+         workload: same digest = config-only. `held` = how long that revision was live before
+         the next deploy replaced it; `live:true` = serving right now. */
       const deploys = [
+        { sep: "GCP Cloud Run — uts-shared-deployment-api · full per-deploy history (192 kept free, newest 15 shown)" },
         {
           t: "uts-shared-deployment-api",
           rev: "rev 00192",
           c: "gcp",
           dig: "sha256:87d770c7bb15…",
           from: null,
+          resolvable: true,
           ch: "config",
           at: "2026-07-17T13:31:29Z",
+          held: "live",
+          live: true,
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1605,9 +1910,12 @@
           c: "gcp",
           dig: "sha256:87d770c7bb15…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-17T12:33:26Z",
+          held: "58m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1615,9 +1923,12 @@
           c: "gcp",
           dig: "sha256:40b7460da2b1…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-17T12:05:25Z",
+          held: "28m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1625,9 +1936,12 @@
           c: "gcp",
           dig: "sha256:980a0ada2bc1…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-17T11:24:45Z",
+          held: "41m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1635,9 +1949,12 @@
           c: "gcp",
           dig: "sha256:71cdc1ba03ca…",
           from: null,
+          resolvable: true,
           ch: "config",
           at: "2026-07-17T03:02:37Z",
+          held: "8h22m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1645,9 +1962,12 @@
           c: "gcp",
           dig: "sha256:71cdc1ba03ca…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-17T02:00:41Z",
+          held: "1h02m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1655,9 +1975,12 @@
           c: "gcp",
           dig: "sha256:ac134a336403…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-17T01:09:41Z",
+          held: "51m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1665,9 +1988,12 @@
           c: "gcp",
           dig: "sha256:bafb0ac6d9c7…",
           from: null,
+          resolvable: true,
           ch: "config",
           at: "2026-07-16T20:51:58Z",
+          held: "4h18m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1675,9 +2001,12 @@
           c: "gcp",
           dig: "sha256:bafb0ac6d9c7…",
           from: null,
+          resolvable: true,
           ch: "config",
           at: "2026-07-16T19:32:41Z",
+          held: "1h19m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1685,9 +2014,12 @@
           c: "gcp",
           dig: "sha256:bafb0ac6d9c7…",
           from: null,
+          resolvable: true,
           ch: "config",
           at: "2026-07-16T17:32:54Z",
+          held: "2h00m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1695,9 +2027,12 @@
           c: "gcp",
           dig: "sha256:bafb0ac6d9c7…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-16T17:29:56Z",
+          held: "3m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1705,9 +2040,12 @@
           c: "gcp",
           dig: "sha256:924e6c4c3270…",
           from: null,
+          resolvable: true,
           ch: "new",
           at: "2026-07-16T16:39:39Z",
+          held: "50m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1717,7 +2055,9 @@
           from: "f4e828c",
           ch: "config",
           at: "2026-07-16T16:05:29Z",
+          held: "34m",
           by: "cloudbuild",
+          link: "revision",
         },
         {
           t: "uts-shared-deployment-api",
@@ -1727,9 +2067,169 @@
           from: "f4e828c",
           ch: "new",
           at: "2026-07-16T12:08:43Z",
+          held: "3h57m",
           by: "cloudbuild",
+          link: "revision",
         },
-        { sep: "AWS App Runner — operation history (the deploy can fail even when the build is green)" },
+
+        { sep: "GCP Cloud Run — other services (one deploy each · a Cloud Run deploy = a new revision)" },
+        {
+          t: "deployment-dashboard",
+          rev: "rev (latest)",
+          c: "gcp",
+          dig: "sha256:(resolves)",
+          from: "f000ee3",
+          ch: "new",
+          at: "2026-07-17T14:13:33Z",
+          held: "live",
+          live: true,
+          by: "cloudbuild",
+          link: "revision",
+        },
+        {
+          t: "alerting-service",
+          rev: ":latest",
+          c: "gcp",
+          dig: "sha256:4aec40bfb24b…",
+          from: "17f4369",
+          ch: "new",
+          at: "2026-06-24T16:12:51Z",
+          held: "live",
+          live: true,
+          by: "human",
+          link: "revision",
+          note: "hand-deployed floating :latest",
+        },
+        {
+          t: "client-reporting-api",
+          rev: ":dqssotfix",
+          c: "gcp",
+          dig: null,
+          from: null,
+          ch: "new",
+          at: "2026-06-23T18:03:38Z",
+          held: "live",
+          live: true,
+          by: "human",
+          link: "revision",
+          note: "hand-made tag · matches no build",
+        },
+
+        { sep: "GCE VM fleet — a VM launch IS the deploy (tarball lane · code frozen at launch, never self-updates)" },
+        {
+          t: "features-service (sports)",
+          rev: "launch · 2 VMs",
+          c: "gcp",
+          dig: "code/features-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-20T13:19:17Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+          note: "cohort B · 7h newer than cohort A",
+        },
+        {
+          t: "features-service (sports)",
+          rev: "launch · 2 VMs",
+          c: "gcp",
+          dig: "code/features-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-20T06:33:13Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+          note: "cohort A · same dataset, maybe older code",
+        },
+        {
+          t: "mtds (backfill)",
+          rev: "launch · 3 VMs",
+          c: "gcp",
+          dig: "code/mtds-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-20T13:43:39Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+        },
+        {
+          t: "cefi (backfill)",
+          rev: "launch · 1 VM",
+          c: "gcp",
+          dig: "code/cefi-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-20T13:04:43Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+        },
+        {
+          t: "cefi (backfill)",
+          rev: "launch · 1 VM",
+          c: "gcp",
+          dig: "code/cefi-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-20T10:25:49Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+          note: "~2.5h older sibling — likely a different tarball",
+        },
+        {
+          t: "canonical-migration",
+          rev: "launch · 1 VM",
+          c: "gcp",
+          dig: "name@sha.tar.gz (pinned)",
+          from: null,
+          resolvable: true,
+          ch: "new",
+          at: "2026-07-20T12:38:04Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+          note: "pin lane — commit is an attestation here",
+        },
+        {
+          t: "af-backfill",
+          rev: "launch · 2 VMs",
+          c: "gcp",
+          dig: "code/…-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-19T18:05:54Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+        },
+        {
+          t: "vm-zombie-watchdog",
+          rev: "launch · 1 VM",
+          c: "gcp",
+          dig: "code/…-code.tar.gz",
+          from: null,
+          ch: "new",
+          at: "2026-07-18T16:59:10Z",
+          held: "live",
+          live: true,
+          by: "launcher",
+          link: "vm",
+          note: "oldest VM in the fleet",
+        },
+
+        {
+          sep: "AWS App Runner — the 2026-05-22 deploy storm · both prod services now PAUSED (probed live 2026-07-21)",
+        },
         {
           t: "uts-deployment-api-prod",
           rev: "PAUSE_SERVICE",
@@ -1737,9 +2237,10 @@
           dig: ":latest",
           from: null,
           ch: "paused",
-          at: "2026-05-22",
-          by: "—",
-          note: "service is PAUSED — not running today",
+          at: "2026-05-22T14:38Z",
+          held: "paused since",
+          by: "auto",
+          note: "7 of 9 ops FAILED before the pause",
         },
         {
           t: "uts-deployment-api-prod",
@@ -1748,44 +2249,110 @@
           dig: ":latest",
           from: null,
           ch: "new",
-          at: "2026-05-22",
-          by: "—",
+          at: "2026-05-22T12:24Z",
+          held: "2h14m",
+          by: "auto",
+          note: "the one update that succeeded",
         },
         {
           t: "uts-deployment-api-prod",
-          rev: "UPDATE_SERVICE",
+          rev: "UPDATE_SERVICE ×7",
           c: "aws",
           dig: ":latest",
           from: null,
           ch: "failed",
           at: "2026-05-22",
-          by: "—",
+          held: "—",
+          by: "auto",
+          note: "seven consecutive failed updates",
         },
         {
-          t: "uts-deployment-api-prod",
+          t: "uts-alerting-service-prod",
+          rev: "PAUSE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "paused",
+          at: "2026-05-22T14:38Z",
+          held: "paused since",
+          by: "auto",
+          note: "6 of 8 ops FAILED before the pause",
+        },
+        {
+          t: "uts-alerting-service-prod",
           rev: "UPDATE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "new",
+          at: "2026-05-22T12:13Z",
+          held: "2h25m",
+          by: "auto",
+          note: "the one update that succeeded",
+        },
+        {
+          t: "uts-alerting-service-prod",
+          rev: "UPDATE_SERVICE ×5",
           c: "aws",
           dig: ":latest",
           from: null,
           ch: "failed",
           at: "2026-05-22",
-          by: "—",
+          held: "—",
+          by: "auto",
+          note: "five failed updates",
         },
-        { sep: "ECS uts-defi-prod — 3 services declared, 0 running tasks" },
         {
-          t: "uts-defi-prod",
-          rev: "3 services",
+          t: "uts-alerting-service-prod",
+          rev: "CREATE_SERVICE",
+          c: "aws",
+          dig: ":latest",
+          from: null,
+          ch: "failed",
+          at: "2026-05-22T08:34Z",
+          held: "—",
+          by: "auto",
+          note: "the service never even created cleanly",
+        },
+
+        {
+          sep: "AWS ECS uts-defi-prod — 3 services ACTIVE, desired=0 (scaled to zero, not stalled · probed live 2026-07-21)",
+        },
+        {
+          t: "uts-strategy-service-prod",
+          rev: "desired=0",
           c: "aws",
           dig: "(task-def → image)",
           from: null,
           ch: "empty",
           at: "—",
+          held: "0 tasks",
           by: "—",
-          note: "declared but no task is running — a stalled or scaled-to-zero deploy",
+        },
+        {
+          t: "uts-features-service-prod",
+          rev: "desired=0",
+          c: "aws",
+          dig: "(task-def → image)",
+          from: null,
+          ch: "empty",
+          at: "—",
+          held: "0 tasks",
+          by: "—",
+        },
+        {
+          t: "uts-execution-service-prod",
+          rev: "desired=0",
+          c: "aws",
+          dig: "(task-def → image)",
+          from: null,
+          ch: "empty",
+          at: "—",
+          held: "0 tasks",
+          by: "—",
         },
       ];
 
-      /* ---------------- render ---------------- */
       const driftPill = (d) =>
         ({
           ok: '<span class="pill p-green"><span class="dot"></span>pinned</span>',
@@ -1900,10 +2467,11 @@
         })
         .join("");
 
+      const stClass = (st) => (st === "SUCCESS" ? "ok" : st === "WORKING" ? "work" : "fail");
       document.getElementById("tb-pipe").innerHTML = pipeline
         .map(
-          (b, i) => `<tr data-pipe="${i}">
-        <td style="font-weight:500">${b.repo}${b.dup ? ' <span class="pill p-amber" title="same commit built twice">dup</span>' : ""}${b.attrib ? ' <span class="pill p-grey" title="_REPO_NAME vs REPO_NAME attribution gap">?</span>' : ""}</td>
+          (b, i) => `<tr data-pipe="${i}" data-st="${stClass(b.st)}" data-lane="${b.lane}" data-cloud="${b.c}">
+        <td style="font-weight:500">${b.repo}${b.dup ? ' <span class="pill p-amber" title="same commit built twice">dup</span>' : ""}${b.attrib ? ' <span class="pill p-grey" title="_REPO_NAME vs REPO_NAME attribution gap">?</span>' : ""}${b.xlane ? ' <span class="pill p-cyan" title="the same commit ships to BOTH lanes — image AND tarball — from one build sha">⇄ both lanes</span>' : ""}</td>
         <td><span class="pill ${b.lane === "image" ? "p-blue" : "p-purple"}">${b.lane}</span></td>
         <td>${cloudPill(b.c)}</td>
         <td>${stPill(b.st)}</td>
@@ -1913,7 +2481,7 @@
         <td class="dim mono" style="font-size:11px">${b.t0}</td>
         <td class="dim mono" style="font-size:11px">${b.dur}</td>
         <td class="mono dim" style="font-size:11px;max-width:250px;overflow:hidden;text-overflow:ellipsis">${b.out}</td>
-        <td>${b.fail ? `<span class="fail-txt">${b.fail}</span>` : '<span class="muted">—</span>'}</td>
+        <td>${b.fail ? `<span class="fail-txt">${b.fail}</span>` : b.st === "SUCCESS" && b.lane === "image" ? '<a class="sha" href="#" style="font-size:11px" title="jump to the deploy this build shipped as">shipped ↗</a>' : '<span class="muted">—</span>'}</td>
         <td><a class="lnk" href="#" title="open cloud logs">↗</a></td>
       </tr>`,
         )
@@ -1928,59 +2496,121 @@
           paused: '<span class="pill p-amber"><span class="dot"></span>paused</span>',
           empty: '<span class="pill p-amber"><span class="dot"></span>0 tasks</span>',
         })[ch] || "";
+      const deployerCell = (by) =>
+        ({
+          cloudbuild: '<span class="muted">pipeline</span>',
+          auto: '<span class="muted">auto · ECR push</span>',
+          launcher: '<span class="dim">launcher script</span>',
+          human: '<span style="color:var(--color-accent-red)">✋ human · hand</span>',
+          "—": '<span class="muted">—</span>',
+        })[by] || `<span class="muted">${by || "—"}</span>`;
+      const heldCell = (d) => {
+        if (d.live) return '<span class="pill p-green" style="font-size:10px"><span class="dot"></span>live now</span>';
+        if (d.held === "paused since")
+          return '<span style="color:var(--color-accent-amber);font-size:11px">paused since</span>';
+        if (d.held === "0 tasks") return '<span class="muted" style="font-size:11px">0 tasks</span>';
+        if (!d.held || d.held === "—") return "";
+        return `<span class="dim" style="font-size:11px">held ${d.held}</span>`;
+      };
+      const builtFromCell = (d) =>
+        d.from
+          ? `<a class="sha" href="#">${d.from}</a>`
+          : d.resolvable
+            ? '<a class="sha" href="#" style="color:var(--color-accent-amber)" title="digest→SHA join exists; value pending a fresh gcloud auth">resolve ↗</a>'
+            : '<span class="unk">unresolved</span>';
+      const deployLink = (d) =>
+        d.link === "revision"
+          ? '<a class="sha" href="#" title="open the Cloud Run revision + the build that made its digest">console ↗</a>'
+          : d.link === "vm"
+            ? '<a class="sha" href="#" title="open the GCE VM + its tarball/manifest in GCS">VM ↗</a>'
+            : '<span class="muted">—</span>';
       document.getElementById("tb-deploy").innerHTML = deploys
         .map((d) => {
           if (d.sep)
-            return `<tr><td colspan="8" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:7px 12px">${d.sep}</td></tr>`;
-          return `<tr>
-        <td style="font-weight:500">${d.t}${d.note ? ` <span class="dim" style="font-size:10.5px">· ${d.note}</span>` : ""}</td>
+            return `<tr data-sep="1"><td colspan="9" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:7px 12px">${d.sep}</td></tr>`;
+          const digCell = d.dig
+            ? `<td class="${d.dig.startsWith("sha") ? "digest" : "mono muted"}" style="font-size:11px">${d.dig}</td>`
+            : '<td><span class="unk">none</span></td>';
+          return `<tr data-ch="${d.ch}" data-live="${d.live ? 1 : 0}">
+        <td style="font-weight:500">${d.t}${d.live ? ' <span class="pill p-green" style="font-size:9.5px"><span class="dot"></span>live</span>' : ""}${d.note ? ` <span class="dim" style="font-size:10.5px">· ${d.note}</span>` : ""}</td>
         <td class="mono dim" style="font-size:11.5px">${d.rev}</td>
         <td>${cloudPill(d.c)}</td>
         <td>${chPill(d.ch)}</td>
-        <td class="${d.dig.startsWith("sha") ? "digest" : "mono muted"}" style="font-size:11px">${d.dig}</td>
-        <td>${d.from ? `<a class="sha" href="#">${d.from}</a>` : '<span class="unk">—</span>'}</td>
-        <td class="dim mono" style="font-size:11px">${d.at}</td>
-        <td class="dim" style="font-size:11px">${d.by === "cloudbuild" ? '<span class="muted">pipeline</span>' : d.by === "—" ? '<span class="muted">—</span>' : `<span style="color:var(--color-accent-red)">${d.by}</span>`}</td>
+        ${digCell}
+        <td>${builtFromCell(d)}</td>
+        <td style="font-size:11px"><span class="dim mono">${d.at}</span>${heldCell(d) ? `<div style="margin-top:2px">${heldCell(d)}</div>` : ""}</td>
+        <td style="font-size:11px">${deployerCell(d.by)}</td>
+        <td style="font-size:11px">${deployLink(d)}</td>
       </tr>`;
         })
         .join("");
 
+      const artStatePill = (st) =>
+        ({
+          running: '<span class="pill p-green"><span class="dot"></span>running</span>',
+          paused: '<span class="pill p-amber"><span class="dot"></span>App Runner PAUSED</span>',
+          zeroed: '<span class="pill p-amber"><span class="dot"></span>ECS desired=0</span>',
+          active: '<span class="pill p-cyan"><span class="dot"></span>still pushing</span>',
+          orphan: '<span class="pill p-red"><span class="dot"></span>orphaned · GC</span>',
+          empty: '<span class="pill p-grey"><span class="dot"></span>empty</span>',
+        })[st] || "";
       document.getElementById("tb-art").innerHTML = artifacts
         .map(
-          (a) => `<tr>
-        <td style="font-weight:500">${a.r}</td>
+          (a) => `<tr data-state="${a.state}" data-cloud="${a.c}">
+        <td style="font-weight:500">${a.r}${a.note ? ` <span class="dim" style="font-size:10.5px">· ${a.note}</span>` : ""}</td>
         <td>${cloudPill(a.c)}</td>
         <td class="mono dim" style="font-size:11px">${a.reg}</td>
-        <td>${a.tags.map((t) => `<span class="pill ${/^\d/.test(t) ? "p-blue" : t === "latest" ? "p-red" : "p-grey"}">${t}</span>`).join(" ")}</td>
-        <td><span class="digest">${a.d}</span></td>
+        <td class="mono ${a.imgs === 0 ? "muted" : "dim"}" style="font-size:11.5px">${a.imgs}${a.imgs === 30 ? '<span class="dim" title="hit the 30-image retention cap"> ·cap</span>' : ""}</td>
+        <td>${a.tags.length ? a.tags.map((t) => `<span class="pill ${/^v?\d/.test(t) ? "p-blue" : t === "latest" ? "p-red" : "p-grey"}">${t}</span>`).join(" ") : '<span class="unk">none</span>'}</td>
         <td class="dim">${a.p}</td>
-        <td class="dim mono" style="font-size:11px">${a.s}</td>
-        <td>${a.run === "yes" ? `<span class="pill p-green"><span class="dot"></span>live</span> <span class="dim" style="font-size:11px">${a.runNote}</span>` : '<span class="muted">—</span>'}</td>
+        <td style="font-size:11px">${a.run === "—" ? '<span class="muted">—</span>' : `<span class="mono dim">${a.run}</span>`}</td>
+        <td>${artStatePill(a.state)}</td>
       </tr>`,
         )
         .join("");
 
+      const tabLabel = { run: "What's running", deploy: "Deploy timeline", pipe: "Pipeline", art: "Artifacts" };
       document.getElementById("tb-health").innerHTML = health
         .map(
-          (h) => `<tr>
-        <td style="font-weight:500;white-space:normal;max-width:260px">${h.c}</td>
+          (h) => `<tr data-sev="${h.sev}">
+        <td style="font-weight:500;white-space:normal;max-width:240px">${h.c}</td>
         <td><span class="pill ${h.sev === "high" ? "p-red" : h.sev === "med" ? "p-amber" : "p-grey"}">${h.sev}</span></td>
         <td class="mono">${h.n}</td>
-        <td style="white-space:normal;max-width:460px;font-size:11.5px" class="dim">${h.m}</td>
-        <td class="mono muted" style="font-size:10.5px;white-space:normal;max-width:200px">${h.e}</td>
+        <td class="dim mono" style="font-size:11px;white-space:nowrap">${h.area || "—"}</td>
+        <td style="white-space:normal;max-width:440px;font-size:11.5px" class="dim">${h.m}</td>
+        <td style="font-size:10.5px;white-space:normal;max-width:210px"><span class="mono muted">${h.e}</span>${h.tab ? `<div style="margin-top:3px"><a class="sha go-tab" data-go="${h.tab}" href="#">see in ${tabLabel[h.tab]} ↗</a></div>` : ""}</td>
       </tr>`,
         )
         .join("");
 
       /* ---------------- tabs ---------------- */
       const views = { run: "v-run", deploy: "v-deploy", pipe: "v-pipe", art: "v-art", health: "v-health" };
+      const switchTab = (t) => {
+        [...document.querySelectorAll("#tabs button")].forEach((x) => x.classList.toggle("on", x.dataset.t === t));
+        Object.entries(views).forEach(([k, v]) => document.getElementById(v).classList.toggle("hide", k !== t));
+      };
       document.getElementById("tabs").addEventListener("click", (e) => {
         const b = e.target.closest("button");
+        if (b) switchTab(b.dataset.t);
+      });
+
+      /* health — severity filter + "see in <tab> ↗" cross-links jump to the proving view */
+      document.getElementById("health-filter").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
         if (!b) return;
-        [...document.querySelectorAll("#tabs button")].forEach((x) => x.classList.remove("on"));
+        [...document.querySelectorAll("#health-filter button")].forEach((x) => x.classList.remove("on"));
         b.classList.add("on");
-        Object.values(views).forEach((v) => document.getElementById(v).classList.add("hide"));
-        document.getElementById(views[b.dataset.t]).classList.remove("hide");
+        const f = b.dataset.f;
+        document.querySelectorAll("#tb-health tr").forEach((r) => {
+          r.classList.toggle("hide", !(f === "all" || r.dataset.sev === f));
+        });
+      });
+      document.getElementById("tb-health").addEventListener("click", (e) => {
+        const a = e.target.closest(".go-tab");
+        if (!a) return;
+        e.preventDefault();
+        switchTab(a.dataset.go);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
       document.getElementById("preset").addEventListener("click", (e) => {
         const b = e.target.closest("button");
@@ -1992,6 +2622,69 @@
         start.setDate(end.getDate() - (+b.dataset.d - 1));
         document.getElementById("d0").value = start.toISOString().slice(0, 10);
         document.getElementById("d1").value = end.toISOString().slice(0, 10);
+      });
+
+      /* deploy timeline — filter chips (hide config-only churn / show live now / failed+paused) */
+      document.getElementById("deploy-filter").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        [...document.querySelectorAll("#deploy-filter button")].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        const f = b.dataset.f;
+        document.querySelectorAll("#tb-deploy tr").forEach((r) => {
+          if (r.dataset.sep) {
+            r.classList.toggle("hide", f !== "all"); // section headers only in the full view
+            return;
+          }
+          const ch = r.dataset.ch,
+            live = r.dataset.live === "1";
+          const show =
+            f === "all" ||
+            (f === "code" && ch === "new") ||
+            (f === "live" && live) ||
+            (f === "fail" && (ch === "failed" || ch === "paused" || ch === "empty"));
+          r.classList.toggle("hide", !show);
+        });
+      });
+
+      /* pipeline — filter chips (status / lane / cloud) */
+      document.getElementById("pipe-filter").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        [...document.querySelectorAll("#pipe-filter button")].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        const f = b.dataset.f;
+        document.querySelectorAll("#tb-pipe tr").forEach((r) => {
+          const show =
+            f === "all" ||
+            (f === "fail" && r.dataset.st === "fail") ||
+            (f === "image" && r.dataset.lane === "image") ||
+            (f === "tarball" && r.dataset.lane === "tarball") ||
+            (f === "gcp" && r.dataset.cloud === "gcp") ||
+            (f === "aws" && r.dataset.cloud === "aws");
+          r.classList.toggle("hide", !show);
+        });
+      });
+
+      /* artifacts — filter chips (running / orphaned-GC / empty / cloud) */
+      document.getElementById("art-filter").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        [...document.querySelectorAll("#art-filter button")].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        const f = b.dataset.f;
+        const gc = new Set(["orphan", "paused", "zeroed"]);
+        document.querySelectorAll("#tb-art tr").forEach((r) => {
+          const st = r.dataset.state;
+          const show =
+            f === "all" ||
+            (f === "running" && st === "running") ||
+            (f === "orphan" && gc.has(st)) ||
+            (f === "empty" && st === "empty") ||
+            (f === "gcp" && r.dataset.cloud === "gcp") ||
+            (f === "aws" && r.dataset.cloud === "aws");
+          r.classList.toggle("hide", !show);
+        });
       });
 
       /* ---------------- drawer ---------------- */
