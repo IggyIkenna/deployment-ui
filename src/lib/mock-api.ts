@@ -2642,11 +2642,20 @@ function mockRepoCiAlerts() {
   const rank = (e: { severity: string | null; conclusion: string | null }) =>
     e.severity === "CRITICAL" || e.conclusion === "failure" ? 0 : e.severity === "WARNING" ? 1 : 2;
   streams.sort((a, b) => rank(a.current) - rank(b.current));
+  const ordered = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return {
     generated_at: new Date().toISOString(),
     source: "mock",
-    alerts: [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
+    alerts: ordered,
     streams,
+    // Fixture is small + static — always a single, uncapped page (mirrors deployment-api's
+    // _mock_alerts()).
+    days: 30,
+    total_count: ordered.length,
+    returned_count: ordered.length,
+    offset: 0,
+    limit: ordered.length,
+    capped: false,
   };
 }
 

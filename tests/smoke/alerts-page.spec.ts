@@ -219,4 +219,68 @@ test.describe("Alerts page", () => {
     // timeline only, per the "Options derived from the loaded normalised alert set" todo text.
     await expect(page.getByTestId("alert-streams")).toBeVisible();
   });
+
+  // Date-range picker (deployment_ui_alerts_page_rebuild_2026_07_20.md "Date-range picker" todo).
+  // All 5 fixture alerts sit on 2026-06-10 — inclusive [alert_from, alert_to] bounds against that
+  // fixed date exercise narrowing without depending on the real wall-clock "today".
+  test("date-range picker narrows the timeline by inclusive [from, to] bounds, URL-backed", async ({ page }) => {
+    await page.goto("/alerts");
+    await page.getByTestId("filter-alert-date-to").fill("2026-06-09");
+    await expect(page).toHaveURL(/alert_to=2026-06-09/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("0 of 5 alerts");
+    await expect(page.getByTestId("alerts-filter-empty")).toBeVisible();
+    // Setting only `alert_to` (no `alert_from`) never engages the retention-floor check.
+    await expect(page.getByTestId("alerts-retention-floor-banner")).toHaveCount(0);
+
+    await page.getByTestId("filter-alert-date-to").fill("2026-06-10");
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+  });
+
+  test("'no data before X' retention-floor banner fires only when alert_from predates the ledger's window", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    // Well before any real-world 30-day floor -> banner must fire regardless of when this runs.
+    await page.getByTestId("filter-alert-date-from").fill("2020-01-01");
+    await expect(page.getByTestId("alerts-retention-floor-banner")).toBeVisible();
+    await expect(page.getByTestId("alerts-retention-floor-banner")).toContainText("No alerts before");
+    await expect(page.getByTestId("alerts-retention-floor-banner")).toContainText("the ledger retains 30 days");
+
+    // The date-range widget's own clear button (X) removes the banner along with both bounds.
+    await page.getByTestId("filter-alert-date-clear").click();
+    await expect(page.getByTestId("alerts-retention-floor-banner")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/alert_from=|alert_to=/);
+    await expect(page.getByTestId("filter-alert-date-from")).toHaveValue("");
+    await expect(page.getByTestId("filter-alert-date-to")).toHaveValue("");
+  });
+
+  test("the date-range widget's own clear (X) resets both bounds atomically without touching other active filters", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    await page.getByTestId("filter-kind-vm_down").click();
+    await page.getByTestId("filter-alert-date-from").fill("2026-06-01");
+    await page.getByTestId("filter-alert-date-to").fill("2026-06-15");
+    await expect(page.getByTestId("filter-alert-date-clear")).toBeVisible();
+
+    await page.getByTestId("filter-alert-date-clear").click();
+    await expect(page).not.toHaveURL(/alert_from=|alert_to=/);
+    await expect(page).toHaveURL(/kind=vm_down/);
+    await expect(page.getByTestId("filter-alert-date-from")).toHaveValue("");
+    await expect(page.getByTestId("filter-alert-date-to")).toHaveValue("");
+  });
+
+  test("the page-level clear-filters button also clears the date range, not just kind/severity/repo/service", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    await page.getByTestId("filter-alert-date-from").fill("2026-06-01");
+    await expect(page.getByTestId("filter-clear")).toBeVisible();
+
+    await page.getByTestId("filter-clear").click();
+    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/alert_from=|alert_to=/);
+    await expect(page.getByTestId("filter-alert-date-from")).toHaveValue("");
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+  });
 });

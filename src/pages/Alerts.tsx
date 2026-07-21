@@ -79,6 +79,70 @@ function kindTone(_kind: string): ChipTone {
   return "blue";
 }
 
+/**
+ * Date-range picker — two native date inputs bounding an inclusive `[alert_from, alert_to]`
+ * window, URL-backed. Local to this page (not the shared `filters/` dir): the extracted
+ * primitives are `FilterSelect`/`StatusFilterChips`/`useColumnSort`/`compareByColumn` only —
+ * Deployments.tsx's own date-range filter stayed local too (a server-side query wired to its own
+ * `date_from`/`date_to` backend contract), so this mirrors its UX pattern (atomic clear, no pick
+ * blocked by `min`/`max`) without re-editing that file or forcing a shared abstraction over two
+ * backends with different contracts (deployments = explicit from/to query; alerts = a `days`-back
+ * window, filtered client-side here — see `retentionFloorDate` below).
+ */
+function AlertDateRangeFilter({
+  from,
+  to,
+  onChangeFrom,
+  onChangeTo,
+  onClear,
+}: {
+  from: string;
+  to: string;
+  onChangeFrom: (value: string) => void;
+  onChangeTo: (value: string) => void;
+  onClear: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const field =
+    "bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded px-1.5 py-1 text-[11px] text-[var(--color-text-primary)]";
+  return (
+    <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+      date range
+      <input
+        type="date"
+        aria-label="Alert date range start"
+        data-testid="filter-alert-date-from"
+        value={from}
+        max={to || today}
+        onChange={(e) => onChangeFrom(e.target.value)}
+        className={field}
+      />
+      <span className="text-[var(--color-text-tertiary)]">→</span>
+      <input
+        type="date"
+        aria-label="Alert date range end"
+        data-testid="filter-alert-date-to"
+        value={to}
+        min={from}
+        max={today}
+        onChange={(e) => onChangeTo(e.target.value)}
+        className={field}
+      />
+      {(from || to) && (
+        <button
+          type="button"
+          aria-label="Clear alert date range"
+          data-testid="filter-alert-date-clear"
+          onClick={onClear}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
 type AlertSortKey = "timestamp" | "severity" | "source" | "subject";
 
@@ -173,6 +237,8 @@ export function AlertsContent() {
   }, [searchParams]);
   const repoFilter = searchParams.get("repo") ?? "";
   const serviceFilter = searchParams.get("service") ?? "";
+  const alertFromFilter = searchParams.get("alert_from") ?? "";
+  const alertToFilter = searchParams.get("alert_to") ?? "";
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -208,6 +274,21 @@ export function AlertsContent() {
     },
     [severityFilters, setParam],
   );
+
+  // Clears BOTH date-range bounds in one atomic update — two sequential `setParam` calls would each
+  // race against the same pre-update `prev` snapshot and clobber each other (mirrors Deployments.tsx's
+  // own `clearDateRange`).
+  const clearAlertDateRange = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("alert_from");
+        next.delete("alert_to");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -281,6 +362,22 @@ export function AlertsContent() {
     ];
   }, [data]);
 
+  // The retention floor honesty check (deployment_alerts_ingestion_completeness_2026_07_20.md todo
+  // 8: `_DEFAULT_DAYS = _MAX_DAYS = 30`) — `data.days` is the day window the BACKEND actually served
+  // (clamped to its own retention constant), so deriving the floor from it (rather than hardcoding
+  // "30" here) means this never drifts out of sync if the backend's retention window changes.
+  const retentionFloorDate = useMemo(() => {
+    if (!data) return null;
+    const floor = new Date();
+    floor.setUTCDate(floor.getUTCDate() - (data.days - 1));
+    return floor.toISOString().slice(0, 10);
+  }, [data]);
+  const alertDateRangeOutOfRetention = !!(
+    retentionFloorDate &&
+    alertFromFilter &&
+    alertFromFilter < retentionFloorDate
+  );
+
   const filteredAlerts = useMemo(() => {
     if (!data) return [];
     return data.alerts.filter(
@@ -288,9 +385,11 @@ export function AlertsContent() {
         (kindFilters.size === 0 || kindFilters.has(a.kind)) &&
         (severityFilters.size === 0 || severityFilters.has(severityBucket(a))) &&
         (!repoFilter || a.repo === repoFilter) &&
-        (!serviceFilter || a.workflow_name === serviceFilter),
+        (!serviceFilter || a.workflow_name === serviceFilter) &&
+        (!alertFromFilter || a.timestamp.slice(0, 10) >= alertFromFilter) &&
+        (!alertToFilter || a.timestamp.slice(0, 10) <= alertToFilter),
     );
-  }, [data, kindFilters, severityFilters, repoFilter, serviceFilter]);
+  }, [data, kindFilters, severityFilters, repoFilter, serviceFilter, alertFromFilter, alertToFilter]);
 
   const sortedAlerts = useMemo(() => {
     if (!sort) return filteredAlerts;
@@ -361,7 +460,19 @@ export function AlertsContent() {
               options={serviceOptions}
               onChange={(v) => setParam("service", v)}
             />
-            {(kindFilters.size > 0 || severityFilters.size > 0 || repoFilter || serviceFilter) && (
+            <AlertDateRangeFilter
+              from={alertFromFilter}
+              to={alertToFilter}
+              onChangeFrom={(v) => setParam("alert_from", v)}
+              onChangeTo={(v) => setParam("alert_to", v)}
+              onClear={clearAlertDateRange}
+            />
+            {(kindFilters.size > 0 ||
+              severityFilters.size > 0 ||
+              repoFilter ||
+              serviceFilter ||
+              alertFromFilter ||
+              alertToFilter) && (
               <button
                 type="button"
                 data-testid="filter-clear"
@@ -373,6 +484,8 @@ export function AlertsContent() {
                       next.delete("severity");
                       next.delete("repo");
                       next.delete("service");
+                      next.delete("alert_from");
+                      next.delete("alert_to");
                       return next;
                     },
                     { replace: true },
@@ -387,6 +500,14 @@ export function AlertsContent() {
               {filteredAlerts.length} of {data.alerts.length} alerts
             </span>
           </div>
+          {alertDateRangeOutOfRetention && retentionFloorDate && (
+            <div
+              className="p-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-[11px] text-amber-400"
+              data-testid="alerts-retention-floor-banner"
+            >
+              No alerts before {retentionFloorDate} — the ledger retains {data.days} days.
+            </div>
+          )}
           <Card data-testid="alert-streams">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Streams — current vs previous state (worst first)</CardTitle>
