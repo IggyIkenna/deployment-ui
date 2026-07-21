@@ -58,6 +58,11 @@ import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { useDebounce } from "../hooks/useDebounce";
+import { useColumnSort } from "../hooks/useColumnSort";
+import { compareByColumn } from "../lib/columnSort";
+import { FilterSelect } from "../components/filters/FilterSelect";
+import { StatusFilterChips, type StatusChip } from "../components/filters/StatusFilterChips";
+import { TONE_CLASSES, type ChipTone } from "../components/filters/chipTone";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
@@ -72,16 +77,6 @@ const MODE_OPTIONS: { value: ModeFilter; label: string }[] = [
   // disks/IPs) — 187 rows incl. every scheduler. Without this option they're unreachable by Mode.
   { value: "NONE", label: "Infra (none)" },
 ];
-
-type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
-
-const TONE_CLASSES: Record<ChipTone, string> = {
-  green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
-  yellow: "bg-amber-500/15 text-amber-400 border-amber-500/40",
-  red: "bg-red-500/15 text-red-400 border-red-500/40",
-  gray: "bg-zinc-500/15 text-zinc-400 border-zinc-500/40",
-  blue: "bg-cyan-500/15 text-cyan-400 border-cyan-500/40",
-};
 
 function Chip({ tone, children, testId }: { tone: ChipTone; children: React.ReactNode; testId?: string }) {
   return (
@@ -320,32 +315,28 @@ function columnSortValue(item: DeploymentItem, key: SortKey): string | number | 
   }
 }
 
-/** Compare two rows by an active column sort — nulls last, ties broken by the default hierarchy.
- *  `dateFiltered` (WS-2 decision 2) — always-on/no-interval rows sort last EVEN on an explicit
- *  column sort, overriding the column's own asc/desc direction (they carry no interval to sort by
- *  in a date-scoped view; a proxy timestamp like Cloud Run's last-deployed would otherwise
- *  interleave them, misreading as range-matched data). */
-function compareByColumn(
+/** Compare two rows by an active column sort — thin deployment-specific wiring over the shared,
+ *  generic `compareByColumn` (`../lib/columnSort`): nulls last, ties broken by the default
+ *  hierarchy. While `dateFiltered` (WS-2 decision 2) is true, always-on/no-interval rows sort last
+ *  EVEN on an explicit column sort, overriding the column's own asc/desc direction (they carry no
+ *  interval to sort by in a date-scoped view; a proxy timestamp like Cloud Run's last-deployed
+ *  would otherwise interleave them, misreading as range-matched data) — passed as `forceLast`. */
+function deploymentCompareByColumn(
   a: DeploymentItem,
   b: DeploymentItem,
   key: SortKey,
   dir: "asc" | "desc",
   dateFiltered: boolean,
 ): number {
-  if (dateFiltered) {
-    const aAlwaysOn = isAlwaysOnKind(a.kind);
-    const bAlwaysOn = isAlwaysOnKind(b.kind);
-    if (aAlwaysOn !== bAlwaysOn) return aAlwaysOn ? 1 : -1;
-  }
-  const av = columnSortValue(a, key);
-  const bv = columnSortValue(b, key);
-  if (av === null || bv === null) {
-    if (av === null && bv === null) return defaultHierarchyCmp(a, b, dateFiltered);
-    return av === null ? 1 : -1; // nulls always last, regardless of direction
-  }
-  const c = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
-  if (c === 0) return defaultHierarchyCmp(a, b, dateFiltered);
-  return dir === "asc" ? c : -c;
+  return compareByColumn(
+    a,
+    b,
+    key,
+    dir,
+    columnSortValue,
+    (x, y) => defaultHierarchyCmp(x, y, dateFiltered),
+    dateFiltered ? (item) => isAlwaysOnKind(item.kind) : undefined,
+  );
 }
 
 /** Lambda's Last-run cell (WS-D #10): the last-MODIFIED (deploy) time — NEVER mislabelled as
@@ -893,21 +884,13 @@ function DeploymentMatrixSkeleton() {
 
 function DeploymentMatrix({ items, dateFiltered }: { items: DeploymentItem[]; dateFiltered: boolean }) {
   // null → the default semantic hierarchy; else an explicit column sort. A header click cycles that
-  // column asc → desc → back to the default hierarchy.
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
-  const onHeaderClick = useCallback((key: SortKey | undefined) => {
-    if (!key) return;
-    setSort((prev) => {
-      if (!prev || prev.key !== key) return { key, dir: "asc" };
-      if (prev.dir === "asc") return { key, dir: "desc" };
-      return null;
-    });
-  }, []);
+  // column asc → desc → back to the default hierarchy (shared `useColumnSort` — ../hooks/useColumnSort).
+  const { sort, onHeaderClick } = useColumnSort<SortKey>();
   const sorted = useMemo(() => {
     const arr = [...items];
     arr.sort(
       sort
-        ? (a, b) => compareByColumn(a, b, sort.key, sort.dir, dateFiltered)
+        ? (a, b) => deploymentCompareByColumn(a, b, sort.key, sort.dir, dateFiltered)
         : (a, b) => defaultHierarchyCmp(a, b, dateFiltered),
     );
     return arr;
@@ -952,39 +935,6 @@ function DeploymentMatrix({ items, dateFiltered }: { items: DeploymentItem[]; da
         </tbody>
       </table>
     </div>
-  );
-}
-
-/** Segmented filter control (mode / cloud / status / asset_group) — URL-param-backed so an alert can deep-link. */
-function FilterSelect({
-  testId,
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  testId: string;
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
-      {label}
-      <select
-        data-testid={testId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded px-1.5 py-1 text-xs text-[var(--color-text-primary)]"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -1145,13 +1095,13 @@ function TargetSearchBox({
   );
 }
 
-/**
- * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with
- * the count beside each so the operator sees the spread at a glance. They drive the SAME
- * `status` filter the dropdown does. "Stuck" maps to `stale`. Counts come from the
- * summary's `counts_by_status` (the authoritative tally aggregated across every mode in view).
- */
-const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
+// Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with the
+// count beside each so the operator sees the spread at a glance. They drive the SAME `status`
+// filter the dropdown does. "Stuck" maps to `stale`. Rendered via the shared `StatusFilterChips`
+// primitive (`../components/filters/StatusFilterChips`) — `statusChips()` below computes its
+// `chips` prop from the summary's `counts_by_status` (the authoritative tally aggregated across
+// every mode in view), the deployment-specific piece that isn't part of the generic component.
+const STATUS_CHIP_DEFS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
   { value: "all", label: "All", tone: "gray", countKey: null },
   { value: "running", label: "Running", tone: "blue", countKey: "running" },
   { value: "succeeded", label: "Succeeded", tone: "green", countKey: "succeeded" },
@@ -1159,43 +1109,14 @@ const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: st
   { value: "stale", label: "Stuck", tone: "yellow", countKey: "stale" },
 ];
 
-function StatusFilterChips({
-  summary,
-  active,
-  onSelect,
-}: {
-  summary: UmbrellaSummaryResponse | null;
-  active: string;
-  onSelect: (value: string) => void;
-}) {
+function statusChips(summary: UmbrellaSummaryResponse | null): StatusChip[] {
   const total = summary?.total ?? 0;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5" data-testid="status-filter-chips">
-      {STATUS_CHIPS.map((chip) => {
-        const count = chip.countKey == null ? total : (summary?.counts_by_status[chip.countKey] ?? 0);
-        const isActive = active === chip.value;
-        return (
-          <button
-            key={chip.value || "all"}
-            type="button"
-            aria-pressed={isActive}
-            data-testid={`status-chip-${chip.value || "all"}`}
-            onClick={() => onSelect(chip.value)}
-            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium border transition-colors ${
-              isActive
-                ? TONE_CLASSES[chip.tone]
-                : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
-          >
-            {chip.label}
-            <span data-testid={`status-chip-count-${chip.value || "all"}`} className="font-mono opacity-80">
-              {count}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  return STATUS_CHIP_DEFS.map((chip) => ({
+    value: chip.value,
+    label: chip.label,
+    tone: chip.tone,
+    count: chip.countKey == null ? total : (summary?.counts_by_status[chip.countKey] ?? 0),
+  }));
 }
 
 /** Aggregate per-mode summaries into one combined tally (for the all-modes view). */
@@ -1473,7 +1394,11 @@ export function DeploymentsContent({
               <StrandedCostBadge items={items} />
               {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
               <div className="pt-3">
-                <StatusFilterChips summary={summary} active={statusFilter} onSelect={(v) => setParam("status", v)} />
+                <StatusFilterChips
+                  chips={statusChips(summary)}
+                  active={statusFilter}
+                  onSelect={(v) => setParam("status", v)}
+                />
               </div>
               {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
               <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
