@@ -151,7 +151,7 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/fleet",
         label: "Fleet",
         icon: Layers,
-        desc: "Census · orphans · git · infra",
+        desc: "git health · dirty repos",
         short: "Fleet",
       },
       {
