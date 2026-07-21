@@ -90,8 +90,8 @@ test.describe("Cockpit — scaffold IA", () => {
     await mockBase(page);
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
-    // VM-census embed + reconciliation cards REMOVED 2026-07-21 (redundant with Deployments);
-    // Fleet now shows only the orphan idle-spend surface + git health.
+    // VM-census embed + reconciliation cards + the FleetOrphans idle-spend embed all REMOVED
+    // 2026-07-21 (redundant with / merged into Deployments); Fleet is now git-health-only.
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 
