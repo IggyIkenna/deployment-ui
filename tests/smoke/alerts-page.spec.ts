@@ -62,6 +62,32 @@ test.describe("Alerts page", () => {
     await expect(firstEntry.getByTestId("alert-entry-workflow-0")).toHaveText("quality-gates-v2");
   });
 
+  test("timeline columns are sortable, click-to-cycle asc/desc/default, URL-backed", async ({ page }) => {
+    // Sortable columns (deployment_ui_alerts_page_rebuild_2026_07_20.md todo 2) — Subject sorts
+    // alphabetically by repo, reordering the newest-first default (deployment-service <
+    // execution-service < unified-trading-pm, so deployment-service's vm-watchdog alert moves to
+    // entry-0 even though it's the OLDEST of the 5 mock rows).
+    await page.goto("/alerts");
+    const subjectHeader = page.getByTestId("alert-col-subject");
+
+    await subjectHeader.click();
+    await expect(page).toHaveURL(/sort_key=subject&sort_dir=asc/);
+    await expect(subjectHeader).toHaveAttribute("aria-sort", "ascending");
+    await expect(page.getByTestId("alert-entry-0")).toContainText("VM DOWN: cefi-binance-futures-backfill");
+
+    // Second click on the same header reverses direction (desc — unified-trading-pm sorts last-first).
+    await subjectHeader.click();
+    await expect(page).toHaveURL(/sort_key=subject&sort_dir=desc/);
+    await expect(subjectHeader).toHaveAttribute("aria-sort", "descending");
+    await expect(page.getByTestId("alert-entry-0")).toContainText("SIT PASSED");
+
+    // Third click returns to the table's own default ordering (newest-first) and clears the URL params.
+    await subjectHeader.click();
+    await expect(page).not.toHaveURL(/sort_key=/);
+    await expect(subjectHeader).not.toHaveAttribute("aria-sort", /.+/);
+    await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
+  });
+
   test("unified endpoint: domain chip appears on every stream and timeline entry", async ({ page }) => {
     await page.goto("/alerts");
     // Every stream row must have a domain chip.

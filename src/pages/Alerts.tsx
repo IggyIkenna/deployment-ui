@@ -13,14 +13,16 @@
  * Plan: deployment_ui_monitoring_pane_2026_06_19.md (unified ledger UI P1).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, BellRing, ExternalLink, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
+import { useColumnSort, type ColumnSort } from "../hooks/useColumnSort";
+import { compareByColumn } from "../lib/columnSort";
 
 function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
@@ -48,6 +50,44 @@ function kindLabel(kind: string): string {
     default:
       return kind.toUpperCase().slice(0, 5);
   }
+}
+
+/** Lower = more severe (matches the existing "worst first" semantics of the streams card). */
+function severityRank(entry: UnifiedAlertEntry): number {
+  if (entry.severity === "CRITICAL" || entry.conclusion === "failure") return 0;
+  if (entry.severity === "WARNING") return 1;
+  return 2;
+}
+
+/** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
+type AlertSortKey = "timestamp" | "severity" | "source" | "subject";
+
+const ALERT_SORT_COLUMNS: { label: string; key: AlertSortKey }[] = [
+  { label: "Time", key: "timestamp" },
+  { label: "Severity", key: "severity" },
+  { label: "Source", key: "source" },
+  { label: "Subject", key: "subject" },
+];
+
+/** The comparable value for a timeline column — number or string; compareByColumn's own
+ *  null-handling never triggers here (every column has a real value on every alert), so this
+ *  never returns null. */
+function alertColumnSortValue(entry: UnifiedAlertEntry, key: AlertSortKey): string | number {
+  switch (key) {
+    case "timestamp":
+      return entry.timestamp;
+    case "severity":
+      return severityRank(entry);
+    case "source":
+      return kindLabel(entry.kind);
+    case "subject":
+      return entry.repo.toLowerCase();
+  }
+}
+
+/** Tie-break for equal column values — the table's own default (newest-first). */
+function alertDefaultCmp(a: UnifiedAlertEntry, b: UnifiedAlertEntry): number {
+  return b.timestamp.localeCompare(a.timestamp);
 }
 
 function ageMin(ts: string): number | null {
@@ -78,10 +118,26 @@ function DomainChip({ kind }: { kind: string }) {
   );
 }
 
+/** Parse `sort_key`/`sort_dir` off the URL into the shared hook's initial-state shape (once, at
+ *  mount) — an unrecognised/missing pair falls back to the table's own default (newest-first). */
+function initialSortFromParams(params: URLSearchParams): ColumnSort<AlertSortKey> | null {
+  const key = params.get("sort_key");
+  const dir = params.get("sort_dir");
+  if (
+    (key === "timestamp" || key === "severity" || key === "source" || key === "subject") &&
+    (dir === "asc" || dir === "desc")
+  ) {
+    return { key, dir };
+  }
+  return null;
+}
+
 export function AlertsContent() {
   const [data, setData] = useState<UnifiedAlerts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { sort, onHeaderClick } = useColumnSort<AlertSortKey>(initialSortFromParams(searchParams));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -98,6 +154,33 @@ export function AlertsContent() {
 
   // Pauses while the tab is hidden; resumes with an immediate refresh.
   useVisibilityPausedInterval(load, 60_000);
+
+  // URL-back the active sort (deep-linkable, plain-routes contract) — a null sort (back to the
+  // default newest-first ordering) clears both params rather than writing them empty.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (sort) {
+          next.set("sort_key", sort.key);
+          next.set("sort_dir", sort.dir);
+        } else {
+          next.delete("sort_key");
+          next.delete("sort_dir");
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [sort, setSearchParams]);
+
+  const sortedAlerts = useMemo(() => {
+    if (!data) return [];
+    if (!sort) return data.alerts;
+    return [...data.alerts].sort((a, b) =>
+      compareByColumn(a, b, sort.key, sort.dir, alertColumnSortValue, alertDefaultCmp),
+    );
+  }, [data, sort]);
 
   return (
     <div className="space-y-4" data-testid="alerts-page">
@@ -172,7 +255,30 @@ export function AlertsContent() {
                   No alerts persisted yet — the ledger fills as notify-slack posts.
                 </p>
               )}
-              {data.alerts.map((alert, index) => (
+              {data.alerts.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]">
+                  <span className="w-[46px] shrink-0" aria-hidden="true" />
+                  {ALERT_SORT_COLUMNS.map((c) => {
+                    const dir = sort?.key === c.key ? sort.dir : undefined;
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => onHeaderClick(c.key)}
+                        aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
+                        data-testid={`alert-col-${c.key}`}
+                        className={`shrink-0 select-none hover:text-[var(--color-text-primary)] ${
+                          dir ? "text-[var(--color-text-primary)] font-medium" : ""
+                        }`}
+                      >
+                        {c.label}
+                        {dir === "asc" ? " ▲" : dir === "desc" ? " ▼" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {sortedAlerts.map((alert, index) => (
                 <div
                   key={`${alert.timestamp}-${index}`}
                   className="flex items-start gap-2 text-sm"
