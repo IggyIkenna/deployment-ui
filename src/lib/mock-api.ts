@@ -453,6 +453,98 @@ function _mkSportsByDataType(): ReturnType<typeof _mkCategory> {
       expected_leagues: [] as string[],
       leagues: {} as Record<string, never>,
     } as unknown as ReturnType<typeof _mkVenue>,
+    // features-sports-service Phase-3 honest-coverage rollups (Phase 8.A,
+    // features_sports_honest_coverage_2026_05_05.plan.md). These 3 keys are
+    // FEATURES_SPORTS_DATA_TYPE_META in deployment-api's sports_helpers.py —
+    // `sports_honest_coverage()`'s per-league breakdown for the feature
+    // calculators, distinct from the raw instruments-service SPORTS entities
+    // above. SportsFeatureCoverageCard reads these via the same
+    // `data_types` map (this mock endpoint is service-agnostic, so they
+    // render alongside the instruments-service entities in mock mode).
+    FIXTURE_FEATURES: {
+      ..._mkVenue(320, 300, 0, 0),
+      completion_pct: 93.75,
+      found_shards: 300,
+      expected_shards: 320,
+      missing_shards: 20,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL", "LA_LIGA"],
+      leagues: {
+        EPL: {
+          found_shards: 160,
+          expected_shards: 160,
+          missing_shards: 0,
+          missing_dates: [],
+          missing_count: 0,
+          completion_pct: 100,
+          unit: "fixture_dates",
+        },
+        LA_LIGA: {
+          found_shards: 140,
+          expected_shards: 160,
+          missing_shards: 20,
+          missing_dates: ["2026-06-01", "2026-06-02"],
+          missing_count: 20,
+          completion_pct: 87.5,
+          unit: "fixture_dates",
+        },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    ODDS_FEATURES: {
+      ..._mkVenue(320, 290, 0, 0),
+      completion_pct: 90.63,
+      found_shards: 290,
+      expected_shards: 320,
+      missing_shards: 30,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "footystats",
+      expected_leagues: ["EPL", "LA_LIGA"],
+      leagues: {
+        EPL: {
+          found_shards: 150,
+          expected_shards: 160,
+          missing_shards: 10,
+          missing_dates: ["2026-05-10"],
+          missing_count: 10,
+          completion_pct: 93.75,
+          unit: "fixture_dates",
+        },
+        LA_LIGA: {
+          found_shards: 140,
+          expected_shards: 160,
+          missing_shards: 20,
+          missing_dates: [],
+          missing_count: 20,
+          completion_pct: 87.5,
+          unit: "fixture_dates",
+        },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
+    DERIVED_FEATURES: {
+      ..._mkVenue(347, 310, 0, 0),
+      completion_pct: 89.34,
+      found_shards: 310,
+      expected_shards: 347,
+      missing_shards: 37,
+      unit: "fixture_dates",
+      axis: "per_league_per_fixture_date",
+      source: "api_football",
+      expected_leagues: ["EPL"],
+      leagues: {
+        EPL: {
+          found_shards: 310,
+          expected_shards: 347,
+          missing_shards: 37,
+          missing_dates: [],
+          missing_count: 37,
+          completion_pct: 89.34,
+          unit: "fixture_dates",
+        },
+      },
+    } as unknown as ReturnType<typeof _mkVenue>,
   };
 
   return {
