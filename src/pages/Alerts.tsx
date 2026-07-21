@@ -508,39 +508,45 @@ export function AlertsContent() {
               No alerts before {retentionFloorDate} — the ledger retains {data.days} days.
             </div>
           )}
-          <Card data-testid="alert-streams">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Streams — current vs previous state (worst first)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {data.streams.length === 0 && (
-                <p className="text-sm text-[var(--color-text-muted)]">No alert streams in the window.</p>
-              )}
-              {data.streams.map((stream) => (
-                <div
-                  key={`${stream.repo}/${stream.workflow_name}`}
-                  className="flex items-center gap-2 text-sm flex-wrap"
-                  data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
-                >
-                  <DomainChip kind={stream.current.kind} />
-                  <span className="font-mono text-[var(--color-text-primary)]">
-                    {stream.repo} / {stream.workflow_name}
-                  </span>
-                  {stream.previous && (
-                    <>
-                      <EntryChip entry={stream.previous} testId="stream-previous" />
-                      <span className="text-[var(--color-text-muted)]">→</span>
-                    </>
-                  )}
-                  <EntryChip entry={stream.current} testId="stream-current" />
-                  <span className="text-[var(--color-text-muted)]">
-                    {formatAge(ageMin(stream.current.timestamp))} ago · {stream.count} event
-                    {stream.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          {/* Streams stays a visible SUMMARY (Layout/"proper view" todo, operator decision A,
+              2026-07-21) — a compact single-line-per-stream strip, not a full Card with the same
+              visual weight as the Timeline below. No Card/CardHeader/CardContent chrome, smaller
+              text, tighter padding; every existing data-testid (`alert-streams`,
+              `alert-stream-{repo}-{workflow}`, `stream-previous`/`stream-current`) is unchanged. */}
+          <div
+            data-testid="alert-streams"
+            className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]/40 p-2 space-y-1"
+          >
+            <div className="text-[11px] font-medium text-[var(--color-text-muted)]" data-testid="alert-streams-label">
+              Streams — summary (worst first)
+            </div>
+            {data.streams.length === 0 && (
+              <p className="text-xs text-[var(--color-text-muted)]">No alert streams in the window.</p>
+            )}
+            {data.streams.map((stream) => (
+              <div
+                key={`${stream.repo}/${stream.workflow_name}`}
+                className="flex items-center gap-1.5 text-xs flex-wrap"
+                data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
+              >
+                <DomainChip kind={stream.current.kind} />
+                <span className="font-mono text-[var(--color-text-primary)]">
+                  {stream.repo} / {stream.workflow_name}
+                </span>
+                {stream.previous && (
+                  <>
+                    <EntryChip entry={stream.previous} testId="stream-previous" />
+                    <span className="text-[var(--color-text-muted)]">→</span>
+                  </>
+                )}
+                <EntryChip entry={stream.current} testId="stream-current" />
+                <span className="text-[var(--color-text-muted)]">
+                  {formatAge(ageMin(stream.current.timestamp))} ago · {stream.count} event
+                  {stream.count === 1 ? "" : "s"}
+                </span>
+              </div>
+            ))}
+          </div>
           <Card data-testid="alert-timeline">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Alert timeline (newest first)</CardTitle>
@@ -557,7 +563,11 @@ export function AlertsContent() {
                 </p>
               )}
               {filteredAlerts.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]">
+                <div
+                  role="table"
+                  aria-label="Alert timeline"
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]"
+                >
                   <span className="w-[46px] shrink-0" aria-hidden="true" />
                   {ALERT_SORT_COLUMNS.map((c) => {
                     const dir = sort?.key === c.key ? sort.dir : undefined;
@@ -582,6 +592,7 @@ export function AlertsContent() {
               {sortedAlerts.map((alert, index) => (
                 <div
                   key={`${alert.timestamp}-${index}`}
+                  role="row"
                   className="flex items-start gap-2 text-sm"
                   data-testid={`alert-entry-${index}`}
                 >

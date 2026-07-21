@@ -125,6 +125,41 @@ test.describe("Alerts page", () => {
     await expect(page).toHaveURL(/\/deployments\/cefi-binance-futures-backfill$/);
   });
 
+  test("Layout: Timeline is the primary full-width surface, Streams renders as a compact summary strip", async ({
+    page,
+  }) => {
+    // deployment_ui_alerts_page_rebuild_2026_07_20.md "Layout / 'proper view'" todo, operator
+    // decision A (2026-07-21, BLK-de39d214): Streams stays visible as a compact single-line-per-
+    // stream SUMMARY above the Timeline, which remains the dominant/primary drill-down surface.
+    // The markup itself stayed flex-divs (rejected converting to a real <table> — behavior over
+    // markup, zero testid churn), so this only asserts the visual-hierarchy contract.
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-page")).toBeVisible();
+
+    // Streams: a compact summary label (not a full CardTitle heading) + its entries still resolve.
+    await expect(page.getByTestId("alert-streams-label")).toBeVisible();
+    await expect(page.getByTestId("alert-streams-label")).toContainText("summary");
+    await expect(page.getByTestId("alert-streams")).toBeVisible();
+    await expect(page.getByTestId("alert-streams").locator('[data-testid^="alert-stream-"]').first()).toBeVisible();
+
+    // Timeline: kept its full Card/CardTitle treatment (unchanged) — the dominant, primary surface.
+    await expect(page.getByTestId("alert-timeline")).toBeVisible();
+    await expect(page.getByTestId("alert-timeline").getByText("Alert timeline (newest first)")).toBeVisible();
+
+    // Streams (the summary) renders BEFORE Timeline (the primary surface) in DOM order.
+    const streamsFirst = await page.evaluate(() => {
+      const streams = document.querySelector('[data-testid="alert-streams"]');
+      const timeline = document.querySelector('[data-testid="alert-timeline"]');
+      if (!streams || !timeline) return false;
+      return !!(streams.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    expect(streamsFirst).toBe(true);
+
+    // Every pre-existing testid the regression contract depends on still resolves.
+    await expect(page.getByTestId("alert-entry-0")).toBeVisible();
+    await expect(page.getByTestId("alert-col-timestamp")).toBeVisible();
+  });
+
   test("infra alert's 'Stream logs' deep-link sets ?logs= and swaps in the live-logs panel (drill-down links)", async ({
     page,
   }) => {
