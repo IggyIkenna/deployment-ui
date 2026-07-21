@@ -164,3 +164,37 @@ test.describe("Deployments service dropdown filter (WS-3, client-side, ?service=
     await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
   });
 });
+
+test.describe("Deployments target search box (WS-3, case-insensitive substring, ?q=)", () => {
+  test("typing narrows to matching targets instantly; the URL param is debounced; ✕ clears both", async ({ page }) => {
+    await page.goto("/deployments?status=all");
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+    await expect(page.getByTestId("filter-target-search-clear")).toHaveCount(0);
+
+    // Case-insensitive substring match on the Target column (item.name) — filtering itself is
+    // instant (client-side array filter), so no need to wait out the debounce for this assertion.
+    const search = page.getByTestId("filter-target-search");
+    await search.fill("DEFI");
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toHaveCount(0);
+
+    // The URL write is debounced (300ms) — `toHaveURL`'s built-in polling covers the wait.
+    await expect(page).toHaveURL(/q=DEFI/);
+
+    // The ✕ clears both the visible input and the URL param.
+    await page.getByTestId("filter-target-search-clear").click();
+    await expect(search).toHaveValue("");
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+    await expect(page).not.toHaveURL(/q=/);
+  });
+
+  test("a deep-linked ?q= narrows the list on load", async ({ page }) => {
+    await page.goto("/deployments?status=all&q=cefi");
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+    await expect(page.getByTestId("filter-target-search")).toHaveValue("cefi");
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toHaveCount(0);
+  });
+});

@@ -57,6 +57,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
+import { useDebounce } from "../hooks/useDebounce";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
@@ -1101,6 +1102,50 @@ function DateRangeFilter({
 }
 
 /**
+ * Target search box (WS-3) — free-text, case-insensitive substring match on the Target column
+ * (`item.name`), URL-backed (`?q=`), clears with an ✕. `value` drives the visible input AND the
+ * actual client-side filter (instant — this is a cheap in-memory array filter, not a network
+ * round-trip, so there's no correctness reason to lag it); the caller debounces ONLY the write
+ * back to the URL param so typing doesn't spam browser history / re-render URL-derived consumers
+ * on every keystroke.
+ */
+function TargetSearchBox({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+      target
+      <input
+        type="text"
+        aria-label="Search target"
+        data-testid="filter-target-search"
+        placeholder="search…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-32 rounded border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-1.5 py-1 text-xs text-[var(--color-text-primary)]"
+      />
+      {value && (
+        <button
+          type="button"
+          aria-label="Clear target search"
+          data-testid="filter-target-search-clear"
+          onClick={onClear}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+        >
+          ✕
+        </button>
+      )}
+    </label>
+  );
+}
+
+/**
  * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with
  * the count beside each so the operator sees the spread at a glance. They drive the SAME
  * `status` filter the dropdown does. "Stuck" maps to `stale`. Counts come from the
@@ -1292,6 +1337,18 @@ export function DeploymentsContent({
     },
     [kindFilters, setParam],
   );
+
+  // Target search (WS-3) — local state drives the visible input AND the actual client-side
+  // filter instantly; only the URL write is debounced (300ms, house `useDebounce`) so typing
+  // doesn't spam history/re-render every URL-derived consumer on every keystroke. Lazy-init reads
+  // the deep-linked `?q=` once on mount; the box's own `onChange`/`onClear` are the only other
+  // writers of `searchInput`, so there's no external-URL-change case to reconcile back into it.
+  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") ?? "");
+  const debouncedSearch = useDebounce(searchInput, 300);
+  useEffect(() => {
+    setParam("q", debouncedSearch);
+  }, [debouncedSearch, setParam]);
+  const clearSearch = useCallback(() => setSearchInput(""), []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -1495,6 +1552,7 @@ export function DeploymentsContent({
                     { value: "unknown", label: "unknown" },
                   ]}
                 />
+                <TargetSearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
               </div>
             </CardHeader>
             <CardContent>
@@ -1527,12 +1585,15 @@ export function DeploymentsContent({
               {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
               {!error && !(loading && items.length === 0) && (
                 <DeploymentMatrix
-                  items={items.filter(
-                    (i) =>
+                  items={items.filter((i) => {
+                    const searchQuery = searchInput.trim().toLowerCase();
+                    return (
                       (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
                       (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
-                      (!serviceFilter || i.service === serviceFilter),
-                  )}
+                      (!serviceFilter || i.service === serviceFilter) &&
+                      (!searchQuery || i.name.toLowerCase().includes(searchQuery))
+                    );
+                  })}
                   dateFiltered={Boolean(dateFromFilter || dateToFilter)}
                 />
               )}
