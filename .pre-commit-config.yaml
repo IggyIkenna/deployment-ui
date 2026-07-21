@@ -1,7 +1,13 @@
 # Canonical pre-commit config for TypeScript/React UI repos.
 # Template SSOT: unified-trading-pm/scripts/pre-commit-templates/
 # Rollout: bash unified-trading-pm/scripts/propagation/rollout-pre-commit-configs.sh
-# Setup: pre-commit install --install-hooks
+# Setup: these repos are husky-managed (core.hooksPath=.husky/_) — do NOT run
+# `pre-commit install`/`prek install --install-hooks` here, it non-deterministically
+# overwrites husky's .husky/_/ dispatcher (see
+# deployment_ui_prettier_version_skew_blocks_quickmerge_2026_07_21.md). Instead
+# point the tracked `.husky/pre-commit` at `exec prek run --hook-stage pre-commit`
+# (falling back to `pre-commit run`, then `lint-staged` only if neither binary is
+# on PATH) so husky's dispatcher runs these fleet-canonical hooks either way.
 
 default_install_hook_types:
   - pre-commit
@@ -20,8 +26,7 @@ repos:
     hooks:
       - id: fix-commit-identity
         name: Enforce slot·host commit identity
-        entry:
-          bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
+        entry: bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
           pwd)}/unified-trading-pm/scripts/hooks/fix-commit-identity.sh"; [ -f "$HOOK" ] || exit 0; bash "$HOOK"'
         language: system
         always_run: true
@@ -32,8 +37,7 @@ repos:
     hooks:
       - id: check-branch-drift
         name: Check branch drift (are you behind origin?)
-        entry:
-          bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
+        entry: bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
           pwd)}/unified-trading-pm/scripts/hooks/check-branch-drift.sh"; [ -f "$HOOK" ] || exit 0; bash "$HOOK"'
         language: system
         always_run: true
@@ -45,19 +49,31 @@ repos:
     hooks:
       - id: prettier-autostage
         name: Format with Prettier (auto-stage)
-        entry:
-          bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
+        entry: bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
           pwd)}/unified-trading-pm/scripts/hooks/prettier-autostage.sh"; [ -f "$HOOK" ] || exit 0; bash "$HOOK" "$@"' --
         language: system
         types_or: [javascript, jsx, ts, tsx, json, css, markdown, yaml]
 
-  # ESLint - TypeScript/React linter
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.56.0
-    hooks:
-      - id: eslint
-        name: Lint with ESLint
-        types_or: [javascript, jsx, ts, tsx]
+  # ESLint - TypeScript/React linter: REMOVED 2026-07-21, see
+  # plans/active/issues/ui_repos_eslint_base_config_never_wired_no_explicit_any_unenforced_2026_07_21.md
+  # todo (INFRA P3). pre-commit/mirrors-eslint@v8.56.0's isolated ESLint install never had real
+  # coverage here: (a) its flat-config auto-discovery only recognizes a file literally named
+  # eslint.config.js — confirmed it hard-fails "couldn't find a configuration file" on ANY staged
+  # .js/.jsx/.mjs/.cjs file in a flat-config-only repo whose entrypoint isn't that exact name
+  # (unified-trading-system-ui's is eslint.config.mjs); (b) .ts/.tsx were NEVER even attempted —
+  # confirmed on a real, obviously-violating .tsx file in deployment-ui (whose eslint.config.js
+  # DOES resolve by name) — "no files to check", every time. Root cause: the mirror hook's own
+  # upstream manifest hard-restricts matched files independently of a consumer's local
+  # `types_or:` override (proven by the sibling `prettier-autostage` hook two blocks up, which
+  # uses the IDENTICAL types_or list and correctly matches .ts/.tsx). Getting real TS coverage
+  # out of this hook would additionally need per-repo `additional_dependencies` mirroring each
+  # project's own eslint/typescript-eslint/eslint-config-next versions (the isolated hook
+  # environment has none of them) — a per-repo customization burden defeating the point of a
+  # shared template, duplicating a check `quality-gates.sh`'s own `npm run lint` (each repo's
+  # REAL, correctly-configured, already-mandatory-gated ESLint) already does correctly. Net: this
+  # hook never caught a single real violation in either UI repo and only ever broke legitimate
+  # commits. If real pre-commit-level linting is wanted later, it needs a `language: system`
+  # local hook shelling out to the consuming repo's own `npm run lint`, not a mirrors-eslint pin.
 
   # Secret scanning — gitleaks (catches GCP SA keys, GitHub PATs, API keys)
   # Config SSOT: unified-trading-pm/.gitleaks.toml (propagated here at rollout)
