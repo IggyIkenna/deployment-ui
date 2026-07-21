@@ -169,6 +169,13 @@ function kindMeta(kind: string) {
 const SERVICE_KINDS = new Set(["CLOUD_RUN_SERVICE", "ECS_SERVICE"]);
 const FUNCTION_KINDS = new Set(["LAMBDA", "CLOUD_FUNCTION"]);
 
+// Always-on / no-interval kinds (WS-2 decision 2) — the exact complement of the backend's
+// `_SINGLE_TIMESTAMP_KINDS ∪ {VM}` in `_apply_date_range` (deployments_inventory.py): every kind
+// that carries NO timestamp signal a date-range query could scope on, so the backend passes them
+// through unfiltered regardless of range. Services + functions + orphaned disk/IP rows.
+const ALWAYS_ON_KINDS = new Set([...SERVICE_KINDS, ...FUNCTION_KINDS, "DISK", "STATIC_IP"]);
+const isAlwaysOnKind = (kind: string): boolean => ALWAYS_ON_KINDS.has(kind);
+
 // Provenance chip (WS-D #14) — who launched this compute unit. `adhoc` = a stranded / ad-hoc launch
 // (amber — the findable ones an operator should pull into the stack or kill); `deployment-api` =
 // managed via the registry; `control-plane` = managed infra with no registry entry; `unknown` = no
@@ -244,7 +251,16 @@ const statusRank = (status: string): number => STATUS_RANK[status] ?? 7;
 
 // The DEFAULT ordering when no column sort is active: liveness (running above completed), then kind
 // (long-running above one-time / scheduled), then recency (newest run first), then name (stable).
-function defaultHierarchyCmp(a: DeploymentItem, b: DeploymentItem): number {
+// `dateFiltered` (WS-2 decision 2) — while a date-range query is active, always-on/no-interval rows
+// (Cloud Run/ECS services, functions, orphaned disk/IP) sort LAST regardless of every other band:
+// they never obeyed the range to begin with (the backend passes them through unfiltered), so
+// interleaving them by their proxy last-run/kind rank would misread as "this row matched the range."
+function defaultHierarchyCmp(a: DeploymentItem, b: DeploymentItem, dateFiltered: boolean): number {
+  if (dateFiltered) {
+    const aAlwaysOn = isAlwaysOnKind(a.kind);
+    const bAlwaysOn = isAlwaysOnKind(b.kind);
+    if (aAlwaysOn !== bAlwaysOn) return aAlwaysOn ? 1 : -1;
+  }
   return (
     statusRank(a.status) - statusRank(b.status) ||
     kindRank(a.kind) - kindRank(b.kind) ||
@@ -303,16 +319,31 @@ function columnSortValue(item: DeploymentItem, key: SortKey): string | number | 
   }
 }
 
-/** Compare two rows by an active column sort — nulls last, ties broken by the default hierarchy. */
-function compareByColumn(a: DeploymentItem, b: DeploymentItem, key: SortKey, dir: "asc" | "desc"): number {
+/** Compare two rows by an active column sort — nulls last, ties broken by the default hierarchy.
+ *  `dateFiltered` (WS-2 decision 2) — always-on/no-interval rows sort last EVEN on an explicit
+ *  column sort, overriding the column's own asc/desc direction (they carry no interval to sort by
+ *  in a date-scoped view; a proxy timestamp like Cloud Run's last-deployed would otherwise
+ *  interleave them, misreading as range-matched data). */
+function compareByColumn(
+  a: DeploymentItem,
+  b: DeploymentItem,
+  key: SortKey,
+  dir: "asc" | "desc",
+  dateFiltered: boolean,
+): number {
+  if (dateFiltered) {
+    const aAlwaysOn = isAlwaysOnKind(a.kind);
+    const bAlwaysOn = isAlwaysOnKind(b.kind);
+    if (aAlwaysOn !== bAlwaysOn) return aAlwaysOn ? 1 : -1;
+  }
   const av = columnSortValue(a, key);
   const bv = columnSortValue(b, key);
   if (av === null || bv === null) {
-    if (av === null && bv === null) return defaultHierarchyCmp(a, b);
+    if (av === null && bv === null) return defaultHierarchyCmp(a, b, dateFiltered);
     return av === null ? 1 : -1; // nulls always last, regardless of direction
   }
   const c = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
-  if (c === 0) return defaultHierarchyCmp(a, b);
+  if (c === 0) return defaultHierarchyCmp(a, b, dateFiltered);
   return dir === "asc" ? c : -c;
 }
 
@@ -504,17 +535,33 @@ function lastRunOrUptime(item: DeploymentItem): string {
  *  authoritative (`basis === "approx"`: a heartbeat-stale VM's effective end, a single-timestamp
  *  kind, or the unmanaged-VM fallback). No text label — same convention as CostCell's
  *  `cost_basis === "partial"` (decision 4, 2026-07-20), reused here for one consistent visual
- *  language across the whole table. */
-function LastRunCell({ item }: { item: DeploymentItem }): React.ReactElement {
+ *  language across the whole table.
+ *
+ *  While a date-range query is active, an always-on/no-interval row (Cloud Run/ECS service,
+ *  function, orphaned disk/IP) gets a DISTINCT "always-on" badge instead — deliberately NOT the
+ *  amber approx tone, because this means "not applicable" (the row was never scoped by the range
+ *  at all), not "uncertain" (decision 2, 2026-07-20). */
+function LastRunCell({ item, dateFiltered }: { item: DeploymentItem; dateFiltered: boolean }): React.ReactElement {
   const label = item.kind === "LAMBDA" ? lambdaLastLabel(item) : lastRunOrUptime(item);
   const isApprox = item.basis === "approx";
+  const isAlwaysOn = dateFiltered && isAlwaysOnKind(item.kind);
   return (
     <span
       className={isApprox ? "text-amber-400" : undefined}
       data-testid={`last-run-${item.name}`}
       data-basis={item.basis ?? undefined}
+      data-always-on={isAlwaysOn ? "true" : undefined}
     >
       {label}
+      {isAlwaysOn ? (
+        <span
+          className="ml-1 rounded border border-cyan-500/40 bg-cyan-500/15 px-1 py-0.5 text-[9px] font-medium text-cyan-400"
+          title="Always-on — no start/end interval, so this row isn't scoped by the date-range filter"
+          data-testid={`always-on-badge-${item.name}`}
+        >
+          always-on
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -744,7 +791,7 @@ function StatusCell({ item }: { item: DeploymentItem }) {
 }
 
 /** One unified row — every column, "—" where the mode doesn't populate a field. */
-function DeploymentRow({ item }: { item: DeploymentItem }) {
+function DeploymentRow({ item, dateFiltered }: { item: DeploymentItem; dateFiltered: boolean }) {
   const freshnessByName = useContext(FreshnessContext);
   const rowCls = "border-b border-[var(--color-border-default)]/40 hover:bg-[var(--color-bg-secondary)]";
 
@@ -789,7 +836,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
             : undefined
         }
       >
-        <LastRunCell item={item} />
+        <LastRunCell item={item} dateFiltered={dateFiltered} />
       </td>
       <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
         {item.captured_progress != null ? (
@@ -843,7 +890,7 @@ function DeploymentMatrixSkeleton() {
   );
 }
 
-function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
+function DeploymentMatrix({ items, dateFiltered }: { items: DeploymentItem[]; dateFiltered: boolean }) {
   // null → the default semantic hierarchy; else an explicit column sort. A header click cycles that
   // column asc → desc → back to the default hierarchy.
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
@@ -857,9 +904,13 @@ function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
   }, []);
   const sorted = useMemo(() => {
     const arr = [...items];
-    arr.sort(sort ? (a, b) => compareByColumn(a, b, sort.key, sort.dir) : defaultHierarchyCmp);
+    arr.sort(
+      sort
+        ? (a, b) => compareByColumn(a, b, sort.key, sort.dir, dateFiltered)
+        : (a, b) => defaultHierarchyCmp(a, b, dateFiltered),
+    );
     return arr;
-  }, [items, sort]);
+  }, [items, sort, dateFiltered]);
 
   if (items.length === 0) {
     return (
@@ -895,7 +946,7 @@ function DeploymentMatrix({ items }: { items: DeploymentItem[] }) {
         </thead>
         <tbody>
           {sorted.map((item) => (
-            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} />
+            <DeploymentRow key={`${item.kind}-${item.name}`} item={item} dateFiltered={dateFiltered} />
           ))}
         </tbody>
       </table>
@@ -1436,6 +1487,7 @@ export function DeploymentsContent({
                       (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
                       (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter),
                   )}
+                  dateFiltered={Boolean(dateFromFilter || dateToFilter)}
                 />
               )}
             </CardContent>
