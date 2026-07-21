@@ -90,12 +90,10 @@ test.describe("Cockpit — scaffold IA", () => {
     await mockBase(page);
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
+    // VM-census embed + reconciliation cards REMOVED 2026-07-21 (redundant with Deployments);
+    // Fleet now shows only the orphan idle-spend surface + git health.
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
-    await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
-    // Phase 4: the reconciliation cards wire to GET /api/fleet/reconciliation — real counts, not "—".
-    await expect(page.getByTestId("cockpit-fleet-value-unknown")).toHaveText("2");
-    await expect(page.getByTestId("cockpit-fleet-status-unknown")).toHaveText("CRITICAL");
-    await expect(page.getByTestId("cockpit-fleet-value-missing")).toHaveText("58");
+    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();
@@ -240,16 +238,6 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
     const paperRow = page.getByTestId("deployment-row-defi-paper-trading-1");
     await expect(paperRow).toBeVisible();
     await expect(paperRow.getByTestId("mode-badge-PAPER")).toBeVisible();
-  });
-
-  test("Fleet tab renders the real VM census (every VM accounted for)", async ({ page }) => {
-    await page.goto("/fleet");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
-    // The reconciliation alarm cards stay (wire to /api/fleet/reconciliation in Phase 4) …
-    await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
-    // … plus the REAL active/archive VM census is folded in (chrome-less).
-    await expect(page.getByTestId("vm-deployments-content")).toBeVisible();
   });
 
   // ── Deployment-observability expansion (plan deployment_obs_ui_popover_health_2026_07_09) ──

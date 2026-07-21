@@ -142,40 +142,6 @@ export async function getHealthConsolidator(): Promise<HealthConsolidatorRespons
   return handleResponse<HealthConsolidatorResponse>(response);
 }
 
-/** One reconciled instance (UNKNOWN running-but-unregistered, or EXPECTED-MISSING). */
-export interface ReconciliationRow {
-  name: string;
-  umbrella: string;
-  cloud: string;
-  service: string;
-  asset_group: string;
-}
-
-/** Per-cloud reconciliation — running/registered counts + the two alarm row-sets (capped). */
-export interface CloudReconciliation {
-  cloud: string;
-  running: number;
-  registered: number;
-  unknown_count: number;
-  expected_missing_count: number;
-  unknown: ReconciliationRow[];
-  expected_missing: ReconciliationRow[];
-}
-
-/** GET /api/fleet/reconciliation — cross-cloud "every running instance accounted for". */
-export interface FleetReconciliationResponse {
-  generated_at: string;
-  overall: HealthStatus;
-  clouds: CloudReconciliation[];
-  unknown_total: number;
-  expected_missing_total: number;
-}
-
-export async function getFleetReconciliation(): Promise<FleetReconciliationResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/fleet/reconciliation`);
-  return handleResponse<FleetReconciliationResponse>(response);
-}
-
 /**
  * Per-deployment, MANIFEST-DERIVED data freshness (NOT the in-memory health-ping
  * callback). The deployment's `ShardResponsibility` resolves which asset_group's

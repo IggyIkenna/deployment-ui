@@ -6062,46 +6062,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       202,
     );
   }
-  // Fleet reconciliation — cross-cloud "every running instance accounted for" (Phase 4).
-  if (path === "/api/fleet/reconciliation") {
-    return json({
-      generated_at: "2026-06-24T09:00:00+00:00",
-      overall: "critical",
-      clouds: [
-        {
-          cloud: "GCP",
-          running: 160,
-          registered: 2406,
-          unknown_count: 2,
-          expected_missing_count: 58,
-          unknown: [
-            { name: "rogue-vm-20260624", umbrella: "BATCH", cloud: "GCP", service: "rogue-vm", asset_group: "cefi" },
-            { name: "mystery-vm-1", umbrella: "BATCH", cloud: "GCP", service: "mystery-vm", asset_group: "defi" },
-          ],
-          expected_missing: [
-            {
-              name: "cefi-binance-spot-20260620",
-              umbrella: "BATCH",
-              cloud: "GCP",
-              service: "binance-spot",
-              asset_group: "cefi",
-            },
-          ],
-        },
-        {
-          cloud: "AWS",
-          running: 0,
-          registered: 0,
-          unknown_count: 0,
-          expected_missing_count: 0,
-          unknown: [],
-          expected_missing: [],
-        },
-      ],
-      unknown_total: 2,
-      expected_missing_total: 58,
-    });
-  }
   // Generic /api/data-status/* fallback (the turbo coverage-summary shape) —
   // MUST be the last data-status check in this function. Every specific
   // /api/data-status/<endpoint> handler above (catalogue, prediction-catalogue,

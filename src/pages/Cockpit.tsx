@@ -45,7 +45,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
-import { VmDeploymentsContent } from "./VmDeployments";
 import { FleetOrphansContent } from "./FleetOrphans";
 import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
@@ -58,11 +57,9 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import {
   getDeploymentFreshness,
-  getFleetReconciliation,
   getHealthConsolidator,
   getHealthOverview,
   type DeploymentFreshnessResponse,
-  type FleetReconciliationResponse,
   type ConsolidatorHealth,
   type ConsolidatorVerdict,
   type HealthConsolidatorResponse,
@@ -494,122 +491,19 @@ function DeployTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Fleet reconciliation — "every VM accounted for" across GCP+AWS, INCLUDING the
-// agent-orchestrator control-plane VMs (a Purpose column distinguishes trading vs
-// dev-automation). UNKNOWN (running but unregistered) and EXPECTED-MISSING
-// (registered but not running) are the two alarm rows. Wires to
-// GET /api/fleet/reconciliation in Phase 4.
+// Fleet — VM-census embed + cross-cloud reconciliation cards REMOVED 2026-07-21
+// (deployment_ui_fleet_tab_consolidation_2026_07_21.md): both were redundant with
+// Deployments (which already shows every VM + its status) and AO's own dashboard.
+// Fleet retains only the idle-spend orphan surface + git health (git-only is the
+// next todo in that plan).
 // ---------------------------------------------------------------------------
 
 function FleetTab() {
-  const [recon, setRecon] = useState<FleetReconciliationResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const r = await getFleetReconciliation();
-        if (!cancelled) setRecon(r);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "reconciliation unavailable");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const running = (recon?.clouds ?? []).reduce((a, c) => a + c.running, 0);
-  const unknownTotal = recon?.unknown_total ?? 0;
-  const missingTotal = recon?.expected_missing_total ?? 0;
-  const accounted = Math.max(0, running - unknownTotal);
-  const cards: { id: string; label: string; status: TileStatus; value: string; hint: string }[] = recon
-    ? [
-        {
-          id: "accounted",
-          label: "Accounted for",
-          status: "ok",
-          value: `${accounted}`,
-          hint: "running ∩ registered/control-plane",
-        },
-        {
-          id: "unknown",
-          label: "Unknown (running, unregistered)",
-          status: unknownTotal > 0 ? "critical" : "ok",
-          value: `${unknownTotal}`,
-          hint: "alarm: classify or kill",
-        },
-        {
-          id: "missing",
-          label: "Expected-missing (registered, not running)",
-          status: missingTotal > 0 ? "degraded" : "ok",
-          value: `${missingTotal}`,
-          hint: "registered but not running (relaunch / de-register / reap)",
-        },
-      ]
-    : [
-        { id: "accounted", label: "Accounted for", status: "placeholder", value: "—", hint: "running ∩ registered" },
-        {
-          id: "unknown",
-          label: "Unknown (running, unregistered)",
-          status: "placeholder",
-          value: "—",
-          hint: "alarm: classify or kill",
-        },
-        {
-          id: "missing",
-          label: "Expected-missing (registered, not running)",
-          status: "placeholder",
-          value: "—",
-          hint: "alarm: relaunch or de-register",
-        },
-      ];
-
   return (
     <div data-testid="cockpit-fleet">
-      {error ? (
-        <div
-          data-testid="cockpit-fleet-error"
-          className="mb-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-        >
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-          <span>
-            Reconciliation unavailable — <code className="font-mono">GET /api/fleet/reconciliation</code> failed (
-            {error}
-            ). The census table below is still real.
-          </span>
-        </div>
-      ) : null}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        {cards.map((c) => (
-          <Card key={c.id} data-testid={`cockpit-fleet-card-${c.id}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center justify-between">
-                {c.label}
-                <StatusChip status={c.status} testId={`cockpit-fleet-status-${c.id}`} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className="text-2xl font-semibold text-[var(--color-text-primary)]"
-                data-testid={`cockpit-fleet-value-${c.id}`}
-              >
-                {c.value}
-              </p>
-              <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">{c.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {/* The real VM census (active + recent archive) — the every-VM-accounted-for table.
-          The cross-cloud reconciliation alarm rows (UNKNOWN / EXPECTED-MISSING) wire to
-          GET /api/fleet/reconciliation in Phase 4; the census below is REAL today. */}
-      <VmDeploymentsContent compact />
-
       {/* Stopped & orphaned VMs — the idle-disk-spend surface (GET /api/fleet/orphans).
           Makes the recurring boot-disk cost of stopped VMs visible + reapable in-place. */}
-      <div className="mt-6">
+      <div>
         <ErrorBoundary fallbackTitle="Orphan inventory failed to load">
           <FleetOrphansContent />
         </ErrorBoundary>
