@@ -12,9 +12,12 @@ export interface ColumnSort<K extends string> {
  * generic so any sortable table can reuse it (lifted out of `Deployments.tsx` where it was local
  * to `DeploymentMatrix`, per deployment_ui_date_range_filter_and_search_2026_07_20's shared-
  * primitives extraction — WS-5's alerts-page rebuild consumes this instead of re-implementing it).
+ *
+ * `initial` seeds the starting sort (e.g. read from a URL param on mount) — omit it for the
+ * original in-memory-only behaviour (`Deployments.tsx`'s usage is unaffected).
  */
-export function useColumnSort<K extends string>() {
-  const [sort, setSort] = useState<ColumnSort<K> | null>(null);
+export function useColumnSort<K extends string>(initial?: ColumnSort<K> | null) {
+  const [sort, setSort] = useState<ColumnSort<K> | null>(initial ?? null);
   const onHeaderClick = useCallback((key: K | undefined) => {
     if (!key) return;
     setSort((prev) => {
