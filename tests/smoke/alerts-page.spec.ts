@@ -124,4 +124,99 @@ test.describe("Alerts page", () => {
     await link.click();
     await expect(page).toHaveURL(/\/deployments\/cefi-binance-futures-backfill$/);
   });
+
+  // Filter bar (deployment_ui_alerts_page_rebuild_2026_07_20.md "Filter bar" todo). Mock data
+  // (mock-api.ts mockRepoCiAlerts): 4 "alert"-kind CI entries (repos unified-trading-pm x3,
+  // execution-service x1) + 1 "vm_down" infra entry (deployment-service) — 5 total, all
+  // severity="CRITICAL" or "INFO" (no WARNING row in this fixture).
+  test("filter bar renders one chip per distinct kind/severity and one option per distinct repo/service", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    await expect(page.getByTestId("alerts-filter-bar")).toBeVisible();
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+
+    // kind: "alert" -> "CI" label, "vm_down" -> "VM" label.
+    await expect(page.getByTestId("filter-kind-alert")).toHaveText("CI");
+    await expect(page.getByTestId("filter-kind-vm_down")).toHaveText("VM");
+
+    // severity bucket: CRITICAL and INFO are the only buckets present in the fixture.
+    await expect(page.getByTestId("filter-severity-CRITICAL")).toBeVisible();
+    await expect(page.getByTestId("filter-severity-INFO")).toBeVisible();
+
+    // repo/service <select>s carry an "All ..." option plus one per distinct value.
+    const repoSelect = page.getByTestId("filter-repo");
+    await expect(repoSelect.locator("option")).toHaveCount(4); // All + 3 distinct repos
+    const serviceSelect = page.getByTestId("filter-service");
+    await expect(serviceSelect.locator("option")).toHaveCount(5); // All + 4 distinct workflow_names
+
+    // No filter active yet -> no clear-filters button.
+    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+  });
+
+  test("kind chip toggle filters the timeline and is URL-backed", async ({ page }) => {
+    await page.goto("/alerts");
+    await page.getByTestId("filter-kind-vm_down").click();
+    await expect(page).toHaveURL(/kind=vm_down/);
+    await expect(page.getByTestId("filter-kind-vm_down")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("filter-result-count")).toHaveText("1 of 5 alerts");
+    await expect(page.getByTestId("alert-entry-0")).toContainText("VM DOWN: cefi-binance-futures-backfill");
+    await expect(page.getByTestId("alert-entry-1")).toHaveCount(0);
+
+    // Toggling off clears the URL param entirely (empty Set -> no filter, same as Deployments.tsx).
+    await page.getByTestId("filter-kind-vm_down").click();
+    await expect(page).not.toHaveURL(/kind=/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+  });
+
+  test("severity chip toggle is additive (multi-select) and combines with repo/service dropdowns", async ({ page }) => {
+    await page.goto("/alerts");
+    // Both severity buckets active -> every row still passes (no-op filter, but proves multi-select).
+    await page.getByTestId("filter-severity-CRITICAL").click();
+    await page.getByTestId("filter-severity-INFO").click();
+    await expect(page).toHaveURL(/severity=CRITICAL%2CINFO|severity=INFO%2CCRITICAL/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+
+    // Narrow further with the repo dropdown — combines with the (permissive) severity filter via AND.
+    await page.getByTestId("filter-repo").selectOption("execution-service");
+    await expect(page).toHaveURL(/repo=execution-service/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("1 of 5 alerts");
+    await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
+  });
+
+  test("service dropdown filters by workflow_name", async ({ page }) => {
+    await page.goto("/alerts");
+    await page.getByTestId("filter-service").selectOption("vm-watchdog");
+    await expect(page).toHaveURL(/service=vm-watchdog/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("1 of 5 alerts");
+    await expect(page.getByTestId("alert-entry-0")).toContainText("VM DOWN: cefi-binance-futures-backfill");
+  });
+
+  test("clear-filters button appears once a filter is active and resets to the unfiltered view", async ({ page }) => {
+    await page.goto("/alerts");
+    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+
+    await page.getByTestId("filter-kind-vm_down").click();
+    await expect(page.getByTestId("filter-clear")).toBeVisible();
+
+    await page.getByTestId("filter-clear").click();
+    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/kind=|severity=|repo=|service=/);
+    await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
+  });
+
+  test("a filter combination matching zero rows shows the filtered-empty state, not the ledger-empty state", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    // vm_down kind + execution-service repo never co-occur in the fixture -> zero matches.
+    await page.getByTestId("filter-kind-vm_down").click();
+    await page.getByTestId("filter-repo").selectOption("execution-service");
+    await expect(page.getByTestId("filter-result-count")).toHaveText("0 of 5 alerts");
+    await expect(page.getByTestId("alerts-filter-empty")).toBeVisible();
+    await expect(page.getByTestId("alerts-filter-empty")).toContainText("No alerts match the active filters");
+    // The streams card (unaffected by the timeline filter) still renders — filters scope the
+    // timeline only, per the "Options derived from the loaded normalised alert set" todo text.
+    await expect(page.getByTestId("alert-streams")).toBeVisible();
+  });
 });

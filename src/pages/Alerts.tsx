@@ -23,6 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { useColumnSort, type ColumnSort } from "../hooks/useColumnSort";
 import { compareByColumn } from "../lib/columnSort";
+import { FilterSelect } from "../components/filters/FilterSelect";
+import { MultiChipFilter, type MultiChipOption } from "../components/filters/MultiChipFilter";
+import type { ChipTone } from "../components/filters/chipTone";
 
 function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
@@ -57,6 +60,23 @@ function severityRank(entry: UnifiedAlertEntry): number {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure") return 0;
   if (entry.severity === "WARNING") return 1;
   return 2;
+}
+
+/** The filterable "effective severity" bucket per entry — mirrors severityTone's own fallback
+ *  chain (severity, then conclusion, then "info") so the filter chips and the rendered chip
+ *  colour never disagree about which bucket a row belongs to. */
+function severityBucket(entry: UnifiedAlertEntry): string {
+  return entry.severity ?? entry.conclusion ?? "info";
+}
+
+function severityBucketTone(bucket: string): ChipTone {
+  if (bucket === "CRITICAL" || bucket === "failure") return "red";
+  if (bucket === "WARNING") return "yellow";
+  return "green";
+}
+
+function kindTone(_kind: string): ChipTone {
+  return "blue";
 }
 
 /** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
@@ -139,6 +159,56 @@ export function AlertsContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { sort, onHeaderClick } = useColumnSort<AlertSortKey>(initialSortFromParams(searchParams));
 
+  // URL-backed filter state — parsed fresh from searchParams on every render (cheap: these are
+  // small string/Set derivations, and it keeps the filter state and the URL as the single source
+  // of truth instead of duplicating it into component state that could drift, mirroring
+  // Deployments.tsx's own `kindFilters`/`setParam` pattern).
+  const kindFilters = useMemo(() => {
+    const raw = searchParams.get("kind");
+    return raw ? new Set(raw.split(",").filter(Boolean)) : new Set<string>();
+  }, [searchParams]);
+  const severityFilters = useMemo(() => {
+    const raw = searchParams.get("severity");
+    return raw ? new Set(raw.split(",").filter(Boolean)) : new Set<string>();
+  }, [searchParams]);
+  const repoFilter = searchParams.get("repo") ?? "";
+  const serviceFilter = searchParams.get("service") ?? "";
+
+  const setParam = useCallback(
+    (key: string, value: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value) next.set(key, value);
+          else next.delete(key);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const toggleKindFilter = useCallback(
+    (kind: string) => {
+      const next = new Set(kindFilters);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      setParam("kind", Array.from(next).join(","));
+    },
+    [kindFilters, setParam],
+  );
+
+  const toggleSeverityFilter = useCallback(
+    (bucket: string) => {
+      const next = new Set(severityFilters);
+      if (next.has(bucket)) next.delete(bucket);
+      else next.add(bucket);
+      setParam("severity", Array.from(next).join(","));
+    },
+    [severityFilters, setParam],
+  );
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -174,13 +244,60 @@ export function AlertsContent() {
     );
   }, [sort, setSearchParams]);
 
-  const sortedAlerts = useMemo(() => {
+  // Filter options are derived from the LOADED alert set (not a hardcoded vocabulary) — a kind/
+  // repo/service that never appears in the current window never shows as a dead filter option.
+  const kindOptions = useMemo<MultiChipOption[]>(() => {
     if (!data) return [];
-    if (!sort) return data.alerts;
-    return [...data.alerts].sort((a, b) =>
+    const seen = new Set(data.alerts.map((a) => a.kind));
+    return Array.from(seen)
+      .sort()
+      .map((kind) => ({ value: kind, label: kindLabel(kind), tone: kindTone(kind) }));
+  }, [data]);
+  const severityOptions = useMemo<MultiChipOption[]>(() => {
+    if (!data) return [];
+    const seen = new Set(data.alerts.map(severityBucket));
+    return Array.from(seen)
+      .sort()
+      .map((bucket) => ({ value: bucket, label: bucket, tone: severityBucketTone(bucket) }));
+  }, [data]);
+  const repoOptions = useMemo(() => {
+    if (!data) return [{ value: "", label: "All repos" }];
+    const seen = new Set(data.alerts.map((a) => a.repo));
+    return [
+      { value: "", label: "All repos" },
+      ...Array.from(seen)
+        .sort()
+        .map((r) => ({ value: r, label: r })),
+    ];
+  }, [data]);
+  const serviceOptions = useMemo(() => {
+    if (!data) return [{ value: "", label: "All services" }];
+    const seen = new Set(data.alerts.map((a) => a.workflow_name).filter(Boolean));
+    return [
+      { value: "", label: "All services" },
+      ...Array.from(seen)
+        .sort()
+        .map((w) => ({ value: w, label: w })),
+    ];
+  }, [data]);
+
+  const filteredAlerts = useMemo(() => {
+    if (!data) return [];
+    return data.alerts.filter(
+      (a) =>
+        (kindFilters.size === 0 || kindFilters.has(a.kind)) &&
+        (severityFilters.size === 0 || severityFilters.has(severityBucket(a))) &&
+        (!repoFilter || a.repo === repoFilter) &&
+        (!serviceFilter || a.workflow_name === serviceFilter),
+    );
+  }, [data, kindFilters, severityFilters, repoFilter, serviceFilter]);
+
+  const sortedAlerts = useMemo(() => {
+    if (!sort) return filteredAlerts;
+    return [...filteredAlerts].sort((a, b) =>
       compareByColumn(a, b, sort.key, sort.dir, alertColumnSortValue, alertDefaultCmp),
     );
-  }, [data, sort]);
+  }, [filteredAlerts, sort]);
 
   return (
     <div className="space-y-4" data-testid="alerts-page">
@@ -212,6 +329,64 @@ export function AlertsContent() {
       )}
       {data && (
         <>
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 p-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]/40"
+            data-testid="alerts-filter-bar"
+          >
+            <MultiChipFilter
+              testId="filter-kind"
+              label="source"
+              options={kindOptions}
+              selected={kindFilters}
+              onToggle={toggleKindFilter}
+            />
+            <MultiChipFilter
+              testId="filter-severity"
+              label="severity"
+              options={severityOptions}
+              selected={severityFilters}
+              onToggle={toggleSeverityFilter}
+            />
+            <FilterSelect
+              testId="filter-repo"
+              label="repo"
+              value={repoFilter}
+              options={repoOptions}
+              onChange={(v) => setParam("repo", v)}
+            />
+            <FilterSelect
+              testId="filter-service"
+              label="service"
+              value={serviceFilter}
+              options={serviceOptions}
+              onChange={(v) => setParam("service", v)}
+            />
+            {(kindFilters.size > 0 || severityFilters.size > 0 || repoFilter || serviceFilter) && (
+              <button
+                type="button"
+                data-testid="filter-clear"
+                onClick={() => {
+                  setSearchParams(
+                    (prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.delete("kind");
+                      next.delete("severity");
+                      next.delete("repo");
+                      next.delete("service");
+                      return next;
+                    },
+                    { replace: true },
+                  );
+                }}
+                className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] underline"
+              >
+                clear filters
+              </button>
+            )}
+            <span className="text-[11px] text-[var(--color-text-muted)] ml-auto" data-testid="filter-result-count">
+              {filteredAlerts.length} of {data.alerts.length} alerts
+            </span>
+          </div>
           <Card data-testid="alert-streams">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Streams — current vs previous state (worst first)</CardTitle>
@@ -255,7 +430,12 @@ export function AlertsContent() {
                   No alerts persisted yet — the ledger fills as notify-slack posts.
                 </p>
               )}
-              {data.alerts.length > 0 && (
+              {data.alerts.length > 0 && filteredAlerts.length === 0 && (
+                <p className="text-sm text-[var(--color-text-muted)]" data-testid="alerts-filter-empty">
+                  No alerts match the active filters.
+                </p>
+              )}
+              {filteredAlerts.length > 0 && (
                 <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]">
                   <span className="w-[46px] shrink-0" aria-hidden="true" />
                   {ALERT_SORT_COLUMNS.map((c) => {
