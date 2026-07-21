@@ -4837,6 +4837,59 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     return json({ cleared: true });
   }
   if (path.startsWith("/api/data-status/turbo") || path.startsWith("/api/data-status/manifest")) {
+    // Symbol-search click-through — SPORTS branch (2026-07-21). The generic
+    // MOCK_DATA_STATUS fixture's per-asset-group `dates_found_list`/
+    // `dates_missing_list` are always `[]` (an unfiltered fixture never
+    // populates them), which would make every league's day-level panel look
+    // permanently empty in mock mode. Mirror the real backend's
+    // `secondary_axis=league_id` row-filter carve-out with a small
+    // deterministic found/missing day split scoped to the requested league +
+    // date range, so the click-through panel has something real to render.
+    const qp = new URL(url, "http://mock").searchParams;
+    const secondaryAxis = qp.get("secondary_axis");
+    const leagueId = qp.get("league_id");
+    if (path.startsWith("/api/data-status/manifest") && secondaryAxis === "league_id" && leagueId) {
+      const start = qp.get("start_date") ?? "2025-01-01";
+      const end = qp.get("end_date") ?? "2025-01-10";
+      const days: string[] = [];
+      const endD = new Date(`${end}T00:00:00Z`);
+      for (
+        let d = new Date(`${start}T00:00:00Z`);
+        d.getTime() <= endD.getTime() && days.length < 30;
+        d.setUTCDate(d.getUTCDate() + 1)
+      ) {
+        days.push(d.toISOString().split("T")[0]);
+      }
+      const foundDays = days.filter((_, i) => i % 3 !== 0);
+      const missingDays = days.filter((_, i) => i % 3 === 0);
+      const completionPct = days.length > 0 ? Math.round((foundDays.length / days.length) * 10000) / 100 : 0;
+      return json({
+        service: qp.get("service") ?? "market-tick-data-service",
+        date_range: { start, end, days: days.length },
+        mode: "turbo",
+        sub_dimension: "league_id",
+        overall_completion_pct: completionPct,
+        overall_dates_found: foundDays.length,
+        overall_dates_expected: days.length,
+        asset_groups: {
+          SPORTS: {
+            asset_group: "SPORTS",
+            bucket: "mock-bucket-sports",
+            prefixes_queried: days.length,
+            dates_expected: days.length,
+            dates_found: foundDays.length,
+            dates_missing: missingDays.length,
+            completion_pct: completionPct,
+            missing_dates: missingDays,
+            dates_found_count: foundDays.length,
+            dates_found_list: foundDays,
+            dates_missing_count: missingDays.length,
+            dates_missing_list: missingDays,
+          },
+        },
+        mock: true,
+      });
+    }
     return json(MOCK_DATA_STATUS);
   }
   if (path.startsWith("/api/data-status/venue-filters")) {
@@ -5106,6 +5159,67 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
+  // Cross-category canonical-symbol search (Gap 3) — checked BEFORE the
+  // generic `/api/data-status/instruments` prefix match below, which would
+  // otherwise swallow this path too (`startsWith` matches both) and return
+  // the wrong `{instruments: [...]}` shape instead of `InstrumentSearchResponse`
+  // (`{matches: [...]}`) — `searchInstruments()` would then hand back
+  // `matches: undefined` and the symbol-search results `.map()` would throw.
+  // A handful of representative rows spanning every asset_group (including a
+  // SPORTS league_id-only row) so both symbol-search click-through branches
+  // have something real to click in mock mode.
+  if (path === "/api/data-status/instruments/search") {
+    const qp = new URL(url, "http://mock").searchParams;
+    const query = qp.get("query") ?? "";
+    const limit = Number(qp.get("limit") ?? 50);
+    const allMatches = [
+      {
+        canonical_id: "BINANCE-FUTURES:PERPETUAL:BTC-USDT",
+        asset_group: "CEFI",
+        venue: "BINANCE-FUTURES",
+        instrument_type: "PERPETUAL",
+      },
+      {
+        canonical_id: "BINANCE-SPOT:SPOT_PAIR:BTC-USDT",
+        asset_group: "CEFI",
+        venue: "BINANCE-SPOT",
+        instrument_type: "SPOT_PAIR",
+      },
+      {
+        canonical_id: "DATABENTO-DBEQ:EQUITY:AAPL",
+        asset_group: "TRADFI",
+        venue: "DATABENTO-DBEQ",
+        instrument_type: "EQUITY",
+      },
+      {
+        canonical_id: "UNISWAP_V3:POOL:USDC-WETH-500",
+        asset_group: "DEFI",
+        venue: "UNISWAP_V3",
+        instrument_type: "POOL",
+      },
+      {
+        canonical_id: "POLYMARKET:MARKET:WILL-BTC-100K-2026",
+        asset_group: "PREDICTION",
+        venue: "POLYMARKET",
+        instrument_type: "MARKET",
+      },
+      { canonical_id: "EPL", asset_group: "SPORTS", venue: "SPORTSDATA", instrument_type: "league" },
+      { canonical_id: "BUNDESLIGA", asset_group: "SPORTS", venue: "SPORTSDATA", instrument_type: "league" },
+    ];
+    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const filtered = allMatches.filter((m) => {
+      const haystack = m.canonical_id.toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    });
+    return json({
+      query,
+      asset_group: null,
+      matches: filtered.slice(0, limit),
+      total_matches: filtered.length,
+      truncated: filtered.length > limit,
+      asset_groups_searched: ["CEFI", "TRADFI", "DEFI", "SPORTS", "PREDICTION"],
+    });
+  }
   if (path.startsWith("/api/data-status/instruments")) {
     return json({
       instruments: ["BTC/USDT", "ETH/USDT", "AAPL", "MSFT"],
@@ -5113,9 +5227,58 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     });
   }
   if (path.startsWith("/api/data-status/instrument-availability")) {
+    // Bug B (2026-07-21, see client.ts `RawInstrumentAvailabilityResponse`
+    // comment): the real backend returns `{daily_availability, summary, ...}`,
+    // not `{overall, by_data_type}` — the stale shape previously here made
+    // `getInstrumentAvailability()` throw (`for (const dt of raw.data_types)`
+    // over `undefined`) the moment either the manual "Instrument-Level
+    // Search" flow or the symbol-search click-through called it in mock mode.
+    const qp = new URL(url, "http://mock").searchParams;
+    const venue = qp.get("venue") ?? "MOCK-VENUE";
+    const instrument_type = qp.get("instrument_type") ?? "SPOT_PAIR";
+    const instrument = qp.get("instrument") ?? "MOCK-SYMBOL";
+    const start = qp.get("start_date") ?? "2025-01-01";
+    const end = qp.get("end_date") ?? "2025-01-10";
+    const dataTypeParam = qp.get("data_type");
+    const dataTypes = dataTypeParam ? [dataTypeParam] : ["trades", "book_snapshot_5"];
+    const days: string[] = [];
+    const endD = new Date(`${end}T00:00:00Z`);
+    for (
+      let d = new Date(`${start}T00:00:00Z`);
+      d.getTime() <= endD.getTime() && days.length < 30;
+      d.setUTCDate(d.getUTCDate() + 1)
+    ) {
+      days.push(d.toISOString().split("T")[0]);
+    }
+    const dailyAvailability: Record<string, Record<string, boolean>> = {};
+    days.forEach((day, i) => {
+      const perType: Record<string, boolean> = {};
+      dataTypes.forEach((dt, j) => {
+        perType[dt] = (i + j) % 4 !== 0;
+      });
+      dailyAvailability[day] = perType;
+    });
+    const availableDays = days.filter((day) => dataTypes.some((dt) => dailyAvailability[day][dt]));
+    const missingDays = days.filter((day) => dataTypes.every((dt) => !dailyAvailability[day][dt]));
+    const totalCells = days.length * dataTypes.length;
+    const availableCells = Object.values(dailyAvailability).reduce(
+      (acc, perType) => acc + Object.values(perType).filter(Boolean).length,
+      0,
+    );
     return json({
-      overall: { total: 5, available: 5, missing: 0 },
-      by_data_type: {},
+      venue,
+      instrument_type,
+      instrument,
+      date_range: { start, end },
+      effective_range: { start, end },
+      data_types: dataTypes,
+      daily_availability: dailyAvailability,
+      summary: {
+        total_days: days.length,
+        available_days: availableDays.length,
+        missing_days: missingDays.length,
+        availability_rate: totalCells > 0 ? Math.round((availableCells / totalCells) * 10000) / 100 : 0,
+      },
       error: null,
     });
   }
@@ -6070,6 +6233,67 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       { action, status, message: `VM '${decodeURIComponent(vmAdminMatch[1])}' ${action} accepted (mock).` },
       202,
     );
+  }
+  // Per-fixture coverage drilldown for one (day, league_id) — powers
+  // `<FixtureBreakdown>`, both the pre-existing per-league date-badge drill
+  // and the symbol-search click-through's day panel. Pre-existing gap: no
+  // handler existed for this path at all, so it fell through to the generic
+  // `/api/data-status/*` fallback below (the big turbo MOCK_DATA_STATUS
+  // payload, which has no `fixtures` field) — `FixtureBreakdown` then threw
+  // reading `data.fixtures.length`, crashing the whole Data Status tab's
+  // ErrorBoundary the first time ANY league/day breakdown was expanded in
+  // mock mode. A few representative fixtures spanning every coverage state
+  // across the real `_FIXTURE_ENTITIES` set (deployment-api
+  // data_status_drilldown/_fixtures_pools.py) so the drilldown has
+  // something real to render.
+  if (path === "/api/data-status/fixtures/breakdown") {
+    const qp = new URL(url, "http://mock").searchParams;
+    const day = qp.get("day") ?? "2026-01-01";
+    const league_id = qp.get("league_id") ?? "EPL";
+    const entities = [
+      "FIXTURES",
+      "FIXTURE_STATS",
+      "FIXTURE_LINEUPS",
+      "FIXTURE_EVENTS",
+      "PLAYER_STATS",
+      "INJURIES",
+      "XG",
+      "WEATHER",
+    ];
+    const coverageStates = ["captured", "captured", "empty_confirmed", "missing"] as const;
+    const teams: Array<[string, string]> = [
+      ["Arsenal", "Chelsea"],
+      ["Liverpool", "Man City"],
+      ["Spurs", "Newcastle"],
+    ];
+    const fixtures = teams.map(([home, away], i) => {
+      const coverage: Record<string, (typeof coverageStates)[number]> = {};
+      entities.forEach((entity, j) => {
+        coverage[entity] = coverageStates[(i + j) % coverageStates.length];
+      });
+      const summary = { captured: 0, empty_confirmed: 0, missing: 0, failed: 0 };
+      Object.values(coverage).forEach((s) => {
+        summary[s] += 1;
+      });
+      return {
+        fixture_id: `${league_id.toLowerCase()}-${day}-${i + 1}`,
+        kickoff_utc: `${day}T15:00:00+00:00`,
+        home_team_name: home,
+        away_team_name: away,
+        status: "FT",
+        venue_id: `v-${i + 1}`,
+        coverage,
+        coverage_summary: summary,
+      };
+    });
+    return json({
+      day,
+      league_id,
+      af_league_id: 39,
+      fixtures_expected: fixtures.length,
+      fixtures,
+      status: "resolved",
+    });
   }
   // Generic /api/data-status/* fallback (the turbo coverage-summary shape) —
   // MUST be the last data-status check in this function. Every specific
