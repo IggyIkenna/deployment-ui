@@ -90,12 +90,10 @@ test.describe("Cockpit — scaffold IA", () => {
     await mockBase(page);
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
+    // VM-census embed + reconciliation cards REMOVED 2026-07-21 (redundant with Deployments);
+    // Fleet now shows only the orphan idle-spend surface + git health.
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
-    await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
-    // Phase 4: the reconciliation cards wire to GET /api/fleet/reconciliation — real counts, not "—".
-    await expect(page.getByTestId("cockpit-fleet-value-unknown")).toHaveText("2");
-    await expect(page.getByTestId("cockpit-fleet-status-unknown")).toHaveText("CRITICAL");
-    await expect(page.getByTestId("cockpit-fleet-value-missing")).toHaveText("58");
+    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();
@@ -240,16 +238,6 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
     const paperRow = page.getByTestId("deployment-row-defi-paper-trading-1");
     await expect(paperRow).toBeVisible();
     await expect(paperRow.getByTestId("mode-badge-PAPER")).toBeVisible();
-  });
-
-  test("Fleet tab renders the real VM census (every VM accounted for)", async ({ page }) => {
-    await page.goto("/fleet");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
-    // The reconciliation alarm cards stay (wire to /api/fleet/reconciliation in Phase 4) …
-    await expect(page.getByTestId("cockpit-fleet-card-unknown")).toBeVisible();
-    // … plus the REAL active/archive VM census is folded in (chrome-less).
-    await expect(page.getByTestId("vm-deployments-content")).toBeVisible();
   });
 
   // ── Deployment-observability expansion (plan deployment_obs_ui_popover_health_2026_07_09) ──
@@ -429,12 +417,13 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
 });
 
 /**
- * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/infra +
- * /fleet/git surfaces IN-PLACE (reusing LiveDeploymentsContent / FleetInfraContent /
- * FleetGitContent — no nav-away, no new fetch logic). Guards Phase 0.5 "Fold
- * /ops/live-deployments + /fleet/infra + /fleet/git into Live/Fleet/Health".
+ * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/git surfaces
+ * IN-PLACE (reusing LiveDeploymentsContent / FleetGitContent — no nav-away, no new fetch
+ * logic). Guards Phase 0.5 "Fold /ops/live-deployments + /fleet/git into Live/Fleet/Health".
+ * The FleetInfra (orchestrator/infra tiles) fold was REMOVED 2026-07-21
+ * (deployment_ui_fleet_tab_consolidation_2026_07_21.md — AO owns orchestrator health now).
  */
-test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
+test.describe("Cockpit — Live-ops + Fleet-git folds", () => {
   test("Deployments tab folds the live-ops running-services + event/log surface", async ({ page }) => {
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
@@ -442,11 +431,11 @@ test.describe("Cockpit — Live-ops + Fleet-infra + Fleet-git folds", () => {
     await expect(page.getByTestId("live-deployments-content")).toBeVisible();
   });
 
-  test("Fleet tab folds the infra/orchestrator + git-health surfaces", async ({ page }) => {
+  test("Fleet tab shows only the git-health surface (no infra/orchestrator section)", async ({ page }) => {
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
+    await expect(page.getByTestId("cockpit-fleet-infra")).toHaveCount(0);
   });
 });
 

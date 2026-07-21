@@ -44,10 +44,11 @@ describe("Cockpit panes", () => {
     expect(screen.queryByTestId("cockpit-console-live-ops")).toBeNull();
   });
 
-  it("Fleet pane renders the reconciliation cards", () => {
+  it("Fleet pane renders the git-health section (VM-census + reconciliation cards removed 2026-07-21)", () => {
     renderPane(<CockpitFleet />);
     expect(screen.getByTestId("cockpit-fleet")).toBeTruthy();
-    expect(screen.getByTestId("cockpit-fleet-card-unknown")).toBeTruthy();
+    expect(screen.getByTestId("cockpit-fleet-git")).toBeTruthy();
+    expect(screen.queryByTestId("cockpit-fleet-card-unknown")).toBeNull();
   });
 
   it("Deploy pane exposes the batch/live/paper deploy entry points", () => {

@@ -143,7 +143,7 @@ test("the top bar is the only nav chrome — the cockpit no longer renders its o
 test("bookmark-compat redirects forward the old ?tab= URLs to their plain route", async ({ page }) => {
   // 2026-07-17: /alerts and /fleet are now canonical PLAIN routes (no redirect). Only /repos and
   // /infra survive as bookmark-compat redirects — /repos → /ci, /infra → /fleet (the Fleet route
-  // embeds the git + infra sections). No nav entry points at them.
+  // is now git-health-only; FleetInfra was removed 2026-07-21). No nav entry points at them.
   for (const [from, dest, mounted] of [
     ["/repos", "/ci", "cockpit-ci"],
     ["/infra", "/fleet", "cockpit-fleet"],
@@ -162,5 +162,5 @@ test("a redirect fires even when a service was previously selected", async ({ pa
 
   await page.goto("/infra");
   await expect(page).toHaveURL(/\/fleet/);
-  await expect(page.getByTestId("cockpit-fleet-infra")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("cockpit-fleet")).toBeVisible({ timeout: 15_000 });
 });
