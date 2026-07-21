@@ -97,3 +97,41 @@ test.describe("Deployments date-range filter (WS-2, URL-backed ?date_from=&date_
     await expect(page.getByTestId("filter-date-clear")).toHaveCount(0);
   });
 });
+
+test.describe("Deployments kind filter — multi-select toggle chips (decision 3, ?kind=)", () => {
+  test("toggling multiple kind chips shows the UNION; toggling all off reverts to every kind", async ({ page }) => {
+    await page.goto("/deployments?status=all");
+    // A VM row is visible with no kind filter active.
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("filter-kind-CLOUD_RUN_SERVICE")).toHaveAttribute("aria-pressed", "false");
+
+    // Toggle CLOUD_RUN_SERVICE on — narrows to that one kind (services found despite Mode="—").
+    await page.getByTestId("filter-kind-CLOUD_RUN_SERVICE").click();
+    await expect(page).toHaveURL(/kind=CLOUD_RUN_SERVICE/);
+    await expect(page.getByTestId("filter-kind-CLOUD_RUN_SERVICE")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("deployment-row-uts-shared-deployment-api")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toHaveCount(0);
+
+    // Toggle SCHEDULER on too — the UNION of both kinds now shows (not a replace).
+    await page.getByTestId("filter-kind-SCHEDULER").click();
+    await expect(page.getByTestId("deployment-row-uts-shared-deployment-api")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-wsd-consolidator-cron")).toBeVisible();
+
+    // Toggle CLOUD_RUN_SERVICE back off — SCHEDULER stays selected, the service row drops out.
+    await page.getByTestId("filter-kind-CLOUD_RUN_SERVICE").click();
+    await expect(page.getByTestId("deployment-row-uts-shared-deployment-api")).toHaveCount(0);
+    await expect(page.getByTestId("deployment-row-wsd-consolidator-cron")).toBeVisible();
+
+    // Toggle SCHEDULER off too — empty selection = "all", the ?kind= param is dropped entirely.
+    await page.getByTestId("filter-kind-SCHEDULER").click();
+    await expect(page).not.toHaveURL(/kind=/);
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+  });
+
+  test("an old single-value deep-link (?kind=VM) still works as a 1-element set", async ({ page }) => {
+    await page.goto("/deployments?status=all&kind=VM");
+    await expect(page.getByTestId("filter-kind-VM")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-uts-shared-deployment-api")).toHaveCount(0);
+  });
+});

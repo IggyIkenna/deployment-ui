@@ -917,6 +917,54 @@ function FilterSelect({
   );
 }
 
+// Kind filter options — 9 inventory-level literals; only 6 are in the canonical UAC
+// `DeploymentKind` enum (SCHEDULER/DISK/STATIC_IP are inventory-only), matching the prior
+// single-select dropdown's option list.
+const KIND_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "VM", label: "VM" },
+  { value: "CLOUD_RUN_JOB", label: "run job" },
+  { value: "CLOUD_RUN_SERVICE", label: "run service" },
+  { value: "ECS_SERVICE", label: "ECS service" },
+  { value: "LAMBDA", label: "Lambda" },
+  { value: "CLOUD_FUNCTION", label: "cloud function" },
+  { value: "SCHEDULER", label: "scheduler" },
+  { value: "DISK", label: "disk (orphaned)" },
+  { value: "STATIC_IP", label: "static IP (orphaned)" },
+];
+
+/**
+ * Kind filter — MULTI-select toggle chips (decision 3, 2026-07-20: several kinds visible at once,
+ * URL-backed via a comma-separated `?kind=`). Replaces the old single-`<select>`; still purely
+ * client-side (kind carries no server param) — only the SHAPE of the filter changed, equality →
+ * set-membership. An empty selection means "all", matching the old dropdown's default option.
+ */
+function KindFilterChips({ selected, onToggle }: { selected: Set<string>; onToggle: (kind: string) => void }) {
+  return (
+    <div className="inline-flex flex-wrap items-center gap-1.5" data-testid="filter-kind">
+      <span className="text-[11px] text-[var(--color-text-muted)]">kind</span>
+      {KIND_FILTER_OPTIONS.map((o) => {
+        const active = selected.has(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={active}
+            data-testid={`filter-kind-${o.value}`}
+            onClick={() => onToggle(o.value)}
+            className={`rounded px-1.5 py-0.5 text-[11px] font-medium border transition-colors ${
+              active
+                ? TONE_CLASSES.blue
+                : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Date-range filter — two native date inputs bounding an inclusive `[date_from, date_to]` window,
  * URL-backed (`?date_from=&date_to=`) and wired straight to the backend's VM/registry overlap
@@ -1085,8 +1133,21 @@ export function DeploymentsContent({
   const statusFilter = searchParams.get("status") ?? "running";
   const assetGroupFilter = searchParams.get("asset_group") ?? "";
   // Kind is client-side (not a server filter param) — the way a user isolates services vs jobs
-  // vs VMs (services have Mode="—", so Mode can't find them — Open-Q1).
-  const kindFilter = searchParams.get("kind")?.toUpperCase() ?? "";
+  // vs VMs (services have Mode="—", so Mode can't find them — Open-Q1). MULTI-select (decision 3,
+  // 2026-07-20) — a comma-separated `?kind=` so several kinds show at once (how the operator hides/
+  // shows always-on services rather than the date filter silently dropping them); an old
+  // single-value deep-link (`?kind=VM`) still works unchanged as a 1-element set. Empty = "all".
+  const kindFilterRaw = searchParams.get("kind") ?? "";
+  const kindFilters = useMemo(
+    () =>
+      new Set(
+        kindFilterRaw
+          .split(",")
+          .map((s) => s.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    [kindFilterRaw],
+  );
   // Launched-by is client-side (WS-D #14) — how an operator isolates every ad-hoc / unmanaged
   // resource so stranded compute is immediately findable.
   const launchedByFilter = searchParams.get("launched_by") ?? "";
@@ -1137,6 +1198,19 @@ export function DeploymentsContent({
       { replace: true },
     );
   }, [setSearchParams]);
+
+  // Toggles one kind in/out of the multi-select — writes the WHOLE next set back as a single
+  // `setParam` call (a toggle only ever touches one key, so there's no risk of the two-sequential-
+  // calls race that `clearDateRange` above exists to avoid).
+  const toggleKind = useCallback(
+    (kind: string) => {
+      const next = new Set(kindFilters);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      setParam("kind", Array.from(next).join(","));
+    },
+    [kindFilters, setParam],
+  );
 
   const load = useCallback(() => {
     setLoading(true);
@@ -1308,24 +1382,7 @@ export function DeploymentsContent({
                   onChange={(v) => setParam("asset_group", v)}
                   options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
                 />
-                <FilterSelect
-                  testId="filter-kind"
-                  label="kind"
-                  value={kindFilter}
-                  onChange={(v) => setParam("kind", v)}
-                  options={[
-                    { value: "", label: "all" },
-                    { value: "VM", label: "VM" },
-                    { value: "CLOUD_RUN_JOB", label: "run job" },
-                    { value: "CLOUD_RUN_SERVICE", label: "run service" },
-                    { value: "ECS_SERVICE", label: "ECS service" },
-                    { value: "LAMBDA", label: "Lambda" },
-                    { value: "CLOUD_FUNCTION", label: "cloud function" },
-                    { value: "SCHEDULER", label: "scheduler" },
-                    { value: "DISK", label: "disk (orphaned)" },
-                    { value: "STATIC_IP", label: "static IP (orphaned)" },
-                  ]}
-                />
+                <KindFilterChips selected={kindFilters} onToggle={toggleKind} />
                 <FilterSelect
                   testId="filter-launched-by"
                   label="launched by"
@@ -1357,7 +1414,7 @@ export function DeploymentsContent({
                 <DeploymentMatrix
                   items={items.filter(
                     (i) =>
-                      (!kindFilter || i.kind === kindFilter) &&
+                      (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
                       (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter),
                   )}
                 />

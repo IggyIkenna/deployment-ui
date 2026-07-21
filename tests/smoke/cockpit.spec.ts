@@ -329,11 +329,14 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
   });
 
   test("Kind filter isolates a single kind (services found despite Mode='—')", async ({ page }) => {
+    // Kind is a multi-select toggle-chip group (decision 3, 2026-07-20) — selecting ONE kind means
+    // toggling exactly one chip on, not `.selectOption` (there is no underlying <select> anymore).
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     const before = await page.getByTestId("deployment-matrix").locator("tbody tr").count();
     expect(before).toBeGreaterThan(4);
-    await page.getByTestId("filter-kind").selectOption("CLOUD_RUN_SERVICE");
+    await page.getByTestId("filter-kind-CLOUD_RUN_SERVICE").click();
+    await expect(page.getByTestId("filter-kind-CLOUD_RUN_SERVICE")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("deployment-matrix").locator("tbody tr")).toHaveCount(4);
   });
 });
