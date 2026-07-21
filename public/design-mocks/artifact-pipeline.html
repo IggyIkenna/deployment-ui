@@ -619,7 +619,7 @@
                 <tr>
                   <th>Service / version</th>
                   <th>Artifact</th>
-                  <th>Built from</th>
+                  <th>Built from · when</th>
                   <th>Hosts</th>
                   <th>Oldest host</th>
                   <th>Drift</th>
@@ -661,6 +661,13 @@
             <b>a VM never updates itself</b> — one launched 3 days ago runs 3-day-old code for its entire life. So a fix
             shipped today never reaches VMs launched before it, and they keep writing pre-fix data. That is a
             data-correctness problem, and nothing surfaces it today. <br /><br />
+            <b>The "Built · when" column answers "how old is this?"</b> A SHA gets you to the commit but not to a date —
+            so each row now shows when the artifact was made. Images carry a real build time (Artifact Registry
+            <span class="mono">createTime</span>); tarballs say <b>frozen at launch</b>, because a VM never updates
+            itself so its code is frozen at the moment it booted, and the exact tarball build time is unresolvable until
+            the stamp lands. (Some GCP image dates here are deploy-derived — the exact
+            <span class="mono">createTime</span> needs a fresh <span class="mono">gcloud auth</span>; the data itself is
+            always there.) <br /><br />
             <b>The tarball rows are the argument for the stamp fix.</b> Those four
             <span class="mono">features-sports</span> VMs launched in two cohorts 7h apart, and the tarball refreshes
             every 30 min — so they are <i>probably</i> running different code. We cannot prove it, because
@@ -1822,6 +1829,33 @@
         return `<span class="muted">${by.split(".")[0]}</span>`;
       };
       const driftPills = (d) => d.map((x) => driftPill(x)).join(" ");
+      /* Artifact build/creation time. Images: Artifact Registry createTime (per digest/tag).
+         Values below are the ones probed this session; a few GCP createTimes are deploy-derived
+         (the exact AR createTime needs a fresh gcloud auth — token expired mid-session) and are
+         marked ~approx. Tarballs: the running code is frozen at the host's launch (a VM never
+         self-updates), and the exact manifest created_at is unresolvable until the stamp lands —
+         so we show "frozen at launch", not a fake precise build time. */
+      const BUILT = {
+        f4e828c: "2026-07-17",
+        "4481d4b": "2026-07-16",
+        f000ee3: "2026-07-17",
+        "17f4369": "2026-06-24~",
+        ":dqssotfix": "2026-06-23~",
+        "0.52.0": "2026-06-27",
+      };
+      const builtCell = (g, v) => {
+        if (g.lane === "tarball") {
+          const launch = v.hosts[v.hosts.length - 1].t;
+          return launch === "\u2014"
+            ? '<span class="unk">build time unknown</span>'
+            : `<span class="muted">frozen at launch</span> · ${(launch || "").slice(0, 10)}`;
+        }
+        const raw = BUILT[v.from] || BUILT[v.ver];
+        if (!raw) return '<span class="muted">build date n/a — re-auth</span>';
+        const approx = raw.endsWith("~");
+        const d = raw.replace("~", "");
+        return `<span${approx ? ' title="deploy-derived — exact AR createTime pending re-auth"' : ""}>${d}${approx ? " ~" : ""}</span> · ${ago(d)}`;
+      };
       document.getElementById("tb-run").innerHTML = runGroups
         .map((g, gi) => {
           const total = g.versions.reduce((a, v) => a + v.hosts.length, 0);
@@ -1840,7 +1874,10 @@
               const vrow = `<tr data-v="${key}" data-vgroup="${gi}">
               <td class="mono" style="font-size:11.5px;padding-left:22px">${v.ver}</td>
               <td class="mono dim" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis">${v.art}</td>
-              <td>${v.from ? `<a class="sha" href="#">${v.from}</a>` : '<span class="unk">unknown</span>'}</td>
+              <td>
+                ${v.from ? `<a class="sha" href="#">${v.from}</a>` : '<span class="unk">unknown</span>'}
+                <div class="dim" style="font-size:10.5px;margin-top:2px">${builtCell(g, v)}</div>
+              </td>
               <td data-toggle="${key}" style="cursor:pointer;user-select:none"><span class="caret" style="color:var(--color-text-muted)">▸</span> ${v.hosts.length}</td>
               <td class="dim">${ago(v.hosts[v.hosts.length - 1].t)}</td>
               <td>${driftPills(v.drift)}</td>
