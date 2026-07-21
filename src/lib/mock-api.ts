@@ -1186,6 +1186,10 @@ interface MockDeploymentItem {
   // "complete" | "partial" | undefined — whether cost_actual_usd is a full billing day or fell
   // back to a still-accruing partial day (WS-1 decision 4, 2026-07-20). Colour-only UI signal.
   cost_basis?: "complete" | "partial" | null;
+  // "approx" | undefined — the last-run/overlap date is DERIVED rather than authoritative
+  // (heartbeat-stale VM, single-timestamp kind, unmanaged-VM fallback). Colour-only UI signal,
+  // reuses the cost_basis "partial" convention (WS-2 decision 4, 2026-07-20).
+  basis?: "approx" | null;
   // Resource summary scalars (inline Resources column). Full vector is on /detail.
   cpu_pct?: number | null;
   mem_pct?: number | null;
@@ -1531,6 +1535,7 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     cost_actual_usd: 0.4,
     cost_avg_7d_usd: 0.4,
     cost_projected_24h_usd: 0.4,
+    basis: "approx", // single-timestamp kind (Cloud Run job) — last_run_at is never authoritative
   },
   {
     name: "market-tick-cefi-binance-futures",
