@@ -1206,10 +1206,22 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     // the match's own `venue:instrument_type:` prefix verbatim; fall back to
     // positionally dropping the first two colon-delimited segments only if
     // that prefix doesn't match (defensive against casing/format drift).
+    // Legacy, not-yet-canonicalized instrument_key values (zero colons — UAC's
+    // own canonical_id parser documents this shape as still-live, pending
+    // removal) fall through both the prefix-strip and the positional-split
+    // branches to an EMPTY string; sending that as `instrument` would
+    // silently render a misleading "0 found / 0 missing" instead of a real
+    // check. Guard: fewer than 3 colon-segments means there's no
+    // venue:type:symbol structure to extract at all, so use canonical_id
+    // itself as the bare symbol.
+    const colonSegments = match.canonical_id.split(":");
     const prefix = `${match.venue}:${match.instrument_type}:`;
-    const bareSymbol = match.canonical_id.startsWith(prefix)
-      ? match.canonical_id.slice(prefix.length)
-      : match.canonical_id.split(":").slice(2).join(":");
+    const bareSymbol =
+      colonSegments.length < 3
+        ? match.canonical_id
+        : match.canonical_id.startsWith(prefix)
+          ? match.canonical_id.slice(prefix.length)
+          : colonSegments.slice(2).join(":");
 
     const constructed: api.InstrumentSearchResult = {
       instrument_key: match.canonical_id,
