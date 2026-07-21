@@ -135,3 +135,32 @@ test.describe("Deployments kind filter — multi-select toggle chips (decision 3
     await expect(page.getByTestId("deployment-row-uts-shared-deployment-api")).toHaveCount(0);
   });
 });
+
+test.describe("Deployments service dropdown filter (WS-3, client-side, ?service=)", () => {
+  test("options derive from the loaded inventory; selecting one narrows to that service only", async ({ page }) => {
+    await page.goto("/deployments?status=all");
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+
+    // Options are populated from distinct `service` values already in the loaded inventory —
+    // both fixtures' services must be present as selectable options.
+    const select = page.getByTestId("filter-service");
+    await expect(select.locator('option[value="market-tick-data-service"]')).toHaveCount(1);
+    await expect(select.locator('option[value="execution-service"]')).toHaveCount(1);
+
+    // Both rows visible with no service filter active.
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+
+    // Selecting one service narrows to it — CLIENT-SIDE (no network round-trip; this is the
+    // decision 2026-07-20 requires — server `?service=` is a distinct, unused-by-this-control param).
+    await select.selectOption("market-tick-data-service");
+    await expect(page).toHaveURL(/service=market-tick-data-service/);
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toHaveCount(0);
+
+    // Reverting to "all" drops the ?service= param.
+    await select.selectOption("");
+    await expect(page).not.toHaveURL(/service=/);
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+  });
+});

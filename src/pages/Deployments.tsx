@@ -1221,6 +1221,12 @@ export function DeploymentsContent({
   // Launched-by is client-side (WS-D #14) — how an operator isolates every ad-hoc / unmanaged
   // resource so stranded compute is immediately findable.
   const launchedByFilter = searchParams.get("launched_by") ?? "";
+  // Service is client-side (WS-3) — options come from the distinct `service` values already in the
+  // loaded inventory (same pattern as asset_group's dropdown), not a fresh server round-trip; the
+  // inventory endpoint accepts its own `service` query param for other callers, but this dropdown
+  // deliberately filters what's already on the page (decision: "options from distinct service values
+  // in the loaded inventory ... client-side", deployment_ui_date_range_filter_and_search_2026_07_20).
+  const serviceFilter = searchParams.get("service") ?? "";
   // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
   // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
   const regionFilter = searchParams.get("region") ?? "asia-northeast1";
@@ -1367,6 +1373,15 @@ export function DeploymentsContent({
     return ["", ...Array.from(set).sort()];
   }, [items, assetGroupFilter]);
 
+  // Service options derive from the loaded items (plus any active filter value) — same
+  // client-side pattern as asset_group's dropdown (decision WS-3).
+  const serviceOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of items) if (i.service) set.add(i.service);
+    if (serviceFilter) set.add(serviceFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [items, serviceFilter]);
+
   return (
     <DrillContext.Provider value={onDrill}>
       <FreshnessContext.Provider value={freshness}>
@@ -1459,6 +1474,13 @@ export function DeploymentsContent({
                   onChange={(v) => setParam("asset_group", v)}
                   options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
                 />
+                <FilterSelect
+                  testId="filter-service"
+                  label="service"
+                  value={serviceFilter}
+                  onChange={(v) => setParam("service", v)}
+                  options={serviceOptions.map((s) => ({ value: s, label: s || "all" }))}
+                />
                 <KindFilterChips selected={kindFilters} onToggle={toggleKind} />
                 <FilterSelect
                   testId="filter-launched-by"
@@ -1508,7 +1530,8 @@ export function DeploymentsContent({
                   items={items.filter(
                     (i) =>
                       (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
-                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter),
+                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
+                      (!serviceFilter || i.service === serviceFilter),
                   )}
                   dateFiltered={Boolean(dateFromFilter || dateToFilter)}
                 />
