@@ -1,4 +1,16 @@
 #!/bin/sh
 
-# Format + lint staged files only — no stash, no full working-tree scan.
+# Delegate to prek/pre-commit (the fleet's canonical checks: branch-drift, commit
+# identity, gitleaks, prettier-autostage @3.9.5-floor, eslint, conventional-commit)
+# instead of calling lint-staged directly. A bare `npx lint-staged` here silently
+# skips every fleet-wide check whenever husky's dispatcher wins the core.hooksPath
+# install race against prek (both write .husky/_/pre-commit; whichever tool installs
+# last overwrites the other's file at that path — non-deterministic per clone).
+if command -v prek >/dev/null 2>&1; then
+  exec prek run --hook-stage pre-commit
+elif command -v pre-commit >/dev/null 2>&1; then
+  exec pre-commit run --hook-stage pre-commit
+fi
+
+echo "husky/pre-commit: neither prek nor pre-commit found on PATH — falling back to lint-staged (fleet checks skipped)" >&2
 npx lint-staged || exit 1
