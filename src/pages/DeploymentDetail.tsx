@@ -23,15 +23,25 @@ import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { StreamingLogsPanel } from "../components/StreamingLogsPanel";
 import { RunLogPanel } from "../components/RunLogPanel";
 import {
+  fetchVmDeployments,
   fetchVmFilteredEvents,
   getDeploymentDetail,
   getDeploymentInventory,
   type DeploymentDetail as DeploymentDetailData,
   type DeploymentItem,
+  type VmDeploymentEntry,
   type VMLifecycleEvent,
 } from "../api/deploymentApi";
 import { getUnifiedAlerts, type UnifiedAlertEntry } from "../api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import {
+  formatDuration as formatVmDuration,
+  formatTimestamp as formatVmTimestamp,
+  getOutcomeLabel,
+  getOutcomeVariant,
+  logUriToConsoleUrl,
+} from "./VmDeployments";
 
 type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
 const TONE_CLASSES: Record<ChipTone, string> = {
@@ -423,6 +433,129 @@ function JobRunHistoryCard({ name, item }: { name: string; item: DeploymentItem 
   );
 }
 
+/** Folded-in /vm-deployments archive/history (Fleet-tab consolidation) — VM-kind only. There is no
+ *  per-name-scoped history endpoint (`fetchVmDeployments` returns the whole fleet's recent runs),
+ *  so this filters client-side by `vm_name === name`, same cost the standalone page always paid.
+ *  Archive log links reuse VmDeployments' `logUriToConsoleUrl` (a GCS-console deep link per
+ *  historical run) — NOT a second in-page log-tail viewer; the current run's tail already has its
+ *  own card (`RunLogPanel` below), which only ever addresses the LATEST run for this name. */
+function VmRunHistoryCard({ name, item }: { name: string; item: DeploymentItem | null }) {
+  const [rows, setRows] = useState<VmDeploymentEntry[]>([]);
+  useEffect(() => {
+    let live = true;
+    fetchVmDeployments(30)
+      .then((r) => live && setRows(r.recent.filter((e) => e.vm_name === name)))
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
+  }, [name]);
+  if (item?.kind !== "VM") return null;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">History</CardTitle>
+      </CardHeader>
+      <CardContent data-testid="detail-vm-history">
+        {rows.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)]">No archived runs.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs" data-testid="detail-vm-history-table">
+              <thead className="text-[var(--color-text-tertiary)]">
+                <tr>
+                  <th className="px-2 py-1 text-left">Outcome</th>
+                  <th className="px-2 py-1 text-left">Duration</th>
+                  <th className="px-2 py-1 text-right">Rows Captured</th>
+                  <th className="px-2 py-1 text-left">Completed</th>
+                  <th className="px-2 py-1 text-left">Archive</th>
+                  <th className="px-2 py-1" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const archiveRunLogUrl = logUriToConsoleUrl(r.archive_run_log_uri || "");
+                  const archiveSerialUrl = logUriToConsoleUrl(r.archive_serial_uri || "");
+                  const fallbackLogUrl = archiveRunLogUrl ?? logUriToConsoleUrl(r.log_uri);
+                  return (
+                    <tr
+                      key={r.deployment_id}
+                      className="border-t border-[var(--color-border)]/40"
+                      data-testid={`vm-history-row-${r.deployment_id}`}
+                    >
+                      <td className="px-2 py-1">
+                        <Badge
+                          variant={getOutcomeVariant(r.status, r.exit_code)}
+                          data-testid={`vm-history-outcome-${r.deployment_id}`}
+                        >
+                          {getOutcomeLabel(r.status, r.exit_code)}
+                        </Badge>
+                      </td>
+                      <td
+                        className="px-2 py-1 text-[var(--color-text-muted)]"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {formatVmDuration(r.started_at, r.completed_at)}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        {r.rows_out > 0 ? r.rows_out.toLocaleString() : "—"}
+                      </td>
+                      <td
+                        className="px-2 py-1 text-[var(--color-text-muted)]"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {formatVmTimestamp(r.completed_at)}
+                      </td>
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-2">
+                          {fallbackLogUrl ? (
+                            <a
+                              href={fallbackLogUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--color-accent-blue)] hover:underline font-mono"
+                              title={r.archive_run_log_uri || r.log_uri}
+                              data-testid={`vm-history-log-link-${r.deployment_id}`}
+                            >
+                              run.log
+                            </a>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)]">—</span>
+                          )}
+                          {archiveSerialUrl && (
+                            <a
+                              href={archiveSerialUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--color-accent-blue)] hover:underline font-mono"
+                              title={r.archive_serial_uri}
+                              data-testid={`vm-history-serial-link-${r.deployment_id}`}
+                            >
+                              serial
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2 py-1">
+                        <Link
+                          to={`/vm-deployments/${encodeURIComponent(r.deployment_id)}`}
+                          className="text-[var(--color-accent-blue)] hover:underline"
+                        >
+                          Details
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** Unreleased-resources card (WS-D #5/#17) — a non-running VM (or an orphaned DISK/STATIC_IP row)
  *  still holding billable resources, itemised with each resource's INFERRED est. monthly cost
  *  (principle 8, marked "est / refresh periodically"). Null when nothing leaked. */
@@ -673,9 +806,11 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
       <WorkHealthCard name={name} health={item?.composite_health_status} />
 
       {/* Unreleased-resource leak (WS-D #5/#17) + Cloud Run job run-history / manifest bridge
-          (WS-D #11/#12) — both null-render for kinds they don't apply to. */}
+          (WS-D #11/#12) + VM archive/history (Fleet-tab consolidation) — all three null-render
+          for kinds they don't apply to. */}
       <UnreleasedResourcesCard item={item} />
       <JobRunHistoryCard name={name} item={item} />
+      <VmRunHistoryCard name={name} item={item} />
 
       {/* Alerts + restart/escalation lifecycle — the end-to-end "what happened" answer
           (composes /api/alerts + the deployment event stream; no new endpoint). */}

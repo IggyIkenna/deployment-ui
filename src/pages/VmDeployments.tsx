@@ -54,7 +54,9 @@ function getHealthBadgeVariant(status: string | undefined): "success" | "warning
   }
 }
 
-function formatTimestamp(value: string | null): string {
+// Exported (Fleet-tab consolidation) — DeploymentDetail's folded-in VM history card reuses these
+// verbatim rather than re-implementing outcome/duration/log-link formatting a second time.
+export function formatTimestamp(value: string | null): string {
   if (!value) return "—";
   try {
     return new Date(value).toLocaleString([], {
@@ -69,7 +71,7 @@ function formatTimestamp(value: string | null): string {
   }
 }
 
-function formatDuration(startedAt: string, completedAt: string | null): string {
+export function formatDuration(startedAt: string, completedAt: string | null): string {
   if (!completedAt) return "—";
   try {
     const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
@@ -84,14 +86,17 @@ function formatDuration(startedAt: string, completedAt: string | null): string {
   }
 }
 
-function getOutcomeVariant(status: string, exitCode: number | null): "success" | "warning" | "error" | "default" {
+export function getOutcomeVariant(
+  status: string,
+  exitCode: number | null,
+): "success" | "warning" | "error" | "default" {
   if (status === "completed" && (exitCode === null || exitCode === 0)) return "success";
   if (status === "failed" || (exitCode !== null && exitCode !== 0)) return "error";
   if (status === "reaped") return "warning";
   return "default";
 }
 
-function getOutcomeLabel(status: string, exitCode: number | null): string {
+export function getOutcomeLabel(status: string, exitCode: number | null): string {
   if (status === "completed" && (exitCode === null || exitCode === 0)) return "COMPLETED";
   if (status === "failed") return exitCode !== null ? `FAILED (rc=${exitCode})` : "FAILED";
   if (status === "reaped") return "reaped";
@@ -99,7 +104,7 @@ function getOutcomeLabel(status: string, exitCode: number | null): string {
   return status.toUpperCase();
 }
 
-function logUriToConsoleUrl(logUri: string): string | null {
+export function logUriToConsoleUrl(logUri: string): string | null {
   if (!logUri || !logUri.startsWith("gs://")) return null;
   const withoutScheme = logUri.slice(5);
   const slashIdx = withoutScheme.indexOf("/");
