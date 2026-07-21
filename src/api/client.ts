@@ -1977,7 +1977,7 @@ export async function listFiles(params: {
 // These services depend on data from upstream services, so we can only count
 // "missing" for dates where upstream data actually exists
 export const UPSTREAM_CHECK_SERVICES = [
-  "market-data-processing-service", // Depends on market-tick-data-handler (raw_tick_data)
+  "market-data-processing-service", // Depends on market-tick-data-service (raw_tick_data)
   "features-delta-one-service", // Depends on market-data-processing-service (processed_candles)
 ];
 
@@ -1992,7 +1992,7 @@ export const UPSTREAM_CHECK_SERVICES = [
 // to turbo and time out before the manifest path got tried.
 export const TURBO_MODE_SERVICES = [
   "instruments-service",
-  "market-tick-data-handler",
+  "market-tick-data-service",
   "features-delta-one-service",
   "features-calendar-service",
   "features-onchain-service",
@@ -2038,7 +2038,6 @@ export const NO_DATE_SERVICES = ["ml-training-service"];
 // Services with sub-dimension breakdown support
 export const TURBO_SUB_DIMENSION_SERVICES: { [service: string]: string } = {
   "instruments-service": "venue",
-  "market-tick-data-handler": "data_type",
   "market-tick-data-service": "data_type",
   "market-data-processing-service": "data_type",
   "features-delta-one-service": "feature_group",

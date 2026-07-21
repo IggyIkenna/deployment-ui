@@ -2474,7 +2474,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               )}
 
               {/* First Day of Month Filter - for TARDIS free tier (no API key needed) */}
-              {serviceName === "market-tick-data-handler" && (
+              {serviceName === "market-tick-data-service" && (
                 <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
                   <div className="flex items-center gap-3">
                     <Checkbox
@@ -2499,7 +2499,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
 
               {/* Instrument-Level Search - check availability for specific instruments */}
               {selectedCategories.length === 1 &&
-                ["market-tick-data-handler", "market-data-processing-service"].includes(serviceName) && (
+                ["market-tick-data-service", "market-data-processing-service"].includes(serviceName) && (
                   <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
                     <div className="flex items-center gap-3 mb-3">
                       <Checkbox
@@ -3440,7 +3440,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               </>
             )}
 
-          {/* TURBO Mode Results (fast mode for market-tick-data-handler) */}
+          {/* TURBO Mode Results (fast mode for market-tick-data-service) */}
           {/* Manifest secondary-axis filter banner — surfaces the active filter
           set from the BreakdownsAccordion so the operator can clear it.
           Phase 3 of data_status_multi_axis_shard_propagation. */}
