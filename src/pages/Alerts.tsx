@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, BellRing, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowUpRight, BellRing, ExternalLink, Radio, RefreshCw } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
@@ -614,6 +614,18 @@ export function AlertsContent() {
                       <ArrowUpRight className="h-3 w-3" />
                       <span className="text-xs">deployment</span>
                     </Link>
+                  )}
+                  {alert.deployment_target && (
+                    <button
+                      type="button"
+                      onClick={() => setParam("logs", alert.deployment_target ?? "")}
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      title={`Stream logs for ${alert.deployment_target}`}
+                      data-testid={`alert-logs-link-${index}`}
+                    >
+                      <Radio className="h-3 w-3" />
+                      <span className="text-xs">logs</span>
+                    </button>
                   )}
                   {alert.run_url && (
                     <a href={alert.run_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">

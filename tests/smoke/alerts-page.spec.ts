@@ -125,6 +125,23 @@ test.describe("Alerts page", () => {
     await expect(page).toHaveURL(/\/deployments\/cefi-binance-futures-backfill$/);
   });
 
+  test("infra alert's 'Stream logs' deep-link sets ?logs= and swaps in the live-logs panel (drill-down links)", async ({
+    page,
+  }) => {
+    // deployment_ui_alerts_page_rebuild_2026_07_20.md "Drill-down links" todo — a row's
+    // deployment_target also drives the cockpit's shared `?logs=` log-stream sub-param
+    // (AlertsLogsTab.tsx's own contract), not just the /deployments/:name link.
+    await page.goto("/alerts");
+    await expect(page.getByTestId("cockpit-logs-empty")).toBeVisible();
+
+    const logsLink = page.locator('[data-testid^="alert-logs-link-"]').first();
+    await expect(logsLink).toBeVisible();
+    await logsLink.click();
+
+    await expect(page).toHaveURL(/logs=cefi-binance-futures-backfill/);
+    await expect(page.getByTestId("cockpit-logs-empty")).toHaveCount(0);
+  });
+
   // Filter bar (deployment_ui_alerts_page_rebuild_2026_07_20.md "Filter bar" todo). Mock data
   // (mock-api.ts mockRepoCiAlerts): 4 "alert"-kind CI entries (repos unified-trading-pm x3,
   // execution-service x1) + 1 "vm_down" infra entry (deployment-service) — 5 total, all
