@@ -185,7 +185,10 @@ const HEALTH_TILES: Tile[] = [
 // cockpit tabs (Phase 0.7). Linked here so they're reachable from the cockpit once the
 // duplicate top-nav links are removed; each becomes its own embedded tab next.
 const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; to: string }[] = [
-  { id: "vm-deployments", label: "VM Deployments", icon: Server, to: "/vm-deployments" },
+  // "vm-deployments" REMOVED 2026-07-21 — /vm-deployments (the standalone list page) is retired;
+  // its content lives at /deployments (already a top-level canonical nav entry, not a secondary
+  // console link) and /venue-config. See
+  // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md.
   { id: "chaos", label: "Chaos (resilience testing)", icon: AlertTriangle, to: "/chaos" },
   { id: "safety-ops", label: "Safety Ops", icon: ShieldCheck, to: "/safety-ops" },
   { id: "ml", label: "ML Experiments", icon: BarChart2, to: "/research/ml-experiments" },

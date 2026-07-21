@@ -92,8 +92,8 @@ test("the always-visible top bar carries the same 16 entries as the dropdown", a
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
   // 10 cockpit tabs + the 6 screens with no cockpit twin = the dropdown's 16. (Was 15/5 with a
-  // stale "vm-deployments" in this list — it moved to the legacy quarantine in the Fleet-tab
-  // consolidation and is no longer canonical; "artifacts" + "venue-config" are canonical instead.)
+  // stale "vm-deployments" in this list — that route is now fully retired, off canonical nav
+  // entirely; "artifacts" + "venue-config" are canonical instead.)
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
   await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(6);
 

@@ -43,6 +43,7 @@ import {
   getDeploymentInventory,
   getDeploymentRegions,
   getUmbrellaSummary,
+  reconcileVmDeployments,
   type DeploymentCloud,
   type DeploymentItem,
   type DeploymentStatus,
@@ -51,6 +52,7 @@ import {
   type UmbrellaSummaryResponse,
   type ServiceHealth,
   type VmHealth,
+  type VmReconcileResult,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
 import {
@@ -1421,6 +1423,27 @@ export function DeploymentsContent({
       .finally(() => setLoading(false));
   }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter, regionFilter, dateFromFilter, dateToFilter]);
 
+  // Fleet-wide "Reconcile Registry" action — relocated from the retired /vm-deployments page
+  // (vm_deployments_venue_panels_orphaned_route_2026_07_21.md). This is the only piece of that
+  // page without a redundant equivalent here: the raw active+archive VM table it also carried
+  // is a strict subset of this page's own unified VM-kind inventory (with its own archive/"all"
+  // status toggle), so it was deleted rather than relocated.
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState<VmReconcileResult | null>(null);
+  const [reconcileError, setReconcileError] = useState<string | null>(null);
+  const reconcile = useCallback(() => {
+    setReconciling(true);
+    setReconcileResult(null);
+    setReconcileError(null);
+    reconcileVmDeployments()
+      .then((result) => {
+        setReconcileResult(result);
+        load();
+      })
+      .catch((e: unknown) => setReconcileError(e instanceof Error ? e.message : "Reconcile failed"))
+      .finally(() => setReconciling(false));
+  }, [load]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -1529,6 +1552,15 @@ export function DeploymentsContent({
               </h1>
               <div className="flex items-center gap-3">
                 <DeploymentsHelpButton />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={reconcile}
+                  disabled={reconciling || loading}
+                  data-testid="reconcile-registry-btn"
+                >
+                  {reconciling ? "Reconciling…" : "Reconcile Registry"}
+                </Button>
                 <button
                   onClick={load}
                   disabled={loading}
@@ -1540,6 +1572,18 @@ export function DeploymentsContent({
                 </button>
               </div>
             </div>
+
+            {reconcileResult && (
+              <div className="text-xs text-[var(--color-text-muted)] mb-2" data-testid="reconcile-result">
+                Reconciled: reaped {reconcileResult.reaped_count} stale entries ({reconcileResult.total_active_before}{" "}
+                active before, {reconcileResult.running_vm_count} VMs running in GCP)
+              </div>
+            )}
+            {reconcileError && (
+              <div className="text-[var(--color-error)] text-xs mb-2" data-testid="reconcile-error">
+                Reconcile error: {reconcileError}
+              </div>
+            )}
 
             <Card>
               <CardHeader className="pb-2">

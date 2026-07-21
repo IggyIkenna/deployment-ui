@@ -67,7 +67,6 @@ import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { MlExperiments } from "./pages/MlExperiments";
 import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
-import { VmDeployments } from "./pages/VmDeployments";
 import { VenueConfig } from "./pages/VenueConfig";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
 
@@ -179,17 +178,12 @@ function App() {
                   <Route path="/launch" element={<CockpitLaunch />} />
                   <Route path="/chaos" element={<CockpitChaos />} />
                   <Route path="/safety-ops" element={<CockpitSafety />} />
-                  {/* Legacy-quarantined (Fleet-tab consolidation, operator decision 2026-07-21 —
-                      BLK-7cb5bbbc): the archive/history table folded into Deployments' per-target
-                      History card, and the 4 venue-config panels moved to /venue-config (2026-07-21).
-                      This route STAYS LIVE (not a redirect) for its 2 remaining unique features with
-                      no other home yet: the fleet-wide "Reconcile Registry" action and the raw
-                      active+archive VM table — a fresh follow-up todo tracks relocating those before
-                      this route can be deleted for real (see the issue doc above). Removed from
-                      canonical nav only (NavMenu.tsx `legacy: true` group); /vm-deployments/:deploymentId
-                      stays a normal (non-legacy) route — DeploymentDetail's History card links to it
-                      directly for per-run drill-down. */}
-                  <Route path="/vm-deployments" element={<VmDeployments />} />
+                  {/* /vm-deployments (the standalone list page) is RETIRED (2026-07-21) — its 2
+                      remaining unique features now have real homes: "Reconcile Registry" moved to
+                      /deployments' header, and the raw active+archive VM table was deleted as
+                      redundant with /deployments' own unified VM-kind inventory (which already has
+                      an archive/"all" status view). /vm-deployments/:deploymentId stays live —
+                      DeploymentDetail's History card links to it directly for per-run drill-down. */}
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
                   <Route path="/ops/artifacts" element={<ArtifactPipeline />} />

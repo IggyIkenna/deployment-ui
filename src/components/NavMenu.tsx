@@ -42,28 +42,19 @@ type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
  * SAME component — so which chrome you got depended on which item you clicked, and
  * the same content appeared under two labels. Every canonical entry below now points
  * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` are
- * canonical because they have no cockpit twin. `/vm-deployments`'s archive/history
- * table folded into Deployments' per-target detail History card (Fleet-tab
- * consolidation, 2026-07-21), and its 4 venue-config panels moved to the canonical
- * `/venue-config` (2026-07-21, see plans/active/issues/
- * vm_deployments_venue_panels_orphaned_route_2026_07_21.md). The `/vm-deployments`
- * ROUTE itself stays live in the `legacy` group below (NOT deleted/redirected —
- * operator decision, BLK-7cb5bbbc) only for its 2 remaining unique features with no
- * other home yet: the "Reconcile Registry" action and the raw active/archive VM
- * table — a follow-up todo tracks relocating those before this route is deleted
- * for real.
+ * canonical because they have no cockpit twin.
  *
- * The `legacy` group is the legacy URLs, kept visible-but-quarantined so the operator can
- * compare chromes before deciding what to delete. Three kinds live here now: routes that
- * still render a SECOND COPY of the screen (compare them against the canonical entry); routes
- * that merely REDIRECT to the canonical tab (kept so old bookmarks/deep-links survive, since
- * the LandingTabs bar was deleted 2026-07-17); and a route whose PRIMARY content folded into a
- * canonical screen but which still carries UNIQUE functionality with no other home
- * (`/vm-deployments`'s venue-config panels — see the fold note above). Listing routes here is
- * also what keeps them reachable: `scripts/orphan-audit.ts` fails a declared route with no
- * inbound <Link>, and the whitelist's three reason prefixes (MACHINE-ONLY / API-HANDLER /
- * UNAUTHENTICATED-FUNNEL) deliberately have no "compat redirect" category. Delete the group
- * — and the routes — together.
+ * `/vm-deployments` (the standalone list page) is fully RETIRED as of 2026-07-21 — its
+ * archive/history table folded into Deployments' per-target History card, its 4
+ * venue-config panels moved to the canonical `/venue-config`, "Reconcile Registry" moved to
+ * /deployments' own header, and the raw active+archive VM table was deleted as redundant
+ * with /deployments' own unified VM-kind inventory (see plans/active/issues/
+ * vm_deployments_venue_panels_orphaned_route_2026_07_21.md). No `legacy` group currently
+ * exists — the `legacy?: boolean` flag on `NavGroup` is a reusable convention (visible-but-
+ * quarantined, kept so old bookmarks survive while functionality migrates out) for a FUTURE
+ * fold, not a currently-populated group; `scripts/orphan-audit.ts`'s whitelist reason
+ * prefixes (MACHINE-ONLY / API-HANDLER / UNAUTHENTICATED-FUNNEL) still apply to any route
+ * kept reachable with no nav entry, like `/vm-deployments/:deploymentId` below.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -247,29 +238,14 @@ export const NAV_GROUPS: NavGroup[] = [
   // gone and the standalone/redirect duplicates it existed to compare no longer exist. /repos
   // and /infra survive only as bookmark-compat redirects in App.tsx (→ /ci, /fleet), with no
   // nav entry.
-  {
-    // Legacy quarantine REINTRODUCED (Fleet-tab consolidation, operator decision 2026-07-21 —
-    // BLK-7cb5bbbc): /vm-deployments' archive/history table folded into Deployments' per-target
-    // History card, and its 4 venue-config panels moved to /venue-config (2026-07-21, see
-    // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md). The route
-    // stays LIVE (not deleted/redirected) for its 2 remaining unique features with no other home
-    // yet: the fleet-wide "Reconcile Registry" action and the raw active+archive VM table — a
-    // follow-up todo tracks relocating those before this route can be deleted for real. Removed
-    // from the canonical dropdown/bar only; still in NAV_LINKS_FLAT (mobile hamburger) + still a
-    // real route, so old bookmarks/deep-links stay reachable.
-    heading: "Legacy",
-    legacy: true,
-    items: [
-      {
-        id: "vm-deployments",
-        to: "/vm-deployments",
-        label: "VM Deployments (legacy)",
-        icon: Server,
-        desc: "Reconcile registry + raw active/archive VM table",
-        short: "VMs",
-      },
-    ],
-  },
+  // The "Legacy" quarantine group (/vm-deployments, reintroduced for the Fleet-tab consolidation,
+  // BLK-7cb5bbbc) was REMOVED 2026-07-21 — both features it existed to preserve now have real
+  // homes: "Reconcile Registry" moved to /deployments' header, and the raw active+archive VM
+  // table was deleted as redundant with /deployments' own unified VM-kind inventory (which
+  // already has an archive/"all" status view). /vm-deployments/:deploymentId (the per-run
+  // drill-down DeploymentDetail's History card links to) stays a real route with no nav entry —
+  // same pattern as /deployments/:name. See
+  // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md.
 ];
 
 /** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */

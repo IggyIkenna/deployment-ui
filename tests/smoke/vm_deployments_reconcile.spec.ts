@@ -1,57 +1,28 @@
 /**
- * Regression spec: VM Deployments — Reconcile Registry button
+ * Regression spec: Deployments — Reconcile Registry button
  *
+ * Retargeted 2026-07-21 from the retired /vm-deployments page to /deployments, where the
+ * action now lives (see plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md).
  * Covers the §1.3 reconcile feature added in live-defi-rollout:
- *   - Button renders on the VM Deployments page
- *   - Clicking fires POST /api/vm-deployments/reconcile
+ *   - Button renders on the Deployments page header
+ *   - Clicking fires POST /api/vm-deployments/reconcile (unchanged endpoint — only the
+ *     button's HOME page moved, not the API it calls)
  *   - Success banner shows reaped count
  *   - API error shows error banner (no JS crash)
  *
- * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright
- * route mocks for /api/ paths are bypassed. We use window injection:
- *   - window.__mockVmDeploymentOverride — overrides the GET /api/vm-deployments response
+ * Note: mock-api.ts patches window.fetch for all /api/ routes, so Playwright route mocks for
+ * /api/ paths are bypassed. We use window injection for the reconcile response:
  *   - window.__mockReconcileError — when truthy, reconcile endpoint returns 502
- * Both hooks are handled in mock-api.ts.
+ * /deployments' own inventory listing reads /api/deployments/inventory (a different endpoint,
+ * already mocked with default data by mock-api.ts), so no vm-deployments list override is
+ * needed here — this spec only exercises the reconcile button itself.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MOCK_VM_LIST = {
-  active: [
-    {
-      deployment_id: "dep-test-1",
-      vm_name: "canonical-migration-cefi-20260418-042359",
-      asset_group: "CEFI",
-      task: "canonical-migration",
-      mode: "live",
-      start_date: "2024-06-01",
-      end_date: "2024-06-30",
-      status: "running",
-      started_at: "2026-04-18T04:23:59Z",
-      last_heartbeat_at: "2026-04-18T04:28:59Z",
-      completed_at: null,
-      exit_code: null,
-      rows_in: 1000,
-      rows_out: 900,
-      rows_error: 0,
-      events_emitted: 5,
-      log_uri: "gs://bucket/log.txt",
-    },
-  ],
-  recent: [],
-  archive_days: 7,
-};
-
-async function injectVmDeploymentData(page: Page) {
-  await page.addInitScript((data) => {
-    (window as typeof window & { __mockVmDeploymentOverride?: unknown }).__mockVmDeploymentOverride = data;
-  }, MOCK_VM_LIST);
-}
-
-test.describe("VM Deployments — Reconcile Registry", () => {
-  test("Reconcile button is visible on VM Deployments page", async ({ page }) => {
-    await injectVmDeploymentData(page);
-    await page.goto("/vm-deployments");
+test.describe("Deployments — Reconcile Registry", () => {
+  test("Reconcile button is visible on the Deployments page header", async ({ page }) => {
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
 
     const btn = page.getByTestId("reconcile-registry-btn");
@@ -60,8 +31,7 @@ test.describe("VM Deployments — Reconcile Registry", () => {
   });
 
   test("Clicking Reconcile fires POST to reconcile endpoint and shows result", async ({ page }) => {
-    await injectVmDeploymentData(page);
-    await page.goto("/vm-deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
 
     await page.getByTestId("reconcile-registry-btn").click();
@@ -78,8 +48,7 @@ test.describe("VM Deployments — Reconcile Registry", () => {
     await page.addInitScript(() => {
       (window as typeof window & { __mockReconcileError?: boolean }).__mockReconcileError = true;
     });
-    await injectVmDeploymentData(page);
-    await page.goto("/vm-deployments");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
 
     await page.getByTestId("reconcile-registry-btn").click();
@@ -89,14 +58,5 @@ test.describe("VM Deployments — Reconcile Registry", () => {
 
     // No JS crash
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
-  });
-
-  test("VM Deployments page renders without JS error (regression guard)", async ({ page }) => {
-    await injectVmDeploymentData(page);
-    await page.goto("/vm-deployments");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
-    await expect(page.getByTestId("reconcile-registry-btn")).toBeVisible();
   });
 });

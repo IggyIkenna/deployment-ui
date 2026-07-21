@@ -50,9 +50,9 @@ describe("TopNavBar", () => {
 
   it("renders the 6 screens with no cockpit twin as route links", () => {
     renderAt("/cockpit");
-    // vm-deployments moved to the legacy quarantine (Fleet-tab consolidation, 2026-07-21) — off
-    // the canonical bar/dropdown; see NavMenu.test.tsx "legacy quarantine" for its own coverage.
-    // venue-config is its relocated venue-panel replacement (2026-07-21).
+    // vm-deployments (the standalone list page) is fully retired (2026-07-21) — see
+    // NavMenu.test.tsx "legacy quarantine" for the nav-side coverage. venue-config is its
+    // relocated venue-panel replacement (2026-07-21).
     for (const id of ["home", "epics", "venue-config", "data-status", "costs", "artifacts"]) {
       expect(screen.getByTestId(`cockpit-navlink-${id}`)).toBeTruthy();
     }
@@ -85,8 +85,9 @@ describe("TopNavBar", () => {
 
   it("keeps a route entry lit on its deeper detail routes", () => {
     // /deployments/:name is navItemIsActive's own cited example (NavMenu.tsx docstring) — the
-    // prior vm-deployments/:deploymentId case moved to the legacy quarantine (2026-07-21), off
-    // this bar entirely, so it can no longer exercise this prefix-match behaviour.
+    // prior vm-deployments/:deploymentId case is off this bar entirely (no nav entry, and
+    // /vm-deployments itself is retired, 2026-07-21), so it can no longer exercise this
+    // prefix-match behaviour.
     renderAt("/deployments/some-target-name");
     expect(screen.getByTestId("cockpit-tab-deployments").getAttribute("aria-current")).toBe("page");
   });

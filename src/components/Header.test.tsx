@@ -157,8 +157,8 @@ describe("Header", () => {
     expect(screen.queryByTestId("nav-menu")).toBeNull();
     expect(screen.queryByText("VM Deployments")).toBeNull();
     // Clicking the trigger reveals the grouped page nav instead of navigating away.
-    // vm-deployments moved to the legacy quarantine (2026-07-21) — off the canonical dropdown,
-    // so it no longer renders here (see NavMenu.test.tsx "legacy quarantine" for its coverage).
+    // vm-deployments (the standalone list page) is fully retired (2026-07-21), so it no longer
+    // renders here (see NavMenu.test.tsx "legacy quarantine" for the nav-side coverage).
     fireEvent.click(trigger);
     expect(screen.getByTestId("nav-menu")).toBeTruthy();
     expect(screen.getByTestId("nav-menu-item-deployments")).toBeTruthy();
