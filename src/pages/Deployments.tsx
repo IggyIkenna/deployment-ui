@@ -787,6 +787,34 @@ function ResourceCell({ item }: { item: DeploymentItem }) {
   );
 }
 
+/** Errors + throughput (Fleet-tab consolidation "cheap merged columns") — rows_error/rows_in/
+ *  events_emitted already exist on DeploymentItem (Tier-0 free wins, previously unrendered).
+ *  Null-renders per field so a kind/row without the signal shows nothing, not a fabricated 0. */
+function ErrorsThroughput({ item }: { item: DeploymentItem }) {
+  const hasErrors = item.rows_error != null && item.rows_error > 0;
+  const hasThroughput = item.rows_in != null || item.events_emitted != null;
+  if (!hasErrors && !hasThroughput) return null;
+  return (
+    <div className="flex items-center gap-2 text-[10px]" data-testid={`errors-throughput-${item.name}`}>
+      {hasErrors && (
+        <span className="font-mono text-red-400" title="rows_error" data-testid={`errors-${item.name}`}>
+          {item.rows_error!.toLocaleString()} err
+        </span>
+      )}
+      {item.rows_in != null && (
+        <span className="font-mono text-[var(--color-text-muted)]" title="rows_in">
+          {item.rows_in.toLocaleString()} in
+        </span>
+      )}
+      {item.events_emitted != null && (
+        <span className="font-mono text-[var(--color-text-muted)]" title="events_emitted">
+          {item.events_emitted.toLocaleString()} evt
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** machine-type · zone subtitle (Tier-0 placement data), shown muted under the name. */
 function TargetSubtitle({ item }: { item: DeploymentItem }) {
   const parts = [item.machine_type, item.zone].filter(Boolean);
@@ -902,6 +930,7 @@ function DeploymentRow({ item, dateFiltered }: { item: DeploymentItem; dateFilte
         <div className="flex flex-col gap-0.5">
           <ResourceCell item={item} />
           <LeakedBadge item={item} />
+          <ErrorsThroughput item={item} />
         </div>
       </td>
       <td className="py-1.5" title={feed?.title}>

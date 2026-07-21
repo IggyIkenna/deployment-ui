@@ -95,6 +95,9 @@ const BATCH_ITEMS = [
     heartbeat_age_seconds: null,
     captured_progress: 42,
     run_log_uri: "gs://b/vm-logs/sports-backfill-20260621/run.log",
+    rows_error: 5,
+    rows_in: 1200,
+    events_emitted: 340,
   },
   {
     name: "manifest-consolidator",
@@ -234,6 +237,21 @@ describe("Deployments page (unified all-modes table)", () => {
     expect(screen.getAllByTestId("exit-code").some((el) => el.textContent?.includes("137 (OOM)"))).toBe(true);
     expect(screen.getByTestId("summary-last-failure").textContent).toContain("sports-backfill-20260621");
     expect(screen.getByTestId("summary-last-failure").textContent).toContain("137");
+  });
+
+  it("a row with rows_error/rows_in/events_emitted shows the errors + throughput cell (cheap merged columns)", async () => {
+    renderAt("/deployments?status=all");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-sports-backfill-20260621")).toBeInTheDocument());
+    expect(screen.getByTestId("errors-sports-backfill-20260621").textContent).toBe("5 err");
+    const cell = screen.getByTestId("errors-throughput-sports-backfill-20260621");
+    expect(cell.textContent).toContain("1,200 in");
+    expect(cell.textContent).toContain("340 evt");
+  });
+
+  it("a row with no rows_error/throughput signal renders no errors-throughput cell", async () => {
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("errors-throughput-defi-live-capture-1")).not.toBeInTheDocument();
   });
 
   it("the mode filter (umbrella URL param) scopes the table to a single mode", async () => {
