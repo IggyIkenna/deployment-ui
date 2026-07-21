@@ -72,6 +72,7 @@ import { AxisValueCensus } from "./AxisValueCensus";
 import { DistinctValuesPanel } from "./DistinctValuesPanel";
 import { CatalogueExplorer } from "./CatalogueExplorer";
 import { HonestCoverageCard } from "./HonestCoverageCard";
+import { SportsFeatureCoverageCard } from "./SportsFeatureCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
 import { PredictionCatalogueCard } from "./PredictionCatalogue";
@@ -1806,6 +1807,11 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
+
+          {/* Sports feature coverage (Phase 8.A, features_sports_honest_coverage_2026_05_05.plan.md)
+              — per-feature-rollup honest coverage reading the Phase-3
+              sports_honest_coverage() axis via the turbo endpoint. */}
+          {serviceName === "features-sports-service" && <SportsFeatureCoverageCard />}
 
           {/* Coverage Summary Card — auto-loaded from manifest */}
           {(coverageSummary || coverageSummaryLoading) && (
