@@ -65,8 +65,10 @@ async function injectVmDeploymentData(page: Page, recentRows: unknown[]) {
 
 test.describe("DeploymentDetail — VM History card (folded /vm-deployments archive)", () => {
   // /vm-deployments stays LIVE (legacy-quarantined, not redirected — operator decision
-  // BLK-7cb5bbbc): its non-compact mode is the only reachable home for 4 venue-config panels
-  // this fold never accounted for. See tests/smoke/venue_tardis_windows.spec.ts +
+  // BLK-7cb5bbbc): its 2 remaining unique features (the "Reconcile Registry" action + the raw
+  // active/archive VM table) have no other home yet — a follow-up todo tracks relocating those
+  // before this route can be deleted for real. Its 4 venue-config panels already moved to
+  // /venue-config (2026-07-21) — see tests/smoke/venue_tardis_windows.spec.ts +
   // vm_deployments_reconcile.spec.ts for that page's own regression coverage, unaffected here.
   test("/vm-deployments stays reachable (legacy-quarantined, off the canonical nav)", async ({ page }) => {
     await page.goto("/vm-deployments");

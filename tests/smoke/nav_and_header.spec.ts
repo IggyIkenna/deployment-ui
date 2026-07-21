@@ -249,6 +249,14 @@ test.describe("Page renders — no crash smoke", () => {
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
+  test("Venue Config page renders without JS error", async ({ page }) => {
+    await mockBase(page);
+    await page.goto("/venue-config");
+    await expect(page.getByRole("heading", { name: "Venue Config" })).toBeVisible();
+
+    await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
+  });
+
   test("Chaos page renders without JS error", async ({ page }) => {
     await mockBase(page);
     await page.goto("/chaos");

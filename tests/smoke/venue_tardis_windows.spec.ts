@@ -1,7 +1,7 @@
 /**
  * Regression spec: Venue Tardis Windows panel (§3.P2)
  *
- * Covers the free-vs-paid date range view added to the VM Deployments page:
+ * Covers the free-vs-paid date range view on the Venue Config page:
  *   - Panel renders with "Tardis Free vs Paid Date Ranges" heading
  *   - Key status badge is visible (EXPIRED in mock mode)
  *   - Free-tier box visible with rolling-window info
@@ -15,14 +15,14 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-async function goToVmDeployments(page: Page) {
-  await page.goto("/vm-deployments");
+async function goToVenueConfig(page: Page) {
+  await page.goto("/venue-config");
   await page.waitForLoadState("networkidle");
 }
 
 test.describe("VenueTardisWindowsPanel", () => {
   test("Panel renders with correct heading", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const panel = page.getByTestId("venue-tardis-windows-panel");
     await expect(panel).toBeVisible();
@@ -30,7 +30,7 @@ test.describe("VenueTardisWindowsPanel", () => {
   });
 
   test("Key status badge visible and shows EXPIRED in mock mode", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const badge = page.getByTestId("tardis-key-status-badge");
     await expect(badge).toBeVisible();
@@ -38,7 +38,7 @@ test.describe("VenueTardisWindowsPanel", () => {
   });
 
   test("Free-tier box shows rolling window details", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const freeBox = page.getByTestId("tardis-free-tier-box");
     await expect(freeBox).toBeVisible();
@@ -48,7 +48,7 @@ test.describe("VenueTardisWindowsPanel", () => {
   });
 
   test("Paid-tier box shows blocked warning when key is expired", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const paidBox = page.getByTestId("tardis-paid-tier-box");
     await expect(paidBox).toBeVisible();
@@ -60,14 +60,14 @@ test.describe("VenueTardisWindowsPanel", () => {
   });
 
   test("Refresh button is visible on the panel", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const btn = page.getByTestId("venue-tardis-windows-refresh-btn");
     await expect(btn).toBeVisible();
   });
 
   test("Panel renders without JS error (regression guard)", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     await expect(page.getByTestId("venue-tardis-windows-panel")).toBeVisible();
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();

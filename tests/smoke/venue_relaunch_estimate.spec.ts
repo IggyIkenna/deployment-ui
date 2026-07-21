@@ -1,7 +1,7 @@
 /**
  * Regression spec: Venue Relaunch Coverage Estimate panel (§4.P2)
  *
- * Covers the relaunch-estimate view added to the VM Deployments page:
+ * Covers the relaunch-estimate view on the Venue Config page:
  *   - Panel renders with "Relaunch Coverage Estimate" heading
  *   - Summary bar shows pending / now-unlockable / after-renewal totals
  *   - At least one venue row is visible (mock data has 5 rows)
@@ -14,14 +14,14 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-async function goToVmDeployments(page: Page) {
-  await page.goto("/vm-deployments");
+async function goToVenueConfig(page: Page) {
+  await page.goto("/venue-config");
   await page.waitForLoadState("networkidle");
 }
 
 test.describe("Venue Relaunch Coverage Estimate panel", () => {
   test("Panel renders with Relaunch Coverage Estimate heading", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const panel = page.getByTestId("venue-relaunch-estimate-panel");
     await expect(panel).toBeVisible();
@@ -29,7 +29,7 @@ test.describe("Venue Relaunch Coverage Estimate panel", () => {
   });
 
   test("Summary bar is visible with pending/now/renewal stats", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const summary = page.getByTestId("relaunch-estimate-summary");
     await expect(summary).toBeVisible();
@@ -38,7 +38,7 @@ test.describe("Venue Relaunch Coverage Estimate panel", () => {
   });
 
   test("At least one venue row is visible", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const row = page.getByTestId("relaunch-row-BINANCE-SPOT-2025");
     await expect(row).toBeVisible();
@@ -46,14 +46,14 @@ test.describe("Venue Relaunch Coverage Estimate panel", () => {
   });
 
   test("Refresh button is visible on the estimate panel", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const btn = page.getByTestId("relaunch-estimate-refresh-btn");
     await expect(btn).toBeVisible();
   });
 
   test("Panel renders without JS error (regression guard)", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     await expect(page.getByTestId("venue-relaunch-estimate-panel")).toBeVisible();
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();

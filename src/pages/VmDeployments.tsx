@@ -10,10 +10,6 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
-import { VenueCredentialsPanel } from "../components/VenueCredentialsPanel";
-import { VenueDateRangePanel } from "../components/VenueDateRangePanel";
-import { VenueRelaunchEstimatePanel } from "../components/VenueRelaunchEstimatePanel";
-import { VenueTardisWindowsPanel } from "../components/VenueTardisWindowsPanel";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "default"> = {
   running: "warning",
@@ -115,13 +111,12 @@ export function logUriToConsoleUrl(logUri: string): string | null {
 }
 
 /**
- * VmDeploymentsContent — the chrome-less VM census (active + archive tables + venue
- * panels). Rendered standalone by {@link VmDeployments} (its own page) OR embedded in
- * the cockpit Fleet tab. No router hooks here so embedding can't collide with the
- * cockpit's `?tab=` ownership. `compact` hides the venue-config panels (only the
- * active/archive census matters in the Fleet tab).
+ * VmDeploymentsContent — the chrome-less VM census (active + archive tables) + the
+ * fleet-wide "Reconcile Registry" action. Rendered standalone by {@link VmDeployments}
+ * (its own page, legacy-quarantined — see NavMenu.tsx `legacy: true` group). The 4
+ * venue-config panels this used to also render moved to `/venue-config` (2026-07-21).
  */
-export function VmDeploymentsContent({ compact = false }: { compact?: boolean } = {}) {
+export function VmDeploymentsContent() {
   const [active, setActive] = useState<VmDeploymentEntry[]>([]);
   const [recent, setRecent] = useState<VmDeploymentEntry[]>([]);
   const [days, setDays] = useState(7);
@@ -462,14 +457,6 @@ export function VmDeploymentsContent({ compact = false }: { compact?: boolean } 
 
       {error && <div className="text-[var(--color-error)] text-sm py-2">Error: {error}</div>}
 
-      {!compact && (
-        <>
-          <VenueCredentialsPanel />
-          <VenueDateRangePanel />
-          <VenueRelaunchEstimatePanel />
-          <VenueTardisWindowsPanel />
-        </>
-      )}
       {renderTable(active, "Active", active.length)}
       {renderArchiveTable(recent, `Recent (${days}d)`, recent.length)}
     </div>

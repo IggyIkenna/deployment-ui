@@ -9,6 +9,7 @@ import {
   Database,
   FlaskConical,
   GitBranch,
+  KeyRound,
   Layers,
   Package,
   Rocket,
@@ -43,11 +44,14 @@ type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
  * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` are
  * canonical because they have no cockpit twin. `/vm-deployments`'s archive/history
  * table folded into Deployments' per-target detail History card (Fleet-tab
- * consolidation, 2026-07-21), but the ROUTE itself stays live in the `legacy` group
- * below (NOT deleted/redirected — operator decision, BLK-7cb5bbbc) because its
- * non-compact mode is the only reachable home for 4 venue-config panels the
- * consolidation audit never accounted for. The cockpit's Fleet tab embeds only the
- * COMPACT `VmDeploymentsContent` (active/archive census, no venue panels).
+ * consolidation, 2026-07-21), and its 4 venue-config panels moved to the canonical
+ * `/venue-config` (2026-07-21, see plans/active/issues/
+ * vm_deployments_venue_panels_orphaned_route_2026_07_21.md). The `/vm-deployments`
+ * ROUTE itself stays live in the `legacy` group below (NOT deleted/redirected —
+ * operator decision, BLK-7cb5bbbc) only for its 2 remaining unique features with no
+ * other home yet: the "Reconcile Registry" action and the raw active/archive VM
+ * table — a follow-up todo tracks relocating those before this route is deleted
+ * for real.
  *
  * The `legacy` group is the legacy URLs, kept visible-but-quarantined so the operator can
  * compare chromes before deciding what to delete. Three kinds live here now: routes that
@@ -114,6 +118,17 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Layers,
         desc: "Live · batch · paper + live ops",
         short: "Deployments",
+      },
+      {
+        // Relocated 2026-07-21 from the legacy-quarantined /vm-deployments page (see
+        // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md) —
+        // these panels configure/inform the deploy workflow, not Fleet's infra observability.
+        id: "venue-config",
+        to: "/venue-config",
+        label: "Venue Config",
+        icon: KeyRound,
+        desc: "Credentials · date range · relaunch estimate · Tardis windows",
+        short: "Venue",
       },
     ],
   },
@@ -235,12 +250,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     // Legacy quarantine REINTRODUCED (Fleet-tab consolidation, operator decision 2026-07-21 —
     // BLK-7cb5bbbc): /vm-deployments' archive/history table folded into Deployments' per-target
-    // History card, but the route stays LIVE (not deleted/redirected) because its non-compact
-    // mode is the only reachable home for 4 venue-config panels (VenueCredentialsPanel/
-    // VenueDateRangePanel/VenueRelaunchEstimatePanel/VenueTardisWindowsPanel) — an audit gap the
-    // consolidation plan never accounted for. Removed from the canonical dropdown/bar only;
-    // still in NAV_LINKS_FLAT (mobile hamburger) + still a real route, so old bookmarks/deep-links
-    // and the venue panels stay reachable.
+    // History card, and its 4 venue-config panels moved to /venue-config (2026-07-21, see
+    // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md). The route
+    // stays LIVE (not deleted/redirected) for its 2 remaining unique features with no other home
+    // yet: the fleet-wide "Reconcile Registry" action and the raw active+archive VM table — a
+    // follow-up todo tracks relocating those before this route can be deleted for real. Removed
+    // from the canonical dropdown/bar only; still in NAV_LINKS_FLAT (mobile hamburger) + still a
+    // real route, so old bookmarks/deep-links stay reachable.
     heading: "Legacy",
     legacy: true,
     items: [
@@ -249,7 +265,7 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/vm-deployments",
         label: "VM Deployments (legacy)",
         icon: Server,
-        desc: "Full per-VM history + venue config panels — folded into Deployments' History card",
+        desc: "Reconcile registry + raw active/archive VM table",
         short: "VMs",
       },
     ],
