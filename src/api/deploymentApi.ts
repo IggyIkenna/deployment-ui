@@ -930,3 +930,57 @@ export async function getDeploymentDetail(name: string): Promise<DeploymentDetai
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/detail`);
   return handleResponse<DeploymentDetail>(response);
 }
+
+// -------------------------------------------------------------------------
+// run.log viewer (WS-4, deployment_ui_vm_log_viewer_2026_07_20.md) — size,
+// bounded tail, signed-URL download for a VM's actual run.log content. Mirrors
+// deployment-api `RunLogMetadataResponse`/`RunLogTailResponse`/`RunLogDownloadResponse`
+// (deployments_inventory.py). `location` is "live" | "archive" | null: null means neither
+// the live vm-logs/ path nor the durable final-snapshot archive path has an object yet
+// (honest "no log available", never a fabricated hit).
+// -------------------------------------------------------------------------
+
+export interface RunLogMetadata {
+  name: string;
+  exists: boolean;
+  location: "live" | "archive" | null;
+  uri: string;
+  size_bytes: number | null;
+  last_modified: string | null;
+}
+
+export interface RunLogTail {
+  name: string;
+  exists: boolean;
+  location: "live" | "archive" | null;
+  uri: string;
+  size_bytes: number | null;
+  last_modified: string | null;
+  lines: string[];
+  line_count: number;
+  tail_bytes: number;
+}
+
+export interface RunLogDownload {
+  name: string;
+  exists: boolean;
+  location: "live" | "archive" | null;
+  download_url: string;
+  expires_in_seconds: number;
+}
+
+export async function getRunLogMetadata(name: string): Promise<RunLogMetadata> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/metadata`);
+  return handleResponse<RunLogMetadata>(response);
+}
+
+export async function getRunLogTail(name: string, lines?: number): Promise<RunLogTail> {
+  const qs = lines != null ? `?lines=${lines}` : "";
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/tail${qs}`);
+  return handleResponse<RunLogTail>(response);
+}
+
+export async function getRunLogDownload(name: string): Promise<RunLogDownload> {
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/download`);
+  return handleResponse<RunLogDownload>(response);
+}

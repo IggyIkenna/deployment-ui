@@ -17,6 +17,7 @@ import { Link, useParams } from "react-router-dom";
 import { Activity, AlertTriangle, ArrowLeft, ExternalLink, RotateCcw, Server, Workflow } from "lucide-react";
 import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { StreamingLogsPanel } from "../components/StreamingLogsPanel";
+import { RunLogPanel } from "../components/RunLogPanel";
 import {
   fetchVmFilteredEvents,
   getDeploymentDetail,
@@ -675,6 +676,17 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
       {/* Alerts + restart/escalation lifecycle — the end-to-end "what happened" answer
           (composes /api/alerts + the deployment event stream; no new endpoint). */}
       <AlertsLifecycleCard name={name} />
+
+      {/* run.log viewer (WS-4 decision 3) — a separate panel from the events timeline below,
+          which reads a different bucket entirely and is not log content. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Run log</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RunLogPanel name={name} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">
