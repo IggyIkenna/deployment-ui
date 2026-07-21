@@ -856,6 +856,13 @@ export interface DeploymentInventoryResponse {
   total: number;
   vm_count: number;
   cloud_run_job_count: number;
+  // WS-2 date-range archive floor (decision 5) — set only when the request carried date_from/
+  // date_to. `archive_floor` is the earliest day the archive actually retains (the real 30-day
+  // GCS TTL); `date_range_out_of_range` is true when the requested date_from predates it, so the
+  // UI shows an explicit "no data before <archive_floor>" banner instead of a silent partial
+  // result. Undefined/false for a request with no date filter.
+  archive_floor?: string | null;
+  date_range_out_of_range?: boolean;
 }
 
 export interface UmbrellaLastFailure {

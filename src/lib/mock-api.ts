@@ -2715,13 +2715,10 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
       ["(unlabeled)", "gcp", 8956, "GCP label", "other"],
       ["manifest-consolidator", "gcp", 3685, "GCP label", "other"],
       ["market-data-raw", "gcp", 945, "GCP label", "other"],
-      ...Array.from({ length: 125 }, (_, i): Row => [
-        `purpose-${i + 1}`,
-        "gcp",
-        +(400 - i * 2.5).toFixed(2),
-        "GCP label",
-        "other",
-      ]),
+      ...Array.from(
+        { length: 125 },
+        (_, i): Row => [`purpose-${i + 1}`, "gcp", +(400 - i * 2.5).toFixed(2), "GCP label", "other"],
+      ),
     ],
   };
   // Bucket-only: avg GB stored over the window + storage-class split (never scaled by `days` —
@@ -3588,12 +3585,25 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (dateTo) items = items.filter((i) => !i.last_run_at || i.last_run_at <= `${dateTo}T23:59:59Z`);
     const counts_by_kind: Record<string, number> = {};
     for (const i of items) counts_by_kind[i.kind] = (counts_by_kind[i.kind] ?? 0) + 1;
+    // WS-2 date-range archive floor (decision 5) — mirrors the backend's `_archive_floor_date`
+    // (30-day GCS retention): set only alongside a date-range request; `out_of_range` when the
+    // requested `date_from` predates that floor, so the UI can show the explicit banner.
+    let archiveFloor: string | null = null;
+    let dateRangeOutOfRange = false;
+    if (dateFrom || dateTo) {
+      const floor = new Date();
+      floor.setUTCDate(floor.getUTCDate() - 29);
+      archiveFloor = floor.toISOString().slice(0, 10);
+      dateRangeOutOfRange = Boolean(dateFrom) && dateFrom < archiveFloor;
+    }
     return json({
       items,
       total: items.length,
       vm_count: items.filter((i) => i.kind === "VM").length,
       cloud_run_job_count: items.filter((i) => i.kind === "CLOUD_RUN_JOB").length,
       counts_by_kind,
+      archive_floor: archiveFloor,
+      date_range_out_of_range: dateRangeOutOfRange,
     });
   }
   // Region options for the selector (WS-D reconciliation) — default pinned first + the "all" sentinel.

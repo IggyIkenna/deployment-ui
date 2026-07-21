@@ -1234,6 +1234,11 @@ export function DeploymentsContent({
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Out-of-range archive floor (WS-2 decision 5) — set only alongside a date-range request whose
+  // date_from predates the real 30-day GCS retention floor. Drives an explicit banner rather than
+  // silently returning a clipped/partial result.
+  const [archiveFloor, setArchiveFloor] = useState<string | null>(null);
+  const [dateRangeOutOfRange, setDateRangeOutOfRange] = useState(false);
   const [freshness, setFreshness] = useState<Record<string, DeploymentFreshnessResponse>>({});
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([
     { value: "asia-northeast1", label: "asia-northeast1 (default)" },
@@ -1307,6 +1312,8 @@ export function DeploymentsContent({
       .then(([inv, sums]) => {
         setItems(inv.items);
         setSummary(aggregateSummaries(sums));
+        setArchiveFloor(inv.archive_floor ?? null);
+        setDateRangeOutOfRange(inv.date_range_out_of_range ?? false);
         // Enrich LIVE rows with manifest-derived per-deployment freshness (feed-health column).
         const liveRows = inv.items.filter((i) => i.umbrella === "LIVE");
         if (liveRows.length > 0) {
@@ -1477,6 +1484,22 @@ export function DeploymentsContent({
                 >
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
+                </div>
+              )}
+              {/* Out-of-range archive floor (decision 5) — the requested date_from predates the real
+                  30-day retention window; say so explicitly rather than silently returning a
+                  clipped/partial result the operator would otherwise mistake for "nothing ran". */}
+              {!error && dateRangeOutOfRange && archiveFloor && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 text-sm text-amber-400 py-2"
+                  data-testid="deployments-date-range-out-of-range"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    No data before {archiveFloor} — the archive only retains 30 days; results below are clipped to that
+                    floor.
+                  </span>
                 </div>
               )}
               {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
