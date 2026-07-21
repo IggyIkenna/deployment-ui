@@ -568,6 +568,30 @@
         <button data-t="health">Health <span class="cnt">13</span></button>
       </div>
 
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin: 0 0 16px;
+          padding: 8px 12px;
+          border: 1px solid var(--color-border-default);
+          border-left: 3px solid var(--color-accent-blue);
+          border-radius: var(--radius-md);
+          background: var(--color-bg-secondary);
+          font-size: 12px;
+          color: var(--color-text-secondary);
+        "
+      >
+        <span class="pill p-cyan">GCP = active production</span>
+        <span class="pill p-blue">AWS = intentionally parked</span>
+        <span
+          >All deployments run on <b>GCP</b> and are healthy. The <b>AWS</b> estate (App Runner + ECS + ECR) is
+          <b>deliberately stopped</b> — deferred while AWS credits are unavailable, kept intact, and resumes when
+          credits return. AWS rows below are <b>parked, not broken</b>.</span
+        >
+      </div>
+
       <!-- ============================= RUNNING ============================= -->
       <section id="v-run">
         <div class="stats">
@@ -777,22 +801,22 @@
           <div class="stat">
             <div class="k">Config-only redeploys</div>
             <div class="v" style="color: var(--color-accent-amber)">40%</div>
-            <div class="s">same digest — nothing shipped</div>
+            <div class="s">GCP · same digest, nothing shipped</div>
           </div>
           <div class="stat">
-            <div class="k">Failed AWS deploys</div>
-            <div class="v" style="color: var(--color-accent-red)">13</div>
-            <div class="s">App Runner storm · 2026-05-22</div>
+            <div class="k">Live now (GCP)</div>
+            <div class="v" style="color: var(--color-accent-green)">12</div>
+            <div class="s">workloads serving right now</div>
           </div>
           <div class="stat">
-            <div class="k">Services PAUSED</div>
-            <div class="v" style="color: var(--color-accent-red)">2</div>
-            <div class="s">App Runner · not running today</div>
+            <div class="k">AWS — intentionally parked</div>
+            <div class="v" style="color: var(--color-text-tertiary)">off</div>
+            <div class="s">2 App Runner + 3 ECS · no credits</div>
           </div>
           <div class="stat">
-            <div class="k">Scaled to zero</div>
-            <div class="v" style="color: var(--color-accent-amber)">3</div>
-            <div class="s">ECS uts-defi-prod · desired=0</div>
+            <div class="k">AWS last active</div>
+            <div class="v" style="color: var(--color-text-tertiary)">2026-05-22</div>
+            <div class="s">before it was parked · deferred</div>
           </div>
         </div>
 
@@ -863,11 +887,11 @@
             (192 for this one service, back to 2026-05-06) with digest, timestamp and deployer, at no cost; a Cloud Run
             deploy is a new revision, and <b>a GCE VM launch IS the deploy</b> for the tarball lane (the code is frozen
             at launch — a VM never self-updates). Each revision's <b>held-for</b> makes "what was running on date X" a
-            lookup, not a guess. Two independent failure classes the build feed can't see:
-            <b>~40% of deploys changed nothing</b> (same digest), and <b>both</b> AWS App Runner services —
-            <span class="mono">uts-deployment-api-prod</span> and <span class="mono">uts-alerting-service-prod</span> —
-            are <b>PAUSED</b> after a <b>13-failure deploy storm on 2026-05-22</b> (the builds were green; the
-            <i>deploys</i> broke). GCP deploy times shown are the ones probed 2026-07-17; a couple of digest→commit
+            lookup, not a guess. <b>All active production runs on GCP</b> and is healthy — the one real GCP signal here
+            is churn: <b>~40% of deploys changed nothing</b> (same digest).
+            <b>The AWS rows are intentionally parked, not broken</b> — AWS is deferred (no credits): both App Runner
+            services and the three ECS services were deliberately stopped after their last activity on 2026-05-22, and
+            resume when credits return. GCP deploy times shown are the ones probed 2026-07-17; a couple of digest→commit
             joins read <span class="mono">resolve ↗</span> pending a fresh <span class="mono">gcloud auth</span>.
           </div>
         </div>
@@ -887,9 +911,9 @@
             <div class="s">~16 capped at 30 by retention</div>
           </div>
           <div class="stat">
-            <div class="k">ECR repos actually running</div>
-            <div class="v" style="color: var(--color-accent-red)">0</div>
-            <div class="s">2 PAUSED · 3 zeroed · rest idle</div>
+            <div class="k">ECR — intentionally parked</div>
+            <div class="v" style="color: var(--color-text-tertiary)">20</div>
+            <div class="s">AWS deferred · no credits · not GC</div>
           </div>
           <div class="stat">
             <div class="k">Empty / declared-only</div>
@@ -897,8 +921,8 @@
             <div class="s">ECR repos · 0 images</div>
           </div>
           <div class="stat">
-            <div class="k">AWS builds went quiet</div>
-            <div class="v" style="color: var(--color-accent-amber)">2026-06-27</div>
+            <div class="k">AWS parked since</div>
+            <div class="v" style="color: var(--color-text-tertiary)">2026-06-27</div>
             <div class="s">18/20 repos' last push</div>
           </div>
         </div>
@@ -916,14 +940,15 @@
           >
             <div class="seg" id="art-filter">
               <button data-f="all" class="on">All repos</button>
-              <button data-f="running">Running</button>
-              <button data-f="orphan">Orphaned / GC</button>
+              <button data-f="running">Running (GCP)</button>
+              <button data-f="orphan">AWS parked</button>
               <button data-f="empty">Empty</button>
               <button data-f="gcp">GCP</button>
               <button data-f="aws">AWS</button>
             </div>
             <span class="dim" style="font-size: 11.5px">
-              one row per repo · <span class="pill p-red">orphaned</span> = has images, nothing runs them (GC candidate)
+              one row per repo · <span class="pill p-amber">AWS parked</span> = deferred, kept for when credits return
+              (not GC)
             </span>
           </div>
           <div class="tscroll">
@@ -944,15 +969,17 @@
             </table>
           </div>
           <div class="note">
-            <b>The registry is mostly sediment.</b> Of 20 ECR repos, <b>0 have a running task</b> —
+            <b>GCP Artifact Registry is the active registry; the entire ECR estate is intentionally parked.</b> AWS is
+            deferred (no credits), so all 20 ECR repos are stopped <i>on purpose</i>, not orphaned by accident —
             <span class="mono">deployment-api</span> and <span class="mono">alerting-service</span> are App Runner
-            <b>PAUSED</b>, the three <span class="mono">uts-defi-prod</span> services are ECS <b>desired=0</b>, and the
-            rest have no AWS runtime at all. <b>18 of 20 repos last pushed on 2026-06-27</b> — AWS image builds went
-            quiet that day; only <span class="mono">market-tick-data-service</span> still pushes, and it is
-            <span class="mono">latest</span>-only (no version tag). <b>The two clouds share no common tag key</b>: GCP
-            tags by short-SHA, ECR by version + <span class="mono">latest</span> with <b>no git SHA at all</b>, so "what
-            commit is this ECR image?" must be joined through the CodeBuild record. GCP per-repo digests/sizes are the
-            values sampled 2026-07-17; a full AR walk needs a fresh <span class="mono">gcloud auth</span>.
+            <b>PAUSED</b>, the three <span class="mono">uts-defi-prod</span> services are ECS <b>desired=0</b>, the rest
+            idle. They are kept for when credits return — <b>not</b> GC candidates.
+            <b>18 of 20 last pushed 2026-06-27</b> = when AWS was parked; only
+            <span class="mono">market-tick-data-service</span> pushed after (latest-only). On GCP, the real cleanup
+            signal is the <b>~24 legacy AR repos</b> in the 1.5 TB. <b>The two clouds share no common tag key</b>: GCP
+            tags by short-SHA, ECR by version + <span class="mono">latest</span> with <b>no git SHA</b>, so an ECR
+            image's commit must be joined via CodeBuild. GCP per-repo digests/sizes are sampled 2026-07-17; a full AR
+            walk needs a fresh <span class="mono">gcloud auth</span>.
           </div>
         </div>
       </section>
@@ -962,13 +989,13 @@
         <div class="stats">
           <div class="stat">
             <div class="k">High severity</div>
-            <div class="v" style="color: var(--color-accent-red)">6</div>
-            <div class="s">provenance blind spots + broken lanes</div>
+            <div class="v" style="color: var(--color-accent-red)">5</div>
+            <div class="s">GCP provenance gaps + broken lanes</div>
           </div>
           <div class="stat">
             <div class="k">Medium</div>
-            <div class="v" style="color: var(--color-accent-amber)">4</div>
-            <div class="s">CI attribution + orphaned estate</div>
+            <div class="v" style="color: var(--color-accent-amber)">3</div>
+            <div class="s">CI attribution + tag drift</div>
           </div>
           <div class="stat">
             <div class="k">Low</div>
@@ -976,14 +1003,14 @@
             <div class="s">waste + churn</div>
           </div>
           <div class="stat">
-            <div class="k">All measured</div>
-            <div class="v" style="color: var(--color-accent-green)">13/13</div>
-            <div class="s">probed live · 0 hypothetical</div>
+            <div class="k">Deferred (intentional)</div>
+            <div class="v" style="color: var(--color-accent-blue)">2</div>
+            <div class="s">AWS parked · not defects</div>
           </div>
           <div class="stat">
-            <div class="k">Not persisted anywhere</div>
-            <div class="v" style="color: var(--color-accent-red)">13</div>
-            <div class="s">no alert fires on any of these today</div>
+            <div class="k">Real defects, no alert</div>
+            <div class="v" style="color: var(--color-accent-red)">11</div>
+            <div class="s">none fires an alert today</div>
           </div>
         </div>
 
@@ -1003,9 +1030,11 @@
               <button data-f="high">High</button>
               <button data-f="med">Medium</button>
               <button data-f="low">Low</button>
+              <button data-f="deferred">Deferred</button>
             </div>
             <span class="dim" style="font-size: 11.5px">
-              <b>see ↗</b> jumps to the view in this page that shows the evidence
+              <span class="pill p-blue">deferred</span> = intentional (AWS parked), not a defect · <b>see ↗</b> jumps to
+              the view that shows the evidence
             </span>
           </div>
           <div class="tscroll">
@@ -1579,7 +1608,7 @@
           tags: ["SHA / mixed"],
           p: "—",
           run: "—",
-          state: "orphan",
+          state: "legacy",
           aggregate: true,
           note: "40 AR repos total; ~24 look legacy/orphaned. Per-repo digests + sizes need a fresh gcloud auth.",
         },
@@ -1653,7 +1682,7 @@
           tags: ["0.90.0", "8f11ebb", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "unified-trading-library",
@@ -1663,7 +1692,7 @@
           tags: ["0.55.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "deployment-service",
@@ -1673,7 +1702,7 @@
           tags: ["v0.105.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "batch-live-reconciliation-service",
@@ -1683,7 +1712,7 @@
           tags: ["0.49.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "ml-service",
@@ -1693,7 +1722,7 @@
           tags: ["0.50.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "fund-administration-service",
@@ -1703,7 +1732,7 @@
           tags: ["0.9.32", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "client-reporting-api",
@@ -1713,7 +1742,7 @@
           tags: ["0.32.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "greeks-service",
@@ -1723,7 +1752,7 @@
           tags: ["0.18.17", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "market-data-processing-service",
@@ -1733,7 +1762,7 @@
           tags: ["0.22.0", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         {
           r: "trading-agent-service",
@@ -1743,7 +1772,7 @@
           tags: ["0.12.11", "latest"],
           p: "2026-06-27",
           run: "—",
-          state: "orphan",
+          state: "parked",
         },
         { r: "risk-and-exposure-service", c: "aws", reg: "ECR", imgs: 0, tags: [], p: "—", run: "—", state: "empty" },
         { r: "unified-trading-system", c: "aws", reg: "ECR", imgs: 0, tags: [], p: "—", run: "—", state: "empty" },
@@ -1773,12 +1802,12 @@
           e: "gcloud artifacts repositories describe unified-trading → NOT_FOUND",
         },
         {
-          c: "Both AWS App Runner services PAUSED after a deploy storm",
-          sev: "high",
-          n: 13,
+          c: "AWS App Runner intentionally PARKED (deferred — no credits)",
+          sev: "deferred",
+          n: "2 svc",
           area: "deploy · AWS",
           tab: "deploy",
-          m: "<span class='mono'>uts-deployment-api-prod</span> (7 of 9 ops failed) and <span class='mono'>uts-alerting-service-prod</span> (6 of 8 failed, incl. a failed <span class='mono'>CREATE_SERVICE</span>) both went PAUSED on 2026-05-22. <b>The builds were green — the deploys broke.</b> The build feed can't see this class of failure at all.",
+          m: "<b>Not a defect.</b> Both prod services are deliberately PAUSED because AWS is deferred (no credits) — GCP is the sole active production path. The 2026-05-22 op failures (deployment-api 7/9, alerting 6/8) are <i>historical</i>, from before parking. Resumes when credits return; nothing to fix.",
           e: "apprunner list-operations, probed live 2026-07-21",
         },
         {
@@ -1818,12 +1847,12 @@
           e: "setup-data-pipeline-vm.sh:687",
         },
         {
-          c: "ECR estate is orphaned — 0 of 20 repos running",
-          sev: "med",
+          c: "AWS ECR estate intentionally PARKED (deferred — no credits)",
+          sev: "deferred",
           n: 20,
           area: "artifacts · AWS",
           tab: "art",
-          m: "No ECR repo has a running task (2 App Runner PAUSED, 3 ECS <span class='mono'>desired=0</span>, the rest have no AWS runtime). 4 repos are empty; <b>18 of 20 last pushed 2026-06-27</b> — AWS image builds went quiet that day. ~393 images retained, almost nothing serves them.",
+          m: "<b>Not a defect.</b> No ECR repo runs a task because AWS is deferred (no credits): 2 App Runner PAUSED, 3 ECS <span class='mono'>desired=0</span>, the rest idle by design. 4 are empty; <b>18 of 20 last pushed 2026-06-27</b> = when AWS was parked. ~393 images kept for when credits return — not GC candidates.",
           e: "ecr describe-images + apprunner/ecs state, 2026-07-21",
         },
         {
@@ -2228,7 +2257,7 @@
         },
 
         {
-          sep: "AWS App Runner — the 2026-05-22 deploy storm · both prod services now PAUSED (probed live 2026-07-21)",
+          sep: "AWS App Runner — INTENTIONALLY PARKED (deferred · no AWS credits) · rows below are the historical 2026-05-22 activity before parking",
         },
         {
           t: "uts-deployment-api-prod",
@@ -2316,7 +2345,7 @@
         },
 
         {
-          sep: "AWS ECS uts-defi-prod — 3 services ACTIVE, desired=0 (scaled to zero, not stalled · probed live 2026-07-21)",
+          sep: "AWS ECS uts-defi-prod — INTENTIONALLY PARKED · 3 services desired=0 (deferred · no AWS credits · not stalled)",
         },
         {
           t: "uts-strategy-service-prod",
@@ -2548,10 +2577,11 @@
       const artStatePill = (st) =>
         ({
           running: '<span class="pill p-green"><span class="dot"></span>running</span>',
-          paused: '<span class="pill p-amber"><span class="dot"></span>App Runner PAUSED</span>',
-          zeroed: '<span class="pill p-amber"><span class="dot"></span>ECS desired=0</span>',
+          paused: '<span class="pill p-amber"><span class="dot"></span>parked · App Runner PAUSED</span>',
+          zeroed: '<span class="pill p-amber"><span class="dot"></span>parked · ECS desired=0</span>',
           active: '<span class="pill p-cyan"><span class="dot"></span>still pushing</span>',
-          orphan: '<span class="pill p-red"><span class="dot"></span>orphaned · GC</span>',
+          parked: '<span class="pill p-amber"><span class="dot"></span>parked · AWS deferred</span>',
+          legacy: '<span class="pill p-grey"><span class="dot"></span>legacy · GC candidate</span>',
           empty: '<span class="pill p-grey"><span class="dot"></span>empty</span>',
         })[st] || "";
       document.getElementById("tb-art").innerHTML = artifacts
@@ -2574,7 +2604,7 @@
         .map(
           (h) => `<tr data-sev="${h.sev}">
         <td style="font-weight:500;white-space:normal;max-width:240px">${h.c}</td>
-        <td><span class="pill ${h.sev === "high" ? "p-red" : h.sev === "med" ? "p-amber" : "p-grey"}">${h.sev}</span></td>
+        <td><span class="pill ${h.sev === "high" ? "p-red" : h.sev === "med" ? "p-amber" : h.sev === "deferred" ? "p-blue" : "p-grey"}">${h.sev}</span></td>
         <td class="mono">${h.n}</td>
         <td class="dim mono" style="font-size:11px;white-space:nowrap">${h.area || "—"}</td>
         <td style="white-space:normal;max-width:440px;font-size:11.5px" class="dim">${h.m}</td>
@@ -2673,13 +2703,13 @@
         [...document.querySelectorAll("#art-filter button")].forEach((x) => x.classList.remove("on"));
         b.classList.add("on");
         const f = b.dataset.f;
-        const gc = new Set(["orphan", "paused", "zeroed"]);
+        const parked = new Set(["parked", "paused", "zeroed"]);
         document.querySelectorAll("#tb-art tr").forEach((r) => {
           const st = r.dataset.state;
           const show =
             f === "all" ||
             (f === "running" && st === "running") ||
-            (f === "orphan" && gc.has(st)) ||
+            (f === "orphan" && parked.has(st)) ||
             (f === "empty" && st === "empty") ||
             (f === "gcp" && r.dataset.cloud === "gcp") ||
             (f === "aws" && r.dataset.cloud === "aws");
