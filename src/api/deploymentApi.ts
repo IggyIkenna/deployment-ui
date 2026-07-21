@@ -621,8 +621,23 @@ export async function getArtifactBuilds(query: ArtifactQuery = {}): Promise<Buil
   if (query.lane && query.lane !== "all") qs.set("lane", query.lane);
   if (query.status && query.status !== "all") qs.set("status", query.status);
   if (query.refresh) qs.set("refresh", "true");
-  const response = await fetch(`${DEPLOYMENT_API}/api/artifacts/builds?${qs.toString()}`);
-  return handleResponse<BuildsResponse>(response);
+  // Bound the wait: the backend reads live cloud APIs, and a stale gRPC channel can be slow. Without
+  // an abort the page's spinner hangs forever; 45s clears a cold multi-page scan yet still fails loud.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000);
+  try {
+    const response = await fetch(`${DEPLOYMENT_API}/api/artifacts/builds?${qs.toString()}`, {
+      signal: controller.signal,
+    });
+    return await handleResponse<BuildsResponse>(response);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Timed out after 45s — the deployment API is slow or unreachable.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=
