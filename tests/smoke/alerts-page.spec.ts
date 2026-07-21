@@ -335,4 +335,29 @@ test.describe("Alerts page", () => {
     await expect(page.getByTestId("filter-alert-date-from")).toHaveValue("");
     await expect(page.getByTestId("filter-result-count")).toHaveText("5 of 5 alerts");
   });
+
+  // Regression + new specs (deployment_ui_alerts_page_rebuild_2026_07_20.md [REVIEW] todo) — every
+  // dimension above (filter/date-range/deep-link/sort/layout) has its own isolated coverage; this
+  // is the one deliberately COMBINED case, proving the independent `useMemo` layers (filter -> sort)
+  // compose correctly rather than one clobbering another.
+  test("kind filter, date range, and column sort compose correctly when all three are active at once", async ({
+    page,
+  }) => {
+    await page.goto("/alerts");
+    // Exclude the vm_down infra row -> 4 CI ("alert"-kind) rows remain.
+    await page.getByTestId("filter-kind-alert").click();
+    // All 4 remaining rows are dated 2026-06-10, so this bound keeps every one of them.
+    await page.getByTestId("filter-alert-date-to").fill("2026-06-10");
+    await expect(page.getByTestId("filter-result-count")).toHaveText("4 of 5 alerts");
+
+    // Sort ascending by Subject (repo) — execution-service sorts before unified-trading-pm.
+    await page.getByTestId("alert-col-subject").click();
+    await expect(page).toHaveURL(/sort_key=subject&sort_dir=asc/);
+    await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
+
+    // All three params coexist in the URL and the vm_down row never reappears in any order.
+    await expect(page).toHaveURL(/kind=alert/);
+    await expect(page).toHaveURL(/alert_to=2026-06-10/);
+    await expect(page.getByText("VM DOWN: cefi-binance-futures-backfill")).toHaveCount(0);
+  });
 });
