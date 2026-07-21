@@ -511,7 +511,10 @@ function costLabel(cost: number | null | undefined): string | null {
 /** Cost/day cell — three USD figures from the billing exports (all USD; GCP is GBP→USD-converted
  *  server-side, so no toggle here). Primary = actual (most recent complete billing day); beneath it
  *  the trailing 7-day average and the projected "$/day if it runs 24h". "—" when the resource has no
- *  billing row yet (export lag / no resource granularity). */
+ *  billing row yet (export lag / no resource granularity). When `cost_basis === "partial"` (the
+ *  actual figure fell back to a still-accruing day — no complete billing day exists yet), the actual
+ *  figure renders in the amber warning tone instead of the normal primary-text tone — colour is the
+ *  only signal, no added text/tooltip line (operator decision 4, 2026-07-20). */
 function CostCell({ item }: { item: DeploymentItem }): React.ReactElement {
   const actual = costLabel(item.cost_actual_usd);
   const avg = costLabel(item.cost_avg_7d_usd);
@@ -519,6 +522,7 @@ function CostCell({ item }: { item: DeploymentItem }): React.ReactElement {
   if (actual == null && avg == null && proj == null) {
     return <span className="text-[var(--color-text-muted)]">—</span>;
   }
+  const isPartial = item.cost_basis === "partial";
   const title = [
     item.cost_actual_usd != null ? `Actual (last full day): $${item.cost_actual_usd}` : null,
     item.cost_avg_7d_usd != null ? `7-day avg/day: $${item.cost_avg_7d_usd}` : null,
@@ -529,7 +533,13 @@ function CostCell({ item }: { item: DeploymentItem }): React.ReactElement {
   const sub = [avg != null ? `7d ${avg}` : null, proj != null ? `24h ${proj}` : null].filter(Boolean).join(" · ");
   return (
     <span title={title} data-testid={`cost-${item.name}`}>
-      <span className="text-[var(--color-text-primary)]">{actual ?? avg ?? proj}</span>
+      <span
+        className={isPartial ? "text-amber-400" : "text-[var(--color-text-primary)]"}
+        data-testid={`cost-actual-${item.name}`}
+        data-cost-basis={item.cost_basis ?? undefined}
+      >
+        {actual ?? avg ?? proj}
+      </span>
       {sub ? <span className="block text-[10px] text-[var(--color-text-muted)]">{sub}</span> : null}
     </span>
   );

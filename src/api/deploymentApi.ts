@@ -804,6 +804,10 @@ export interface DeploymentItem {
   cost_actual_usd?: number | null; // net cost on the most recent complete billing day
   cost_avg_7d_usd?: number | null; // trailing-7-day average daily net cost
   cost_projected_24h_usd?: number | null; // projected $/day if it runs 24h (peak observed day)
+  // "complete" | "partial" | null (no billing row yet). "partial" means cost_actual_usd /
+  // cost_projected_24h_usd fall back to a still-accruing day (no complete billing day exists yet)
+  // — the UI colour-codes off this, no text label (decision 4, 2026-07-20).
+  cost_basis?: "complete" | "partial" | null;
 }
 
 // GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`
