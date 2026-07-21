@@ -43,10 +43,7 @@ function useSSELogStream(targetRef: string | undefined): {
     es.addEventListener("vm_event", (ev) => {
       try {
         const line = JSON.parse(ev.data) as VmLogLine;
-        setEntries((prev) => [
-          ...prev,
-          { timestamp: line.timestamp, event: line.event, message: line.message },
-        ]);
+        setEntries((prev) => [...prev, { timestamp: line.timestamp, event: line.event, message: line.message }]);
         setLoading(false);
       } catch {
         // skip malformed event
@@ -75,12 +72,7 @@ function useSSELogStream(targetRef: string | undefined): {
   return { entries, loading, error };
 }
 
-export function StreamingLogsPanel({
-  vmName,
-  date,
-  targetRef,
-  onClose,
-}: StreamingLogsPanelProps) {
+export function StreamingLogsPanel({ vmName, date, targetRef, onClose }: StreamingLogsPanelProps) {
   const wsStream = useVmEventStream(targetRef ? "" : (vmName ?? ""), date);
   const sseStream = useSSELogStream(targetRef);
 
@@ -118,17 +110,12 @@ export function StreamingLogsPanel({
   const handleDownload = () => {
     const csv =
       "timestamp,event,message\n" +
-      filteredEntries
-        .map(
-          (e) =>
-            `"${e.timestamp}","${e.event}","${e.message.replace(/"/g, '""')}"`,
-        )
-        .join("\n");
+      filteredEntries.map((e) => `"${e.timestamp}","${e.event}","${e.message.replace(/"/g, '""')}"`).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `logs-${targetRef ?? vmName ?? "vm"}-${new Date().toISOString()}.csv`;
+    a.download = `events-${targetRef ?? vmName ?? "vm"}-${new Date().toISOString()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -137,16 +124,12 @@ export function StreamingLogsPanel({
     <div className="flex flex-col gap-4 h-full">
       <div className="flex gap-2 items-center">
         <Input
-          placeholder="Search logs..."
+          placeholder="Search events..."
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           className="flex-1"
         />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setIsPaused(!isPaused)}
-        >
+        <Button size="sm" variant="outline" onClick={() => setIsPaused(!isPaused)}>
           {isPaused ? (
             <>
               <Play className="w-4 h-4 mr-2" /> Resume
@@ -157,12 +140,7 @@ export function StreamingLogsPanel({
             </>
           )}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleDownload}
-          disabled={filteredEntries.length === 0}
-        >
+        <Button size="sm" variant="outline" onClick={handleDownload} disabled={filteredEntries.length === 0}>
           <Download className="w-4 h-4 mr-2" /> Download
         </Button>
         {onClose && (
@@ -173,10 +151,10 @@ export function StreamingLogsPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-900 text-gray-100 p-3 rounded font-mono text-xs">
-        {loading && <div className="text-blue-400">Connecting to log stream…</div>}
+        {loading && <div className="text-blue-400">Connecting to event stream…</div>}
         {error && <div className="text-red-400">Error: {error.message}</div>}
         {!loading && filteredEntries.length === 0 && searchText && (
-          <div className="text-gray-500">No matching logs found</div>
+          <div className="text-gray-500">No matching events found</div>
         )}
         {!loading && filteredEntries.length === 0 && !searchText && (
           <div className="text-gray-500">No events yet — waiting for stream</div>

@@ -53,7 +53,7 @@ describe("StreamingLogsPanel", () => {
     });
 
     render(<StreamingLogsPanel vmName="vm-123" />);
-    const searchInput = screen.getByPlaceholderText("Search logs...");
+    const searchInput = screen.getByPlaceholderText("Search events...");
     fireEvent.change(searchInput, { target: { value: "error" } });
     expect(screen.getByText("Connection failed")).toBeInTheDocument();
     expect(screen.queryByText("Deployment started")).not.toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("StreamingLogsPanel", () => {
     });
 
     render(<StreamingLogsPanel vmName="vm-123" />);
-    expect(screen.getByText("Connecting to log stream…")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to event stream…")).toBeInTheDocument();
   });
 
   it("renders error state", () => {
