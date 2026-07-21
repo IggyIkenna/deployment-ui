@@ -56,6 +56,7 @@ import {
   CockpitSafety,
 } from "./pages/Cockpit";
 import { CostObservability } from "./pages/CostObservability";
+import { ArtifactPipeline } from "./pages/ArtifactPipeline";
 import { DeploymentsPage } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
 import { RepoDetailPanel } from "./pages/RepoCi";
@@ -174,6 +175,7 @@ function App() {
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
+                  <Route path="/ops/artifacts" element={<ArtifactPipeline />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />

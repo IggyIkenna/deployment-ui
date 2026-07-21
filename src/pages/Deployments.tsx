@@ -57,6 +57,12 @@ import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
+import { useDebounce } from "../hooks/useDebounce";
+import { useColumnSort } from "../hooks/useColumnSort";
+import { compareByColumn } from "../lib/columnSort";
+import { FilterSelect } from "../components/filters/FilterSelect";
+import { StatusFilterChips, type StatusChip } from "../components/filters/StatusFilterChips";
+import { TONE_CLASSES, type ChipTone } from "../components/filters/chipTone";
 
 // The mode a row belongs to (EXPERIMENT folds under BATCH — a target classified
 // EXPERIMENT shows a BATCH mode badge so the surface stays a 3-mode Live/Batch/Paper view).
@@ -71,16 +77,6 @@ const MODE_OPTIONS: { value: ModeFilter; label: string }[] = [
   // disks/IPs) — 187 rows incl. every scheduler. Without this option they're unreachable by Mode.
   { value: "NONE", label: "Infra (none)" },
 ];
-
-type ChipTone = "green" | "yellow" | "red" | "gray" | "blue";
-
-const TONE_CLASSES: Record<ChipTone, string> = {
-  green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
-  yellow: "bg-amber-500/15 text-amber-400 border-amber-500/40",
-  red: "bg-red-500/15 text-red-400 border-red-500/40",
-  gray: "bg-zinc-500/15 text-zinc-400 border-zinc-500/40",
-  blue: "bg-cyan-500/15 text-cyan-400 border-cyan-500/40",
-};
 
 function Chip({ tone, children, testId }: { tone: ChipTone; children: React.ReactNode; testId?: string }) {
   return (
@@ -319,32 +315,28 @@ function columnSortValue(item: DeploymentItem, key: SortKey): string | number | 
   }
 }
 
-/** Compare two rows by an active column sort — nulls last, ties broken by the default hierarchy.
- *  `dateFiltered` (WS-2 decision 2) — always-on/no-interval rows sort last EVEN on an explicit
- *  column sort, overriding the column's own asc/desc direction (they carry no interval to sort by
- *  in a date-scoped view; a proxy timestamp like Cloud Run's last-deployed would otherwise
- *  interleave them, misreading as range-matched data). */
-function compareByColumn(
+/** Compare two rows by an active column sort — thin deployment-specific wiring over the shared,
+ *  generic `compareByColumn` (`../lib/columnSort`): nulls last, ties broken by the default
+ *  hierarchy. While `dateFiltered` (WS-2 decision 2) is true, always-on/no-interval rows sort last
+ *  EVEN on an explicit column sort, overriding the column's own asc/desc direction (they carry no
+ *  interval to sort by in a date-scoped view; a proxy timestamp like Cloud Run's last-deployed
+ *  would otherwise interleave them, misreading as range-matched data) — passed as `forceLast`. */
+function deploymentCompareByColumn(
   a: DeploymentItem,
   b: DeploymentItem,
   key: SortKey,
   dir: "asc" | "desc",
   dateFiltered: boolean,
 ): number {
-  if (dateFiltered) {
-    const aAlwaysOn = isAlwaysOnKind(a.kind);
-    const bAlwaysOn = isAlwaysOnKind(b.kind);
-    if (aAlwaysOn !== bAlwaysOn) return aAlwaysOn ? 1 : -1;
-  }
-  const av = columnSortValue(a, key);
-  const bv = columnSortValue(b, key);
-  if (av === null || bv === null) {
-    if (av === null && bv === null) return defaultHierarchyCmp(a, b, dateFiltered);
-    return av === null ? 1 : -1; // nulls always last, regardless of direction
-  }
-  const c = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
-  if (c === 0) return defaultHierarchyCmp(a, b, dateFiltered);
-  return dir === "asc" ? c : -c;
+  return compareByColumn(
+    a,
+    b,
+    key,
+    dir,
+    columnSortValue,
+    (x, y) => defaultHierarchyCmp(x, y, dateFiltered),
+    dateFiltered ? (item) => isAlwaysOnKind(item.kind) : undefined,
+  );
 }
 
 /** Lambda's Last-run cell (WS-D #10): the last-MODIFIED (deploy) time — NEVER mislabelled as
@@ -892,21 +884,13 @@ function DeploymentMatrixSkeleton() {
 
 function DeploymentMatrix({ items, dateFiltered }: { items: DeploymentItem[]; dateFiltered: boolean }) {
   // null → the default semantic hierarchy; else an explicit column sort. A header click cycles that
-  // column asc → desc → back to the default hierarchy.
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
-  const onHeaderClick = useCallback((key: SortKey | undefined) => {
-    if (!key) return;
-    setSort((prev) => {
-      if (!prev || prev.key !== key) return { key, dir: "asc" };
-      if (prev.dir === "asc") return { key, dir: "desc" };
-      return null;
-    });
-  }, []);
+  // column asc → desc → back to the default hierarchy (shared `useColumnSort` — ../hooks/useColumnSort).
+  const { sort, onHeaderClick } = useColumnSort<SortKey>();
   const sorted = useMemo(() => {
     const arr = [...items];
     arr.sort(
       sort
-        ? (a, b) => compareByColumn(a, b, sort.key, sort.dir, dateFiltered)
+        ? (a, b) => deploymentCompareByColumn(a, b, sort.key, sort.dir, dateFiltered)
         : (a, b) => defaultHierarchyCmp(a, b, dateFiltered),
     );
     return arr;
@@ -951,39 +935,6 @@ function DeploymentMatrix({ items, dateFiltered }: { items: DeploymentItem[]; da
         </tbody>
       </table>
     </div>
-  );
-}
-
-/** Segmented filter control (mode / cloud / status / asset_group) — URL-param-backed so an alert can deep-link. */
-function FilterSelect({
-  testId,
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  testId: string;
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
-      {label}
-      <select
-        data-testid={testId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded px-1.5 py-1 text-xs text-[var(--color-text-primary)]"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -1101,12 +1052,56 @@ function DateRangeFilter({
 }
 
 /**
- * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with
- * the count beside each so the operator sees the spread at a glance. They drive the SAME
- * `status` filter the dropdown does. "Stuck" maps to `stale`. Counts come from the
- * summary's `counts_by_status` (the authoritative tally aggregated across every mode in view).
+ * Target search box (WS-3) — free-text, case-insensitive substring match on the Target column
+ * (`item.name`), URL-backed (`?q=`), clears with an ✕. `value` drives the visible input AND the
+ * actual client-side filter (instant — this is a cheap in-memory array filter, not a network
+ * round-trip, so there's no correctness reason to lag it); the caller debounces ONLY the write
+ * back to the URL param so typing doesn't spam browser history / re-render URL-derived consumers
+ * on every keystroke.
  */
-const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
+function TargetSearchBox({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+      target
+      <input
+        type="text"
+        aria-label="Search target"
+        data-testid="filter-target-search"
+        placeholder="search…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-32 rounded border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-1.5 py-1 text-xs text-[var(--color-text-primary)]"
+      />
+      {value && (
+        <button
+          type="button"
+          aria-label="Clear target search"
+          data-testid="filter-target-search-clear"
+          onClick={onClear}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+        >
+          ✕
+        </button>
+      )}
+    </label>
+  );
+}
+
+// Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with the
+// count beside each so the operator sees the spread at a glance. They drive the SAME `status`
+// filter the dropdown does. "Stuck" maps to `stale`. Rendered via the shared `StatusFilterChips`
+// primitive (`../components/filters/StatusFilterChips`) — `statusChips()` below computes its
+// `chips` prop from the summary's `counts_by_status` (the authoritative tally aggregated across
+// every mode in view), the deployment-specific piece that isn't part of the generic component.
+const STATUS_CHIP_DEFS: { value: string; label: string; tone: ChipTone; countKey: string | null }[] = [
   { value: "all", label: "All", tone: "gray", countKey: null },
   { value: "running", label: "Running", tone: "blue", countKey: "running" },
   { value: "succeeded", label: "Succeeded", tone: "green", countKey: "succeeded" },
@@ -1114,43 +1109,14 @@ const STATUS_CHIPS: { value: string; label: string; tone: ChipTone; countKey: st
   { value: "stale", label: "Stuck", tone: "yellow", countKey: "stale" },
 ];
 
-function StatusFilterChips({
-  summary,
-  active,
-  onSelect,
-}: {
-  summary: UmbrellaSummaryResponse | null;
-  active: string;
-  onSelect: (value: string) => void;
-}) {
+function statusChips(summary: UmbrellaSummaryResponse | null): StatusChip[] {
   const total = summary?.total ?? 0;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5" data-testid="status-filter-chips">
-      {STATUS_CHIPS.map((chip) => {
-        const count = chip.countKey == null ? total : (summary?.counts_by_status[chip.countKey] ?? 0);
-        const isActive = active === chip.value;
-        return (
-          <button
-            key={chip.value || "all"}
-            type="button"
-            aria-pressed={isActive}
-            data-testid={`status-chip-${chip.value || "all"}`}
-            onClick={() => onSelect(chip.value)}
-            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium border transition-colors ${
-              isActive
-                ? TONE_CLASSES[chip.tone]
-                : "border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
-          >
-            {chip.label}
-            <span data-testid={`status-chip-count-${chip.value || "all"}`} className="font-mono opacity-80">
-              {count}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  return STATUS_CHIP_DEFS.map((chip) => ({
+    value: chip.value,
+    label: chip.label,
+    tone: chip.tone,
+    count: chip.countKey == null ? total : (summary?.counts_by_status[chip.countKey] ?? 0),
+  }));
 }
 
 /** Aggregate per-mode summaries into one combined tally (for the all-modes view). */
@@ -1221,6 +1187,12 @@ export function DeploymentsContent({
   // Launched-by is client-side (WS-D #14) — how an operator isolates every ad-hoc / unmanaged
   // resource so stranded compute is immediately findable.
   const launchedByFilter = searchParams.get("launched_by") ?? "";
+  // Service is client-side (WS-3) — options come from the distinct `service` values already in the
+  // loaded inventory (same pattern as asset_group's dropdown), not a fresh server round-trip; the
+  // inventory endpoint accepts its own `service` query param for other callers, but this dropdown
+  // deliberately filters what's already on the page (decision: "options from distinct service values
+  // in the loaded inventory ... client-side", deployment_ui_date_range_filter_and_search_2026_07_20).
+  const serviceFilter = searchParams.get("service") ?? "";
   // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
   // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
   const regionFilter = searchParams.get("region") ?? "asia-northeast1";
@@ -1234,6 +1206,11 @@ export function DeploymentsContent({
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Out-of-range archive floor (WS-2 decision 5) — set only alongside a date-range request whose
+  // date_from predates the real 30-day GCS retention floor. Drives an explicit banner rather than
+  // silently returning a clipped/partial result.
+  const [archiveFloor, setArchiveFloor] = useState<string | null>(null);
+  const [dateRangeOutOfRange, setDateRangeOutOfRange] = useState(false);
   const [freshness, setFreshness] = useState<Record<string, DeploymentFreshnessResponse>>({});
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([
     { value: "asia-northeast1", label: "asia-northeast1 (default)" },
@@ -1282,6 +1259,18 @@ export function DeploymentsContent({
     [kindFilters, setParam],
   );
 
+  // Target search (WS-3) — local state drives the visible input AND the actual client-side
+  // filter instantly; only the URL write is debounced (300ms, house `useDebounce`) so typing
+  // doesn't spam history/re-render every URL-derived consumer on every keystroke. Lazy-init reads
+  // the deep-linked `?q=` once on mount; the box's own `onChange`/`onClear` are the only other
+  // writers of `searchInput`, so there's no external-URL-change case to reconcile back into it.
+  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") ?? "");
+  const debouncedSearch = useDebounce(searchInput, 300);
+  useEffect(() => {
+    setParam("q", debouncedSearch);
+  }, [debouncedSearch, setParam]);
+  const clearSearch = useCallback(() => setSearchInput(""), []);
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -1307,6 +1296,8 @@ export function DeploymentsContent({
       .then(([inv, sums]) => {
         setItems(inv.items);
         setSummary(aggregateSummaries(sums));
+        setArchiveFloor(inv.archive_floor ?? null);
+        setDateRangeOutOfRange(inv.date_range_out_of_range ?? false);
         // Enrich LIVE rows with manifest-derived per-deployment freshness (feed-health column).
         const liveRows = inv.items.filter((i) => i.umbrella === "LIVE");
         if (liveRows.length > 0) {
@@ -1360,6 +1351,15 @@ export function DeploymentsContent({
     return ["", ...Array.from(set).sort()];
   }, [items, assetGroupFilter]);
 
+  // Service options derive from the loaded items (plus any active filter value) — same
+  // client-side pattern as asset_group's dropdown (decision WS-3).
+  const serviceOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of items) if (i.service) set.add(i.service);
+    if (serviceFilter) set.add(serviceFilter);
+    return ["", ...Array.from(set).sort()];
+  }, [items, serviceFilter]);
+
   return (
     <DrillContext.Provider value={onDrill}>
       <FreshnessContext.Provider value={freshness}>
@@ -1394,7 +1394,11 @@ export function DeploymentsContent({
               <StrandedCostBadge items={items} />
               {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
               <div className="pt-3">
-                <StatusFilterChips summary={summary} active={statusFilter} onSelect={(v) => setParam("status", v)} />
+                <StatusFilterChips
+                  chips={statusChips(summary)}
+                  active={statusFilter}
+                  onSelect={(v) => setParam("status", v)}
+                />
               </div>
               {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
               <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
@@ -1452,6 +1456,13 @@ export function DeploymentsContent({
                   onChange={(v) => setParam("asset_group", v)}
                   options={assetGroupOptions.map((ag) => ({ value: ag, label: ag || "all" }))}
                 />
+                <FilterSelect
+                  testId="filter-service"
+                  label="service"
+                  value={serviceFilter}
+                  onChange={(v) => setParam("service", v)}
+                  options={serviceOptions.map((s) => ({ value: s, label: s || "all" }))}
+                />
                 <KindFilterChips selected={kindFilters} onToggle={toggleKind} />
                 <FilterSelect
                   testId="filter-launched-by"
@@ -1466,6 +1477,7 @@ export function DeploymentsContent({
                     { value: "unknown", label: "unknown" },
                   ]}
                 />
+                <TargetSearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
               </div>
             </CardHeader>
             <CardContent>
@@ -1479,14 +1491,34 @@ export function DeploymentsContent({
                   <span>{error}</span>
                 </div>
               )}
+              {/* Out-of-range archive floor (decision 5) — the requested date_from predates the real
+                  30-day retention window; say so explicitly rather than silently returning a
+                  clipped/partial result the operator would otherwise mistake for "nothing ran". */}
+              {!error && dateRangeOutOfRange && archiveFloor && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 text-sm text-amber-400 py-2"
+                  data-testid="deployments-date-range-out-of-range"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    No data before {archiveFloor} — the archive only retains 30 days; results below are clipped to that
+                    floor.
+                  </span>
+                </div>
+              )}
               {!error && loading && items.length === 0 && <DeploymentMatrixSkeleton />}
               {!error && !(loading && items.length === 0) && (
                 <DeploymentMatrix
-                  items={items.filter(
-                    (i) =>
+                  items={items.filter((i) => {
+                    const searchQuery = searchInput.trim().toLowerCase();
+                    return (
                       (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
-                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter),
-                  )}
+                      (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
+                      (!serviceFilter || i.service === serviceFilter) &&
+                      (!searchQuery || i.name.toLowerCase().includes(searchQuery))
+                    );
+                  })}
                   dateFiltered={Boolean(dateFromFilter || dateToFilter)}
                 />
               )}

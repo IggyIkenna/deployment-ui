@@ -2658,6 +2658,169 @@ function mockCostTimeseries(win: MockCostWindow, cloud: string) {
     points: win.dates.map((date, i) => ({ date, values: Object.fromEntries(clouds.map((c) => [c, daily[c][i]])) })),
   };
 }
+// ── Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page ──────────
+// Representative build history: image + tarball lanes, GCP + AWS, a cross-lane commit (built both
+// ways), a duplicated commit (wasted), and one structured failure with a step timeline — enough for
+// the page's stat band, row filters, and failure drawer to be exercised by the smoke spec.
+type MockBuildOverrides = {
+  repo: string;
+  lane: "image" | "tarball";
+  cloud: "gcp" | "aws";
+  status: string;
+  sha: string;
+  started_at: string;
+  duration: string;
+  trigger?: string;
+  branch?: string;
+  produced?: string;
+  build_id?: string;
+  failure?: string;
+  failure_type?: string;
+  failure_detail?: string;
+  log_url?: string;
+  dup?: boolean;
+  cross_lane?: boolean;
+  steps?: { name: string; status: string; seconds: number }[];
+};
+function mockBuild(o: MockBuildOverrides) {
+  return {
+    repo: o.repo,
+    lane: o.lane,
+    cloud: o.cloud,
+    status: o.status,
+    trigger: o.trigger ?? `${o.repo}-build`,
+    sha: o.sha,
+    branch: o.branch ?? "main",
+    started_at: o.started_at,
+    duration: o.duration,
+    produced: o.produced ?? "",
+    build_id: o.build_id ?? `${o.repo}-${o.sha}`,
+    failure: o.failure ?? "",
+    failure_type: o.failure_type ?? "",
+    failure_detail: o.failure_detail ?? "",
+    log_url: o.log_url ?? "",
+    dup: o.dup ?? false,
+    cross_lane: o.cross_lane ?? false,
+    steps: o.steps ?? [],
+  };
+}
+function mockArtifactBuilds(params: URLSearchParams) {
+  const now = new Date();
+  const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * 3_600_000).toISOString();
+  const days = Number(params.get("days") ?? 14);
+  const start =
+    params.get("start_date") ?? new Date(now.getTime() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const end = params.get("end_date") ?? now.toISOString().slice(0, 10);
+
+  const rows = [
+    mockBuild({
+      repo: "deployment-api",
+      lane: "image",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "a557471",
+      started_at: at(1),
+      duration: "9m02s",
+      produced: "asia-northeast1-docker.pkg.dev/…/deployment-api:a557471",
+    }),
+    mockBuild({
+      repo: "unified-trading-library",
+      lane: "image",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "4b2f8bc",
+      started_at: at(2),
+      duration: "7m59s",
+    }),
+    mockBuild({
+      repo: "features",
+      lane: "image",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "abc1234",
+      started_at: at(3),
+      duration: "6m10s",
+      cross_lane: true,
+    }),
+    mockBuild({
+      repo: "features",
+      lane: "tarball",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "abc1234",
+      started_at: at(3.2),
+      duration: "22s",
+      cross_lane: true,
+    }),
+    mockBuild({
+      repo: "deployment-service",
+      lane: "image",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "f000ee3",
+      started_at: at(4),
+      duration: "3m42s",
+      dup: true,
+    }),
+    mockBuild({
+      repo: "deployment-service",
+      lane: "image",
+      cloud: "gcp",
+      status: "SUCCESS",
+      sha: "f000ee3",
+      started_at: at(4.3),
+      duration: "3m40s",
+      dup: true,
+    }),
+    mockBuild({
+      repo: "market-tick-data-service",
+      lane: "image",
+      cloud: "gcp",
+      status: "FAILURE",
+      sha: "16204df",
+      started_at: at(5),
+      duration: "1m18s",
+      failure: "docker build exited 1",
+      failure_type: "USER_BUILD_STEP",
+      failure_detail: "Step #3 - 'docker-build': COPY failed: no source files",
+      log_url: "https://console.cloud.google.com/cloud-build/builds/mock",
+      steps: [
+        { name: "lint", status: "SUCCESS", seconds: 4 },
+        { name: "docker-build", status: "FAILURE", seconds: 74 },
+      ],
+    }),
+    mockBuild({
+      repo: "execution-service",
+      lane: "image",
+      cloud: "aws",
+      status: "SUCCESS",
+      sha: "9e11c02",
+      started_at: at(30),
+      duration: "5m03s",
+      trigger: "codebuild-execution",
+    }),
+    // Real Cloud Build / CodeBuild ids are globally unique — even a dup-SHA or cross-lane pair are
+    // two distinct builds. Stamp unique ids so the (build_id-keyed) rows reconcile correctly.
+  ].map((r, i) => ({ ...r, build_id: `cb-${1000 + i}` }));
+
+  const completed = rows.filter((r) => r.status === "SUCCESS" || r.status === "FAILURE");
+  const failed = rows.filter((r) => r.status === "FAILURE").length;
+  const success = rows.filter((r) => r.status === "SUCCESS").length;
+  return {
+    days,
+    start_date: start,
+    end_date: end,
+    generated_at: now.toISOString(),
+    rows,
+    stats: {
+      total: rows.length,
+      success_rate: completed.length ? +((100 * success) / completed.length).toFixed(1) : 0,
+      failed,
+      median_duration_sec: 479, // formats to 7m59s in the tile
+      wasted_dup: 1, // the f000ee3 pair
+    },
+  };
+}
 function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow) {
   const days = win.days;
   const scale = days / 30;
@@ -2875,6 +3038,13 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       return json(mockCostBreakdown(dimension, cloud, win));
     }
     if (path === "/api/costs/timeseries") return json(mockCostTimeseries(win, cloud));
+  }
+
+  // Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page. Only the
+  // builds view has a backend today; the page's other four tabs render a static placeholder.
+  if (path.startsWith("/api/artifacts/")) {
+    const params = new URL(url, "http://mock").searchParams;
+    if (path === "/api/artifacts/builds") return json(mockArtifactBuilds(params));
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
@@ -3588,12 +3758,25 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (dateTo) items = items.filter((i) => !i.last_run_at || i.last_run_at <= `${dateTo}T23:59:59Z`);
     const counts_by_kind: Record<string, number> = {};
     for (const i of items) counts_by_kind[i.kind] = (counts_by_kind[i.kind] ?? 0) + 1;
+    // WS-2 date-range archive floor (decision 5) — mirrors the backend's `_archive_floor_date`
+    // (30-day GCS retention): set only alongside a date-range request; `out_of_range` when the
+    // requested `date_from` predates that floor, so the UI can show the explicit banner.
+    let archiveFloor: string | null = null;
+    let dateRangeOutOfRange = false;
+    if (dateFrom || dateTo) {
+      const floor = new Date();
+      floor.setUTCDate(floor.getUTCDate() - 29);
+      archiveFloor = floor.toISOString().slice(0, 10);
+      dateRangeOutOfRange = Boolean(dateFrom) && dateFrom < archiveFloor;
+    }
     return json({
       items,
       total: items.length,
       vm_count: items.filter((i) => i.kind === "VM").length,
       cloud_run_job_count: items.filter((i) => i.kind === "CLOUD_RUN_JOB").length,
       counts_by_kind,
+      archive_floor: archiveFloor,
+      date_range_out_of_range: dateRangeOutOfRange,
     });
   }
   // Region options for the selector (WS-D reconciliation) — default pinned first + the "all" sentinel.

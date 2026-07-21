@@ -100,9 +100,9 @@ describe("cockpit bar / dropdown shared source", () => {
   it("splits the canonical entries into former-pane tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 10 former cockpit panes + the 5 screens with no pane heritage = 15 canonical entries.
+    // 10 former cockpit panes + the 6 screens with no pane heritage = 16 canonical entries.
     expect(tabs).toHaveLength(10);
-    expect(links).toEqual(["home", "epics", "vm-deployments", "data-status", "costs"]);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
+    expect(links).toEqual(["home", "epics", "vm-deployments", "data-status", "costs", "artifacts"]);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
   });
 });

@@ -542,6 +542,89 @@ export async function fetchCostTimeseries(
   return handleResponse<CostTimeseriesResponse>(response);
 }
 
+// ── Artifact pipeline — GET /api/artifacts/{builds,deploys,images,running,health} ──────────────────
+// The build → artifact → deploy estate, end-to-end across GCP (active) and AWS (parked). The builds
+// view is the first live backend; the other four land per-view. Mirrors the Python contract in
+// deployment_api/services/artifact_pipeline/models.py — keep the fields in lockstep.
+export type ArtifactCloud = "gcp" | "aws";
+export type ArtifactLane = "image" | "tarball";
+
+/** One step in a build's timeline (Cloud Build step / CodeBuild phase), for the row drawer. */
+export interface BuildStep {
+  name: string;
+  status: string;
+  seconds: number;
+}
+
+/** One build record — a Cloud Build / CodeBuild run in either lane, normalised. */
+export interface BuildRow {
+  repo: string;
+  lane: ArtifactLane;
+  cloud: ArtifactCloud;
+  status: string; // SUCCESS | FAILURE | WORKING | QUEUED | …
+  trigger: string;
+  sha: string; // short (7)
+  branch: string;
+  started_at: string; // ISO
+  duration: string; // pre-formatted "3m41s" / "41s" / "" when unknown
+  produced: string; // first produced image ref, or ""
+  build_id: string;
+  failure: string; // one-line reason ("" unless FAILURE)
+  failure_type: string;
+  failure_detail: string;
+  log_url: string;
+  dup: boolean; // same (repo, sha) built >1× in window (wasted)
+  cross_lane: boolean; // one commit built as image AND tarball
+  steps: BuildStep[];
+}
+
+/** Stat-tile figures — computed over the whole window, never the filtered subset. */
+export interface BuildsStats {
+  total: number;
+  success_rate: number; // % of completed builds that succeeded
+  failed: number;
+  median_duration_sec: number | null;
+  wasted_dup: number; // extra builds of an already-built commit
+}
+
+/** The Pipeline view envelope. `start_date`/`end_date` echo the resolved window (inclusive, ISO). */
+export interface BuildsResponse {
+  days: number;
+  start_date: string;
+  end_date: string;
+  generated_at: string;
+  rows: BuildRow[];
+  stats: BuildsStats;
+}
+
+/** The window/filter half of an artifact-pipeline query. An explicit range overrides `days`. */
+export interface ArtifactQuery {
+  days?: number;
+  cloud?: "all" | ArtifactCloud;
+  lane?: "all" | ArtifactLane;
+  status?: "all" | "failed";
+  startDate?: string; // ISO YYYY-MM-DD (inclusive)
+  endDate?: string;
+  refresh?: boolean;
+}
+
+/** GET /api/artifacts/builds — recent build history, both clouds + both lanes. */
+export async function getArtifactBuilds(query: ArtifactQuery = {}): Promise<BuildsResponse> {
+  const qs = new URLSearchParams();
+  if (query.startDate && query.endDate) {
+    qs.set("start_date", query.startDate);
+    qs.set("end_date", query.endDate);
+  } else if (query.days != null) {
+    qs.set("days", String(query.days));
+  }
+  if (query.cloud && query.cloud !== "all") qs.set("cloud", query.cloud);
+  if (query.lane && query.lane !== "all") qs.set("lane", query.lane);
+  if (query.status && query.status !== "all") qs.set("status", query.status);
+  if (query.refresh) qs.set("refresh", "true");
+  const response = await fetch(`${DEPLOYMENT_API}/api/artifacts/builds?${qs.toString()}`);
+  return handleResponse<BuildsResponse>(response);
+}
+
 // Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=
 export interface VMLifecycleEvent {
   event: string;
@@ -856,6 +939,13 @@ export interface DeploymentInventoryResponse {
   total: number;
   vm_count: number;
   cloud_run_job_count: number;
+  // WS-2 date-range archive floor (decision 5) — set only when the request carried date_from/
+  // date_to. `archive_floor` is the earliest day the archive actually retains (the real 30-day
+  // GCS TTL); `date_range_out_of_range` is true when the requested date_from predates it, so the
+  // UI shows an explicit "no data before <archive_floor>" banner instead of a silent partial
+  // result. Undefined/false for a request with no date filter.
+  archive_floor?: string | null;
+  date_range_out_of_range?: boolean;
 }
 
 export interface UmbrellaLastFailure {
