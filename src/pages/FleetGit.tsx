@@ -79,6 +79,32 @@ export function slotBadges(slot: FleetGitSlotHealth): SlotBadge[] {
   return badges;
 }
 
+/** Relative age since an ISO timestamp — "3m ago" style. Null when unparseable/absent. */
+export function fmtSnapshotAge(iso: string | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const seconds = Math.max(0, (Date.now() - then) / 1000);
+  if (seconds < 90) return `${Math.round(seconds)}s ago`;
+  if (seconds < 5400) return `${Math.round(seconds / 60)}m ago`;
+  if (seconds < 172_800) return `${(seconds / 3600).toFixed(1)}h ago`;
+  return `${Math.round(seconds / 86_400)}d ago`;
+}
+
+/** Absolute local time for an ISO timestamp (tooltip pairing for the relative age). */
+export function fmtSnapshotTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 /** The orchestrator's own Fleet Git-Health page (operator: git-health click-through → AO UI). */
 function orchestratorFleetUrl(orchestratorUrl: string): string {
   // The orchestrator dashboard page lives at /fleet-git (the API base may carry an
@@ -146,6 +172,18 @@ function SlotRow({ slot, orchestratorUrl }: { slot: FleetGitSlotHealth; orchestr
         <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
           ff:{slot.ff_pull_last_result ?? "?"}
         </span>
+        {/* Snapshot timestamp — WHEN the reporter last posted, not just the derived "reporter dead"
+            boolean above; also tells you which local AO instance's clock produced the row on a
+            standalone/isolated host (per-host reporters post to their own local orchestrator). */}
+        {fmtSnapshotAge(slot.reported_at) && (
+          <span
+            className="font-mono text-[10px] text-[var(--color-text-muted)]"
+            title={fmtSnapshotTime(slot.reported_at) ?? undefined}
+            data-testid={`fleet-slot-${slot.slot_id}-reported-at`}
+          >
+            snapshot {fmtSnapshotAge(slot.reported_at)}
+          </span>
+        )}
         {/* git-health click-through → the orchestrator UI (operator instruction). */}
         <OpenInOrchestrator url={orchestratorUrl} />
       </div>
