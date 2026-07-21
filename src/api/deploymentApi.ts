@@ -865,6 +865,12 @@ export interface DeploymentInventoryFilters {
   status?: string;
   /** GCP region to census (empty/default = configured region; "all" = every region). */
   region?: string;
+  // WS-2 date-range overlap query (`?date_from=&date_to=`) — `YYYY-MM-DD` (a bare date is
+  // inclusive of its whole day) or a full ISO-8601 instant. Scopes VM/registry + single-timestamp
+  // rows to those overlapping [date_from, date_to]; kinds with no timestamp signal at all pass
+  // through unfiltered (honest absence, deployment-api `_apply_date_range`).
+  date_from?: string;
+  date_to?: string;
 }
 
 export interface DeploymentRegionsResponse {
@@ -886,6 +892,8 @@ export async function getDeploymentInventory(
   if (filters.asset_group) params.set("asset_group", filters.asset_group);
   if (filters.status) params.set("status", filters.status);
   if (filters.region) params.set("region", filters.region);
+  if (filters.date_from) params.set("date_from", filters.date_from);
+  if (filters.date_to) params.set("date_to", filters.date_to);
   const qs = params.toString() ? `?${params.toString()}` : "";
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/inventory${qs}`);
   return handleResponse<DeploymentInventoryResponse>(response);

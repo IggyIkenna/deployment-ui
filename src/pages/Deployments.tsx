@@ -908,6 +908,71 @@ function FilterSelect({
 }
 
 /**
+ * Date-range filter — two native date inputs bounding an inclusive `[date_from, date_to]` window,
+ * URL-backed (`?date_from=&date_to=`) and wired straight to the backend's VM/registry overlap
+ * query (deployment_ui_date_range_filter_and_search_2026_07_20.md). Both bounds are optional and
+ * independently clearable — an empty value simply omits that param, matching every other filter
+ * here. Native `<input type="date">` mirrors the CostObservability date-range picker: it's
+ * keyboard-/screen-reader-accessible and needs no extra dependency. `max` on both fields blocks a
+ * future date from ever reaching the query; `min`/`max` cross-constrain so the pair can't invert.
+ */
+function DateRangeFilter({
+  from,
+  to,
+  onChange,
+  onClear,
+}: {
+  from: string;
+  to: string;
+  onChange: (key: "date_from" | "date_to", value: string) => void;
+  // A single atomic clear — two sequential `onChange` calls each race against the SAME pre-update
+  // `URLSearchParams` snapshot (react-router's `setSearchParams` reads `prev` synchronously before
+  // the first call's navigation lands), so the second call silently clobbers the first instead of
+  // composing. Clearing both bounds must go through one state update, not two.
+  onClear: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const field =
+    "bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded px-1.5 py-1 text-xs text-[var(--color-text-primary)]";
+  return (
+    <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+      date range
+      <input
+        type="date"
+        aria-label="Date range start"
+        data-testid="filter-date-from"
+        value={from}
+        max={to || today}
+        onChange={(e) => onChange("date_from", e.target.value)}
+        className={field}
+      />
+      <span className="text-[var(--color-text-tertiary)]">→</span>
+      <input
+        type="date"
+        aria-label="Date range end"
+        data-testid="filter-date-to"
+        value={to}
+        min={from}
+        max={today}
+        onChange={(e) => onChange("date_to", e.target.value)}
+        className={field}
+      />
+      {(from || to) && (
+        <button
+          type="button"
+          aria-label="Clear date range"
+          data-testid="filter-date-clear"
+          onClick={onClear}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * Status-filter chips — quick "isolate all failed / all succeeded / all stuck" toggles, with
  * the count beside each so the operator sees the spread at a glance. They drive the SAME
  * `status` filter the dropdown does. "Stuck" maps to `stale`. Counts come from the
@@ -1018,6 +1083,11 @@ export function DeploymentsContent({
   // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
   // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
   const regionFilter = searchParams.get("region") ?? "asia-northeast1";
+  // Date-range is a server-side filter (WS-2) — "what was running between date A and B", wired to
+  // the backend's VM/registry overlap query. Absent (default) → no date filter, same as every other
+  // optional param here.
+  const dateFromFilter = searchParams.get("date_from") ?? "";
+  const dateToFilter = searchParams.get("date_to") ?? "";
 
   const [items, setItems] = useState<DeploymentItem[]>([]);
   const [summary, setSummary] = useState<UmbrellaSummaryResponse | null>(null);
@@ -1044,6 +1114,20 @@ export function DeploymentsContent({
     [setSearchParams],
   );
 
+  // Clears BOTH date-range bounds in one atomic update — two sequential `setParam` calls would each
+  // race against the same pre-update `prev` snapshot and clobber each other (see DateRangeFilter).
+  const clearDateRange = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("date_from");
+        next.delete("date_to");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -1061,6 +1145,8 @@ export function DeploymentsContent({
         status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
         asset_group: assetGroupFilter || undefined,
         region: regionFilter || undefined,
+        date_from: dateFromFilter || undefined,
+        date_to: dateToFilter || undefined,
       }),
       summaryP,
     ])
@@ -1083,7 +1169,7 @@ export function DeploymentsContent({
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
-  }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter, regionFilter]);
+  }, [modeFilter, cloudFilter, statusFilter, assetGroupFilter, regionFilter, dateFromFilter, dateToFilter]);
 
   useEffect(() => {
     load();
@@ -1158,6 +1244,12 @@ export function DeploymentsContent({
               </div>
               {/* Filters — mode / cloud / status / asset_group, URL-param-backed for alert deep-links. */}
               <div className="flex flex-wrap items-center gap-3 pt-3" data-testid="deployment-filters">
+                <DateRangeFilter
+                  from={dateFromFilter}
+                  to={dateToFilter}
+                  onChange={(key, v) => setParam(key, v)}
+                  onClear={clearDateRange}
+                />
                 <FilterSelect
                   testId="filter-mode"
                   label="mode"
