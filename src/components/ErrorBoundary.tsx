@@ -10,10 +10,7 @@ interface ErrorBoundaryProps {
   fallbackTitle?: string;
 }
 
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -24,11 +21,8 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error(
-      "[ErrorBoundary] Caught render error:",
-      error,
-      info.componentStack,
-    );
+    // eslint-disable-next-line no-console -- last-resort surface for render errors the boundary itself caught
+    console.error("[ErrorBoundary] Caught render error:", error, info.componentStack);
   }
 
   reset() {
@@ -38,10 +32,7 @@ export class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          role="alert"
-          className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] p-8"
-        >
+        <div role="alert" className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] p-8">
           <div className="max-w-lg text-center">
             <h1 className="text-xl font-semibold text-[var(--color-accent-red)] mb-2">
               {this.props.fallbackTitle ?? "Something went wrong"}
