@@ -180,10 +180,22 @@ export function AlertsContent() {
                 >
                   <DomainChip kind={alert.kind} />
                   <EntryChip entry={alert} />
-                  <span className="font-mono text-[var(--color-text-secondary)] shrink-0">
-                    {alert.timestamp.slice(11, 16)}
+                  <span
+                    className="font-mono text-[var(--color-text-secondary)] shrink-0"
+                    data-testid={`alert-entry-timestamp-${index}`}
+                    title={alert.timestamp}
+                  >
+                    {alert.timestamp.slice(0, 16).replace("T", " ")}
                   </span>
                   <span className="font-mono text-[var(--color-text-muted)] shrink-0">{alert.repo}</span>
+                  {alert.workflow_name && (
+                    <span
+                      className="font-mono text-[var(--color-text-muted)] shrink-0"
+                      data-testid={`alert-entry-workflow-${index}`}
+                    >
+                      {alert.workflow_name}
+                    </span>
+                  )}
                   <span className="text-[var(--color-text-primary)]">{alert.message}</span>
                   {alert.deployment_target && (
                     <Link

@@ -51,6 +51,17 @@ test.describe("Alerts page", () => {
     await expect(firstEntry.locator("a")).toHaveAttribute("href", /actions\/runs/);
   });
 
+  test("timeline entries show the full date (not just HH:MM) and the workflow name", async ({ page }) => {
+    // Cheap wins (deployment_ui_alerts_page_rebuild_2026_07_20.md todo 1) — both fields already
+    // exist in the RepoCiAlertEntry payload; the timeline previously dropped workflow_name and
+    // truncated the timestamp to HH:MM, hiding the date. entry-0 (newest-first) is the
+    // 2026-06-10T13:05:00Z quality-gates-v2 alert on execution-service.
+    await page.goto("/alerts");
+    const firstEntry = page.getByTestId("alert-entry-0");
+    await expect(firstEntry.getByTestId("alert-entry-timestamp-0")).toHaveText("2026-06-10 13:05");
+    await expect(firstEntry.getByTestId("alert-entry-workflow-0")).toHaveText("quality-gates-v2");
+  });
+
   test("unified endpoint: domain chip appears on every stream and timeline entry", async ({ page }) => {
     await page.goto("/alerts");
     // Every stream row must have a domain chip.
