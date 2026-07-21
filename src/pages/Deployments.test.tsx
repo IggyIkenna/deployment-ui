@@ -23,6 +23,14 @@ vi.mock("../api/health", () => ({
   getDeploymentFreshness: () => Promise.reject(new Error("no freshness in test")),
 }));
 
+// Idle-spend rollup (Fleet-tab consolidation) — partial mock (the module also exports pauseVm/
+// resumeVm/cancelVm etc. that VmControls needs untouched) so tests never hit a real fetch.
+const mockGetOrphans = vi.fn();
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/client")>();
+  return { ...actual, getOrphans: () => mockGetOrphans() };
+});
+
 vi.mock("../components/ui/card", () => ({
   Card: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
   CardHeader: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
@@ -140,10 +148,20 @@ describe("Deployments page (unified all-modes table)", () => {
   beforeEach(() => {
     mockGetInventory.mockReset();
     mockGetSummary.mockReset();
+    mockGetOrphans.mockReset();
     mockGetSummary.mockImplementation((u: DeploymentUmbrella) => Promise.resolve(summaryFor(u)));
     mockGetInventory.mockImplementation((filters?: DeploymentInventoryFilters) =>
       Promise.resolve(inventoryFor(filters)),
     );
+    mockGetOrphans.mockResolvedValue({
+      generated_at: "2026-07-21T00:00:00Z",
+      grace_hours: 24,
+      stopped_total: 3,
+      reapable_total: 1,
+      monthly_idle_usd: 15.6,
+      monthly_reapable_usd: 5.2,
+      orphans: [],
+    });
   });
 
   afterEach(() => {
@@ -219,5 +237,24 @@ describe("Deployments page (unified all-modes table)", () => {
       expect(screen.getByTestId("deployments-error")).toBeInTheDocument();
       expect(screen.getByText(/inventory unavailable/)).toBeInTheDocument();
     });
+  });
+
+  it("renders the idle-spend rollup cards from GET /api/fleet/orphans (Fleet-tab consolidation)", async () => {
+    renderAt("/deployments");
+    await waitFor(() => {
+      const cards = screen.getByTestId("deployments-idle-spend-cards");
+      expect(cards.textContent).toContain("3"); // stopped_total
+      expect(cards.textContent).toContain("1"); // reapable_total
+      expect(cards.textContent).toContain("$15.60"); // monthly_idle_usd
+      expect(cards.textContent).toContain("$5.20"); // monthly_reapable_usd
+    });
+  });
+
+  it("idle-spend cards render honest '—' placeholders when the orphans fetch fails", async () => {
+    mockGetOrphans.mockRejectedValue(new Error("orphans unavailable"));
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    const cards = screen.getByTestId("deployments-idle-spend-cards");
+    expect(cards.textContent).toContain("—");
   });
 });

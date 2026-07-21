@@ -52,6 +52,7 @@ import {
   type VmHealth,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
+import { getOrphans, type OrphanInventoryResponse } from "../api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
@@ -556,6 +557,12 @@ function LastRunCell({ item, dateFiltered }: { item: DeploymentItem; dateFiltere
       ) : null}
     </span>
   );
+}
+
+/** Idle-spend rollup formatting — same fixed-2-decimal shape FleetOrphans uses ("$5.20"), so the
+ *  figure reads identically on both surfaces (same estimator, same presentation). */
+function fmtIdleUsd(usd: number): string {
+  return `$${usd.toFixed(2)}`;
 }
 
 /** Compact USD/day — "$38", "$9.1", "$0.10". */
@@ -1216,6 +1223,9 @@ export function DeploymentsContent({
     { value: "asia-northeast1", label: "asia-northeast1 (default)" },
     { value: "all", label: "all regions" },
   ]);
+  // Idle-spend rollup (Fleet-tab consolidation) — same GET /api/fleet/orphans FleetOrphans reads,
+  // fetched independently of the main inventory load (its own endpoint, its own refresh cadence).
+  const [orphanData, setOrphanData] = useState<OrphanInventoryResponse | null>(null);
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -1323,6 +1333,18 @@ export function DeploymentsContent({
   // Pauses while the tab is hidden; resumes with an immediate refresh.
   useVisibilityPausedInterval(load, 60_000);
 
+  // Idle-spend rollup — independent fetch/cadence from the main inventory load (its own endpoint).
+  const loadOrphans = useCallback(() => {
+    void getOrphans(24).then(
+      (data) => setOrphanData(data),
+      () => setOrphanData(null), // honest absence on fetch failure — cards render "—", never stale data
+    );
+  }, []);
+  useEffect(() => {
+    loadOrphans();
+  }, [loadOrphans]);
+  useVisibilityPausedInterval(loadOrphans, 60_000);
+
   // Region options for the selector — dynamic from the API (default pinned first), so a new region
   // appears the moment infra lands there. Fetched once; on failure the seeded default + "all" remain.
   useEffect(() => {
@@ -1392,6 +1414,48 @@ export function DeploymentsContent({
                 <DeploymentsSummaryHeader summary={summary} loading={loading && items.length === 0} />
               </div>
               <StrandedCostBadge items={items} />
+              {/* Idle-spend rollup cards (Fleet-tab consolidation) — ported verbatim from
+                  FleetOrphans.tsx, same GET /api/fleet/orphans data + same estimator. */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3" data-testid="deployments-idle-spend-cards">
+                <Card data-testid="deployments-orphans-card-stopped">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs">Stopped VMs</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                      {orphanData?.stopped_total ?? "—"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="deployments-orphans-card-reapable">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs">Reapable</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-amber-400">{orphanData?.reapable_total ?? "—"}</p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="deployments-orphans-card-idle-usd">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs">Idle disk $/mo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                      {orphanData ? fmtIdleUsd(orphanData.monthly_idle_usd) : "—"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="deployments-orphans-card-reclaimable-usd">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs">Reclaimable $/mo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-emerald-400">
+                      {orphanData ? fmtIdleUsd(orphanData.monthly_reapable_usd) : "—"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
               {/* Status-filter chips — quick All / Running / Succeeded / Failed / Stuck toggles. */}
               <div className="pt-3">
                 <StatusFilterChips
