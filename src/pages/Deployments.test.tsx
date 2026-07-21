@@ -100,6 +100,24 @@ const BATCH_ITEMS = [
     captured_progress: 100,
     run_log_uri: null,
   },
+  {
+    name: "cefi-orphan-stopped-vm",
+    kind: "VM" as const,
+    umbrella: "BATCH" as const,
+    cloud: "GCP" as const,
+    service: "market-tick-data-service",
+    asset_group: "cefi",
+    status: "stopped",
+    last_run_at: null,
+    exit_code: null,
+    heartbeat_age_seconds: null,
+    captured_progress: null,
+    run_log_uri: null,
+    reap_verdict: "reap" as const,
+    grace_hours: 24,
+    stopped_age_hours: 50.5,
+    monthly_disk_usd: 5.2,
+  },
 ];
 
 function summaryFor(umbrella: DeploymentUmbrella): UmbrellaSummaryResponse {
@@ -256,5 +274,19 @@ describe("Deployments page (unified all-modes table)", () => {
     await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
     const cards = screen.getByTestId("deployments-idle-spend-cards");
     expect(cards.textContent).toContain("—");
+  });
+
+  it("a stopped orphan VM row shows the reap-verdict badge + stopped-age", async () => {
+    renderAt("/deployments?status=all");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-orphan-stopped-vm")).toBeInTheDocument());
+    const verdict = screen.getByTestId("orphan-verdict-cefi-orphan-stopped-vm");
+    expect(verdict.textContent).toBe("Reapable");
+    expect(screen.getByText("stopped 2.1d")).toBeInTheDocument(); // 50.5h -> 2.1d
+  });
+
+  it("a running VM row shows no reap-verdict badge (not in the orphan candidate set)", async () => {
+    renderAt("/deployments");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("orphan-verdict-defi-live-capture-1")).not.toBeInTheDocument();
   });
 });

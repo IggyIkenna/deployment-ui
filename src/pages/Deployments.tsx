@@ -52,7 +52,8 @@ import {
   type VmHealth,
 } from "../api/deploymentApi";
 import { getDeploymentFreshness, type DeploymentFreshnessResponse } from "../api/health";
-import { getOrphans, type OrphanInventoryResponse } from "../api/client";
+import { getOrphans, type OrphanInventoryResponse, type OrphanVerdict } from "../api/client";
+import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
@@ -214,6 +215,36 @@ function LeakedBadge({ item }: { item: DeploymentItem }) {
       <AlertTriangle className="h-3 w-3" />
       {item.unreleased_resources.length} leaked · ~${total.toFixed(0)}/mo est
     </span>
+  );
+}
+
+// Reap-verdict badge (Fleet-tab consolidation) — same label/variant mapping as FleetOrphans'
+// VerdictBadge, so the classification reads identically on both surfaces.
+const ORPHAN_VERDICT_LABEL: Record<OrphanVerdict, string> = {
+  reap: "Reapable",
+  keep_within_grace: "Within grace",
+  keep_not_ephemeral: "Live/recurring",
+  keep_retained: "Retained (keep)",
+  keep_no_timestamp: "No stop time",
+};
+
+function fmtStoppedAge(hours: number | null | undefined): string | null {
+  if (hours == null) return null;
+  return hours < 24 ? `${hours.toFixed(1)}h` : `${(hours / 24).toFixed(1)}d`;
+}
+
+/** Reap-verdict + stopped-age for a currently-stopped VM row — null (renders nothing) when the row
+ *  isn't in the orphan candidate set (a running VM, or any non-VM kind). */
+function OrphanVerdictCell({ item }: { item: DeploymentItem }) {
+  if (!item.reap_verdict) return null;
+  const age = fmtStoppedAge(item.stopped_age_hours);
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge variant={item.reap_verdict === "reap" ? "warning" : "outline"} data-testid={`orphan-verdict-${item.name}`}>
+        {ORPHAN_VERDICT_LABEL[item.reap_verdict]}
+      </Badge>
+      {age && <span className="text-[10px] text-[var(--color-text-muted)]">stopped {age}</span>}
+    </div>
   );
 }
 
@@ -785,6 +816,7 @@ function StatusCell({ item }: { item: DeploymentItem }) {
         {item.status}
       </Chip>
       {hb && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">hb {hb}</span>}
+      <OrphanVerdictCell item={item} />
     </td>
   );
 }
