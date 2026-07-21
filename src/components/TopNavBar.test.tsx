@@ -48,18 +48,20 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("renders the 5 screens with no cockpit twin as route links", () => {
+  it("renders the 4 screens with no cockpit twin as route links", () => {
     renderAt("/cockpit");
-    for (const id of ["home", "epics", "vm-deployments", "data-status", "costs"]) {
+    // vm-deployments moved to the legacy quarantine (Fleet-tab consolidation, 2026-07-21) — off
+    // the canonical bar/dropdown; see NavMenu.test.tsx "legacy quarantine" for its own coverage.
+    for (const id of ["home", "epics", "data-status", "costs"]) {
       expect(screen.getByTestId(`cockpit-navlink-${id}`)).toBeTruthy();
     }
   });
 
-  it("shows all 16 canonical entries — the same list as the dropdown", () => {
+  it("shows all 15 canonical entries — the same list as the dropdown", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {
@@ -81,7 +83,10 @@ describe("TopNavBar", () => {
   });
 
   it("keeps a route entry lit on its deeper detail routes", () => {
-    renderAt("/vm-deployments/dep-123");
-    expect(screen.getByTestId("cockpit-navlink-vm-deployments").getAttribute("aria-current")).toBe("page");
+    // /deployments/:name is navItemIsActive's own cited example (NavMenu.tsx docstring) — the
+    // prior vm-deployments/:deploymentId case moved to the legacy quarantine (2026-07-21), off
+    // this bar entirely, so it can no longer exercise this prefix-match behaviour.
+    renderAt("/deployments/some-target-name");
+    expect(screen.getByTestId("cockpit-tab-deployments").getAttribute("aria-current")).toBe("page");
   });
 });

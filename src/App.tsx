@@ -172,6 +172,13 @@ function App() {
                   <Route path="/launch" element={<CockpitLaunch />} />
                   <Route path="/chaos" element={<CockpitChaos />} />
                   <Route path="/safety-ops" element={<CockpitSafety />} />
+                  {/* Legacy-quarantined (Fleet-tab consolidation, operator decision 2026-07-21 —
+                      BLK-7cb5bbbc): the archive/history table folded into Deployments' per-target
+                      History card, but this route STAYS LIVE (not a redirect) — VmDeploymentsContent's
+                      non-compact mode is the only reachable home for 4 venue-config panels
+                      (VenueCredentialsPanel/VenueDateRangePanel/VenueRelaunchEstimatePanel/
+                      VenueTardisWindowsPanel), which the Fleet-tab audit never accounted for. Removed
+                      from canonical nav only (NavMenu.tsx `legacy: true` group). */}
                   <Route path="/vm-deployments" element={<VmDeployments />} />
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
