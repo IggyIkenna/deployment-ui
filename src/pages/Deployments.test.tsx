@@ -39,11 +39,13 @@ vi.mock("../api/client", async (importOriginal) => {
   };
 });
 
+// Spreads all props through (onClick/role/data-testid/etc.) — same forwarding contract as the
+// real Card, so a click-to-filter test exercises the real handler wired via onClick.
 vi.mock("../components/ui/card", () => ({
-  Card: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
-  CardHeader: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
-  CardTitle: (p: { children: React.ReactNode }) => <h3>{p.children}</h3>,
-  CardContent: (p: { children: React.ReactNode }) => <div>{p.children}</div>,
+  Card: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
+  CardHeader: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
+  CardTitle: (p: React.HTMLAttributes<HTMLElement>) => <h3 {...p} />,
+  CardContent: (p: React.HTMLAttributes<HTMLDivElement>) => <div {...p} />,
 }));
 
 import { DeploymentsContent } from "./Deployments";
@@ -354,5 +356,15 @@ describe("Deployments page (unified all-modes table)", () => {
     await waitFor(() => expect(mockReapOrphans).toHaveBeenCalledWith(false, 24));
     await waitFor(() => expect(screen.getByTestId("deployments-reap-action-msg").textContent).toContain("Reaped 1"));
     expect(screen.queryByTestId("deployments-reap-dialog")).not.toBeInTheDocument();
+  });
+
+  it("clicking an idle-spend rollup card applies the status=stopped filter (idle-spend discoverability)", async () => {
+    renderAt("/deployments"); // default view — status=running, stopped rows hidden
+    await waitFor(() => expect(screen.getByTestId("deployments-orphans-card-stopped")).toBeInTheDocument());
+    expect(screen.queryByTestId("deployment-row-cefi-orphan-stopped-vm")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("deployments-orphans-card-stopped"));
+    await waitFor(() => expect(mockGetInventory).toHaveBeenCalledWith(expect.objectContaining({ status: "stopped" })));
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-orphan-stopped-vm")).toBeInTheDocument());
   });
 });

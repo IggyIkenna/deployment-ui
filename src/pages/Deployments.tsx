@@ -1522,7 +1522,16 @@ export function DeploymentsContent({
                 {/* Idle-spend rollup cards (Fleet-tab consolidation) — ported verbatim from
                   FleetOrphans.tsx, same GET /api/fleet/orphans data + same estimator. */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3" data-testid="deployments-idle-spend-cards">
-                  <Card data-testid="deployments-orphans-card-stopped">
+                  {/* Every card applies status=stopped on click (idle-spend discoverability) — the
+                      default status filter is `running`, which otherwise hides these rows entirely. */}
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-stopped"
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs">Stopped VMs</CardTitle>
                     </CardHeader>
@@ -1532,7 +1541,14 @@ export function DeploymentsContent({
                       </p>
                     </CardContent>
                   </Card>
-                  <Card data-testid="deployments-orphans-card-reapable">
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-reapable"
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs">Reapable</CardTitle>
                     </CardHeader>
@@ -1540,7 +1556,14 @@ export function DeploymentsContent({
                       <p className="text-2xl font-semibold text-amber-400">{orphanData?.reapable_total ?? "—"}</p>
                     </CardContent>
                   </Card>
-                  <Card data-testid="deployments-orphans-card-idle-usd">
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-idle-usd"
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs">Idle disk $/mo</CardTitle>
                     </CardHeader>
@@ -1550,7 +1573,14 @@ export function DeploymentsContent({
                       </p>
                     </CardContent>
                   </Card>
-                  <Card data-testid="deployments-orphans-card-reclaimable-usd">
+                  <Card
+                    className="cursor-pointer transition-colors hover:bg-[var(--color-bg-secondary)]"
+                    onClick={() => setParam("status", "stopped")}
+                    role="button"
+                    tabIndex={0}
+                    title="Show stopped VMs"
+                    data-testid="deployments-orphans-card-reclaimable-usd"
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xs">Reclaimable $/mo</CardTitle>
                     </CardHeader>
