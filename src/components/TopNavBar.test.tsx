@@ -55,11 +55,11 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("shows all 15 canonical entries — the same list as the dropdown", () => {
+  it("shows all 16 canonical entries — the same list as the dropdown", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {
