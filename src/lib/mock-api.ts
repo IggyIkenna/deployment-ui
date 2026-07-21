@@ -3655,6 +3655,62 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       });
     }
   }
+  // GET /api/deployments/{name}/run-log/{metadata,tail,download} — WS-4 run.log viewer
+  // (deployment_ui_vm_log_viewer_2026_07_20.md). Mirrors deployment-api's
+  // RunLogMetadataResponse/RunLogTailResponse/RunLogDownloadResponse. A row with
+  // run_log_uri present resolves "live" (or, for sports-backfill-20260621, "archive" —
+  // simulating the live path past its 14-day TTL, so the archive-fallback banner has a
+  // real regression target); run_log_uri: null resolves the honest exists=false absence
+  // (matches the real resolver's behaviour for a VM that predates the final-snapshot writer).
+  {
+    const runLogMatch = path.match(/^\/api\/deployments\/(.+)\/run-log\/(metadata|tail|download)$/);
+    if (runLogMatch) {
+      const name = decodeURIComponent(runLogMatch[1]);
+      const kind = runLogMatch[2];
+      const row = MOCK_DEPLOYMENT_INVENTORY.find((i) => i.name === name);
+      const exists = Boolean(row?.run_log_uri);
+      const location: "live" | "archive" | null = !exists
+        ? null
+        : name === "sports-backfill-20260621"
+          ? "archive"
+          : "live";
+      const uri = row?.run_log_uri ?? "";
+      const sizeBytes = exists ? 842_331 : null;
+      const lastModified = exists ? "2026-07-21T04:00:00Z" : null;
+      if (kind === "metadata") {
+        return json({ name, exists, location, uri, size_bytes: sizeBytes, last_modified: lastModified });
+      }
+      if (kind === "tail") {
+        const reqUrl = new URL(url, "http://x");
+        const linesParam = reqUrl.searchParams.get("lines");
+        const maxLines = linesParam ? Math.max(1, Math.min(Number(linesParam), 300)) : 300;
+        const lines = exists
+          ? Array.from({ length: Math.min(12, maxLines) }, (_, i) => `[mock] ${name} run.log line ${i + 1}`)
+          : [];
+        return json({
+          name,
+          exists,
+          location,
+          uri,
+          size_bytes: sizeBytes,
+          last_modified: lastModified,
+          lines,
+          line_count: lines.length,
+          tail_bytes: lines.reduce((s, l) => s + l.length + 1, 0),
+        });
+      }
+      // download
+      return json({
+        name,
+        exists,
+        location,
+        download_url: exists
+          ? `https://storage.googleapis.com/deployment-scripts-mock/${name}/run.log?mock-signed`
+          : "",
+        expires_in_seconds: exists ? 900 : 0,
+      });
+    }
+  }
   {
     const summaryMatch = path.match(/^\/api\/deployments\/umbrella\/([^/]+)\/summary$/);
     if (summaryMatch) {

@@ -1,8 +1,12 @@
 /**
  * DeploymentDetail — per-target drill-down for a single deployment (a VM or a
  * Cloud Run job), at the same grade as a repo's CI detail in RepoCi: classified
- * status + exit_code + the durable run.log (GCS) link, a live event timeline
- * (VmEventsTimeline), and a live log tail (StreamingLogsPanel).
+ * status + exit_code, the actual run.log content (RunLogPanel — size, capped
+ * tail, download), a live event timeline (VmEventsTimeline), and a live event
+ * stream (StreamingLogsPanel). The latter two are lifecycle EVENTS, not log
+ * content — StreamingLogsPanel was previously mislabeled "Live log tail" (WS-4
+ * decision 3 audit: it reads `vm_events.py`, a structured event feed, not
+ * `run.log`); honestly renamed here, functionality unchanged.
  *
  * Reuses VmEventsTimeline + StreamingLogsPanel (the per-VM detail backbone). The
  * target's metadata is read from the unified inventory by name, so a Cloud Run job
@@ -17,6 +21,7 @@ import { Link, useParams } from "react-router-dom";
 import { Activity, AlertTriangle, ArrowLeft, ExternalLink, RotateCcw, Server, Workflow } from "lucide-react";
 import { VmEventsTimeline } from "../components/VmEventsTimeline";
 import { StreamingLogsPanel } from "../components/StreamingLogsPanel";
+import { RunLogPanel } from "../components/RunLogPanel";
 import {
   fetchVmFilteredEvents,
   getDeploymentDetail,
@@ -676,6 +681,17 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
           (composes /api/alerts + the deployment event stream; no new endpoint). */}
       <AlertsLifecycleCard name={name} />
 
+      {/* run.log viewer (WS-4 decision 3) — a separate panel from the events timeline below,
+          which reads a different bucket entirely and is not log content. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Run log</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RunLogPanel name={name} />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Event Timeline</CardTitle>
@@ -687,7 +703,12 @@ export function DeploymentDetail({ name: nameProp, embedded }: { name?: string; 
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Live log tail</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2">
+            Live event stream
+            <span className="text-[11px] font-normal text-[var(--color-text-muted)]">
+              — lifecycle events, not run.log content (see Run log above)
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[420px]">
