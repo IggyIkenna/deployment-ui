@@ -55,6 +55,7 @@ export const EMPTY_REASON_KEYS = [
   "EXPECTED_CHAIN_AGGREGATE",
   "EXPECTED_BOOKMAKER_NO_LEAGUE_COVERAGE",
   "EXPECTED_NO_PROVIDER_COVERAGE",
+  "EXPECTED_REFERENCE_ONLY_NO_CAPTURE_PATH",
   "EXPECTED_OUT_OF_COVERAGE_WINDOW",
   "EXPECTED_DEPRECATED_DATA_TYPE",
   "EXPECTED_REFDATA_CADENCE_CHANGE",
@@ -147,6 +148,12 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
   EXPECTED_NOT_ENOUGH_TVL: {
     short: "sub-tvl",
     description: "DeFi pool/market exists on-chain but its TVL is below the MVP capture threshold",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_REFERENCE_ONLY_NO_CAPTURE_PATH: {
+    short: "reference-only",
+    description:
+      "DeFi reference-only holdings leg (SPOT_ASSET/A_TOKEN/DEBT_TOKEN) — no per-day market-data capture path by design, not a pipeline gap",
     color: "var(--color-accent-cyan)",
   },
   EXPECTED_PARTIAL_HALF_DAY: {
