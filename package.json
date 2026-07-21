@@ -65,7 +65,7 @@
     "vitest": "^4.1.1"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,json,css,md,yaml,yml,html}": "prettier --write --ignore-unknown",
+    "*.{js,jsx,ts,tsx,mjs,json,css,md,yaml,yml,html}": "npx -y prettier@3.9.5 --write --ignore-unknown",
     "*.{js,jsx,ts,tsx,mjs}": "eslint --fix --max-warnings 0"
   },
   "optionalDependencies": {
