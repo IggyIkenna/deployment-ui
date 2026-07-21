@@ -500,6 +500,25 @@ function lastRunOrUptime(item: DeploymentItem): string {
   return up ? `up ${up}` : "—";
 }
 
+/** Last-run/uptime cell — amber colour-only marker when the value is DERIVED rather than
+ *  authoritative (`basis === "approx"`: a heartbeat-stale VM's effective end, a single-timestamp
+ *  kind, or the unmanaged-VM fallback). No text label — same convention as CostCell's
+ *  `cost_basis === "partial"` (decision 4, 2026-07-20), reused here for one consistent visual
+ *  language across the whole table. */
+function LastRunCell({ item }: { item: DeploymentItem }): React.ReactElement {
+  const label = item.kind === "LAMBDA" ? lambdaLastLabel(item) : lastRunOrUptime(item);
+  const isApprox = item.basis === "approx";
+  return (
+    <span
+      className={isApprox ? "text-amber-400" : undefined}
+      data-testid={`last-run-${item.name}`}
+      data-basis={item.basis ?? undefined}
+    >
+      {label}
+    </span>
+  );
+}
+
 /** Compact USD/day — "$38", "$9.1", "$0.10". */
 function costLabel(cost: number | null | undefined): string | null {
   if (cost == null) return null;
@@ -770,7 +789,7 @@ function DeploymentRow({ item }: { item: DeploymentItem }) {
             : undefined
         }
       >
-        {item.kind === "LAMBDA" ? lambdaLastLabel(item) : lastRunOrUptime(item)}
+        <LastRunCell item={item} />
       </td>
       <td className="py-1.5 text-right font-mono text-xs text-[var(--color-text-secondary)]">
         {item.captured_progress != null ? (

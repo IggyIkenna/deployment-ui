@@ -808,6 +808,17 @@ export interface DeploymentItem {
   // cost_projected_24h_usd fall back to a still-accruing day (no complete billing day exists yet)
   // — the UI colour-codes off this, no text label (decision 4, 2026-07-20).
   cost_basis?: "complete" | "partial" | null;
+  // WS-2 date-range overlap (raw registry interval, ISO) — null for kinds with no registry entry
+  // (Cloud Run jobs/services, unmanaged VMs, ...). Distinct from last_run_at (which conflates
+  // started/completed for display) because the overlap formula needs the two bounds separately.
+  started_at?: string | null;
+  completed_at?: string | null;
+  last_heartbeat_at?: string | null;
+  // Honest-uncertainty marker (WS-2 decision 4) — "approx" when the effective last-run/overlap
+  // date is DERIVED rather than authoritative (a heartbeat-stale VM's effective end, a
+  // single-timestamp kind, or the unmanaged-VM fallback). null = authoritative. Colour-only in the
+  // UI, no text label — same convention as cost_basis "partial".
+  basis?: "approx" | null;
 }
 
 // GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`
