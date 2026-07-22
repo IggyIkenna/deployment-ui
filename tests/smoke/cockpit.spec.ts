@@ -461,10 +461,11 @@ test.describe("Cockpit — Deployments orphan inventory + bulk reap", () => {
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("deployments-idle-spend-cards")).toBeVisible();
-    // Idle-spend rollup cards from the mock inventory (4 stopped, 1 reapable, $18.85 idle, $2.60 reclaimable).
-    await expect(page.getByTestId("deployments-orphans-card-stopped")).toContainText("4");
+    // Idle-spend rollup cards from the mock inventory (5 stopped, 1 reapable @ default 24h grace,
+    // $20.15 idle, $2.60 reclaimable).
+    await expect(page.getByTestId("deployments-orphans-card-stopped")).toContainText("5");
     await expect(page.getByTestId("deployments-orphans-card-reapable")).toContainText("1");
-    await expect(page.getByTestId("deployments-orphans-card-idle-usd")).toContainText("$18.85");
+    await expect(page.getByTestId("deployments-orphans-card-idle-usd")).toContainText("$20.15");
     await expect(page.getByTestId("deployments-orphans-card-reclaimable-usd")).toContainText("$2.60");
     await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 1 reapable");
   });
@@ -482,6 +483,32 @@ test.describe("Cockpit — Deployments orphan inventory + bulk reap", () => {
     await page.getByTestId("deployments-reap-confirm").click();
     // The execute reap returns reaped_total=1 → the success action message renders.
     await expect(page.getByTestId("deployments-reap-action-msg")).toContainText("Reaped 1");
+  });
+
+  // Regression: the operator-adjustable min-age (grace) input added 2026-07-22 — lets an operator
+  // force-reap a within-grace VM (e.g. "tradfi-databento-recent", stopped_age_hours=2) by lowering
+  // the threshold below its stopped-age, instead of waiting out the 24h default. Also proves the
+  // client-side MIN_REAP_GRACE_MINUTES=10 floor actually holds: the mock's 3rd grace-gated entry
+  // ("just-stopped-vm-20260722", stopped 3min ago) would ALSO clear an unclamped literal "1"
+  // (1min < 3min-old), so if it shows up as reapable the floor did NOT engage — it must not appear.
+  test("min-age input lowers the reap grace, clamped to a 10min floor", async ({ page }) => {
+    await page.goto("/deployments");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 1 reapable");
+
+    const graceInput = page.getByTestId("deployments-reap-grace-input");
+    await graceInput.fill("1"); // typed 1min — below the 10min floor, so the APPLIED value clamps to 10min
+    // Debounced (300ms) re-fetch of GET /api/fleet/orphans with the clamped grace_hours (10min):
+    // cefi-binance-spot (120h) + tradfi-databento-recent (2h) clear it; just-stopped-vm (3min) does
+    // not — if the floor weren't applied, the literal 1min WOULD also catch just-stopped-vm (→ 3).
+    await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 2 reapable");
+    await expect(page.getByTestId("deployments-orphans-card-reapable")).toContainText("2");
+
+    await page.getByTestId("deployments-reap-btn").click();
+    await expect(page.getByTestId("deployments-reap-dialog")).toBeVisible();
+    await expect(page.getByTestId("deployments-reap-dialog")).toContainText("cefi-binance-spot-20260601");
+    await expect(page.getByTestId("deployments-reap-dialog")).toContainText("tradfi-databento-recent");
+    await expect(page.getByTestId("deployments-reap-dialog")).not.toContainText("just-stopped-vm-20260722");
   });
 });
 

@@ -67,6 +67,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { DeploymentsHelpButton } from "../components/DeploymentsHelp";
 import { VmControls } from "../components/VmControls";
@@ -239,6 +240,12 @@ const ORPHAN_VERDICT_LABEL: Record<OrphanVerdict, string> = {
   keep_retained: "Retained (keep)",
   keep_no_timestamp: "No stop time",
 };
+
+// Operator-adjustable reap grace period (Fleet-tab consolidation follow-up) — the API's
+// grace_hours has no lower bound, so this is the ONLY floor protecting against reaping a VM
+// seconds after it stops. 10min mirrors the operator's own stated safety margin.
+const MIN_REAP_GRACE_MINUTES = 10;
+const DEFAULT_REAP_GRACE_MINUTES = 1440; // 24h — unchanged default behavior
 
 function fmtStoppedAge(hours: number | null | undefined): string | null {
   if (hours == null) return null;
@@ -1315,6 +1322,16 @@ export function DeploymentsContent({
   // Idle-spend rollup (Fleet-tab consolidation) — same GET /api/fleet/orphans FleetOrphans reads,
   // fetched independently of the main inventory load (its own endpoint, its own refresh cadence).
   const [orphanData, setOrphanData] = useState<OrphanInventoryResponse | null>(null);
+  // Operator-adjustable reap grace period, in minutes (raw text input state so the field can hold
+  // a transient invalid/empty value while typing without losing focus). Debounced + clamped to
+  // MIN_REAP_GRACE_MINUTES before it ever reaches the API — see graceHours below.
+  const [graceMinutesInput, setGraceMinutesInput] = useState(String(DEFAULT_REAP_GRACE_MINUTES));
+  const debouncedGraceMinutes = useDebounce(graceMinutesInput, 300);
+  const graceHours = useMemo(() => {
+    const parsed = Number(debouncedGraceMinutes);
+    const minutes = Number.isFinite(parsed) ? Math.max(parsed, MIN_REAP_GRACE_MINUTES) : MIN_REAP_GRACE_MINUTES;
+    return minutes / 60;
+  }, [debouncedGraceMinutes]);
   // Reap/delete actions (Fleet-tab consolidation) — ported from FleetOrphans' dry-run-first bulk
   // reap + per-instance delete, same confirm-dialog safety pattern (destructive actions never fire
   // without an explicit confirm click).
@@ -1452,31 +1469,34 @@ export function DeploymentsContent({
   useVisibilityPausedInterval(load, 60_000);
 
   // Idle-spend rollup — independent fetch/cadence from the main inventory load (its own endpoint).
+  // Re-fetches whenever the operator-adjusted graceHours settles (debounced), so the rollup cards +
+  // reapable set always reflect the currently-applied grace period, not just the 24h default.
   const loadOrphans = useCallback(() => {
-    void getOrphans(24).then(
+    void getOrphans(graceHours).then(
       (data) => setOrphanData(data),
       () => setOrphanData(null), // honest absence on fetch failure — cards render "—", never stale data
     );
-  }, []);
+  }, [graceHours]);
   useEffect(() => {
     loadOrphans();
   }, [loadOrphans]);
   useVisibilityPausedInterval(loadOrphans, 60_000);
 
   // Bulk reap: dry-run first to populate the confirm dialog with the real candidate list (never
-  // deletes on this click — same two-step pattern as FleetOrphans).
+  // deletes on this click — same two-step pattern as FleetOrphans). Uses the SAME graceHours the
+  // rollup cards are currently showing, so "N reapable" on the button matches what actually reaps.
   const previewReap = useCallback(() => {
     setReapBusy(true);
     setReapError(null);
-    reapOrphans(true, 24)
+    reapOrphans(true, graceHours)
       .then((r) => setConfirmReap(r))
       .catch((err: unknown) => setReapError(err instanceof Error ? err.message : "reap dry-run failed"))
       .finally(() => setReapBusy(false));
-  }, []);
+  }, [graceHours]);
 
   const executeReap = useCallback(() => {
     setReapBusy(true);
-    reapOrphans(false, 24)
+    reapOrphans(false, graceHours)
       .then((r) => {
         setReapActionMsg(`Reaped ${r.reaped_total} VM(s) — ~${fmtIdleUsd(r.monthly_reclaimed_usd)}/mo disk reclaimed`);
         setConfirmReap(null);
@@ -1485,7 +1505,7 @@ export function DeploymentsContent({
       })
       .catch((err: unknown) => setReapError(err instanceof Error ? err.message : "reap failed"))
       .finally(() => setReapBusy(false));
-  }, [load, loadOrphans]);
+  }, [graceHours, load, loadOrphans]);
 
   const executeDelete = useCallback(() => {
     if (!confirmDelete) return;
@@ -1675,9 +1695,26 @@ export function DeploymentsContent({
                   >
                     Reap {orphanData?.reapable_total ?? 0} reapable
                   </Button>
+                  <div className="flex items-center gap-1.5">
+                    <label htmlFor="deployments-reap-grace-input" className="text-xs text-[var(--color-text-tertiary)]">
+                      min age (min)
+                    </label>
+                    <Input
+                      id="deployments-reap-grace-input"
+                      type="number"
+                      min={MIN_REAP_GRACE_MINUTES}
+                      step={10}
+                      value={graceMinutesInput}
+                      onChange={(e) => setGraceMinutesInput(e.target.value)}
+                      className="h-7 w-20 px-2 text-xs"
+                      title={`Stopped-age threshold before a VM is flagged reapable — floor ${MIN_REAP_GRACE_MINUTES}min`}
+                      data-testid="deployments-reap-grace-input"
+                    />
+                  </div>
                   {orphanData ? (
                     <span className="text-xs text-[var(--color-text-tertiary)]">
-                      estimate — asia-northeast1 list rates; grace {orphanData.grace_hours}h
+                      estimate — asia-northeast1 list rates; grace {orphanData.grace_hours}h (
+                      {Math.round(orphanData.grace_hours * 60)}min)
                     </span>
                   ) : null}
                 </div>
