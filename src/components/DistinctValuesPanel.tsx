@@ -21,7 +21,7 @@ const AXIS_LABELS: Record<AxisKey, string> = {
 
 /** Shared classes so the native `<select>` visually matches the rest of the panel. */
 const SELECT_CLASSNAME =
-  "flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
+  "select-compact flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * "Distinct Values" — the RAW distinct-values enumeration surface

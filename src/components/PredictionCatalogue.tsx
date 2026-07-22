@@ -12,7 +12,7 @@ const PAGE_SIZE = 25;
 
 /** Shared classes so the native `<select>`s visually match `Input`/Radix `Select`. */
 const SELECT_CLASSNAME =
-  "flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
+  "select-compact flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
 
 function sumCounts(counts: Record<string, number>): number {
   return Object.values(counts).reduce((sum, n) => sum + n, 0);

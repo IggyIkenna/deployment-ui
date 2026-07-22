@@ -639,6 +639,21 @@ select option {
   padding: 8px 12px;
 }
 
+/* Compact <select> variant (the h-8/text-xs filter dropdowns, e.g. Catalogue Explorer /
+ * Axis Value Census / Distinct Values / Prediction Catalogue). The base `select{}` rule above
+ * is unlayered (see the @layer base note near the top of this file), so it always wins over
+ * Tailwind's layered px-2/text-xs classes on these elements — its 8px top/bottom padding + 1.5
+ * line-height need ~35px of vertical room, more than these dropdowns' fixed compact height, so
+ * the rendered value's text was getting clipped top/bottom. A class selector still outranks
+ * `select`'s type selector at equal (unlayered) precedence, so this narrows just the vertical
+ * metrics to fit; horizontal padding + the chevron background stay exactly as the base rule sets
+ * them. */
+.select-compact {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.3;
+}
+
 input[type="date"],
 input[type="datetime-local"],
 input[type="time"],
