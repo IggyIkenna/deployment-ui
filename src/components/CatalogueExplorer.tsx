@@ -14,7 +14,7 @@ const ASSET_GROUP_OPTIONS = ["cefi", "tradfi", "defi", "sports", "prediction"];
 
 /** Shared classes so the native `<select>` visually matches `Input`/Radix `Select`. */
 const SELECT_CLASSNAME =
-  "flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
+  "select-compact flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
 
 function captureStatusBadgeVariant(status: string): "success" | "warning" | "error" | "outline" {
   switch (status) {

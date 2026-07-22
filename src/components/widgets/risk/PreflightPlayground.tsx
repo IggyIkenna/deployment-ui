@@ -8,13 +8,7 @@ import type { RiskRuleConsequence, RiskRuleSeverity } from "./RuleBrowser";
 
 export type AssetGroup = "defi" | "cefi" | "tradfi" | "sports" | "prediction";
 
-const ASSET_GROUPS: readonly AssetGroup[] = [
-  "defi",
-  "cefi",
-  "tradfi",
-  "sports",
-  "prediction",
-];
+const ASSET_GROUPS: readonly AssetGroup[] = ["defi", "cefi", "tradfi", "sports", "prediction"];
 
 export interface RuleEvalContext {
   instruction_size_usd: number;
@@ -30,12 +24,7 @@ export interface RuleEvalContext {
   gas_estimate_usd: number;
 }
 
-export type PreflightDecision =
-  | "ALLOW"
-  | "SCALE_DOWN"
-  | "BLOCK"
-  | "MONITOR"
-  | "TEST_ONLY";
+export type PreflightDecision = "ALLOW" | "SCALE_DOWN" | "BLOCK" | "MONITOR" | "TEST_ONLY";
 
 export interface FiredRule {
   rule_id: string;
@@ -57,9 +46,7 @@ export interface PreflightPlaygroundProps {
   submitter?: (ctx: RuleEvalContext) => Promise<PreflightResult>;
 }
 
-async function defaultSubmitter(
-  ctx: RuleEvalContext,
-): Promise<PreflightResult> {
+async function defaultSubmitter(ctx: RuleEvalContext): Promise<PreflightResult> {
   const response = await fetch("/api/risk/preflight-test", {
     method: "POST",
     headers: {
@@ -70,35 +57,26 @@ async function defaultSubmitter(
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(
-      `Preflight failed (HTTP ${response.status})${text ? `: ${text}` : ""}`,
-    );
+    throw new Error(`Preflight failed (HTTP ${response.status})${text ? `: ${text}` : ""}`);
   }
   return (await response.json()) as PreflightResult;
 }
 
 const DECISION_BADGE_CLASS: Record<PreflightDecision, string> = {
-  ALLOW:
-    "bg-[var(--color-accent-green)]/15 text-[var(--color-accent-green)] border-[var(--color-accent-green)]/30",
+  ALLOW: "bg-[var(--color-accent-green)]/15 text-[var(--color-accent-green)] border-[var(--color-accent-green)]/30",
   SCALE_DOWN:
     "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
-  BLOCK:
-    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
-  MONITOR:
-    "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
-  TEST_ONLY:
-    "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
+  BLOCK: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  MONITOR: "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
+  TEST_ONLY: "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
 };
 
 const CONSEQUENCE_BADGE_CLASS: Record<RiskRuleConsequence, string> = {
-  BLOCK:
-    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  BLOCK: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
   SCALE_DOWN:
     "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
-  MONITOR:
-    "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
-  TEST_ONLY:
-    "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
+  MONITOR: "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
+  TEST_ONLY: "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
 };
 
 const DEFAULT_CTX: RuleEvalContext = {
@@ -123,13 +101,7 @@ interface NumberFieldProps {
   onChange: (v: number) => void;
 }
 
-function NumberField({
-  label,
-  testId,
-  value,
-  step,
-  onChange,
-}: NumberFieldProps) {
+function NumberField({ label, testId, value, step, onChange }: NumberFieldProps) {
   return (
     <label className="flex flex-col gap-1 text-xs">
       <span className="text-[var(--color-text-secondary)]">{label}</span>
@@ -176,10 +148,8 @@ export function PreflightPlayground({ submitter }: PreflightPlaygroundProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const update = <K extends keyof RuleEvalContext>(
-    key: K,
-    value: RuleEvalContext[K],
-  ) => setCtx((prev) => ({ ...prev, [key]: value }));
+  const update = <K extends keyof RuleEvalContext>(key: K, value: RuleEvalContext[K]) =>
+    setCtx((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -234,16 +204,12 @@ export function PreflightPlayground({ submitter }: PreflightPlaygroundProps) {
             onChange={(v) => update("client_id", v)}
           />
           <label className="flex flex-col gap-1 text-xs">
-            <span className="text-[var(--color-text-secondary)]">
-              asset_group
-            </span>
+            <span className="text-[var(--color-text-secondary)]">asset_group</span>
             <select
               data-testid="field-asset-group"
               value={ctx.asset_group}
-              onChange={(e) =>
-                update("asset_group", e.target.value as AssetGroup)
-              }
-              className="h-8 rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-sm"
+              onChange={(e) => update("asset_group", e.target.value as AssetGroup)}
+              className="select-compact h-8 rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-sm"
             >
               {ASSET_GROUPS.map((g) => (
                 <option key={g} value={g}>
@@ -317,29 +283,18 @@ export function PreflightPlayground({ submitter }: PreflightPlaygroundProps) {
               </Badge>
               <span className="text-xs text-[var(--color-text-secondary)]">
                 scale_factor:{" "}
-                <span
-                  data-testid="preflight-scale-factor"
-                  className="font-mono text-[var(--color-text-primary)]"
-                >
+                <span data-testid="preflight-scale-factor" className="font-mono text-[var(--color-text-primary)]">
                   {result.scale_factor}
                 </span>
               </span>
             </div>
-            <p
-              data-testid="preflight-composite-reason"
-              className="text-sm text-[var(--color-text-primary)]"
-            >
+            <p data-testid="preflight-composite-reason" className="text-sm text-[var(--color-text-primary)]">
               {result.composite_reason}
             </p>
             {result.blocked_by.length > 0 && (
-              <div
-                data-testid="preflight-blocked-by"
-                className="text-xs text-[var(--color-accent-red)]"
-              >
+              <div data-testid="preflight-blocked-by" className="text-xs text-[var(--color-accent-red)]">
                 <span className="font-medium">blocked_by:</span>{" "}
-                <span className="font-mono">
-                  {result.blocked_by.join(", ")}
-                </span>
+                <span className="font-mono">{result.blocked_by.join(", ")}</span>
               </div>
             )}
             <div>
@@ -347,9 +302,7 @@ export function PreflightPlayground({ submitter }: PreflightPlaygroundProps) {
                 fired_rules ({result.fired_rules.length})
               </h4>
               {result.fired_rules.length === 0 ? (
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  No rules fired.
-                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">No rules fired.</p>
               ) : (
                 <ul className="mt-1 space-y-1">
                   {result.fired_rules.map((fr, idx) => (
@@ -358,17 +311,9 @@ export function PreflightPlayground({ submitter }: PreflightPlaygroundProps) {
                       data-testid={`fired-rule-${fr.rule_id}`}
                       className="flex flex-wrap items-center gap-2 text-xs"
                     >
-                      <Badge
-                        className={`border ${CONSEQUENCE_BADGE_CLASS[fr.consequence]}`}
-                      >
-                        {fr.consequence}
-                      </Badge>
+                      <Badge className={`border ${CONSEQUENCE_BADGE_CLASS[fr.consequence]}`}>{fr.consequence}</Badge>
                       <span className="font-mono">{fr.rule_id}</span>
-                      {fr.reason && (
-                        <span className="text-[var(--color-text-secondary)]">
-                          — {fr.reason}
-                        </span>
-                      )}
+                      {fr.reason && <span className="text-[var(--color-text-secondary)]">— {fr.reason}</span>}
                     </li>
                   ))}
                 </ul>

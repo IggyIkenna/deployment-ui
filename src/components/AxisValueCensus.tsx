@@ -20,7 +20,7 @@ const AXIS_ORDER = ["venue", "chain", "instrument_type", "data_type"];
 
 /** Shared classes so the native `<select>` visually matches the rest of the panel. */
 const SELECT_CLASSNAME =
-  "flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
+  "select-compact flex h-8 w-full rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-focus)] disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * Groups an axis's raw values by a "same real thing?" key so the panel can

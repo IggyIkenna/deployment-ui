@@ -19,11 +19,7 @@ export const RISK_RULE_SCOPES = [
 ] as const;
 export type RiskRuleScope = (typeof RISK_RULE_SCOPES)[number];
 
-export type RiskRuleConsequence =
-  | "BLOCK"
-  | "SCALE_DOWN"
-  | "MONITOR"
-  | "TEST_ONLY";
+export type RiskRuleConsequence = "BLOCK" | "SCALE_DOWN" | "MONITOR" | "TEST_ONLY";
 
 export type RiskRuleSeverity = "CRITICAL" | "WARNING" | "INFO";
 
@@ -38,17 +34,11 @@ export interface RiskRule {
 
 export interface RuleBrowserProps {
   /** Override the data source — used by tests to mock the API. */
-  fetcher?: (params: {
-    scope: RiskRuleScope;
-    applies_to: string;
-  }) => Promise<RiskRule[]>;
+  fetcher?: (params: { scope: RiskRuleScope; applies_to: string }) => Promise<RiskRule[]>;
 }
 
 /** Default fetcher hits the live deployment-api `/api/risk/rules` endpoint. */
-async function defaultFetcher(params: {
-  scope: RiskRuleScope;
-  applies_to: string;
-}): Promise<RiskRule[]> {
+async function defaultFetcher(params: { scope: RiskRuleScope; applies_to: string }): Promise<RiskRule[]> {
   const qs = new URLSearchParams();
   if (params.scope !== "ALL") qs.set("scope", params.scope);
   if (params.applies_to.trim()) qs.set("applies_to", params.applies_to.trim());
@@ -58,9 +48,7 @@ async function defaultFetcher(params: {
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(
-      `Failed to load risk rules (HTTP ${response.status})${text ? `: ${text}` : ""}`,
-    );
+    throw new Error(`Failed to load risk rules (HTTP ${response.status})${text ? `: ${text}` : ""}`);
   }
   const body: unknown = await response.json();
   if (Array.isArray(body)) return body as RiskRule[];
@@ -76,21 +64,16 @@ async function defaultFetcher(params: {
 }
 
 const CONSEQUENCE_BADGE_CLASS: Record<RiskRuleConsequence, string> = {
-  BLOCK:
-    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  BLOCK: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
   SCALE_DOWN:
     "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
-  MONITOR:
-    "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
-  TEST_ONLY:
-    "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
+  MONITOR: "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
+  TEST_ONLY: "bg-[var(--color-text-muted)]/15 text-[var(--color-text-muted)] border-[var(--color-text-muted)]/30",
 };
 
 const SEVERITY_BADGE_CLASS: Record<RiskRuleSeverity, string> = {
-  CRITICAL:
-    "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
-  WARNING:
-    "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
+  CRITICAL: "bg-[var(--color-accent-red)]/15 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30",
+  WARNING: "bg-[var(--color-accent-amber)]/15 text-[var(--color-accent-amber)] border-[var(--color-accent-amber)]/30",
   INFO: "bg-[var(--color-accent-blue)]/15 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30",
 };
 
@@ -146,7 +129,7 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
               data-testid="rule-browser-scope"
               value={scope}
               onChange={(e) => setScope(e.target.value as RiskRuleScope)}
-              className="h-8 rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-sm"
+              className="select-compact h-8 rounded-md border border-[var(--color-border-default)] bg-transparent px-2 text-sm"
             >
               {RISK_RULE_SCOPES.map((s) => (
                 <option key={s} value={s}>
@@ -156,9 +139,7 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
             </select>
           </label>
           <label className="flex flex-1 min-w-[160px] items-center gap-2 text-xs">
-            <span className="text-[var(--color-text-secondary)]">
-              applies_to
-            </span>
+            <span className="text-[var(--color-text-secondary)]">applies_to</span>
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]" />
               <Input
@@ -182,17 +163,11 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
             <span>{error}</span>
           </div>
         ) : loading ? (
-          <div
-            data-testid="rule-browser-loading"
-            className="py-8 text-center text-sm text-[var(--color-text-muted)]"
-          >
+          <div data-testid="rule-browser-loading" className="py-8 text-center text-sm text-[var(--color-text-muted)]">
             Loading rules…
           </div>
         ) : rules.length === 0 ? (
-          <div
-            data-testid="rule-browser-empty"
-            className="py-8 text-center text-sm text-[var(--color-text-muted)]"
-          >
+          <div data-testid="rule-browser-empty" className="py-8 text-center text-sm text-[var(--color-text-muted)]">
             No rules match the current filters.
           </div>
         ) : (
@@ -220,13 +195,9 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
                       data-testid={`rule-row-${rule.rule_id}`}
                       className="border-b border-[var(--color-border-default)]/40 align-top"
                     >
-                      <td className="py-2 pr-3 font-mono text-xs">
-                        {rule.rule_id}
-                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{rule.rule_id}</td>
                       <td className="py-2 pr-3 text-xs">{rule.scope}</td>
-                      <td className="py-2 pr-3 font-mono text-xs">
-                        {rule.applies_to}
-                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{rule.applies_to}</td>
                       <td className="py-2 pr-3">
                         <Badge
                           data-testid={`consequence-badge-${rule.consequence}`}
@@ -275,27 +246,19 @@ export function RuleBrowser({ fetcher }: RuleBrowserProps) {
             >
               <X className="h-4 w-4" />
             </button>
-            <h3 className="font-mono text-sm text-[var(--color-text-primary)]">
-              {expanded.rule_id}
-            </h3>
+            <h3 className="font-mono text-sm text-[var(--color-text-primary)]">{expanded.rule_id}</h3>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <Badge
-                className={`border ${CONSEQUENCE_BADGE_CLASS[expanded.consequence]}`}
-              >
+              <Badge className={`border ${CONSEQUENCE_BADGE_CLASS[expanded.consequence]}`}>
                 {expanded.consequence}
               </Badge>
-              <Badge
-                className={`border ${SEVERITY_BADGE_CLASS[expanded.alerting_severity]}`}
-              >
+              <Badge className={`border ${SEVERITY_BADGE_CLASS[expanded.alerting_severity]}`}>
                 {expanded.alerting_severity}
               </Badge>
               <span className="text-[var(--color-text-secondary)]">
                 {expanded.scope} · {expanded.applies_to}
               </span>
             </div>
-            <p className="mt-4 whitespace-pre-wrap text-sm text-[var(--color-text-primary)]">
-              {expanded.description}
-            </p>
+            <p className="mt-4 whitespace-pre-wrap text-sm text-[var(--color-text-primary)]">{expanded.description}</p>
           </div>
         )}
       </Dialog>
