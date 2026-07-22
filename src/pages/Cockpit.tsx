@@ -66,7 +66,7 @@ import {
   type HealthStatus,
 } from "../api/health";
 import { getDeploymentInventory, getUmbrellaSummary, type UmbrellaSummaryResponse } from "../api/deploymentApi";
-import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, YAxis } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { TOOLTIP_STYLE } from "../lib/chart-theme";
 
 // ---------------------------------------------------------------------------
@@ -558,6 +558,26 @@ function relTime(iso: string | null, nowMs: number): string {
   return `${fmtAge(Math.max(0, (nowMs - then) / 1000))} ago`;
 }
 
+/**
+ * Best-effort human label for a standard 5-field Cloud Scheduler cron ("*" + "/1 * * * *" → "every
+ * 1m" — split across two literals here only so this comment itself doesn't look like a cron). Only
+ * recognizes the simple every-N-minutes / every-N-hours interval shapes this estate actually uses;
+ * anything else falls back to the raw cron string rather than guessing at a label that could be wrong.
+ */
+function cronLabel(cron: string | null | undefined): string | null {
+  if (!cron) return null;
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) return cron;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = fields;
+  if (dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
+    const everyMinute = /^\*\/(\d+)$/.exec(minute);
+    if (everyMinute && hour === "*") return `every ${everyMinute[1]}m`;
+    const everyHour = /^\*\/(\d+)$/.exec(hour);
+    if (everyHour && minute === "0") return `every ${everyHour[1]}h`;
+  }
+  return cron;
+}
+
 /** Worst-first ordering so degraded/critical asset_groups float to the top. */
 const TILE_RANK: Record<TileStatus, number> = { critical: 0, degraded: 1, placeholder: 2, ok: 3 };
 
@@ -593,7 +613,12 @@ function Stat({
   );
 }
 
-const BACKLOG_MAX_SAMPLES = 40; // ~10 min of 15s polls
+// ~40 polls of session history — ≈20 min at the live 30s cadence (CONSOLIDATOR_POLL_MS), much
+// less in mock mode's fast 2s cadence.
+const BACKLOG_MAX_SAMPLES = 40;
+
+/** One backlog poll: the wall-clock instant it arrived + the pending count observed then. */
+type BacklogSample = { t: number; pending: number };
 
 const SPARK_STROKE: Record<TileStatus, string> = {
   ok: "var(--color-accent-cyan)",
@@ -603,17 +628,30 @@ const SPARK_STROKE: Record<TileStatus, string> = {
 };
 
 /** Shards absorbed on the last poll interval — a backlog DROP (inferred, not the job's count). */
-function absorbedLastTick(samples: number[] | undefined): number {
+function absorbedLastTick(samples: BacklogSample[] | undefined): number {
   if (!samples || samples.length < 2) return 0;
-  return Math.max(0, samples[samples.length - 2] - samples[samples.length - 1]);
+  return Math.max(0, samples[samples.length - 2].pending - samples[samples.length - 1].pending);
 }
 
 /**
  * Session-scoped backlog-over-time chart — the card's hero element. Drops = shards absorbed.
  * A real Y-axis (domain 0→peak) makes magnitude legible so a 0–8 backlog and a 0–100 backlog
- * no longer look identical — the axis labels tell you the scale.
+ * no longer look identical — the axis labels tell you the scale. The X-axis is REAL elapsed
+ * time (each sample's actual poll instant, not just "the i-th poll") — polling pauses while the
+ * tab is hidden and does one catch-up tick on resume rather than backfilling, so gaps between
+ * points can be honestly uneven; a plain index axis would have hidden that.
  */
-function BacklogChart({ ag, samples, tone }: { ag: string; samples: number[]; tone: TileStatus }) {
+function BacklogChart({
+  ag,
+  samples,
+  tone,
+  nowMs,
+}: {
+  ag: string;
+  samples: BacklogSample[];
+  tone: TileStatus;
+  nowMs: number;
+}) {
   if (samples.length < 2) {
     return (
       <div
@@ -626,18 +664,42 @@ function BacklogChart({ ag, samples, tone }: { ag: string; samples: number[]; to
   }
   const stroke = SPARK_STROKE[tone];
   const gid = `backlog-grad-${ag}`;
-  const chartData = samples.map((pending, i) => ({ i, pending }));
-  const peak = Math.max(1, ...samples); // >=1 so the axis domain is never [0,0]
+  const peak = Math.max(1, ...samples.map((s) => s.pending)); // >=1 so the axis domain is never [0,0]
+  // "-9m" / "-32s" / "now" — same compact vocabulary as the index-age + oldest-shard readouts.
+  // <1s (not <5s) so a fast poll cadence (mock's 2s) can't round two distinct real samples to
+  // the same "now" label — only the single most-recent point ever reads as "now".
+  const agoLabel = (t: number): string => {
+    const seconds = Math.max(0, (nowMs - t) / 1000);
+    return seconds < 1 ? "now" : `-${fmtAge(seconds)}`;
+  };
+  // Explicit ticks pinned to REAL sample instants (oldest / middle / newest) rather than
+  // Recharts' auto-interpolated positions — guarantees every label reflects an actual poll,
+  // never a rounded-and-collided in-between value.
+  const tickTimestamps =
+    samples.length >= 3
+      ? [samples[0].t, samples[Math.floor((samples.length - 1) / 2)].t, samples[samples.length - 1].t]
+      : [samples[0].t, samples[samples.length - 1].t];
   return (
     <div data-testid={`cockpit-consolidator-sparkline-${ag}`} className="h-32">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+        <AreaChart data={samples} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
               <stop offset="100%" stopColor={stroke} stopOpacity={0.03} />
             </linearGradient>
           </defs>
+          <XAxis
+            dataKey="t"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            ticks={tickTimestamps}
+            tickFormatter={agoLabel}
+            tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+            tickLine={false}
+            axisLine={false}
+            height={14}
+          />
           <YAxis
             width={28}
             domain={[0, peak]}
@@ -656,7 +718,7 @@ function BacklogChart({ ag, samples, tone }: { ag: string; samples: number[]; to
             isAnimationActive={false}
             dot={false}
           />
-          <RechartsTooltip {...TOOLTIP_STYLE} labelFormatter={() => "backlog"} />
+          <RechartsTooltip {...TOOLTIP_STYLE} labelFormatter={(label) => `backlog · ${agoLabel(Number(label))}`} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -797,15 +859,30 @@ function VerdictBadge({ verdict, detail, testId }: { verdict: ConsolidatorVerdic
  *  shows "last run {age} · merged N · +M rows · {duration}"; a dead / never-fired one publishes no
  *  latest.json → "not reporting" so the tab never reads a dead job as a silent all-clear. */
 function RunSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
+  // Own short line, not appended to the (already truncating) last-run line — that line can get
+  // long (a big rows-added count + a slow duration), which would silently swallow this label
+  // behind an ellipsis. The trigger cadence is worth showing even for a not-reporting consolidator:
+  // the Scheduler still fires it on schedule regardless of whether it's confirmed publishing.
+  const cadence = cronLabel(c.trigger_cron);
+  const cadenceLine = cadence ? (
+    <div
+      className="truncate text-[11px] text-[var(--color-text-muted)]"
+      title="How often the Cloud Scheduler cron actually fires this consolidator's Cloud Run job — declared config, not the staleness budget shown as index age's denominator."
+    >
+      triggers {cadence}
+    </div>
+  ) : null;
   if (!c.run_reporting) {
     return (
-      <div
-        data-testid={`cockpit-consolidator-run-${c.category}`}
-        className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]"
-        title="This consolidator publishes no latest.json — it has not run under the summary-reporting code (dead / never fired up). It will start reporting the moment it is fired."
-      >
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-500/60" />
-        not reporting — consolidator not live yet
+      <div data-testid={`cockpit-consolidator-run-${c.category}`} className="space-y-0.5">
+        <div
+          className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]"
+          title="This consolidator publishes no latest.json — it has not run under the summary-reporting code (dead / never fired up). It will start reporting the moment it is fired."
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-500/60" />
+          not reporting — consolidator not live yet
+        </div>
+        {cadenceLine}
       </div>
     );
   }
@@ -816,20 +893,22 @@ function RunSummary({ c, nowMs }: { c: ConsolidatorHealth; nowMs: number }) {
         ? `${(c.run_duration_ms / 1000).toFixed(1)}s`
         : `${Math.round(c.run_duration_ms)}ms`;
   return (
-    <div
-      data-testid={`cockpit-consolidator-run-${c.category}`}
-      className="truncate text-[11px] text-[var(--color-text-tertiary)]"
-      title="Self-reported by the consolidator's last run (latest.json): when it ran, how many shards it merged, rows added, and how long it took."
-    >
-      <span className="text-[var(--color-text-muted)]">last run </span>
-      {relTime(c.run_last_run_at ?? null, nowMs)}
-      {c.run_shards_changed != null ? (
-        <span className="text-[var(--color-text-muted)]"> · merged {c.run_shards_changed}</span>
-      ) : null}
-      {c.run_rows_added != null && c.run_rows_added > 0 ? (
-        <span className="text-[var(--color-accent-green)]"> · +{fmtCount(c.run_rows_added)} rows</span>
-      ) : null}
-      {dur ? <span className="text-[var(--color-text-muted)]"> · {dur}</span> : null}
+    <div data-testid={`cockpit-consolidator-run-${c.category}`} className="space-y-0.5">
+      <div
+        className="truncate text-[11px] text-[var(--color-text-tertiary)]"
+        title="Self-reported by the consolidator's last run (latest.json): when it ran, how many shards it merged, rows added, and how long it took."
+      >
+        <span className="text-[var(--color-text-muted)]">last run </span>
+        {relTime(c.run_last_run_at ?? null, nowMs)}
+        {c.run_shards_changed != null ? (
+          <span className="text-[var(--color-text-muted)]"> · merged {c.run_shards_changed}</span>
+        ) : null}
+        {c.run_rows_added != null && c.run_rows_added > 0 ? (
+          <span className="text-[var(--color-accent-green)]"> · +{fmtCount(c.run_rows_added)} rows</span>
+        ) : null}
+        {dur ? <span className="text-[var(--color-text-muted)]"> · {dur}</span> : null}
+      </div>
+      {cadenceLine}
     </div>
   );
 }
@@ -918,7 +997,7 @@ function ConsolidatorCard({
   c: ConsolidatorHealth;
   nowMs: number;
   fetchedAtMs: number;
-  samples: number[];
+  samples: BacklogSample[];
 }) {
   const tone = verdictTone(c);
   const absorbed = absorbedLastTick(samples);
@@ -988,7 +1067,7 @@ function ConsolidatorCard({
           </div>
         </div>
         {/* Hero chart — this session's backlog trend, full width. */}
-        <BacklogChart ag={c.category} samples={samples} tone={tone} />
+        <BacklogChart ag={c.category} samples={samples} tone={tone} nowMs={nowMs} />
         {/* Self-reported run summary (from the consolidator's latest.json). A dead consolidator that
             never fired publishes none → shown honestly as "not reporting", never a fake all-clear. */}
         <RunSummary c={c} nowMs={nowMs} />
@@ -1047,7 +1126,7 @@ function ConsolidatorsTab() {
   // and immune to browser-vs-API-server clock skew.
   const [fetchedAtMs, setFetchedAtMs] = useState<number>(() => Date.now());
   // Session-scoped rolling backlog history per AG (accumulated from the polls we observe).
-  const [history, setHistory] = useState<Record<string, number[]>>({});
+  const [history, setHistory] = useState<Record<string, BacklogSample[]>>({});
 
   // Poll the endpoint — this is a live monitor, not a one-shot load.
   const cancelledRef = useRef(false);
@@ -1055,14 +1134,19 @@ function ConsolidatorsTab() {
     try {
       const res = await getHealthConsolidator();
       if (!cancelledRef.current) {
+        // ONE timestamp for this whole poll (not one Date.now() per line below) so every
+        // consolidator's new sample — and fetchedAtMs — agree on exactly when this poll landed.
+        const polledAt = Date.now();
         setData(res);
-        setFetchedAtMs(Date.now());
+        setFetchedAtMs(polledAt);
         setError(null);
         setHistory((prev) => {
-          const next: Record<string, number[]> = { ...prev };
+          const next: Record<string, BacklogSample[]> = { ...prev };
           for (const c of res.consolidators ?? []) {
             if (c.pending_shard_count == null) continue;
-            next[c.category] = [...(next[c.category] ?? []), c.pending_shard_count].slice(-BACKLOG_MAX_SAMPLES);
+            next[c.category] = [...(next[c.category] ?? []), { t: polledAt, pending: c.pending_shard_count }].slice(
+              -BACKLOG_MAX_SAMPLES,
+            );
           }
           return next;
         });

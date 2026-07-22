@@ -77,6 +77,10 @@ export interface ConsolidatorHealth {
   verdict: ConsolidatorVerdict;
   index_age_seconds: number | null;
   staleness_budget_seconds: number;
+  /** Cloud Scheduler cron that actually triggers this consolidator's Cloud Run job (standard 5-field
+   *  cron syntax, e.g. every-minute). Declared config (terraform-projected), never a live GCP read —
+   *  see gen_consolidator_catalog.py. */
+  trigger_cron?: string | null;
   last_successful_run_at: string | null;
   /** Backlog: per-VM shards written since the last merge (not yet absorbed). */
   pending_shard_count?: number | null;
