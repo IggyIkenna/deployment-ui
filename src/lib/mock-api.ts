@@ -3086,6 +3086,14 @@ function _climb(tick: number, start: number, cap: number): number {
   return Math.min(start + tick, cap);
 }
 
+/** `grace_hours=` query-param reader for the /api/fleet/orphans mock — falls back on missing/NaN. */
+function _mockGraceHoursFromUrl(url: string, fallback: number): number {
+  const m = url.match(/[?&]grace_hours=([^&]+)/);
+  if (!m) return fallback;
+  const parsed = Number(decodeURIComponent(m[1]));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay(getStandardMockDelayMs());
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -3316,6 +3324,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         // (defi/tradfi/sports/prediction) = 120s; every other consolidator = 86400s.
         staleness_budget_seconds:
           kind === "market-data" && asset_group !== null && asset_group !== "cefi" ? 120 : 86400,
+        // Matches the live-verified estate — every consolidator's Cloud Scheduler cron is this
+        // same literal (see gen_consolidator_catalog.py); mock mode should look like production.
+        trigger_cron: "*/1 * * * *",
         last_successful_run_at: age === null ? null : "2026-06-24T06:55:00+00:00",
         pending_shard_count: pending,
         total_shard_count: total,
@@ -3577,6 +3588,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           verdict: "empty",
           index_age_seconds: null,
           staleness_budget_seconds: 86400,
+          trigger_cron: "*/1 * * * *",
           last_successful_run_at: null,
           pending_shard_count: 0,
           total_shard_count: 0,
@@ -6139,84 +6151,124 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
 
   // Stopped/orphaned-VM inventory — GET /api/fleet/orphans → OrphanInventoryResponse.
-  // One reapable ephemeral, one within-grace, one paused-live, one keep-labelled.
+  // One reapable ephemeral, one within-grace, one paused-live, one keep-labelled. grace_hours-aware
+  // (mirrors deployment-api's real `_verdict()` gate) so the operator-adjustable min-age input has
+  // something real to assert against: only "reap"/"keep_within_grace" baseline entries are
+  // grace-gated — "keep_not_ephemeral"/"keep_retained" never flip regardless of grace_hours.
   if (path === "/api/fleet/orphans") {
+    const graceHoursParam = _mockGraceHoursFromUrl(url, 24);
+    const baseOrphans = [
+      {
+        name: "cefi-binance-spot-20260601",
+        zone: "asia-northeast1-c",
+        status: "TERMINATED",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        stopped_age_hours: 120,
+        boot_disk_gb: 50,
+        boot_disk_type: "pd-standard",
+        monthly_disk_usd: 2.6,
+        graceGated: true,
+      },
+      {
+        name: "tradfi-databento-recent",
+        zone: "asia-northeast1-c",
+        status: "STOPPED",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        stopped_age_hours: 2,
+        boot_disk_gb: 50,
+        boot_disk_type: "pd-standard",
+        monthly_disk_usd: 2.6,
+        graceGated: true,
+      },
+      {
+        // 3min-old — proves the UI's client-side MIN_REAP_GRACE_MINUTES (10) floor actually holds:
+        // a literal grace_hours=0.0167 (1min, unclamped) would also catch this one (reapable=3);
+        // clamped to the 10min floor it correctly stays within-grace (reapable=2).
+        name: "just-stopped-vm-20260722",
+        zone: "asia-northeast1-c",
+        status: "STOPPED",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        stopped_age_hours: 0.05,
+        boot_disk_gb: 25,
+        boot_disk_type: "pd-standard",
+        monthly_disk_usd: 1.3,
+        graceGated: true,
+      },
+      {
+        name: "strategy-live-eth-20260601",
+        zone: "asia-northeast1-c",
+        status: "TERMINATED",
+        lifecycle_class: "LONG_LIVED_LIVE",
+        stopped_age_hours: 240,
+        boot_disk_gb: 50,
+        boot_disk_type: "pd-ssd",
+        monthly_disk_usd: 11.05,
+        graceGated: false,
+        verdict: "keep_not_ephemeral" as const,
+      },
+      {
+        name: "cefi-keepme-20260601",
+        zone: "asia-northeast1-c",
+        status: "TERMINATED",
+        lifecycle_class: "EPHEMERAL_BATCH",
+        stopped_age_hours: 240,
+        boot_disk_gb: 50,
+        boot_disk_type: "pd-standard",
+        monthly_disk_usd: 2.6,
+        graceGated: false,
+        verdict: "keep_retained" as const,
+      },
+    ];
+    const orphans = baseOrphans.map(({ graceGated, verdict, ...rest }) => {
+      const reapable = graceGated ? rest.stopped_age_hours >= graceHoursParam : false;
+      return {
+        ...rest,
+        reapable,
+        verdict: graceGated ? (reapable ? "reap" : "keep_within_grace") : (verdict ?? "keep_not_ephemeral"),
+      };
+    });
     return json({
       generated_at: "2026-06-30T09:00:00+00:00",
-      grace_hours: 24,
-      stopped_total: 4,
-      reapable_total: 1,
-      monthly_idle_usd: 18.85,
-      monthly_reapable_usd: 2.6,
-      orphans: [
-        {
-          name: "cefi-binance-spot-20260601",
-          zone: "asia-northeast1-c",
-          status: "TERMINATED",
-          lifecycle_class: "EPHEMERAL_BATCH",
-          stopped_age_hours: 120,
-          boot_disk_gb: 50,
-          boot_disk_type: "pd-standard",
-          monthly_disk_usd: 2.6,
-          reapable: true,
-          verdict: "reap",
-        },
-        {
-          name: "tradfi-databento-recent",
-          zone: "asia-northeast1-c",
-          status: "STOPPED",
-          lifecycle_class: "EPHEMERAL_BATCH",
-          stopped_age_hours: 2,
-          boot_disk_gb: 50,
-          boot_disk_type: "pd-standard",
-          monthly_disk_usd: 2.6,
-          reapable: false,
-          verdict: "keep_within_grace",
-        },
-        {
-          name: "strategy-live-eth-20260601",
-          zone: "asia-northeast1-c",
-          status: "TERMINATED",
-          lifecycle_class: "LONG_LIVED_LIVE",
-          stopped_age_hours: 240,
-          boot_disk_gb: 50,
-          boot_disk_type: "pd-ssd",
-          monthly_disk_usd: 11.05,
-          reapable: false,
-          verdict: "keep_not_ephemeral",
-        },
-        {
-          name: "cefi-keepme-20260601",
-          zone: "asia-northeast1-c",
-          status: "TERMINATED",
-          lifecycle_class: "EPHEMERAL_BATCH",
-          stopped_age_hours: 240,
-          boot_disk_gb: 50,
-          boot_disk_type: "pd-standard",
-          monthly_disk_usd: 2.6,
-          reapable: false,
-          verdict: "keep_retained",
-        },
-      ],
+      grace_hours: graceHoursParam,
+      stopped_total: orphans.length,
+      reapable_total: orphans.filter((o) => o.reapable).length,
+      monthly_idle_usd: Math.round(orphans.reduce((sum, o) => sum + o.monthly_disk_usd, 0) * 100) / 100,
+      monthly_reapable_usd:
+        Math.round(orphans.filter((o) => o.reapable).reduce((sum, o) => sum + o.monthly_disk_usd, 0) * 100) / 100,
+      orphans,
     });
   }
-  // Reap orphans — POST /api/fleet/reap (dry-run by default) → ReapResponse.
+  // Reap orphans — POST /api/fleet/reap (dry-run by default) → ReapResponse. Same grace_hours-aware
+  // candidate set as GET /api/fleet/orphans above, read from the request body instead of the query string.
   if (path === "/api/fleet/reap" && method === "POST") {
     let dryRun = true;
+    let graceHoursParam = 24;
     try {
-      const body = init?.body ? (JSON.parse(String(init.body)) as { dry_run?: boolean }) : {};
+      const body = init?.body ? (JSON.parse(String(init.body)) as { dry_run?: boolean; grace_hours?: number }) : {};
       dryRun = body.dry_run ?? true;
+      graceHoursParam = typeof body.grace_hours === "number" ? body.grace_hours : 24;
     } catch {
       dryRun = true;
     }
-    const candidate = { name: "cefi-binance-spot-20260601", zone: "asia-northeast1-c", monthly_disk_usd: 2.6 };
+    const graceGatedCandidates = [
+      { name: "cefi-binance-spot-20260601", zone: "asia-northeast1-c", monthly_disk_usd: 2.6, stopped_age_hours: 120 },
+      { name: "tradfi-databento-recent", zone: "asia-northeast1-c", monthly_disk_usd: 2.6, stopped_age_hours: 2 },
+      { name: "just-stopped-vm-20260722", zone: "asia-northeast1-c", monthly_disk_usd: 1.3, stopped_age_hours: 0.05 },
+    ];
+    const candidates = graceGatedCandidates.filter((c) => c.stopped_age_hours >= graceHoursParam);
+    const results = candidates.map(({ stopped_age_hours: _stopped_age_hours, ...c }) => ({
+      ...c,
+      deleted: !dryRun,
+    }));
     return json({
       dry_run: dryRun,
-      grace_hours: 24,
-      candidate_total: 1,
-      reaped_total: dryRun ? 0 : 1,
-      monthly_reclaimed_usd: dryRun ? 0 : 2.6,
-      results: [{ ...candidate, deleted: !dryRun }],
+      grace_hours: graceHoursParam,
+      candidate_total: candidates.length,
+      reaped_total: dryRun ? 0 : candidates.length,
+      monthly_reclaimed_usd: dryRun
+        ? 0
+        : Math.round(candidates.reduce((s, c) => s + c.monthly_disk_usd, 0) * 100) / 100,
+      results,
     });
   }
   // Delete a single stopped instance — DELETE /api/fleet/instances/{name}?zone=… → DeleteInstanceResponse.
