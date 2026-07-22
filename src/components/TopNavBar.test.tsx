@@ -4,7 +4,7 @@
  * Inherits the tab-trigger assertions that used to live in Cockpit.test.tsx: the bar was
  * lifted out of the Cockpit into the Header (operator 2026-07-17), so the triggers are no
  * longer that page's to render. What's pinned here is the contract the lift must preserve —
- * the same 14 entries as the dropdown, the retired per-mode tabs staying dead, and cockpit
+ * the same 16 entries as the dropdown, the retired per-mode tabs staying dead, and cockpit
  * entries rendering as URL Links (which is what lets the bar select a tab from any route).
  */
 
@@ -48,20 +48,21 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("renders the 4 screens with no cockpit twin as route links", () => {
+  it("renders the 6 screens with no cockpit twin as route links", () => {
     renderAt("/cockpit");
-    // vm-deployments moved to the legacy quarantine (Fleet-tab consolidation, 2026-07-21) — off
-    // the canonical bar/dropdown; see NavMenu.test.tsx "legacy quarantine" for its own coverage.
-    for (const id of ["home", "epics", "data-status", "costs"]) {
+    // vm-deployments (the standalone list page) is fully retired (2026-07-21) — see
+    // NavMenu.test.tsx "legacy quarantine" for the nav-side coverage. venue-config is its
+    // relocated venue-panel replacement (2026-07-21).
+    for (const id of ["home", "epics", "venue-config", "data-status", "costs", "artifacts"]) {
       expect(screen.getByTestId(`cockpit-navlink-${id}`)).toBeTruthy();
     }
   });
 
-  it("shows all 15 canonical entries — the same list as the dropdown", () => {
+  it("shows all 16 canonical entries — the same list as the dropdown", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {
@@ -84,8 +85,9 @@ describe("TopNavBar", () => {
 
   it("keeps a route entry lit on its deeper detail routes", () => {
     // /deployments/:name is navItemIsActive's own cited example (NavMenu.tsx docstring) — the
-    // prior vm-deployments/:deploymentId case moved to the legacy quarantine (2026-07-21), off
-    // this bar entirely, so it can no longer exercise this prefix-match behaviour.
+    // prior vm-deployments/:deploymentId case is off this bar entirely (no nav entry, and
+    // /vm-deployments itself is retired, 2026-07-21), so it can no longer exercise this
+    // prefix-match behaviour.
     renderAt("/deployments/some-target-name");
     expect(screen.getByTestId("cockpit-tab-deployments").getAttribute("aria-current")).toBe("page");
   });

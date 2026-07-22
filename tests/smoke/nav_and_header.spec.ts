@@ -239,12 +239,14 @@ test.describe("Page renders — no crash smoke", () => {
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });
 
-  test("VM Deployments page renders without JS error", async ({ page }) => {
+  // "VM Deployments page renders without JS error" REMOVED 2026-07-21 — /vm-deployments (the
+  // standalone list page) is retired; its content lives at /deployments (own "renders without
+  // JS error" coverage already exists in this file) and /venue-config (below).
+
+  test("Venue Config page renders without JS error", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/vm-deployments");
-    // This page polls the deployment registry so `networkidle` never settles — wait on the
-    // page heading as the deterministic render signal instead.
-    await expect(page.getByRole("heading", { name: "VM Deployments" })).toBeVisible();
+    await page.goto("/venue-config");
+    await expect(page.getByRole("heading", { name: "Venue Config" })).toBeVisible();
 
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();
   });

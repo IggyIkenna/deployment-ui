@@ -4285,6 +4285,15 @@ export interface RepoCiAlerts {
   source: string;
   alerts: RepoCiAlertEntry[];
   streams: RepoCiAlertStream[];
+  /** The day window actually served (clamped to the backend's retention floor, currently 30) — the
+   *  honesty source for the Alerts page date-range picker's "no data before <date>" state, so the
+   *  frontend never hardcodes a retention constant that could drift from the backend's. */
+  days: number;
+  total_count: number;
+  returned_count: number;
+  offset: number;
+  limit: number;
+  capped: boolean;
 }
 
 export async function getRepoCiAlerts(): Promise<RepoCiAlerts> {

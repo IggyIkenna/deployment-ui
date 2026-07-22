@@ -39,4 +39,14 @@ test.describe("Fleet Git-Health tab", () => {
     // Operator rule: git-health click-through goes to the AO UI fleet page.
     await expect(link).toHaveAttribute("href", /agent-orchestrator.*\/fleet-git$/);
   });
+
+  test("each slot shows its snapshot age, not just the derived reporter-dead boolean", async ({ page }) => {
+    // 2026-07-21: reported_at was already stored + on the wire but never rendered.
+    await page.goto("/fleet");
+    const snapshot = page.getByTestId("fleet-slot-3-reported-at");
+    await expect(snapshot).toBeVisible();
+    await expect(snapshot).toContainText(/snapshot .+ ago/);
+    // The absolute time pairs with the relative age via a tooltip (title attribute).
+    await expect(await snapshot.getAttribute("title")).toBeTruthy();
+  });
 });

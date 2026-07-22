@@ -1,7 +1,7 @@
 /**
  * Regression spec: Venue Date Range Availability panel (§3.P2)
  *
- * Covers the date-range availability view added to the VM Deployments page:
+ * Covers the date-range availability view on the Venue Config page:
  *   - Panel renders with "Venue Date Range Availability" heading
  *   - binance row is visible with free/paid counts (mock data)
  *   - Refresh button is present on the panel
@@ -14,14 +14,14 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-async function goToVmDeployments(page: Page) {
-  await page.goto("/vm-deployments");
+async function goToVenueConfig(page: Page) {
+  await page.goto("/venue-config");
   await page.waitForLoadState("networkidle");
 }
 
 test.describe("Venue Date Range Availability panel", () => {
   test("Panel renders with Venue Date Range Availability heading", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const panel = page.getByTestId("venue-date-range-panel");
     await expect(panel).toBeVisible();
@@ -29,7 +29,7 @@ test.describe("Venue Date Range Availability panel", () => {
   });
 
   test("binance row shows free and paid date counts", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const row = page.getByTestId("venue-date-range-row-binance");
     await expect(row).toBeVisible();
@@ -43,14 +43,14 @@ test.describe("Venue Date Range Availability panel", () => {
   });
 
   test("Refresh button is visible on the date range panel", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     const btn = page.getByTestId("venue-date-range-refresh-btn");
     await expect(btn).toBeVisible();
   });
 
   test("Panel renders without JS error (regression guard)", async ({ page }) => {
-    await goToVmDeployments(page);
+    await goToVenueConfig(page);
 
     await expect(page.getByTestId("venue-date-range-panel")).toBeVisible();
     await expect(page.getByText(/Unknown Error|Uncaught TypeError/i)).not.toBeVisible();

@@ -87,15 +87,17 @@ test("the legacy duplicate-route quarantine is gone — one plain route per scre
   }
 });
 
-test("the always-visible top bar carries the same 15 entries as the dropdown", async ({ page }) => {
+test("the always-visible top bar carries the same 16 entries as the dropdown", async ({ page }) => {
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 10 cockpit tabs + the 5 screens with no cockpit twin = the dropdown's 15.
+  // 10 cockpit tabs + the 6 screens with no cockpit twin = the dropdown's 16. (Was 15/5 with a
+  // stale "vm-deployments" in this list — that route is now fully retired, off canonical nav
+  // entirely; "artifacts" + "venue-config" are canonical instead.)
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
-  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(5);
+  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(6);
 
-  for (const id of ["home", "epics", "vm-deployments", "data-status", "costs"]) {
+  for (const id of ["home", "epics", "data-status", "costs", "artifacts", "venue-config"]) {
     await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
   }
 });

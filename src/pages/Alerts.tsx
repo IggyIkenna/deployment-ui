@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, BellRing, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowUpRight, BellRing, ExternalLink, Radio, RefreshCw } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
 import { formatAge } from "../lib/repoCi";
@@ -23,6 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import { useColumnSort, type ColumnSort } from "../hooks/useColumnSort";
 import { compareByColumn } from "../lib/columnSort";
+import { FilterSelect } from "../components/filters/FilterSelect";
+import { MultiChipFilter, type MultiChipOption } from "../components/filters/MultiChipFilter";
+import type { ChipTone } from "../components/filters/chipTone";
 
 function severityTone(entry: UnifiedAlertEntry): string {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure")
@@ -57,6 +60,87 @@ function severityRank(entry: UnifiedAlertEntry): number {
   if (entry.severity === "CRITICAL" || entry.conclusion === "failure") return 0;
   if (entry.severity === "WARNING") return 1;
   return 2;
+}
+
+/** The filterable "effective severity" bucket per entry — mirrors severityTone's own fallback
+ *  chain (severity, then conclusion, then "info") so the filter chips and the rendered chip
+ *  colour never disagree about which bucket a row belongs to. */
+function severityBucket(entry: UnifiedAlertEntry): string {
+  return entry.severity ?? entry.conclusion ?? "info";
+}
+
+function severityBucketTone(bucket: string): ChipTone {
+  if (bucket === "CRITICAL" || bucket === "failure") return "red";
+  if (bucket === "WARNING") return "yellow";
+  return "green";
+}
+
+function kindTone(_kind: string): ChipTone {
+  return "blue";
+}
+
+/**
+ * Date-range picker — two native date inputs bounding an inclusive `[alert_from, alert_to]`
+ * window, URL-backed. Local to this page (not the shared `filters/` dir): the extracted
+ * primitives are `FilterSelect`/`StatusFilterChips`/`useColumnSort`/`compareByColumn` only —
+ * Deployments.tsx's own date-range filter stayed local too (a server-side query wired to its own
+ * `date_from`/`date_to` backend contract), so this mirrors its UX pattern (atomic clear, no pick
+ * blocked by `min`/`max`) without re-editing that file or forcing a shared abstraction over two
+ * backends with different contracts (deployments = explicit from/to query; alerts = a `days`-back
+ * window, filtered client-side here — see `retentionFloorDate` below).
+ */
+function AlertDateRangeFilter({
+  from,
+  to,
+  onChangeFrom,
+  onChangeTo,
+  onClear,
+}: {
+  from: string;
+  to: string;
+  onChangeFrom: (value: string) => void;
+  onChangeTo: (value: string) => void;
+  onClear: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const field =
+    "bg-[var(--color-bg-secondary)] border border-[var(--color-border-default)] rounded px-1.5 py-1 text-[11px] text-[var(--color-text-primary)]";
+  return (
+    <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+      date range
+      <input
+        type="date"
+        aria-label="Alert date range start"
+        data-testid="filter-alert-date-from"
+        value={from}
+        max={to || today}
+        onChange={(e) => onChangeFrom(e.target.value)}
+        className={field}
+      />
+      <span className="text-[var(--color-text-tertiary)]">→</span>
+      <input
+        type="date"
+        aria-label="Alert date range end"
+        data-testid="filter-alert-date-to"
+        value={to}
+        min={from}
+        max={today}
+        onChange={(e) => onChangeTo(e.target.value)}
+        className={field}
+      />
+      {(from || to) && (
+        <button
+          type="button"
+          aria-label="Clear alert date range"
+          data-testid="filter-alert-date-clear"
+          onClick={onClear}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
@@ -139,6 +223,73 @@ export function AlertsContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { sort, onHeaderClick } = useColumnSort<AlertSortKey>(initialSortFromParams(searchParams));
 
+  // URL-backed filter state — parsed fresh from searchParams on every render (cheap: these are
+  // small string/Set derivations, and it keeps the filter state and the URL as the single source
+  // of truth instead of duplicating it into component state that could drift, mirroring
+  // Deployments.tsx's own `kindFilters`/`setParam` pattern).
+  const kindFilters = useMemo(() => {
+    const raw = searchParams.get("kind");
+    return raw ? new Set(raw.split(",").filter(Boolean)) : new Set<string>();
+  }, [searchParams]);
+  const severityFilters = useMemo(() => {
+    const raw = searchParams.get("severity");
+    return raw ? new Set(raw.split(",").filter(Boolean)) : new Set<string>();
+  }, [searchParams]);
+  const repoFilter = searchParams.get("repo") ?? "";
+  const serviceFilter = searchParams.get("service") ?? "";
+  const alertFromFilter = searchParams.get("alert_from") ?? "";
+  const alertToFilter = searchParams.get("alert_to") ?? "";
+
+  const setParam = useCallback(
+    (key: string, value: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value) next.set(key, value);
+          else next.delete(key);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const toggleKindFilter = useCallback(
+    (kind: string) => {
+      const next = new Set(kindFilters);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      setParam("kind", Array.from(next).join(","));
+    },
+    [kindFilters, setParam],
+  );
+
+  const toggleSeverityFilter = useCallback(
+    (bucket: string) => {
+      const next = new Set(severityFilters);
+      if (next.has(bucket)) next.delete(bucket);
+      else next.add(bucket);
+      setParam("severity", Array.from(next).join(","));
+    },
+    [severityFilters, setParam],
+  );
+
+  // Clears BOTH date-range bounds in one atomic update — two sequential `setParam` calls would each
+  // race against the same pre-update `prev` snapshot and clobber each other (mirrors Deployments.tsx's
+  // own `clearDateRange`).
+  const clearAlertDateRange = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("alert_from");
+        next.delete("alert_to");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -174,13 +325,78 @@ export function AlertsContent() {
     );
   }, [sort, setSearchParams]);
 
-  const sortedAlerts = useMemo(() => {
+  // Filter options are derived from the LOADED alert set (not a hardcoded vocabulary) — a kind/
+  // repo/service that never appears in the current window never shows as a dead filter option.
+  const kindOptions = useMemo<MultiChipOption[]>(() => {
     if (!data) return [];
-    if (!sort) return data.alerts;
-    return [...data.alerts].sort((a, b) =>
+    const seen = new Set(data.alerts.map((a) => a.kind));
+    return Array.from(seen)
+      .sort()
+      .map((kind) => ({ value: kind, label: kindLabel(kind), tone: kindTone(kind) }));
+  }, [data]);
+  const severityOptions = useMemo<MultiChipOption[]>(() => {
+    if (!data) return [];
+    const seen = new Set(data.alerts.map(severityBucket));
+    return Array.from(seen)
+      .sort()
+      .map((bucket) => ({ value: bucket, label: bucket, tone: severityBucketTone(bucket) }));
+  }, [data]);
+  const repoOptions = useMemo(() => {
+    if (!data) return [{ value: "", label: "All repos" }];
+    const seen = new Set(data.alerts.map((a) => a.repo));
+    return [
+      { value: "", label: "All repos" },
+      ...Array.from(seen)
+        .sort()
+        .map((r) => ({ value: r, label: r })),
+    ];
+  }, [data]);
+  const serviceOptions = useMemo(() => {
+    if (!data) return [{ value: "", label: "All services" }];
+    const seen = new Set(data.alerts.map((a) => a.workflow_name).filter(Boolean));
+    return [
+      { value: "", label: "All services" },
+      ...Array.from(seen)
+        .sort()
+        .map((w) => ({ value: w, label: w })),
+    ];
+  }, [data]);
+
+  // The retention floor honesty check (deployment_alerts_ingestion_completeness_2026_07_20.md todo
+  // 8: `_DEFAULT_DAYS = _MAX_DAYS = 30`) — `data.days` is the day window the BACKEND actually served
+  // (clamped to its own retention constant), so deriving the floor from it (rather than hardcoding
+  // "30" here) means this never drifts out of sync if the backend's retention window changes.
+  const retentionFloorDate = useMemo(() => {
+    if (!data) return null;
+    const floor = new Date();
+    floor.setUTCDate(floor.getUTCDate() - (data.days - 1));
+    return floor.toISOString().slice(0, 10);
+  }, [data]);
+  const alertDateRangeOutOfRetention = !!(
+    retentionFloorDate &&
+    alertFromFilter &&
+    alertFromFilter < retentionFloorDate
+  );
+
+  const filteredAlerts = useMemo(() => {
+    if (!data) return [];
+    return data.alerts.filter(
+      (a) =>
+        (kindFilters.size === 0 || kindFilters.has(a.kind)) &&
+        (severityFilters.size === 0 || severityFilters.has(severityBucket(a))) &&
+        (!repoFilter || a.repo === repoFilter) &&
+        (!serviceFilter || a.workflow_name === serviceFilter) &&
+        (!alertFromFilter || a.timestamp.slice(0, 10) >= alertFromFilter) &&
+        (!alertToFilter || a.timestamp.slice(0, 10) <= alertToFilter),
+    );
+  }, [data, kindFilters, severityFilters, repoFilter, serviceFilter, alertFromFilter, alertToFilter]);
+
+  const sortedAlerts = useMemo(() => {
+    if (!sort) return filteredAlerts;
+    return [...filteredAlerts].sort((a, b) =>
       compareByColumn(a, b, sort.key, sort.dir, alertColumnSortValue, alertDefaultCmp),
     );
-  }, [data, sort]);
+  }, [filteredAlerts, sort]);
 
   return (
     <div className="space-y-4" data-testid="alerts-page">
@@ -212,39 +428,125 @@ export function AlertsContent() {
       )}
       {data && (
         <>
-          <Card data-testid="alert-streams">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Streams — current vs previous state (worst first)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {data.streams.length === 0 && (
-                <p className="text-sm text-[var(--color-text-muted)]">No alert streams in the window.</p>
-              )}
-              {data.streams.map((stream) => (
-                <div
-                  key={`${stream.repo}/${stream.workflow_name}`}
-                  className="flex items-center gap-2 text-sm flex-wrap"
-                  data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
-                >
-                  <DomainChip kind={stream.current.kind} />
-                  <span className="font-mono text-[var(--color-text-primary)]">
-                    {stream.repo} / {stream.workflow_name}
-                  </span>
-                  {stream.previous && (
-                    <>
-                      <EntryChip entry={stream.previous} testId="stream-previous" />
-                      <span className="text-[var(--color-text-muted)]">→</span>
-                    </>
-                  )}
-                  <EntryChip entry={stream.current} testId="stream-current" />
-                  <span className="text-[var(--color-text-muted)]">
-                    {formatAge(ageMin(stream.current.timestamp))} ago · {stream.count} event
-                    {stream.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 p-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]/40"
+            data-testid="alerts-filter-bar"
+          >
+            <MultiChipFilter
+              testId="filter-kind"
+              label="source"
+              options={kindOptions}
+              selected={kindFilters}
+              onToggle={toggleKindFilter}
+            />
+            <MultiChipFilter
+              testId="filter-severity"
+              label="severity"
+              options={severityOptions}
+              selected={severityFilters}
+              onToggle={toggleSeverityFilter}
+            />
+            <FilterSelect
+              testId="filter-repo"
+              label="repo"
+              value={repoFilter}
+              options={repoOptions}
+              onChange={(v) => setParam("repo", v)}
+            />
+            <FilterSelect
+              testId="filter-service"
+              label="service"
+              value={serviceFilter}
+              options={serviceOptions}
+              onChange={(v) => setParam("service", v)}
+            />
+            <AlertDateRangeFilter
+              from={alertFromFilter}
+              to={alertToFilter}
+              onChangeFrom={(v) => setParam("alert_from", v)}
+              onChangeTo={(v) => setParam("alert_to", v)}
+              onClear={clearAlertDateRange}
+            />
+            {(kindFilters.size > 0 ||
+              severityFilters.size > 0 ||
+              repoFilter ||
+              serviceFilter ||
+              alertFromFilter ||
+              alertToFilter) && (
+              <button
+                type="button"
+                data-testid="filter-clear"
+                onClick={() => {
+                  setSearchParams(
+                    (prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.delete("kind");
+                      next.delete("severity");
+                      next.delete("repo");
+                      next.delete("service");
+                      next.delete("alert_from");
+                      next.delete("alert_to");
+                      return next;
+                    },
+                    { replace: true },
+                  );
+                }}
+                className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] underline"
+              >
+                clear filters
+              </button>
+            )}
+            <span className="text-[11px] text-[var(--color-text-muted)] ml-auto" data-testid="filter-result-count">
+              {filteredAlerts.length} of {data.alerts.length} alerts
+            </span>
+          </div>
+          {alertDateRangeOutOfRetention && retentionFloorDate && (
+            <div
+              className="p-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-[11px] text-amber-400"
+              data-testid="alerts-retention-floor-banner"
+            >
+              No alerts before {retentionFloorDate} — the ledger retains {data.days} days.
+            </div>
+          )}
+          {/* Streams stays a visible SUMMARY (Layout/"proper view" todo, operator decision A,
+              2026-07-21) — a compact single-line-per-stream strip, not a full Card with the same
+              visual weight as the Timeline below. No Card/CardHeader/CardContent chrome, smaller
+              text, tighter padding; every existing data-testid (`alert-streams`,
+              `alert-stream-{repo}-{workflow}`, `stream-previous`/`stream-current`) is unchanged. */}
+          <div
+            data-testid="alert-streams"
+            className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]/40 p-2 space-y-1"
+          >
+            <div className="text-[11px] font-medium text-[var(--color-text-muted)]" data-testid="alert-streams-label">
+              Streams — summary (worst first)
+            </div>
+            {data.streams.length === 0 && (
+              <p className="text-xs text-[var(--color-text-muted)]">No alert streams in the window.</p>
+            )}
+            {data.streams.map((stream) => (
+              <div
+                key={`${stream.repo}/${stream.workflow_name}`}
+                className="flex items-center gap-1.5 text-xs flex-wrap"
+                data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
+              >
+                <DomainChip kind={stream.current.kind} />
+                <span className="font-mono text-[var(--color-text-primary)]">
+                  {stream.repo} / {stream.workflow_name}
+                </span>
+                {stream.previous && (
+                  <>
+                    <EntryChip entry={stream.previous} testId="stream-previous" />
+                    <span className="text-[var(--color-text-muted)]">→</span>
+                  </>
+                )}
+                <EntryChip entry={stream.current} testId="stream-current" />
+                <span className="text-[var(--color-text-muted)]">
+                  {formatAge(ageMin(stream.current.timestamp))} ago · {stream.count} event
+                  {stream.count === 1 ? "" : "s"}
+                </span>
+              </div>
+            ))}
+          </div>
           <Card data-testid="alert-timeline">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Alert timeline (newest first)</CardTitle>
@@ -255,8 +557,17 @@ export function AlertsContent() {
                   No alerts persisted yet — the ledger fills as notify-slack posts.
                 </p>
               )}
-              {data.alerts.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]">
+              {data.alerts.length > 0 && filteredAlerts.length === 0 && (
+                <p className="text-sm text-[var(--color-text-muted)]" data-testid="alerts-filter-empty">
+                  No alerts match the active filters.
+                </p>
+              )}
+              {filteredAlerts.length > 0 && (
+                <div
+                  role="table"
+                  aria-label="Alert timeline"
+                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]"
+                >
                   <span className="w-[46px] shrink-0" aria-hidden="true" />
                   {ALERT_SORT_COLUMNS.map((c) => {
                     const dir = sort?.key === c.key ? sort.dir : undefined;
@@ -281,6 +592,7 @@ export function AlertsContent() {
               {sortedAlerts.map((alert, index) => (
                 <div
                   key={`${alert.timestamp}-${index}`}
+                  role="row"
                   className="flex items-start gap-2 text-sm"
                   data-testid={`alert-entry-${index}`}
                 >
@@ -313,6 +625,18 @@ export function AlertsContent() {
                       <ArrowUpRight className="h-3 w-3" />
                       <span className="text-xs">deployment</span>
                     </Link>
+                  )}
+                  {alert.deployment_target && (
+                    <button
+                      type="button"
+                      onClick={() => setParam("logs", alert.deployment_target ?? "")}
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                      title={`Stream logs for ${alert.deployment_target}`}
+                      data-testid={`alert-logs-link-${index}`}
+                    >
+                      <Radio className="h-3 w-3" />
+                      <span className="text-xs">logs</span>
+                    </button>
                   )}
                   {alert.run_url && (
                     <a href={alert.run_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">

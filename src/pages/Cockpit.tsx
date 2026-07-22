@@ -45,7 +45,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
-import { FleetOrphansContent } from "./FleetOrphans";
 import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
 import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
@@ -186,7 +185,10 @@ const HEALTH_TILES: Tile[] = [
 // cockpit tabs (Phase 0.7). Linked here so they're reachable from the cockpit once the
 // duplicate top-nav links are removed; each becomes its own embedded tab next.
 const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; to: string }[] = [
-  { id: "vm-deployments", label: "VM Deployments", icon: Server, to: "/vm-deployments" },
+  // "vm-deployments" REMOVED 2026-07-21 — /vm-deployments (the standalone list page) is retired;
+  // its content lives at /deployments (already a top-level canonical nav entry, not a secondary
+  // console link) and /venue-config. See
+  // plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md.
   { id: "chaos", label: "Chaos (resilience testing)", icon: AlertTriangle, to: "/chaos" },
   { id: "safety-ops", label: "Safety Ops", icon: ShieldCheck, to: "/safety-ops" },
   { id: "ml", label: "ML Experiments", icon: BarChart2, to: "/research/ml-experiments" },
@@ -494,26 +496,15 @@ function DeployTab() {
 // Fleet — VM-census embed + cross-cloud reconciliation cards REMOVED 2026-07-21
 // (deployment_ui_fleet_tab_consolidation_2026_07_21.md): both were redundant with
 // Deployments (which already shows every VM + its status) and AO's own dashboard.
-// Fleet retains only the idle-spend orphan surface + git health (git-only is the
-// next todo in that plan).
+// The idle-spend orphan capability (rollup cards, verdict/stopped-age, reap/delete
+// actions) was MERGED into Deployments (not removed) in earlier todos of that same
+// plan, so its embed here is now also redundant — Fleet is git-health-only.
 // ---------------------------------------------------------------------------
 
 function FleetTab() {
   return (
     <div data-testid="cockpit-fleet">
-      {/* Stopped & orphaned VMs — the idle-disk-spend surface (GET /api/fleet/orphans).
-          Makes the recurring boot-disk cost of stopped VMs visible + reapable in-place. */}
-      <div>
-        <ErrorBoundary fallbackTitle="Orphan inventory failed to load">
-          <FleetOrphansContent />
-        </ErrorBoundary>
-      </div>
-
-      {/* Fold /fleet/git — per-slot git health across the fleet (Phase 0.5 "Fold /fleet/git"). */}
-      <div className="mt-6" data-testid="cockpit-fleet-git">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
-          Fleet git health
-        </h2>
+      <div data-testid="cockpit-fleet-git">
         <ErrorBoundary fallbackTitle="Fleet git failed to load">
           <FleetGitContent />
         </ErrorBoundary>

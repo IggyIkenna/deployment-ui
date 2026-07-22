@@ -90,8 +90,8 @@ test.describe("Cockpit — scaffold IA", () => {
     await mockBase(page);
     await page.goto("/fleet");
     await page.waitForLoadState("networkidle");
-    // VM-census embed + reconciliation cards REMOVED 2026-07-21 (redundant with Deployments);
-    // Fleet now shows only the orphan idle-spend surface + git health.
+    // VM-census embed + reconciliation cards + the FleetOrphans idle-spend embed all REMOVED
+    // 2026-07-21 (redundant with / merged into Deployments); Fleet is now git-health-only.
     await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
     await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 
@@ -440,53 +440,48 @@ test.describe("Cockpit — Live-ops + Fleet-git folds", () => {
 });
 
 /**
- * Regression: the Fleet tab surfaces STOPPED/ORPHANED VMs + their idle disk spend
- * (GET /api/fleet/orphans), with a dry-run-first bulk reap (POST /api/fleet/reap) and a
- * per-instance delete (DELETE /api/fleet/instances/{name}). This is the GCP idle-disk-cost
- * surface that makes the 2026-06-30 orphan leak (127 stopped VMs, ~$330/mo) visible +
- * actionable in-place. Uses the dev mock-api (VITE_MOCK_API=true) for /api/fleet/orphans+reap.
+ * Regression: Deployments surfaces STOPPED/ORPHANED VMs + their idle disk spend
+ * (GET /api/fleet/orphans), with a dry-run-first bulk reap (POST /api/fleet/reap). This is
+ * the GCP idle-disk-cost surface that makes the 2026-06-30 orphan leak (127 stopped VMs,
+ * ~$330/mo) visible + actionable in-place. RETARGETED from `/fleet` to `/deployments`
+ * 2026-07-21 (deployment_ui_fleet_tab_consolidation_2026_07_21.md) — the FleetOrphans embed
+ * was removed from Fleet (Fleet is now git-health-only); this capability was MERGED into
+ * Deployments in an earlier todo of that same plan, not deleted, so the regression guard
+ * moves with it rather than being dropped. Uses the dev mock-api (VITE_MOCK_API=true) for
+ * /api/fleet/orphans+reap.
+ *
+ * NOTE: the per-instance delete-dialog flow (`orphan-delete-${name}` on a specific
+ * deployment row) is NOT ported here — it needs a row in the MAIN deployment-inventory mock
+ * with `reap_verdict` populated, which does not currently exist in mock-api.ts (a pre-existing
+ * gap from whichever earlier todo shipped `Deployments.tsx`'s per-row delete button; unit-level
+ * coverage exists in `Deployments.test.tsx` via hand-built fixtures). Out of scope here.
  */
-test.describe("Cockpit — Fleet orphan inventory + reap/delete", () => {
-  test("Fleet tab shows the idle-spend rollup + stopped-VM table with reap-verdicts", async ({ page }) => {
-    await page.goto("/fleet");
+test.describe("Cockpit — Deployments orphan inventory + bulk reap", () => {
+  test("Deployments shows the idle-spend rollup + bulk-reap button from the shared orphans mock", async ({ page }) => {
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("fleet-orphans")).toBeVisible();
+    await expect(page.getByTestId("deployments-idle-spend-cards")).toBeVisible();
     // Idle-spend rollup cards from the mock inventory (4 stopped, 1 reapable, $18.85 idle, $2.60 reclaimable).
-    await expect(page.getByTestId("orphans-card-stopped")).toContainText("4");
-    await expect(page.getByTestId("orphans-card-reapable")).toContainText("1");
-    await expect(page.getByTestId("orphans-card-idle-usd")).toContainText("$18.85");
-    await expect(page.getByTestId("orphans-card-reclaimable-usd")).toContainText("$2.60");
-    // The reapable ephemeral row carries the destructive "Reapable" verdict; the live one does not.
-    await expect(page.getByTestId("orphan-row-cefi-binance-spot-20260601")).toContainText("Reapable");
-    await expect(page.getByTestId("orphan-row-strategy-live-eth-20260601")).toContainText("Live/recurring");
-    await expect(page.getByTestId("orphans-reap-btn")).toContainText("Reap 1 reapable");
+    await expect(page.getByTestId("deployments-orphans-card-stopped")).toContainText("4");
+    await expect(page.getByTestId("deployments-orphans-card-reapable")).toContainText("1");
+    await expect(page.getByTestId("deployments-orphans-card-idle-usd")).toContainText("$18.85");
+    await expect(page.getByTestId("deployments-orphans-card-reclaimable-usd")).toContainText("$2.60");
+    await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 1 reapable");
   });
 
   test("bulk reap is dry-run-first → confirm dialog lists candidates → executes", async ({ page }) => {
-    await page.goto("/fleet");
+    await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     // The in-app mock resolves after networkidle, so wait for the inventory to populate the
     // button (it is disabled until data loads) before driving the reap flow.
-    await expect(page.getByTestId("orphans-reap-btn")).toContainText("Reap 1 reapable");
-    await page.getByTestId("orphans-reap-btn").click();
+    await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 1 reapable");
+    await page.getByTestId("deployments-reap-btn").click();
     // Dry-run populates the confirm dialog with the single real candidate.
-    await expect(page.getByTestId("orphans-reap-dialog")).toBeVisible();
-    await expect(page.getByTestId("orphans-reap-dialog")).toContainText("cefi-binance-spot-20260601");
-    await page.getByTestId("orphans-reap-confirm").click();
+    await expect(page.getByTestId("deployments-reap-dialog")).toBeVisible();
+    await expect(page.getByTestId("deployments-reap-dialog")).toContainText("cefi-binance-spot-20260601");
+    await page.getByTestId("deployments-reap-confirm").click();
     // The execute reap returns reaped_total=1 → the success action message renders.
-    await expect(page.getByTestId("fleet-orphans-action-msg")).toContainText("Reaped 1");
-  });
-
-  test("per-instance delete is gated behind a confirm dialog", async ({ page }) => {
-    await page.goto("/fleet");
-    await page.waitForLoadState("networkidle");
-    // Wait for the row to render (in-app mock resolves after networkidle) before clicking.
-    await expect(page.getByTestId("orphan-row-cefi-binance-spot-20260601")).toBeVisible();
-    await page.getByTestId("orphan-delete-cefi-binance-spot-20260601").click();
-    await expect(page.getByTestId("orphans-delete-dialog")).toBeVisible();
-    await expect(page.getByTestId("orphans-delete-dialog")).toContainText("cefi-binance-spot-20260601");
-    await page.getByTestId("orphans-delete-confirm").click();
-    await expect(page.getByTestId("fleet-orphans-action-msg")).toContainText("Deleted cefi-binance-spot-20260601");
+    await expect(page.getByTestId("deployments-reap-action-msg")).toContainText("Reaped 1");
   });
 });
 

@@ -64,15 +64,13 @@ async function injectVmDeploymentData(page: Page, recentRows: unknown[]) {
 }
 
 test.describe("DeploymentDetail — VM History card (folded /vm-deployments archive)", () => {
-  // /vm-deployments stays LIVE (legacy-quarantined, not redirected — operator decision
-  // BLK-7cb5bbbc): its non-compact mode is the only reachable home for 4 venue-config panels
-  // this fold never accounted for. See tests/smoke/venue_tardis_windows.spec.ts +
-  // vm_deployments_reconcile.spec.ts for that page's own regression coverage, unaffected here.
-  test("/vm-deployments stays reachable (legacy-quarantined, off the canonical nav)", async ({ page }) => {
-    await page.goto("/vm-deployments");
-    await expect(page).toHaveURL(/\/vm-deployments$/);
-    await expect(page.getByTestId("reconcile-registry-btn")).toBeVisible();
-  });
+  // /vm-deployments (the standalone list page) is fully RETIRED (2026-07-21) — its 2 remaining
+  // unique features got real homes: "Reconcile Registry" moved to /deployments' header (see
+  // vm_deployments_reconcile.spec.ts for that page's own regression coverage now), and the raw
+  // active/archive VM table was deleted as redundant with /deployments' own unified VM-kind
+  // inventory. Its 4 venue-config panels moved to /venue-config (2026-07-21) — see
+  // tests/smoke/venue_tardis_windows.spec.ts. Only /vm-deployments/:deploymentId (the per-run
+  // drill-down) still exists; this file's own remaining coverage is unaffected by the retirement.
 
   test("COMPLETED entry shows outcome badge, duration, rows captured, log link", async ({ page }) => {
     const entry = makeArchiveEntry();

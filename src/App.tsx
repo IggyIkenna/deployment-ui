@@ -67,7 +67,7 @@ import { ExecutionBacktests } from "./pages/ExecutionBacktests";
 import { MlExperiments } from "./pages/MlExperiments";
 import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
-import { VmDeployments } from "./pages/VmDeployments";
+import { VenueConfig } from "./pages/VenueConfig";
 import type { CreateDeploymentResponse, DeploymentRequest } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -165,6 +165,12 @@ function App() {
                   <Route path="/deploy" element={<CockpitDeploy />} />
                   <Route path="/deployments" element={<DeploymentsPage />} />
                   <Route path="/deployments/:name" element={<DeploymentDetail />} />
+                  {/* Canonical home for the 4 venue-config panels, relocated out of the
+                      legacy-quarantined /vm-deployments page (2026-07-21, see
+                      unified-trading-pm/plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md).
+                      Grouped with Deploy & Deployments (NavMenu.tsx) — these panels configure/inform
+                      the VM deployment workflow, not Fleet's git-health/orphan-VM observability. */}
+                  <Route path="/venue-config" element={<VenueConfig />} />
                   <Route path="/fleet" element={<CockpitFleet />} />
                   <Route path="/consolidators" element={<CockpitConsolidators />} />
                   <Route path="/ci" element={<CockpitCi />} />
@@ -172,14 +178,12 @@ function App() {
                   <Route path="/launch" element={<CockpitLaunch />} />
                   <Route path="/chaos" element={<CockpitChaos />} />
                   <Route path="/safety-ops" element={<CockpitSafety />} />
-                  {/* Legacy-quarantined (Fleet-tab consolidation, operator decision 2026-07-21 —
-                      BLK-7cb5bbbc): the archive/history table folded into Deployments' per-target
-                      History card, but this route STAYS LIVE (not a redirect) — VmDeploymentsContent's
-                      non-compact mode is the only reachable home for 4 venue-config panels
-                      (VenueCredentialsPanel/VenueDateRangePanel/VenueRelaunchEstimatePanel/
-                      VenueTardisWindowsPanel), which the Fleet-tab audit never accounted for. Removed
-                      from canonical nav only (NavMenu.tsx `legacy: true` group). */}
-                  <Route path="/vm-deployments" element={<VmDeployments />} />
+                  {/* /vm-deployments (the standalone list page) is RETIRED (2026-07-21) — its 2
+                      remaining unique features now have real homes: "Reconcile Registry" moved to
+                      /deployments' header, and the raw active+archive VM table was deleted as
+                      redundant with /deployments' own unified VM-kind inventory (which already has
+                      an archive/"all" status view). /vm-deployments/:deploymentId stays live —
+                      DeploymentDetail's History card links to it directly for per-run drill-down. */}
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
                   <Route path="/ops/artifacts" element={<ArtifactPipeline />} />

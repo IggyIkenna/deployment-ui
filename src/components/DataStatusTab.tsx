@@ -688,6 +688,39 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   // not overlapping in-flight fetches).
   const symbolSearchSeqRef = useRef(0);
 
+  // Symbol-search click-through (2026-07-21). Deliberately its OWN state,
+  // not the pre-existing `selectedInstrument`/`instrumentAvailability` pair
+  // the manual "Instrument-Level Search" dropdown drives: that pair is wiped
+  // by an effect keyed on `[instrumentSearchMode, selectedCategories]`
+  // (see below) whenever either changes for an UNRELATED reason (e.g. the
+  // operator toggling a category filter elsewhere on the page while a
+  // symbol-search result panel is open) — reusing it would make the
+  // click-through panel disappear out from under the operator. It also
+  // renders regardless of `serviceName`/`selectedCategories`, since that
+  // reused block is additionally gated to `selectedCategories.length === 1`
+  // on MTDS/MDPS only, which would make the click-through invisible on every
+  // other service tab. This new state never touches `selectedCategories` or
+  // `turboData`, so it can never affect the macro drilldown below it.
+  const [symbolSearchSelectedInstrument, setSymbolSearchSelectedInstrument] =
+    useState<api.InstrumentSearchResult | null>(null);
+  const [symbolSearchInstrumentAvailability, setSymbolSearchInstrumentAvailability] =
+    useState<api.InstrumentAvailabilityResponse | null>(null);
+  const [symbolSearchInstrumentLoading, setSymbolSearchInstrumentLoading] = useState(false);
+  const [symbolSearchInstrumentError, setSymbolSearchInstrumentError] = useState<string | null>(null);
+
+  // Symbol-search click-through — SPORTS branch. `league_id` is the clicked
+  // match's bare canonical_id (sports rows use the bare league_id, never the
+  // VENUE:TYPE:SYMBOL composite non-sports rows use). Independent state for
+  // the same coupling reasons as above.
+  const [symbolSearchLeague, setSymbolSearchLeague] = useState<string | null>(null);
+  const [symbolSearchLeagueStatus, setSymbolSearchLeagueStatus] = useState<TurboAssetGroupStatus | null>(null);
+  const [symbolSearchLeagueLoading, setSymbolSearchLeagueLoading] = useState(false);
+  const [symbolSearchLeagueError, setSymbolSearchLeagueError] = useState<string | null>(null);
+  // Day picked from that league's found-dates list — drives an inline
+  // `<FixtureBreakdown>` (the existing per-fixture drilldown), composed
+  // rather than duplicated.
+  const [symbolSearchLeagueDay, setSymbolSearchLeagueDay] = useState<string | null>(null);
+
   // Coverage summary state — auto-fetched on mount for instruments-service
   const [coverageSummary, setCoverageSummary] = useState<api.CoverageSummaryResponse | null>(null);
   const [coverageSummaryLoading, setCoverageSummaryLoading] = useState(false);
@@ -1132,6 +1165,143 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       }
     }, 250);
   }, []);
+
+  // Symbol-search click-through — non-SPORTS branch (cefi/tradfi/defi/prediction).
+  // Deliberately a plain (non-`useCallback`) async function: it reads
+  // `startDate`/`endDate`/`serviceName` fresh from the render closure it was
+  // created in rather than from a memoized, potentially-stale one — the
+  // existing `fetchInstrumentAvailability` above is a `useCallback` gated on
+  // `selectedInstrument` state, so calling it back-to-back with the
+  // `setSelectedInstrument` that's supposed to feed it would silently no-op
+  // (state updates are async; the callback would still see the old value).
+  // This handler builds the request directly from the clicked match instead.
+  const handleSymbolSearchInstrumentClick = async (match: InstrumentSearchMatch) => {
+    // Toggle off if the same instrument is clicked again.
+    if (symbolSearchSelectedInstrument?.instrument_key === match.canonical_id) {
+      setSymbolSearchSelectedInstrument(null);
+      setSymbolSearchInstrumentAvailability(null);
+      setSymbolSearchInstrumentError(null);
+      return;
+    }
+    // Also collapse any open SPORTS panel — only one click-through result is
+    // shown at a time directly under the search box.
+    setSymbolSearchLeague(null);
+    setSymbolSearchLeagueStatus(null);
+    setSymbolSearchLeagueError(null);
+    setSymbolSearchLeagueDay(null);
+
+    // `canonical_id` here is `InstrumentSearchMatch.canonical_id` — a
+    // single-colon `VENUE:TYPE:SYMBOL` composite (e.g.
+    // "BINANCE-FUTURES:PERPETUAL:BTC-USDT"), confirmed against the producer
+    // code and unit-test fixtures in deployment-api's data_query_service.py.
+    // This is a COMPLETELY DIFFERENT id format from the `::`-delimited
+    // `instrument_key` the separate "Instrument-Level Search" dropdown box
+    // uses (that one's own Bug-B fix splits on "::" — reusing that logic
+    // here would silently send a malformed/overly-composite string to the
+    // availability endpoint). The backend's `instrument` param is a plain
+    // string EQUALITY match against the manifest's `instrument_id` column
+    // (not a colon-split there either) — so the bare symbol must be
+    // extracted client-side. Since `venue`/`instrument_type` are already
+    // separate fields on the same match, the robust extraction is to strip
+    // the match's own `venue:instrument_type:` prefix verbatim; fall back to
+    // positionally dropping the first two colon-delimited segments only if
+    // that prefix doesn't match (defensive against casing/format drift).
+    // Legacy, not-yet-canonicalized instrument_key values (zero colons — UAC's
+    // own canonical_id parser documents this shape as still-live, pending
+    // removal) fall through both the prefix-strip and the positional-split
+    // branches to an EMPTY string; sending that as `instrument` would
+    // silently render a misleading "0 found / 0 missing" instead of a real
+    // check. Guard: fewer than 3 colon-segments means there's no
+    // venue:type:symbol structure to extract at all, so use canonical_id
+    // itself as the bare symbol.
+    const colonSegments = match.canonical_id.split(":");
+    const prefix = `${match.venue}:${match.instrument_type}:`;
+    const bareSymbol =
+      colonSegments.length < 3
+        ? match.canonical_id
+        : match.canonical_id.startsWith(prefix)
+          ? match.canonical_id.slice(prefix.length)
+          : colonSegments.slice(2).join(":");
+
+    const constructed: api.InstrumentSearchResult = {
+      instrument_key: match.canonical_id,
+      venue: match.venue,
+      instrument_type: match.instrument_type,
+      symbol: bareSymbol,
+    };
+    setSymbolSearchSelectedInstrument(constructed);
+    setSymbolSearchInstrumentAvailability(null);
+    setSymbolSearchInstrumentError(null);
+    setSymbolSearchInstrumentLoading(true);
+    try {
+      const result = await api.getInstrumentAvailability({
+        instrument_key: constructed.instrument_key,
+        venue: constructed.venue,
+        instrument_type: constructed.instrument_type,
+        instrument: bareSymbol,
+        asset_group: match.asset_group,
+        start_date: startDate,
+        end_date: endDate,
+        service: serviceName,
+      });
+      if (result.error) {
+        setSymbolSearchInstrumentError(result.error);
+        setSymbolSearchInstrumentAvailability(null);
+      } else {
+        setSymbolSearchInstrumentAvailability(result);
+      }
+    } catch (err) {
+      setSymbolSearchInstrumentError(err instanceof Error ? err.message : "Failed to check availability");
+      setSymbolSearchInstrumentAvailability(null);
+    } finally {
+      setSymbolSearchInstrumentLoading(false);
+    }
+  };
+
+  // Symbol-search click-through — SPORTS branch. Fetches this league's
+  // found/missing dates over the page's current start/end date range via
+  // the already-built `/data-status/manifest?secondary_axis=league_id`
+  // contract — a lightweight, independent call (NOT the page-wide
+  // `turboData`/`manifestFilter` path the macro drilldown owns), so it can
+  // never replace or cancel that view. Per MTDS semantics, SPORTS' sole
+  // primary data_type ("trades", labeled "Odds" in the drilldown schema) IS
+  // this found/missing list — no separate odds fetch is needed here.
+  const handleSymbolSearchLeagueClick = async (match: InstrumentSearchMatch) => {
+    const league_id = match.canonical_id;
+    // Toggle off if the same league is clicked again.
+    if (symbolSearchLeague === league_id) {
+      setSymbolSearchLeague(null);
+      setSymbolSearchLeagueStatus(null);
+      setSymbolSearchLeagueError(null);
+      setSymbolSearchLeagueDay(null);
+      return;
+    }
+    // Also collapse any open non-SPORTS instrument panel.
+    setSymbolSearchSelectedInstrument(null);
+    setSymbolSearchInstrumentAvailability(null);
+    setSymbolSearchInstrumentError(null);
+
+    setSymbolSearchLeague(league_id);
+    setSymbolSearchLeagueDay(null);
+    setSymbolSearchLeagueStatus(null);
+    setSymbolSearchLeagueError(null);
+    setSymbolSearchLeagueLoading(true);
+    try {
+      const resp = await api.getDataStatusManifest({
+        service: serviceName,
+        start_date: startDate,
+        end_date: endDate,
+        asset_group: ["SPORTS"],
+        secondary_axis: "league_id",
+        league_id,
+      });
+      setSymbolSearchLeagueStatus(resp.asset_groups?.SPORTS ?? null);
+    } catch (err) {
+      setSymbolSearchLeagueError(err instanceof Error ? err.message : "Failed to load league availability");
+    } finally {
+      setSymbolSearchLeagueLoading(false);
+    }
+  };
 
   // Fetch instrument availability when an instrument is selected
   const fetchInstrumentAvailability = useCallback(async () => {
@@ -2059,29 +2229,287 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                       (``usdc weth``).
                     </div>
                   )}
-                  {symbolSearchResults.map((m) => (
-                    <div
-                      key={`${m.canonical_id}__${m.asset_group}__${m.venue}__${m.instrument_type}`}
-                      className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--color-border-subtle)] last:border-b-0 hover:bg-[var(--color-bg-hover)] text-xs"
-                      data-testid="symbol-search-result"
-                    >
-                      <Badge variant="outline" className="text-[9px] font-mono shrink-0 w-20 justify-center">
-                        {m.asset_group}
-                      </Badge>
-                      <span className="font-mono truncate flex-1 text-[var(--color-text)]" title={m.canonical_id}>
-                        {m.canonical_id}
-                      </span>
-                      <span className="text-[10px] text-[var(--color-text-muted)] font-mono shrink-0">{m.venue}</span>
-                      {m.instrument_type && (
-                        <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
-                          {m.instrument_type}
+                  {symbolSearchResults.map((m) => {
+                    const isSports = m.asset_group === "SPORTS";
+                    const isSelected = isSports
+                      ? symbolSearchLeague === m.canonical_id
+                      : symbolSearchSelectedInstrument?.instrument_key === m.canonical_id;
+                    const onActivate = () => {
+                      if (isSports) {
+                        void handleSymbolSearchLeagueClick(m);
+                      } else {
+                        void handleSymbolSearchInstrumentClick(m);
+                      }
+                    };
+                    return (
+                      <div
+                        key={`${m.canonical_id}__${m.asset_group}__${m.venue}__${m.instrument_type}`}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-1.5 border-b border-[var(--color-border-subtle)] last:border-b-0 hover:bg-[var(--color-bg-hover)] text-xs cursor-pointer",
+                          isSelected && "bg-[var(--color-bg-hover)]",
+                        )}
+                        data-testid="symbol-search-result"
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onClick={onActivate}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onActivate();
+                          }
+                        }}
+                      >
+                        <Badge variant="outline" className="text-[9px] font-mono shrink-0 w-20 justify-center">
+                          {m.asset_group}
+                        </Badge>
+                        <span className="font-mono truncate flex-1 text-[var(--color-text)]" title={m.canonical_id}>
+                          {m.canonical_id}
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        <span className="text-[10px] text-[var(--color-text-muted)] font-mono shrink-0">{m.venue}</span>
+                        {m.instrument_type && (
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0 opacity-70">
+                            {m.instrument_type}
+                          </span>
+                        )}
+                        {isSelected && (
+                          <ChevronDown className="h-3 w-3 shrink-0 text-[var(--color-text-muted)]" aria-hidden />
+                        )}
+                        {!isSelected && (
+                          <ChevronRight className="h-3 w-3 shrink-0 text-[var(--color-text-muted)]/40" aria-hidden />
+                        )}
+                      </div>
+                    );
+                  })}
                   {symbolSearchTruncated && (
                     <div className="px-3 py-1.5 text-[10px] text-[var(--color-text-muted)] italic border-t border-[var(--color-border-subtle)]">
                       Showing first 50 matches — refine your query for narrower results.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Click-through — SPORTS branch: this league's day-level
+              found/missing dates (== odds coverage, MTDS SPORTS data_type
+              "trades") over the page's current start/end date range. A new,
+              independent inline panel — does NOT touch turboData/
+              manifestFilter, so it never replaces or scrolls to the macro
+              drilldown below. */}
+              {symbolSearchLeague && (
+                <div
+                  className="mt-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-3 text-xs"
+                  data-testid="symbol-search-league-panel"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono font-medium text-[var(--color-text)]">
+                      {symbolSearchLeague} <span className="text-[var(--color-text-muted)]">— odds availability</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSymbolSearchLeague(null);
+                        setSymbolSearchLeagueStatus(null);
+                        setSymbolSearchLeagueError(null);
+                        setSymbolSearchLeagueDay(null);
+                      }}
+                      className="text-[10px] text-[var(--color-text-muted)] hover:underline"
+                      data-testid="symbol-search-league-dismiss"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  {symbolSearchLeagueLoading && (
+                    <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading day-level availability…
+                    </div>
+                  )}
+                  {symbolSearchLeagueError && (
+                    <div className="flex items-center gap-2 text-[var(--color-accent-red)]">
+                      <AlertCircle className="h-3 w-3" />
+                      {symbolSearchLeagueError}
+                    </div>
+                  )}
+                  {!symbolSearchLeagueLoading && !symbolSearchLeagueError && symbolSearchLeagueStatus && (
+                    <>
+                      <div className="mb-2 text-[var(--color-text-muted)]">
+                        {symbolSearchLeagueStatus.dates_found_count ?? 0} found &middot;{" "}
+                        {symbolSearchLeagueStatus.dates_missing_count ?? 0} missing ({startDate} &rarr; {endDate})
+                      </div>
+                      {(symbolSearchLeagueStatus.dates_found_list ?? []).length === 0 &&
+                      (symbolSearchLeagueStatus.dates_missing_list ?? []).length === 0 ? (
+                        <div className="text-[var(--color-text-muted)] italic">
+                          No dates in the current range for this league.
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div
+                            className="flex flex-wrap gap-1 max-h-40 overflow-y-auto"
+                            data-testid="symbol-search-league-found-days"
+                          >
+                            {(symbolSearchLeagueStatus.dates_found_list ?? []).map((day) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => setSymbolSearchLeagueDay((prev) => (prev === day ? null : day))}
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded font-mono text-[10px] border",
+                                  symbolSearchLeagueDay === day
+                                    ? "bg-[var(--color-accent-green)] text-black border-[var(--color-accent-green)]"
+                                    : "bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] border-transparent hover:opacity-80",
+                                )}
+                                data-testid={`symbol-search-league-day-${day}`}
+                              >
+                                {day}
+                              </button>
+                            ))}
+                          </div>
+                          {(symbolSearchLeagueStatus.dates_missing_list ?? []).length > 0 && (
+                            <details>
+                              <summary className="text-[10px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                {symbolSearchLeagueStatus.dates_missing_list?.length} missing dates (click to expand)
+                              </summary>
+                              <div className="flex flex-wrap gap-1 mt-1 max-h-40 overflow-y-auto">
+                                {(symbolSearchLeagueStatus.dates_missing_list ?? []).map((day) => (
+                                  <span
+                                    key={day}
+                                    className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)]"
+                                  >
+                                    {day}
+                                  </span>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                      {symbolSearchLeagueDay && (
+                        <div className="mt-2 border-t border-[var(--color-border-subtle)] pt-2">
+                          <div className="text-[10px] text-[var(--color-text-muted)] mb-1">
+                            Fixtures on {symbolSearchLeagueDay}:
+                          </div>
+                          <FixtureBreakdown day={symbolSearchLeagueDay} league_id={symbolSearchLeague} readOnly />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Click-through — non-SPORTS branch (cefi/tradfi/defi/prediction):
+              reuses the `getInstrumentAvailability` contract exactly as the
+              existing manual "Instrument-Level Search" flow does, via its
+              OWN state (see the declaration comment above for why). */}
+              {symbolSearchSelectedInstrument && (
+                <div
+                  className="mt-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-3 text-xs"
+                  data-testid="symbol-search-instrument-panel"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-mono font-medium text-[var(--color-text)]">
+                        {symbolSearchSelectedInstrument.instrument_key}
+                      </span>
+                      <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                        <span className="text-[var(--color-accent-purple)]">
+                          {symbolSearchSelectedInstrument.venue}
+                        </span>
+                        {" • "}
+                        <span className="text-[var(--color-accent-cyan)]">
+                          {symbolSearchSelectedInstrument.instrument_type}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSymbolSearchSelectedInstrument(null);
+                        setSymbolSearchInstrumentAvailability(null);
+                        setSymbolSearchInstrumentError(null);
+                      }}
+                      className="text-[10px] text-[var(--color-text-muted)] hover:underline shrink-0"
+                      data-testid="symbol-search-instrument-dismiss"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  {symbolSearchInstrumentLoading && (
+                    <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Checking availability…
+                    </div>
+                  )}
+                  {symbolSearchInstrumentError && (
+                    <div className="flex items-center gap-2 text-[var(--color-accent-red)]">
+                      <AlertCircle className="h-3 w-3" />
+                      {symbolSearchInstrumentError}
+                    </div>
+                  )}
+                  {!symbolSearchInstrumentLoading && symbolSearchInstrumentAvailability && (
+                    <div className="space-y-2">
+                      <div className="p-2 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border-default)]">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium">Overall Availability</span>
+                          <Badge
+                            className={getCompletionBadgeClass(
+                              symbolSearchInstrumentAvailability.overall.completion_pct,
+                            )}
+                          >
+                            {symbolSearchInstrumentAvailability.overall.completion_pct.toFixed(1)}%
+                          </Badge>
+                        </div>
+                        <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-1.5 mb-1.5">
+                          <div
+                            className="h-1.5 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.min(symbolSearchInstrumentAvailability.overall.completion_pct, 100)}%`,
+                              backgroundColor: getCompletionColor(
+                                symbolSearchInstrumentAvailability.overall.completion_pct,
+                              ),
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-[var(--color-text-muted)]">
+                          <span>
+                            Found:{" "}
+                            <span className="text-[var(--color-accent-green)]">
+                              {symbolSearchInstrumentAvailability.overall.found}
+                            </span>
+                          </span>
+                          <span>
+                            Missing:{" "}
+                            <span className="text-[var(--color-accent-red)]">
+                              {symbolSearchInstrumentAvailability.overall.missing}
+                            </span>
+                          </span>
+                          <span>Expected: {symbolSearchInstrumentAvailability.overall.expected}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {Object.entries(symbolSearchInstrumentAvailability.by_data_type).map(([dataType, stats]) => (
+                          <div
+                            key={dataType}
+                            className="p-1.5 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border-subtle)]"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>{dataType}</span>
+                              <span
+                                className={cn(
+                                  "text-[10px] font-medium",
+                                  stats.completion_pct >= 100
+                                    ? "text-[var(--color-accent-green)]"
+                                    : stats.completion_pct >= 50
+                                      ? "text-[var(--color-accent-amber)]"
+                                      : "text-[var(--color-accent-red)]",
+                                )}
+                              >
+                                {stats.completion_pct.toFixed(1)}% ({stats.dates_found}/
+                                {stats.dates_found + stats.dates_missing})
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

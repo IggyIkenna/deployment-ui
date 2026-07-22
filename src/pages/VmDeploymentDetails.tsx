@@ -89,8 +89,8 @@ export function VmDeploymentDetails() {
   if (error) {
     return (
       <div className="p-6 space-y-2">
-        <Link to="/vm-deployments" className="text-xs text-[var(--color-accent-blue)]">
-          ← Back to VM Deployments
+        <Link to="/deployments" className="text-xs text-[var(--color-accent-blue)]">
+          ← Back to Deployments
         </Link>
         <div className="text-[var(--color-error)] text-sm">Error: {error}</div>
       </div>
@@ -121,8 +121,8 @@ export function VmDeploymentDetails() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link to="/vm-deployments" className="text-xs text-[var(--color-accent-blue)]">
-            ← Back to VM Deployments
+          <Link to="/deployments" className="text-xs text-[var(--color-accent-blue)]">
+            ← Back to Deployments
           </Link>
           <h1 className="text-base font-semibold text-[var(--color-text-primary)] mt-1">{entry.vm_name}</h1>
           <p className="text-xs text-[var(--color-text-tertiary)] font-mono">{entry.deployment_id}</p>

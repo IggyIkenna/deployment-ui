@@ -37,11 +37,13 @@ describe("Cockpit panes", () => {
     renderPane(<CockpitHealth />);
     expect(screen.getByTestId("cockpit-consoles")).toBeTruthy();
     // "live-ops" was dropped 2026-07-17 — /ops/live-deployments is deleted and its content
-    // renders inside the Deployments page.
-    for (const id of ["vm-deployments", "chaos", "safety-ops", "ml", "strategy", "exec-bt"]) {
+    // renders inside the Deployments page. "vm-deployments" was dropped 2026-07-21 — /vm-deployments
+    // (the standalone list page) is retired; /deployments is already a top-level nav entry.
+    for (const id of ["chaos", "safety-ops", "ml", "strategy", "exec-bt"]) {
       expect(screen.getByTestId(`cockpit-console-${id}`)).toBeTruthy();
     }
     expect(screen.queryByTestId("cockpit-console-live-ops")).toBeNull();
+    expect(screen.queryByTestId("cockpit-console-vm-deployments")).toBeNull();
   });
 
   it("Fleet pane renders the git-health section (VM-census + reconciliation cards removed 2026-07-21)", () => {
