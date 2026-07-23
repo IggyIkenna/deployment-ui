@@ -1647,6 +1647,7 @@ export async function getDataStatusTurbo(params: {
   check_upstream_availability?: boolean; // Check upstream data exists before counting as "expected"
   first_day_of_month_only?: boolean; // Only check first day of each month (TARDIS free tier)
   freshness_date?: string; // Only count data as 'found' if blob updated on/after this datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+  scope?: CoverageScope; // Coverage scope (denominator filter) — mirrors venue-year-coverage's toggle
   signal?: AbortSignal; // For cancelling the request
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
@@ -1686,6 +1687,9 @@ export async function getDataStatusTurbo(params: {
   if (params.freshness_date) {
     searchParams.set("freshness_date", params.freshness_date);
   }
+  if (params.scope) {
+    searchParams.set("scope", params.scope);
+  }
   return fetchJson(`/data-status/turbo?${searchParams.toString()}`, {
     signal: params.signal,
   });
@@ -1722,6 +1726,7 @@ export async function getDataStatusManifest(params: {
   // multi_timeframe / onchain / sports / volatility). Empty/omitted ==
   // unfiltered behaviour preserved.
   feature_family?: FeatureFamily | string;
+  scope?: CoverageScope; // Coverage scope (denominator filter) — mirrors venue-year-coverage's toggle
   signal?: AbortSignal;
 }): Promise<TurboDataStatusResponse> {
   const searchParams = new URLSearchParams();
@@ -1741,6 +1746,9 @@ export async function getDataStatusManifest(params: {
   if (params.chain) searchParams.set("chain", params.chain);
   if (params.feature_family) {
     searchParams.set("feature_family", params.feature_family);
+  }
+  if (params.scope) {
+    searchParams.set("scope", params.scope);
   }
   return fetchJson(`/data-status/manifest?${searchParams.toString()}`, {
     signal: params.signal,

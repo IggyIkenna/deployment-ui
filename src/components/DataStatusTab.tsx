@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  CoverageScope,
   DataTypeCheckResponse,
   InstrumentSearchMatch,
   TurboAssetGroupStatus,
@@ -446,6 +447,10 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([]);
+  // Coverage-scope denominator filter (could_exist / mvp / all) — mirrors
+  // VenueCoverageTable's toggle. Defaults to "could_exist" so this page's
+  // headline numbers are byte-for-byte unchanged until an operator opts in.
+  const [scope, setScope] = useState<CoverageScope>("could_exist");
   const [availableVenues, setAvailableVenues] = useState<string[]>([]);
   const [venuesLoading, setVenuesLoading] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<string[]>([
@@ -875,6 +880,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
             fixture_id: filterAxis === "fixture_id" ? filterValue : undefined,
             canonical_question_group: filterAxis === "canonical_question_group" ? filterValue : undefined,
             job_id: filterAxis === "job_id" ? filterValue : undefined,
+            scope,
             signal: abortController.signal,
           });
 
@@ -908,6 +914,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               requireFreshness && freshnessDate
                 ? `${freshnessDate.replace(" ", "T")}Z`.slice(0, 20) // Force UTC interpretation (append Z, no local timezone conversion)
                 : undefined,
+            scope,
             signal: abortController.signal, // Allow cancellation
           });
 
@@ -981,6 +988,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
       freshnessDate,
       dataStatusMode,
       manifestFilter,
+      scope,
     ],
   );
 
@@ -1017,7 +1025,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
     // (we don't want to re-fetch when those identities change), so they are
     // intentionally excluded from the dep list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVenues, selectedFolders, selectedDataTypes]);
+  }, [selectedVenues, selectedFolders, selectedDataTypes, scope]);
 
   // Clear data status cache only (doesn't affect deployment state cache)
   const handleClearDataStatusCache = useCallback(async () => {
@@ -2724,6 +2732,32 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         </Button>
                       ))
                     )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+                    Coverage Scope
+                  </Label>
+                  <div className="flex gap-2 flex-wrap" data-testid="data-status-scope-toggle">
+                    {(
+                      [
+                        { value: "mvp", label: "MVP" },
+                        { value: "could_exist", label: "Could exist" },
+                        { value: "all", label: "All" },
+                      ] as { value: CoverageScope; label: string }[]
+                    ).map(({ value, label }) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={scope === value ? "default" : "outline"}
+                        size="sm"
+                        data-testid={`data-status-scope-toggle-${value}`}
+                        data-selected={scope === value}
+                        onClick={() => setScope(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               </div>
