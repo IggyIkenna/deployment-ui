@@ -3396,6 +3396,10 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
     "harsh-static-ip": "idle_static_ip",
     "ikenna-windows-tokyo-restored": "orphaned_disk",
   };
+  // "Waste" dimension — the SAME per-resource rows as "resource", filtered to just the
+  // waste-flagged ones (mirrors the real backend: dimension=waste reuses _by_resource's
+  // classification, it doesn't re-derive its own fixture set).
+  fixtures.waste = fixtures.resource.filter(([label]) => label in RESOURCE_WASTE);
   let rows = (fixtures[dimension] ?? fixtures.service).map(([label, c, cost, detail, kind, purchase]) => {
     const net = +(cost * scale).toFixed(2);
     // GCP rows carry ~20% promotional credit (mirrors mockCostSummary + the real billing
@@ -3416,8 +3420,8 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
       const egress = +(net * w.egress).toFixed(2);
       costByComponent = { storage, operations: +(net - storage - egress).toFixed(2), egress };
     }
-    const spec = dimension === "resource" ? VM_MACHINE_SPECS[label] : undefined;
-    const wasteKind = dimension === "resource" ? (RESOURCE_WASTE[label] ?? "") : "";
+    const spec = dimension === "resource" || dimension === "waste" ? VM_MACHINE_SPECS[label] : undefined;
+    const wasteKind = dimension === "resource" || dimension === "waste" ? (RESOURCE_WASTE[label] ?? "") : "";
     return {
       label,
       cloud: c,
@@ -3473,6 +3477,14 @@ function _mockGraceHoursFromUrl(url: string, fallback: number): number {
   if (!m) return fallback;
   const parsed = Number(decodeURIComponent(m[1]));
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+// Mirrors deployment-api's _fleet_inventory._cost_incurred_usd — monthly_disk_usd prorated by
+// elapsed stopped-time (same 30.44 avg-days-per-month constant), so the mock's "cost so far"
+// figures move in lockstep with the real backend's math instead of drifting via hardcoded values.
+const _MOCK_AVG_HOURS_PER_MONTH = 24 * 30.44;
+function _mockCostIncurredUsd(monthlyUsd: number, stoppedAgeHours: number): number {
+  return Math.round((monthlyUsd * stoppedAgeHours * 100) / _MOCK_AVG_HOURS_PER_MONTH) / 100;
 }
 
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
@@ -6608,18 +6620,22 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       const reapable = graceGated ? rest.stopped_age_hours >= graceHoursParam : false;
       return {
         ...rest,
+        cost_incurred_usd: _mockCostIncurredUsd(rest.monthly_disk_usd, rest.stopped_age_hours),
         reapable,
         verdict: graceGated ? (reapable ? "reap" : "keep_within_grace") : (verdict ?? "keep_not_ephemeral"),
       };
     });
+    const reapableOrphans = orphans.filter((o) => o.reapable);
     return json({
       generated_at: "2026-06-30T09:00:00+00:00",
       grace_hours: graceHoursParam,
       stopped_total: orphans.length,
-      reapable_total: orphans.filter((o) => o.reapable).length,
+      reapable_total: reapableOrphans.length,
       monthly_idle_usd: Math.round(orphans.reduce((sum, o) => sum + o.monthly_disk_usd, 0) * 100) / 100,
-      monthly_reapable_usd:
-        Math.round(orphans.filter((o) => o.reapable).reduce((sum, o) => sum + o.monthly_disk_usd, 0) * 100) / 100,
+      monthly_reapable_usd: Math.round(reapableOrphans.reduce((sum, o) => sum + o.monthly_disk_usd, 0) * 100) / 100,
+      total_idle_cost_incurred_usd: Math.round(orphans.reduce((sum, o) => sum + o.cost_incurred_usd, 0) * 100) / 100,
+      total_reapable_cost_incurred_usd:
+        Math.round(reapableOrphans.reduce((sum, o) => sum + o.cost_incurred_usd, 0) * 100) / 100,
       orphans,
     });
   }

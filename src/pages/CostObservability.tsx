@@ -78,6 +78,7 @@ const DIMENSIONS: { value: CostDimension; label: string }[] = [
   { value: "day", label: "By day" },
   { value: "sku", label: "By SKU" },
   { value: "label", label: "By label" },
+  { value: "waste", label: "Waste" },
 ];
 const DIM_NOTE: Record<CostDimension, string> = {
   service: "Google / AWS service · GitHub product",
@@ -87,6 +88,7 @@ const DIM_NOTE: Record<CostDimension, string> = {
   day: "daily totals across selected clouds",
   sku: "Google/AWS SKU",
   label: "GCP business label · pick a key → (AWS/GitHub have no labels)",
+  waste: "idle static/elastic IPs · orphaned disks — money paid for nothing running",
 };
 // The GCP labels the "By label" dimension can group by (matches the backend LabelKey).
 const LABEL_KEYS: { value: CostLabelKey; label: string }[] = [
@@ -1016,7 +1018,7 @@ function BreakdownPanel({
   // credit/other/purchase flags first — both the column model and those columns key off them.
   const hasCredits = data.rows.some((r) => r.credit < 0);
   const hasOther = data.rows.some((r) => (r.cost_by_component?.other ?? 0) !== 0);
-  const showPurchase = dimension === "resource" || dimension === "service";
+  const showPurchase = dimension === "resource" || dimension === "waste" || dimension === "service";
   // Ordered column model — the SINGLE source of truth for the header row, the per-column filter row,
   // and the colSpan maths, so they can never drift. `cat` marks a categorical column that gets a value
   // dropdown; numeric columns (cost/share/components/…) are sort-only. Order MUST match the <thead>.
@@ -1036,7 +1038,7 @@ function BreakdownPanel({
             ...(hasOther ? [{ key: "comp_other", cat: false }] : []),
           ]
         : []),
-      ...(dimension === "resource"
+      ...(dimension === "resource" || dimension === "waste"
         ? [
             { key: "machine_type", cat: true },
             { key: "waste", cat: false },
@@ -1326,7 +1328,7 @@ function BreakdownPanel({
                     )}
                   </>
                 )}
-                {dimension === "resource" && (
+                {(dimension === "resource" || dimension === "waste") && (
                   <>
                     <SortHead
                       label="Machine"
@@ -1486,7 +1488,7 @@ function BreakdownPanel({
                           )}
                         </>
                       )}
-                      {dimension === "resource" && (
+                      {(dimension === "resource" || dimension === "waste") && (
                         <>
                           <td
                             className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-[var(--color-text-tertiary)]"

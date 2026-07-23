@@ -4310,7 +4310,7 @@ export type UnifiedAlertEntry = RepoCiAlertEntry;
 export type UnifiedAlertStream = RepoCiAlertStream;
 export type UnifiedAlerts = RepoCiAlerts;
 
-export async function getUnifiedAlerts(): Promise<UnifiedAlerts> {
+export async function getUnifiedAlerts(days?: number): Promise<UnifiedAlerts> {
   // The alerting-service source plane walks its full day-partition object set synchronously
   // server-side (deployment_alerts_ingestion_completeness_2026_07_20.md) — even with the
   // narrowed 1-day default (deployment-api@8623c5f), a real response measured ~240s in prod
@@ -4319,7 +4319,8 @@ export async function getUnifiedAlerts(): Promise<UnifiedAlerts> {
   // cancelled" — dedicated longer-timeout client instead, same pattern as
   // retryFailedShards's retryClient.
   const alertsClient = createApiClient(createClientConfig(API_BASE, { timeoutMs: 480_000 }));
-  return alertsClient.get<UnifiedAlerts>("/alerts");
+  const query = days !== undefined ? `?days=${days}` : "";
+  return alertsClient.get<UnifiedAlerts>(`/alerts${query}`);
 }
 
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
@@ -4430,6 +4431,7 @@ export interface OrphanEntry {
   boot_disk_gb: number | null;
   boot_disk_type: string | null;
   monthly_disk_usd: number; // ESTIMATE — asia-northeast1 list rate x GB
+  cost_incurred_usd: number; // ESTIMATE — monthly_disk_usd prorated by stopped_age_hours
   reapable: boolean;
   verdict: OrphanVerdict;
 }
@@ -4439,8 +4441,10 @@ export interface OrphanInventoryResponse {
   grace_hours: number;
   stopped_total: number;
   reapable_total: number;
-  monthly_idle_usd: number;
-  monthly_reapable_usd: number;
+  monthly_idle_usd: number; // current-rate run-rate, ALL stopped disks
+  monthly_reapable_usd: number; // current-rate run-rate, reapable subset
+  total_idle_cost_incurred_usd: number; // accrued so far, ALL stopped disks
+  total_reapable_cost_incurred_usd: number; // accrued so far, reapable subset
   orphans: OrphanEntry[];
 }
 

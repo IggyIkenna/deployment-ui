@@ -11,6 +11,10 @@
  * request-id guard per view, small inline primitives styled off the app's CSS custom-property tokens,
  * and the same native `<input type="date">` range picker (operator ask 2026-07-23).
  *
+ * No page title/banner (operator ask 2026-07-23) — the header row is just the tab bar (left) and the
+ * window/date-range/refresh/help controls (right); the page description + GCP-active/AWS-parked
+ * framing that used to sit there now lives entirely in the help dialog.
+ *
  * Every live table's columns are sortable (click a header) and most are filterable (the funnel icon —
  * a multi-select checklist for enum-shaped columns, a substring box for free-text ones); **Repo**
  * (Pipeline, Artifacts), **Workload/Service** (Deploy timeline, What's running), and **Area** (Health)
@@ -19,7 +23,7 @@
  * filters — no new fetch.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, RefreshCw } from "lucide-react";
 
 import {
   getArtifactBuilds,
@@ -592,21 +596,52 @@ function StatTile({
 }) {
   return (
     <div
-      className="flex flex-col gap-1 rounded-lg border p-3"
+      className="flex min-w-[84px] flex-1 flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 lg:flex-none"
       style={{
         borderColor: "var(--color-border-default)",
         background: "var(--color-bg-secondary)",
       }}
     >
-      <div className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+      <div className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
         {label}
       </div>
-      <div className="text-2xl font-semibold tabular-nums" style={color ? { color } : undefined} data-testid={testId}>
+      <div className="text-lg font-semibold tabular-nums" style={color ? { color } : undefined} data-testid={testId}>
         {value}
       </div>
-      <div className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+      <div className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
         {sub}
       </div>
+    </div>
+  );
+}
+
+/** Shared per-view toolbar row (operator ask 2026-07-23): filters + their explanation on the left
+ * (the explanation sits BELOW the filter pills, not beside them), the stat tiles clustered on the
+ * right — instead of a full-width stat grid stacked above a separate full-width filter row. Keeps
+ * every one of the five live views laid out identically. */
+function ViewToolbar({
+  filterPills,
+  extra,
+  explanation,
+  stats,
+}: {
+  filterPills: React.ReactNode;
+  extra?: React.ReactNode;
+  explanation: React.ReactNode;
+  stats: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-2 lg:max-w-[58%]">
+        <div className="flex flex-wrap items-center gap-2">
+          {filterPills}
+          {extra}
+        </div>
+        <span className="text-[11.5px] leading-relaxed" style={{ color: "var(--color-text-tertiary)" }}>
+          {explanation}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 lg:flex-none lg:justify-end">{stats}</div>
     </div>
   );
 }
@@ -925,88 +960,93 @@ function PipelineView({
 
   return (
     <section data-testid="artifact-pipe-view">
-      {/* stat band — computed by the backend over the whole window, never the filtered subset */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile
-          label="Builds in window"
-          value={String(s.total)}
-          sub="both clouds · both lanes"
-          testId="pipe-stat-total"
-        />
-        <StatTile
-          label="Success rate"
-          value={`${s.success_rate}%`}
-          sub="of completed builds"
-          color="var(--color-accent-green)"
-          testId="pipe-stat-success"
-        />
-        <StatTile
-          label="Failed"
-          value={String(s.failed)}
-          sub="click a row for why"
-          color="var(--color-accent-red)"
-          testId="pipe-stat-failed"
-        />
-        <StatTile
-          label="Median duration"
-          value={fmtDurationSec(s.median_duration_sec)}
-          sub="build wall-clock"
-          testId="pipe-stat-median"
-        />
-        <StatTile
-          label="Wasted (dup SHA)"
-          value={String(s.wasted_dup)}
-          sub="same commit built 2×"
-          color="var(--color-accent-amber)"
-          testId="pipe-stat-wasted"
-        />
-      </div>
-
-      {/* filter bar */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div
-          className="inline-flex overflow-hidden rounded-md border"
-          style={{ borderColor: "var(--color-border-default)" }}
-        >
-          {PIPE_FILTERS.map((f) => {
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                data-testid={`pipe-filter-${f.id}`}
-                onClick={() => onFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
-                style={{
-                  background: on ? "var(--color-accent-blue)" : "transparent",
-                  color: on ? undefined : "var(--color-text-secondary)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          <Pill tone="cyan">⇄ both lanes</Pill> = one commit built as image and tarball · <Pill tone="amber">dup</Pill>{" "}
-          = same commit built twice · click a row for the step timeline · click a column header to sort, the funnel to
-          filter it
-        </span>
-        {(activeColFilterCount > 0 || sort) && (
-          <button
-            type="button"
-            data-testid="pipe-colfilters-clear"
-            onClick={() => {
-              setColFilters(EMPTY_PIPE_COLUMN_FILTERS);
-              setSort(null);
-            }}
-            className="text-[11px] underline"
-            style={{ color: "var(--color-accent-blue)" }}
+      <ViewToolbar
+        filterPills={
+          <div
+            className="inline-flex overflow-hidden rounded-md border"
+            style={{ borderColor: "var(--color-border-default)" }}
           >
-            Clear column filters/sort
-          </button>
-        )}
-      </div>
+            {PIPE_FILTERS.map((f) => {
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  data-testid={`pipe-filter-${f.id}`}
+                  onClick={() => onFilter(f.id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium ${on ? "text-white" : ""}`}
+                  style={{
+                    background: on ? "var(--color-accent-blue)" : "transparent",
+                    color: on ? undefined : "var(--color-text-secondary)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+        extra={
+          (activeColFilterCount > 0 || sort) && (
+            <button
+              type="button"
+              data-testid="pipe-colfilters-clear"
+              onClick={() => {
+                setColFilters(EMPTY_PIPE_COLUMN_FILTERS);
+                setSort(null);
+              }}
+              className="text-[11px] underline"
+              style={{ color: "var(--color-accent-blue)" }}
+            >
+              Clear column filters/sort
+            </button>
+          )
+        }
+        explanation={
+          <>
+            <Pill tone="cyan">⇄ both lanes</Pill> = one commit built as image and tarball ·{" "}
+            <Pill tone="amber">dup</Pill> = same commit built twice · click a row for the step timeline · click a column
+            header to sort, the funnel to filter it
+          </>
+        }
+        stats={
+          <>
+            <StatTile
+              label="Builds in window"
+              value={String(s.total)}
+              sub="both clouds · both lanes"
+              testId="pipe-stat-total"
+            />
+            <StatTile
+              label="Success rate"
+              value={`${s.success_rate}%`}
+              sub="of completed builds"
+              color="var(--color-accent-green)"
+              testId="pipe-stat-success"
+            />
+            <StatTile
+              label="Failed"
+              value={String(s.failed)}
+              sub="click a row for why"
+              color="var(--color-accent-red)"
+              testId="pipe-stat-failed"
+            />
+            <StatTile
+              label="Median duration"
+              value={fmtDurationSec(s.median_duration_sec)}
+              sub="build wall-clock"
+              testId="pipe-stat-median"
+            />
+            <StatTile
+              label="Wasted (dup SHA)"
+              value={String(s.wasted_dup)}
+              sub="same commit built 2×"
+              color="var(--color-accent-amber)"
+              testId="pipe-stat-wasted"
+            />
+          </>
+        }
+      />
 
       {/* table */}
       <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
@@ -1344,81 +1384,86 @@ function DeployTimelineView({
 
   return (
     <section data-testid="artifact-deploy-view">
-      {/* stat band — live_now is a point-in-time count, never narrowed by the date window */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <StatTile
-          label="Deploys in window"
-          value={String(s.total)}
-          sub="Cloud Run revisions"
-          testId="deploy-stat-total"
-        />
-        <StatTile
-          label="Config-only redeploys"
-          value={`${s.config_only_pct}%`}
-          sub="same digest, nothing shipped"
-          color="var(--color-accent-amber)"
-          testId="deploy-stat-config"
-        />
-        <StatTile
-          label="Live now (GCP)"
-          value={String(s.live_now)}
-          sub="workloads serving right now"
-          color="var(--color-accent-green)"
-          testId="deploy-stat-live"
-        />
-        <StatTile
-          label="Failed"
-          value={String(s.failed)}
-          sub="never went ready"
-          color="var(--color-accent-red)"
-          testId="deploy-stat-failed"
-        />
-      </div>
-
-      {/* filter bar */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div
-          className="inline-flex overflow-hidden rounded-md border"
-          style={{ borderColor: "var(--color-border-default)" }}
-        >
-          {DEPLOY_FILTERS.map((f) => {
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                data-testid={`deploy-filter-${f.id}`}
-                onClick={() => onFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
-                style={{
-                  background: on ? "var(--color-accent-blue)" : "transparent",
-                  color: on ? undefined : "var(--color-text-secondary)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          <b>New code only</b> hides the config-only churn · <b>Live now</b> = what is serving this instant · click a
-          column header to sort, the funnel to filter it
-        </span>
-        {(activeColFilterCount > 0 || sort) && (
-          <button
-            type="button"
-            data-testid="deploy-colfilters-clear"
-            onClick={() => {
-              setColFilters(EMPTY_DEPLOY_COLUMN_FILTERS);
-              setSort(null);
-            }}
-            className="text-[11px] underline"
-            style={{ color: "var(--color-accent-blue)" }}
+      <ViewToolbar
+        filterPills={
+          <div
+            className="inline-flex overflow-hidden rounded-md border"
+            style={{ borderColor: "var(--color-border-default)" }}
           >
-            Clear column filters/sort
-          </button>
-        )}
-      </div>
+            {DEPLOY_FILTERS.map((f) => {
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  data-testid={`deploy-filter-${f.id}`}
+                  onClick={() => onFilter(f.id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium ${on ? "text-white" : ""}`}
+                  style={{
+                    background: on ? "var(--color-accent-blue)" : "transparent",
+                    color: on ? undefined : "var(--color-text-secondary)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+        extra={
+          (activeColFilterCount > 0 || sort) && (
+            <button
+              type="button"
+              data-testid="deploy-colfilters-clear"
+              onClick={() => {
+                setColFilters(EMPTY_DEPLOY_COLUMN_FILTERS);
+                setSort(null);
+              }}
+              className="text-[11px] underline"
+              style={{ color: "var(--color-accent-blue)" }}
+            >
+              Clear column filters/sort
+            </button>
+          )
+        }
+        explanation={
+          <>
+            <b>New code only</b> hides the config-only churn · <b>Live now</b> = what is serving this instant · click a
+            column header to sort, the funnel to filter it
+          </>
+        }
+        stats={
+          <>
+            <StatTile
+              label="Deploys in window"
+              value={String(s.total)}
+              sub="Cloud Run revisions"
+              testId="deploy-stat-total"
+            />
+            <StatTile
+              label="Config-only redeploys"
+              value={`${s.config_only_pct}%`}
+              sub="same digest, nothing shipped"
+              color="var(--color-accent-amber)"
+              testId="deploy-stat-config"
+            />
+            <StatTile
+              label="Live now (GCP)"
+              value={String(s.live_now)}
+              sub="workloads serving right now"
+              color="var(--color-accent-green)"
+              testId="deploy-stat-live"
+            />
+            <StatTile
+              label="Failed"
+              value={String(s.failed)}
+              sub="never went ready"
+              color="var(--color-accent-red)"
+              testId="deploy-stat-failed"
+            />
+          </>
+        }
+      />
 
       {/* table */}
       <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
@@ -1627,79 +1672,82 @@ function ArtifactsView({
 
   return (
     <section data-testid="artifact-art-view">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile
-          label="Registry repos"
-          value={String(s.total_repos)}
-          sub="Artifact Registry + ECR"
-          testId="art-stat-total"
-        />
-        <StatTile
-          label="Running"
-          value={String(s.running)}
-          sub="a live workload uses it"
-          color="var(--color-accent-green)"
-          testId="art-stat-running"
-        />
-        <StatTile
-          label="Legacy"
-          value={String(s.legacy)}
-          sub="GC candidate — nothing running, stale"
-          color="var(--color-accent-red)"
-          testId="art-stat-legacy"
-        />
-        <StatTile
-          label="Parked"
-          value={String(s.parked)}
-          sub="AWS deferred — kept, not GC"
-          color="var(--color-accent-blue)"
-          testId="art-stat-parked"
-        />
-        <StatTile label="Empty" value={String(s.empty)} sub="declared repo, 0 images" testId="art-stat-empty" />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div
-          className="inline-flex overflow-hidden rounded-md border"
-          style={{ borderColor: "var(--color-border-default)" }}
-        >
-          {IMAGES_FILTERS.map((f) => {
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                data-testid={`art-filter-${f.id}`}
-                onClick={() => onFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
-                style={{
-                  background: on ? "var(--color-accent-blue)" : "transparent",
-                  color: on ? undefined : "var(--color-text-secondary)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          Rolled up per repo from every pushed image · click a column header to sort, the funnel to filter it
-        </span>
-        {(activeColFilterCount > 0 || sort) && (
-          <button
-            type="button"
-            data-testid="art-colfilters-clear"
-            onClick={() => {
-              setColFilters(EMPTY_IMAGES_COLUMN_FILTERS);
-              setSort(null);
-            }}
-            className="text-[11px] underline"
-            style={{ color: "var(--color-accent-blue)" }}
+      <ViewToolbar
+        filterPills={
+          <div
+            className="inline-flex overflow-hidden rounded-md border"
+            style={{ borderColor: "var(--color-border-default)" }}
           >
-            Clear column filters/sort
-          </button>
-        )}
-      </div>
+            {IMAGES_FILTERS.map((f) => {
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  data-testid={`art-filter-${f.id}`}
+                  onClick={() => onFilter(f.id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium ${on ? "text-white" : ""}`}
+                  style={{
+                    background: on ? "var(--color-accent-blue)" : "transparent",
+                    color: on ? undefined : "var(--color-text-secondary)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+        extra={
+          (activeColFilterCount > 0 || sort) && (
+            <button
+              type="button"
+              data-testid="art-colfilters-clear"
+              onClick={() => {
+                setColFilters(EMPTY_IMAGES_COLUMN_FILTERS);
+                setSort(null);
+              }}
+              className="text-[11px] underline"
+              style={{ color: "var(--color-accent-blue)" }}
+            >
+              Clear column filters/sort
+            </button>
+          )
+        }
+        explanation="Rolled up per repo from every pushed image · click a column header to sort, the funnel to filter it"
+        stats={
+          <>
+            <StatTile
+              label="Registry repos"
+              value={String(s.total_repos)}
+              sub="Artifact Registry + ECR"
+              testId="art-stat-total"
+            />
+            <StatTile
+              label="Running"
+              value={String(s.running)}
+              sub="a live workload uses it"
+              color="var(--color-accent-green)"
+              testId="art-stat-running"
+            />
+            <StatTile
+              label="Legacy"
+              value={String(s.legacy)}
+              sub="GC candidate — nothing running, stale"
+              color="var(--color-accent-red)"
+              testId="art-stat-legacy"
+            />
+            <StatTile
+              label="Parked"
+              value={String(s.parked)}
+              sub="AWS deferred — kept, not GC"
+              color="var(--color-accent-blue)"
+              testId="art-stat-parked"
+            />
+            <StatTile label="Empty" value={String(s.empty)} sub="declared repo, 0 images" testId="art-stat-empty" />
+          </>
+        }
+      />
 
       <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
         <table className="w-full min-w-[900px] border-collapse text-xs">
@@ -1923,86 +1971,88 @@ function RunningView({
 
   return (
     <section data-testid="artifact-run-view">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatTile
-          label="Live services"
-          value={String(s.services)}
-          sub="Cloud Run, image lane"
-          testId="run-stat-services"
-        />
-        <StatTile
-          label="Versions tracked"
-          value={String(s.versions)}
-          sub="one per live revision"
-          testId="run-stat-versions"
-        />
-        <StatTile
-          label="Fragmented"
-          value={String(s.fragmented)}
-          sub=">1 version live at once"
-          color="var(--color-accent-amber)"
-          testId="run-stat-fragmented"
-        />
-        <StatTile
-          label="Floating"
-          value={String(s.floating)}
-          sub=":latest, no SHA tag"
-          color="var(--color-accent-red)"
-          testId="run-stat-floating"
-        />
-        <StatTile
-          label="Hand-deployed"
-          value={String(s.hand)}
-          sub="bypassed CI"
-          color="var(--color-accent-red)"
-          testId="run-stat-hand"
-        />
-        <StatTile label="Unknown" value={String(s.unknown)} sub="unresolvable commit" testId="run-stat-unknown" />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div
-          className="inline-flex overflow-hidden rounded-md border"
-          style={{ borderColor: "var(--color-border-default)" }}
-        >
-          {RUNNING_FILTERS.map((f) => {
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                data-testid={`run-filter-${f.id}`}
-                onClick={() => onFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
-                style={{
-                  background: on ? "var(--color-accent-blue)" : "transparent",
-                  color: on ? undefined : "var(--color-text-secondary)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          The runtime join: digest → Artifact Registry tag → short SHA → build · click a row for the full why · click a
-          column header to sort, the funnel to filter it
-        </span>
-        {(activeColFilterCount > 0 || sort) && (
-          <button
-            type="button"
-            data-testid="run-colfilters-clear"
-            onClick={() => {
-              setColFilters(EMPTY_RUNNING_COLUMN_FILTERS);
-              setSort(null);
-            }}
-            className="text-[11px] underline"
-            style={{ color: "var(--color-accent-blue)" }}
+      <ViewToolbar
+        filterPills={
+          <div
+            className="inline-flex overflow-hidden rounded-md border"
+            style={{ borderColor: "var(--color-border-default)" }}
           >
-            Clear column filters/sort
-          </button>
-        )}
-      </div>
+            {RUNNING_FILTERS.map((f) => {
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  data-testid={`run-filter-${f.id}`}
+                  onClick={() => onFilter(f.id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium ${on ? "text-white" : ""}`}
+                  style={{
+                    background: on ? "var(--color-accent-blue)" : "transparent",
+                    color: on ? undefined : "var(--color-text-secondary)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+        extra={
+          (activeColFilterCount > 0 || sort) && (
+            <button
+              type="button"
+              data-testid="run-colfilters-clear"
+              onClick={() => {
+                setColFilters(EMPTY_RUNNING_COLUMN_FILTERS);
+                setSort(null);
+              }}
+              className="text-[11px] underline"
+              style={{ color: "var(--color-accent-blue)" }}
+            >
+              Clear column filters/sort
+            </button>
+          )
+        }
+        explanation="The runtime join: digest → Artifact Registry tag → short SHA → build · click a row for the full why · click a column header to sort, the funnel to filter it"
+        stats={
+          <>
+            <StatTile
+              label="Live services"
+              value={String(s.services)}
+              sub="Cloud Run, image lane"
+              testId="run-stat-services"
+            />
+            <StatTile
+              label="Versions tracked"
+              value={String(s.versions)}
+              sub="one per live revision"
+              testId="run-stat-versions"
+            />
+            <StatTile
+              label="Fragmented"
+              value={String(s.fragmented)}
+              sub=">1 version live at once"
+              color="var(--color-accent-amber)"
+              testId="run-stat-fragmented"
+            />
+            <StatTile
+              label="Floating"
+              value={String(s.floating)}
+              sub=":latest, no SHA tag"
+              color="var(--color-accent-red)"
+              testId="run-stat-floating"
+            />
+            <StatTile
+              label="Hand-deployed"
+              value={String(s.hand)}
+              sub="bypassed CI"
+              color="var(--color-accent-red)"
+              testId="run-stat-hand"
+            />
+            <StatTile label="Unknown" value={String(s.unknown)} sub="unresolvable commit" testId="run-stat-unknown" />
+          </>
+        }
+      />
 
       <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
         <table className="w-full min-w-[900px] border-collapse text-xs">
@@ -2234,80 +2284,82 @@ function HealthView({
 
   return (
     <section data-testid="artifact-health-view">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile
-          label="Real defects"
-          value={String(s.real_defects)}
-          sub="high + med + low"
-          testId="health-stat-defects"
-        />
-        <StatTile
-          label="High"
-          value={String(s.high)}
-          sub="fix first"
-          color="var(--color-accent-red)"
-          testId="health-stat-high"
-        />
-        <StatTile
-          label="Medium"
-          value={String(s.med)}
-          sub=""
-          color="var(--color-accent-amber)"
-          testId="health-stat-med"
-        />
-        <StatTile label="Low" value={String(s.low)} sub="" testId="health-stat-low" />
-        <StatTile
-          label="Deferred"
-          value={String(s.deferred)}
-          sub="intentional, not a defect"
-          color="var(--color-accent-blue)"
-          testId="health-stat-deferred"
-        />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <div
-          className="inline-flex overflow-hidden rounded-md border"
-          style={{ borderColor: "var(--color-border-default)" }}
-        >
-          {HEALTH_FILTERS.map((f) => {
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                data-testid={`health-filter-${f.id}`}
-                onClick={() => onFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
-                style={{
-                  background: on ? "var(--color-accent-blue)" : "transparent",
-                  color: on ? undefined : "var(--color-text-secondary)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          Every condition below is derived from the other four tabs&apos; own data — never hand-written · click a column
-          header to sort, the funnel to filter it
-        </span>
-        {(activeColFilterCount > 0 || sort) && (
-          <button
-            type="button"
-            data-testid="health-colfilters-clear"
-            onClick={() => {
-              setColFilters(EMPTY_HEALTH_COLUMN_FILTERS);
-              setSort(null);
-            }}
-            className="text-[11px] underline"
-            style={{ color: "var(--color-accent-blue)" }}
+      <ViewToolbar
+        filterPills={
+          <div
+            className="inline-flex overflow-hidden rounded-md border"
+            style={{ borderColor: "var(--color-border-default)" }}
           >
-            Clear column filters/sort
-          </button>
-        )}
-      </div>
+            {HEALTH_FILTERS.map((f) => {
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  data-testid={`health-filter-${f.id}`}
+                  onClick={() => onFilter(f.id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium ${on ? "text-white" : ""}`}
+                  style={{
+                    background: on ? "var(--color-accent-blue)" : "transparent",
+                    color: on ? undefined : "var(--color-text-secondary)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+        extra={
+          (activeColFilterCount > 0 || sort) && (
+            <button
+              type="button"
+              data-testid="health-colfilters-clear"
+              onClick={() => {
+                setColFilters(EMPTY_HEALTH_COLUMN_FILTERS);
+                setSort(null);
+              }}
+              className="text-[11px] underline"
+              style={{ color: "var(--color-accent-blue)" }}
+            >
+              Clear column filters/sort
+            </button>
+          )
+        }
+        explanation="Every condition below is derived from the other four tabs' own data — never hand-written · click a column header to sort, the funnel to filter it"
+        stats={
+          <>
+            <StatTile
+              label="Real defects"
+              value={String(s.real_defects)}
+              sub="high + med + low"
+              testId="health-stat-defects"
+            />
+            <StatTile
+              label="High"
+              value={String(s.high)}
+              sub="fix first"
+              color="var(--color-accent-red)"
+              testId="health-stat-high"
+            />
+            <StatTile
+              label="Medium"
+              value={String(s.med)}
+              sub=""
+              color="var(--color-accent-amber)"
+              testId="health-stat-med"
+            />
+            <StatTile label="Low" value={String(s.low)} sub="" testId="health-stat-low" />
+            <StatTile
+              label="Deferred"
+              value={String(s.deferred)}
+              sub="intentional, not a defect"
+              color="var(--color-accent-blue)"
+              testId="health-stat-deferred"
+            />
+          </>
+        }
+      />
 
       <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
         <table className="w-full min-w-[900px] border-collapse text-xs">
@@ -2500,6 +2552,13 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
           </HelpTerm>
           <HelpTerm term="Tabs">
             All five tabs are live — every one reads the real cloud APIs, nothing is mocked.
+          </HelpTerm>
+          <HelpTerm term="GCP / AWS">
+            All deployments run on <b className="text-[var(--color-text-primary)]">GCP</b> — the active production
+            estate. The <b className="text-[var(--color-text-primary)]">AWS</b> estate is{" "}
+            <b className="text-[var(--color-text-primary)]">deliberately stopped</b> — deferred while credits are
+            unavailable, kept intact, resumes when they return. AWS rows are{" "}
+            <b className="text-[var(--color-text-primary)]">parked, not broken</b>.
           </HelpTerm>
           <HelpTerm term="Sort &amp; filter">
             Click any column header to sort by it (click again to reverse, a third click clears it). The{" "}
@@ -2838,21 +2897,33 @@ export function ArtifactPipeline() {
 
   return (
     <main data-testid="artifact-pipeline-page" className="w-full space-y-4 px-4 py-6 lg:px-6">
-      {/* header */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="grid h-10 w-10 flex-none place-items-center rounded-lg text-white"
-            style={{ background: "linear-gradient(135deg, var(--color-accent-blue), var(--color-accent-purple))" }}
-          >
-            <Package className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Artifact Pipeline</h1>
-            <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-              Build → artifact → deploy, end-to-end across GCP (active) and AWS (parked)
-            </p>
-          </div>
+      {/* header: tab bar (left) + window/date/refresh/help (right) */}
+      <div
+        className="flex flex-col gap-3 border-b pb-3 lg:flex-row lg:items-center lg:justify-between"
+        style={{ borderColor: "var(--color-border-default)" }}
+      >
+        <div className="flex flex-wrap gap-1">
+          {TABS.map((t) => {
+            const on = t.id === tab;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`artifact-tab-${t.id}`}
+                onClick={() => setTab(t.id)}
+                className="flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium"
+                style={{
+                  borderColor: on ? "var(--color-accent-blue)" : "transparent",
+                  color: on ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+                }}
+              >
+                {t.label}
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+                  {t.hint}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div
@@ -2906,49 +2977,6 @@ export function ArtifactPipeline() {
       </div>
 
       <ArtifactHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
-
-      {/* GCP active / AWS parked context banner */}
-      <div
-        className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-xs"
-        style={{
-          borderColor: "var(--color-border-default)",
-          borderLeft: "3px solid var(--color-accent-blue)",
-          background: "var(--color-bg-secondary)",
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        <Pill tone="cyan">GCP = active production</Pill>
-        <Pill tone="blue">AWS = intentionally parked</Pill>
-        <span>
-          All deployments run on <b>GCP</b>. The <b>AWS</b> estate is <b>deliberately stopped</b> — deferred while
-          credits are unavailable, kept intact, resumes when they return. AWS rows are <b>parked, not broken</b>.
-        </span>
-      </div>
-
-      {/* tab bar */}
-      <div className="flex flex-wrap gap-1 border-b" style={{ borderColor: "var(--color-border-default)" }}>
-        {TABS.map((t) => {
-          const on = t.id === tab;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              data-testid={`artifact-tab-${t.id}`}
-              onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium"
-              style={{
-                borderColor: on ? "var(--color-accent-blue)" : "transparent",
-                color: on ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-              }}
-            >
-              {t.label}
-              <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
-                {t.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* body */}
       {tab === "pipe" && (

@@ -468,6 +468,13 @@ test.describe("Cockpit — Deployments orphan inventory + bulk reap", () => {
     await expect(page.getByTestId("deployments-orphans-card-idle-usd")).toContainText("$20.15");
     await expect(page.getByTestId("deployments-orphans-card-reclaimable-usd")).toContainText("$2.60");
     await expect(page.getByTestId("deployments-reap-btn")).toContainText("Reap 1 reapable");
+    // "Spent so far" sub-line (Deployments cost-visibility follow-up, 2026-07-23) — cumulative
+    // accrued cost, prorated by each entry's stopped_age_hours, DISTINCT from the $/mo run-rate
+    // above it. $4.92 = all 5 grace-gated/non-gated entries; $0.43 = just the one reapable entry.
+    await expect(page.getByTestId("deployments-orphans-card-idle-cost-so-far")).toContainText("$4.92 spent so far");
+    await expect(page.getByTestId("deployments-orphans-card-reclaimable-cost-so-far")).toContainText(
+      "$0.43 spent so far",
+    );
   });
 
   test("bulk reap is dry-run-first → confirm dialog lists candidates → executes", async ({ page }) => {

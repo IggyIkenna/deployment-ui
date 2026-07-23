@@ -143,6 +143,10 @@ function AlertDateRangeFilter({
   );
 }
 
+// Must track deployment-api's `_MAX_DAYS` (_repo_ci_alerts.py) — FastAPI validates `days` with
+// `le=_MAX_DAYS` server-side, so a request past this is rejected (422), not clamped.
+const ALERTS_MAX_DAYS = 30;
+
 /** Timeline column sort keys — timestamp/severity/source/subject (WS-5 Plan B todo 2). */
 type AlertSortKey = "timestamp" | "severity" | "source" | "subject";
 
@@ -293,6 +297,18 @@ export function AlertsContent() {
     );
   }, [setSearchParams]);
 
+  // The backend contract is a `days`-back window ending now (not an arbitrary from/to range —
+  // see AlertDateRangeFilter's doc comment above), so a picked `alert_from` translates into how
+  // many days back to REQUEST; `alert_to` only narrows the client-side filter over that window
+  // (below). Undefined (no `alert_from` picked) lets the backend use its own `_DEFAULT_DAYS`.
+  const daysToFetch = useMemo(() => {
+    if (!alertFromFilter) return undefined;
+    const from = new Date(`${alertFromFilter}T00:00:00Z`);
+    if (Number.isNaN(from.getTime())) return undefined;
+    const diffDays = Math.ceil((Date.now() - from.getTime()) / 86_400_000) + 1;
+    return Math.min(ALERTS_MAX_DAYS, Math.max(1, diffDays));
+  }, [alertFromFilter]);
+
   const load = useCallback(() => {
     // A real /api/alerts response now takes ~240s (single-day alerting-service walk). Without
     // this guard, the 60s auto-refresh interval below — plus the immediate refresh
@@ -303,14 +319,14 @@ export function AlertsContent() {
     loadInFlightRef.current = true;
     setLoading(true);
     setError(null);
-    getUnifiedAlerts()
+    getUnifiedAlerts(daysToFetch)
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => {
         loadInFlightRef.current = false;
         setLoading(false);
       });
-  }, []);
+  }, [daysToFetch]);
 
   useEffect(() => {
     load();
@@ -536,29 +552,75 @@ export function AlertsContent() {
             {data.streams.length === 0 && (
               <p className="text-xs text-[var(--color-text-muted)]">No alert streams in the window.</p>
             )}
-            {data.streams.map((stream) => (
-              <div
-                key={`${stream.repo}/${stream.workflow_name}`}
-                className="flex items-center gap-1.5 text-xs flex-wrap"
-                data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
-              >
-                <DomainChip kind={stream.current.kind} />
-                <span className="font-mono text-[var(--color-text-primary)]">
-                  {stream.repo} / {stream.workflow_name}
-                </span>
-                {stream.previous && (
-                  <>
-                    <EntryChip entry={stream.previous} testId="stream-previous" />
-                    <span className="text-[var(--color-text-muted)]">→</span>
-                  </>
-                )}
-                <EntryChip entry={stream.current} testId="stream-current" />
-                <span className="text-[var(--color-text-muted)]">
-                  {formatAge(ageMin(stream.current.timestamp))} ago · {stream.count} event
-                  {stream.count === 1 ? "" : "s"}
-                </span>
+            {data.streams.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse" aria-label="Alert streams">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border-default)] text-left text-[var(--color-text-muted)]">
+                      <th scope="col" className="py-1 pr-2 font-medium whitespace-nowrap">
+                        Source
+                      </th>
+                      <th scope="col" className="py-1 pr-2 font-medium">
+                        Previous
+                      </th>
+                      <th scope="col" className="py-1 pr-2 font-medium">
+                        Current
+                      </th>
+                      <th scope="col" className="py-1 pr-2 font-medium whitespace-nowrap">
+                        Age
+                      </th>
+                      <th scope="col" className="py-1 font-medium text-right whitespace-nowrap">
+                        Events
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.streams.map((stream) => (
+                      <tr
+                        key={`${stream.repo}/${stream.workflow_name}`}
+                        data-testid={`alert-stream-${stream.repo}-${stream.workflow_name}`}
+                        className="border-b border-[var(--color-border-default)]/50 align-top hover:bg-[var(--color-bg-secondary)]"
+                      >
+                        <td className="py-1 pr-2 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <DomainChip kind={stream.current.kind} />
+                            <span className="font-mono text-[var(--color-text-primary)]">
+                              {stream.repo} / {stream.workflow_name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-1 pr-2 max-w-[320px]">
+                          {stream.previous ? (
+                            <div className="flex items-start gap-1.5">
+                              <EntryChip entry={stream.previous} testId="stream-previous" />
+                              <span className="text-[var(--color-text-muted)] break-words">
+                                {stream.previous.message}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)]">—</span>
+                          )}
+                        </td>
+                        <td className="py-1 pr-2 max-w-[320px]">
+                          <div className="flex items-start gap-1.5">
+                            <EntryChip entry={stream.current} testId="stream-current" />
+                            <span className="text-[var(--color-text-primary)] break-words">
+                              {stream.current.message}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-1 pr-2 text-[var(--color-text-muted)] whitespace-nowrap">
+                          {formatAge(ageMin(stream.current.timestamp))} ago
+                        </td>
+                        <td className="py-1 text-[var(--color-text-muted)] whitespace-nowrap text-right">
+                          {stream.count} event{stream.count === 1 ? "" : "s"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            )}
           </div>
           <Card data-testid="alert-timeline">
             <CardHeader className="pb-2">
@@ -576,88 +638,114 @@ export function AlertsContent() {
                 </p>
               )}
               {filteredAlerts.length > 0 && (
-                <div
-                  role="table"
-                  aria-label="Alert timeline"
-                  className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] pb-1 border-b border-[var(--color-border-default)]"
-                >
-                  <span className="w-[46px] shrink-0" aria-hidden="true" />
-                  {ALERT_SORT_COLUMNS.map((c) => {
-                    const dir = sort?.key === c.key ? sort.dir : undefined;
-                    return (
-                      <button
-                        key={c.key}
-                        type="button"
-                        onClick={() => onHeaderClick(c.key)}
-                        aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
-                        data-testid={`alert-col-${c.key}`}
-                        className={`shrink-0 select-none hover:text-[var(--color-text-primary)] ${
-                          dir ? "text-[var(--color-text-primary)] font-medium" : ""
-                        }`}
-                      >
-                        {c.label}
-                        {dir === "asc" ? " ▲" : dir === "desc" ? " ▼" : ""}
-                      </button>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse" aria-label="Alert timeline">
+                    <thead>
+                      <tr className="border-b border-[var(--color-border-default)] text-left text-xs text-[var(--color-text-muted)]">
+                        {ALERT_SORT_COLUMNS.map((c) => {
+                          const dir = sort?.key === c.key ? sort.dir : undefined;
+                          return (
+                            <th
+                              key={c.key}
+                              scope="col"
+                              onClick={() => onHeaderClick(c.key)}
+                              aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : undefined}
+                              data-testid={`alert-col-${c.key}`}
+                              className={`py-1.5 pr-3 font-medium cursor-pointer select-none whitespace-nowrap hover:text-[var(--color-text-primary)] ${
+                                dir ? "text-[var(--color-text-primary)]" : ""
+                              }`}
+                            >
+                              {c.label}
+                              {dir === "asc" ? " ▲" : dir === "desc" ? " ▼" : ""}
+                            </th>
+                          );
+                        })}
+                        <th scope="col" className="py-1.5 pr-3 font-medium whitespace-nowrap">
+                          Workflow
+                        </th>
+                        <th scope="col" className="py-1.5 pr-3 font-medium">
+                          Message
+                        </th>
+                        <th scope="col" className="py-1.5 font-medium text-right whitespace-nowrap">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedAlerts.map((alert, index) => (
+                        <tr
+                          key={`${alert.timestamp}-${index}`}
+                          data-testid={`alert-entry-${index}`}
+                          className="border-b border-[var(--color-border-default)]/60 align-top hover:bg-[var(--color-bg-secondary)]"
+                        >
+                          <td
+                            className="py-1.5 pr-3 font-mono text-[var(--color-text-secondary)] whitespace-nowrap"
+                            data-testid={`alert-entry-timestamp-${index}`}
+                            title={alert.timestamp}
+                          >
+                            {alert.timestamp.slice(0, 16).replace("T", " ")}
+                          </td>
+                          <td className="py-1.5 pr-3 whitespace-nowrap">
+                            <EntryChip entry={alert} />
+                          </td>
+                          <td className="py-1.5 pr-3 whitespace-nowrap">
+                            <DomainChip kind={alert.kind} />
+                          </td>
+                          <td className="py-1.5 pr-3 font-mono text-[var(--color-text-muted)] whitespace-nowrap">
+                            {alert.repo}
+                          </td>
+                          <td
+                            className="py-1.5 pr-3 font-mono text-[var(--color-text-muted)] whitespace-nowrap"
+                            data-testid={`alert-entry-workflow-${index}`}
+                          >
+                            {alert.workflow_name || "—"}
+                          </td>
+                          <td className="py-1.5 pr-3 text-[var(--color-text-primary)] max-w-[520px] break-words">
+                            {alert.message}
+                          </td>
+                          <td className="py-1.5 whitespace-nowrap text-right">
+                            <div className="inline-flex items-center gap-2">
+                              {alert.deployment_target && (
+                                <Link
+                                  to={`/deployments/${encodeURIComponent(alert.deployment_target)}`}
+                                  className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                                  title={`Open ${alert.deployment_target} in Deployments`}
+                                  data-testid={`alert-deployment-link-${index}`}
+                                >
+                                  <ArrowUpRight className="h-3 w-3" />
+                                  <span className="text-xs">deployment</span>
+                                </Link>
+                              )}
+                              {alert.deployment_target && (
+                                <button
+                                  type="button"
+                                  onClick={() => setParam("logs", alert.deployment_target ?? "")}
+                                  className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                                  title={`Stream logs for ${alert.deployment_target}`}
+                                  data-testid={`alert-logs-link-${index}`}
+                                >
+                                  <Radio className="h-3 w-3" />
+                                  <span className="text-xs">logs</span>
+                                </button>
+                              )}
+                              {alert.run_url && (
+                                <a
+                                  href={alert.run_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
-              {sortedAlerts.map((alert, index) => (
-                <div
-                  key={`${alert.timestamp}-${index}`}
-                  role="row"
-                  className="flex items-start gap-2 text-sm"
-                  data-testid={`alert-entry-${index}`}
-                >
-                  <DomainChip kind={alert.kind} />
-                  <EntryChip entry={alert} />
-                  <span
-                    className="font-mono text-[var(--color-text-secondary)] shrink-0"
-                    data-testid={`alert-entry-timestamp-${index}`}
-                    title={alert.timestamp}
-                  >
-                    {alert.timestamp.slice(0, 16).replace("T", " ")}
-                  </span>
-                  <span className="font-mono text-[var(--color-text-muted)] shrink-0">{alert.repo}</span>
-                  {alert.workflow_name && (
-                    <span
-                      className="font-mono text-[var(--color-text-muted)] shrink-0"
-                      data-testid={`alert-entry-workflow-${index}`}
-                    >
-                      {alert.workflow_name}
-                    </span>
-                  )}
-                  <span className="text-[var(--color-text-primary)]">{alert.message}</span>
-                  {alert.deployment_target && (
-                    <Link
-                      to={`/deployments/${encodeURIComponent(alert.deployment_target)}`}
-                      className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                      title={`Open ${alert.deployment_target} in Deployments`}
-                      data-testid={`alert-deployment-link-${index}`}
-                    >
-                      <ArrowUpRight className="h-3 w-3" />
-                      <span className="text-xs">deployment</span>
-                    </Link>
-                  )}
-                  {alert.deployment_target && (
-                    <button
-                      type="button"
-                      onClick={() => setParam("logs", alert.deployment_target ?? "")}
-                      className="inline-flex shrink-0 items-center gap-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                      title={`Stream logs for ${alert.deployment_target}`}
-                      data-testid={`alert-logs-link-${index}`}
-                    >
-                      <Radio className="h-3 w-3" />
-                      <span className="text-xs">logs</span>
-                    </button>
-                  )}
-                  {alert.run_url && (
-                    <a href={alert.run_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-muted)]">
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-              ))}
             </CardContent>
           </Card>
         </>
