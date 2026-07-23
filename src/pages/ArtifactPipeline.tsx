@@ -2,46 +2,74 @@
  * /ops/artifacts — the build → artifact → deploy estate, end-to-end.
  *
  * Five views (What's running · Deploy timeline · Pipeline · Artifacts · Health) mirroring the frozen
- * design mock at `public/design-mocks/artifact-pipeline.html`. The **Pipeline** view is live against
- * `GET /api/artifacts/builds` (real Cloud Build history); the other four are placeholders until their
- * backends land, per-view. GCP is the active production estate; AWS is intentionally parked (no
- * credits) — its rows, when they arrive, are parked-not-broken.
+ * design mock at `public/design-mocks/artifact-pipeline.html`. **Pipeline** (`GET /api/artifacts/builds`)
+ * and **Deploy timeline** (`GET /api/artifacts/deploys`) are live; the other three are placeholders
+ * until their backends land, per-view. GCP is the active production estate; AWS is intentionally
+ * parked (no credits) — its rows, when they arrive, are parked-not-broken.
  *
  * Deliberately self-contained (mirroring CostObservability): plain fetch + useState/useEffect with a
- * request-id guard, and small inline primitives styled off the app's CSS custom-property tokens.
+ * request-id guard per view, small inline primitives styled off the app's CSS custom-property tokens,
+ * and the same native `<input type="date">` range picker (operator ask 2026-07-23).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Package, RefreshCw } from "lucide-react";
 
-import { getArtifactBuilds, type BuildRow, type BuildsResponse } from "../api/deploymentApi";
+import {
+  getArtifactBuilds,
+  getArtifactDeploys,
+  type BuildRow,
+  type BuildsResponse,
+  type DeployRow,
+  type DeploysResponse,
+} from "../api/deploymentApi";
 
 // ── tabs ────────────────────────────────────────────────────────────────────────────────────────
 type TabId = "run" | "deploy" | "pipe" | "art" | "health";
 
 const TABS: readonly { id: TabId; label: string; hint: string }[] = [
   { id: "run", label: "What's running", hint: "join + drift" },
-  { id: "deploy", label: "Deploy timeline", hint: "estate" },
+  { id: "deploy", label: "Deploy timeline", hint: "revisions" },
   { id: "pipe", label: "Pipeline", hint: "builds" },
   { id: "art", label: "Artifacts", hint: "registries" },
   { id: "health", label: "Health", hint: "conditions" },
 ];
 
 // What each not-yet-wired view will show — honest placeholder copy, straight from the design intent.
-const PLACEHOLDERS: Record<Exclude<TabId, "pipe">, string> = {
+const PLACEHOLDERS: Record<Exclude<TabId, "pipe" | "deploy">, string> = {
   run: "The headline join — each live workload's running image resolved back to its Artifact Registry tag → short SHA → Cloud Build record → git commit, with an honest drift verdict (pinned / floating / stale / hand-deployed / unknown). Backend in progress.",
-  deploy:
-    "Every Cloud Run revision + App Runner / ECS op + VM launch as a deploy timeline — new-code vs config-only churn, how long each revision was held live, and who deployed it. Backend in progress.",
   art: "The Artifact Registry + ECR inventory — image tags, digests, sizes, per-repo storage, and garbage-collection candidates, cross-referenced against what is actually running. Backend in progress.",
   health:
     "Measured pipeline-health conditions derived from the other views (floating pointers, unresolvable tarball VMs, stale builds, parked-AWS state) — each a real check, never a fabricated green. Backend in progress.",
 };
 
-// ── window presets ──────────────────────────────────────────────────────────────────────────────
+// ── window presets + explicit date range (mirrors CostObservability's DateRangePicker) ─────────────
 const WINDOWS: readonly { days: number; label: string }[] = [
   { days: 7, label: "7d" },
   { days: 14, label: "14d" },
   { days: 30, label: "30d" },
 ];
+
+// Longest selectable span — mirrors the API's own 366-day cap (routes/artifacts.py MAX_RANGE_DAYS),
+// so the picker can't offer a range the backend will 400 on.
+const MAX_RANGE_DAYS = 366;
+
+interface ArtifactDateRange {
+  start: string;
+  end: string;
+}
+
+/** Local-calendar ISO `YYYY-MM-DD` — `toISOString()` would shift the day for anyone behind UTC. */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function isoToday(): string {
+  return isoDay(new Date());
+}
+function isoDaysBefore(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() - n);
+  return isoDay(d);
+}
 
 // ── pipeline row filter ─────────────────────────────────────────────────────────────────────────
 type PipeFilter = "all" | "fail" | "image" | "tarball" | "gcp" | "aws";
@@ -72,6 +100,42 @@ function matchesFilter(row: BuildRow, filter: PipeFilter): boolean {
   }
 }
 
+// ── deploy timeline row filter ──────────────────────────────────────────────────────────────────
+type DeployFilter = "all" | "code" | "live" | "fail";
+
+const DEPLOY_FILTERS: readonly { id: DeployFilter; label: string }[] = [
+  { id: "all", label: "All deploys" },
+  { id: "code", label: "New code only" },
+  { id: "live", label: "Live now" },
+  { id: "fail", label: "Failed / paused" },
+];
+
+function matchesDeployFilter(row: DeployRow, filter: DeployFilter): boolean {
+  switch (filter) {
+    case "all":
+      return true;
+    case "code":
+      return row.change_type !== "config";
+    case "live":
+      return row.live;
+    case "fail":
+      return row.change_type === "failed";
+  }
+}
+
+function changeColor(change: string): string {
+  if (change === "new") return "var(--color-accent-blue)";
+  if (change === "config") return "var(--color-text-tertiary)";
+  if (change === "rollback") return "var(--color-accent-amber)";
+  if (change === "failed") return "var(--color-accent-red)";
+  return "var(--color-text-secondary)";
+}
+
+function changeLabel(change: string): string {
+  if (change === "config") return "config-only";
+  return change;
+}
+
 // ── formatting helpers ──────────────────────────────────────────────────────────────────────────
 function fmtDurationSec(seconds: number | null): string {
   if (seconds == null) return "—";
@@ -80,7 +144,7 @@ function fmtDurationSec(seconds: number | null): string {
   return `${Math.floor(total / 60)}m${String(total % 60).padStart(2, "0")}s`;
 }
 
-/** ISO → "MM-DD HH:MM" (UTC) for the compact "Started" cell; "" stays "". */
+/** ISO → "MM-DD HH:MM" (UTC) for the compact "Started"/"When" cell; "" stays "". */
 function fmtStarted(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -150,6 +214,62 @@ function Pill({ tone, children }: { tone: PillTone; children: React.ReactNode })
     >
       {children}
     </span>
+  );
+}
+
+/** Two native `<input type="date">`s, mirroring CostObservability's DateRangePicker exactly: the
+ * `min`/`max` attributes make the ranges the API rejects (inverted, >366d, ending in the future)
+ * unreachable from the UI rather than merely error-handled. */
+function DateRangePicker({ range, onCommit }: { range: ArtifactDateRange; onCommit: (r: ArtifactDateRange) => void }) {
+  const today = isoToday();
+  const earliestStart = isoDaysBefore(range.end, MAX_RANGE_DAYS - 1);
+  const latestEnd = (() => {
+    const cap = isoDaysBefore(today, 0);
+    const spanCap = isoDaysBefore(range.start, -(MAX_RANGE_DAYS - 1));
+    return spanCap < cap ? spanCap : cap;
+  })();
+
+  const field = "h-[26px] rounded-md border px-1.5 font-mono text-[12px] leading-none outline-none transition-colors";
+  const fieldStyle = {
+    borderColor: "var(--color-border-default)",
+    background: "var(--color-bg-tertiary, var(--color-bg-secondary))",
+    color: "var(--color-text-primary)",
+  };
+
+  return (
+    <div className="inline-flex items-center gap-1.5" data-testid="artifact-date-range">
+      <input
+        type="date"
+        aria-label="Range start date"
+        data-testid="artifact-range-start"
+        value={range.start}
+        min={earliestStart}
+        max={range.end}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v && v <= range.end && v >= earliestStart) onCommit({ ...range, start: v });
+        }}
+        className={field}
+        style={fieldStyle}
+      />
+      <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+        →
+      </span>
+      <input
+        type="date"
+        aria-label="Range end date"
+        data-testid="artifact-range-end"
+        value={range.end}
+        min={range.start}
+        max={latestEnd}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v && v >= range.start && v <= latestEnd) onCommit({ ...range, end: v });
+        }}
+        className={field}
+        style={fieldStyle}
+      />
+    </div>
   );
 }
 
@@ -417,8 +537,158 @@ function PipeRow({ row, isOpen, onToggle }: { row: BuildRow; isOpen: boolean; on
   );
 }
 
+// ── the live Deploy timeline view ─────────────────────────────────────────────────────────────────
+function DeployTimelineView({
+  data,
+  filter,
+  onFilter,
+}: {
+  data: DeploysResponse;
+  filter: DeployFilter;
+  onFilter: (f: DeployFilter) => void;
+}) {
+  const rows = useMemo(() => data.rows.filter((r) => matchesDeployFilter(r, filter)), [data.rows, filter]);
+  const s = data.stats;
+
+  return (
+    <section data-testid="artifact-deploy-view">
+      {/* stat band — live_now is a point-in-time count, never narrowed by the date window */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <StatTile
+          label="Deploys in window"
+          value={String(s.total)}
+          sub="Cloud Run revisions"
+          testId="deploy-stat-total"
+        />
+        <StatTile
+          label="Config-only redeploys"
+          value={`${s.config_only_pct}%`}
+          sub="same digest, nothing shipped"
+          color="var(--color-accent-amber)"
+          testId="deploy-stat-config"
+        />
+        <StatTile
+          label="Live now (GCP)"
+          value={String(s.live_now)}
+          sub="workloads serving right now"
+          color="var(--color-accent-green)"
+          testId="deploy-stat-live"
+        />
+        <StatTile
+          label="Failed"
+          value={String(s.failed)}
+          sub="never went ready"
+          color="var(--color-accent-red)"
+          testId="deploy-stat-failed"
+        />
+      </div>
+
+      {/* filter bar */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div
+          className="inline-flex overflow-hidden rounded-md border"
+          style={{ borderColor: "var(--color-border-default)" }}
+        >
+          {DEPLOY_FILTERS.map((f) => {
+            const on = f.id === filter;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                data-testid={`deploy-filter-${f.id}`}
+                onClick={() => onFilter(f.id)}
+                className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
+                style={{
+                  background: on ? "var(--color-accent-blue)" : "transparent",
+                  color: on ? undefined : "var(--color-text-secondary)",
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
+          <b>New code only</b> hides the config-only churn · <b>Live now</b> = what is serving this instant
+        </span>
+      </div>
+
+      {/* table */}
+      <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border-default)" }}>
+        <table className="w-full min-w-[860px] border-collapse text-xs">
+          <thead>
+            <tr style={{ color: "var(--color-text-tertiary)" }} className="text-left">
+              {["Workload", "Revision", "Cloud", "Change", "Digest", "When · held for", "Deployer", ""].map((h, i) => (
+                <th key={i} className="whitespace-nowrap px-2.5 py-2 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-2.5 py-6 text-center" style={{ color: "var(--color-text-tertiary)" }}>
+                  No deploys match this filter in the selected window.
+                </td>
+              </tr>
+            )}
+            {rows.map((r) => (
+              <DeployRowLine key={`${r.workload}-${r.revision}`} row={r} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
+        Live from Cloud Run revisions. "Held for" looks ahead to the revision that replaced it — the current live
+        revision has none yet. The digest→commit join ("Built from") lands with the <b>What's running</b> view. Window{" "}
+        <code>
+          {data.start_date} → {data.end_date}
+        </code>
+        .
+      </p>
+    </section>
+  );
+}
+
+function DeployRowLine({ row }: { row: DeployRow }) {
+  const cellBorder = { borderTop: "1px solid var(--color-border-default)" };
+  return (
+    <tr className="align-top" data-testid="deploy-row">
+      <td className="px-2.5 py-2 font-medium" style={cellBorder}>
+        {row.workload}
+      </td>
+      <td className="max-w-[220px] truncate px-2.5 py-2 font-mono text-[11px]" style={cellBorder} title={row.revision}>
+        {row.revision}
+      </td>
+      <td className="px-2.5 py-2 uppercase" style={{ ...cellBorder, color: "var(--color-text-secondary)" }}>
+        {row.cloud}
+      </td>
+      <td
+        className="whitespace-nowrap px-2.5 py-2 font-medium"
+        style={{ ...cellBorder, color: changeColor(row.change_type) }}
+      >
+        {changeLabel(row.change_type)}
+      </td>
+      <td className="whitespace-nowrap px-2.5 py-2 font-mono text-[11px]" style={cellBorder} title={row.digest}>
+        {row.digest ? row.digest.slice(0, 19) : "—"}
+      </td>
+      <td className="whitespace-nowrap px-2.5 py-2 tabular-nums" style={cellBorder}>
+        {fmtStarted(row.at)} {row.held_for ? `· held ${row.held_for}` : ""}
+      </td>
+      <td className="max-w-[160px] truncate px-2.5 py-2" style={cellBorder} title={row.deployer}>
+        {row.deployer || "—"}
+      </td>
+      <td className="px-2.5 py-2" style={cellBorder}>
+        {row.live && <Pill tone="green">live now</Pill>}
+      </td>
+    </tr>
+  );
+}
+
 // ── not-yet-wired view placeholder ────────────────────────────────────────────────────────────────
-function ComingSoon({ tab }: { tab: Exclude<TabId, "pipe"> }) {
+function ComingSoon({ tab }: { tab: Exclude<TabId, "pipe" | "deploy"> }) {
   return (
     <section
       data-testid="artifact-placeholder"
@@ -430,49 +700,108 @@ function ComingSoon({ tab }: { tab: Exclude<TabId, "pipe"> }) {
         {PLACEHOLDERS[tab]}
       </div>
       <div className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-        The <b>Pipeline</b> tab is live now — the rest ship per-view.
+        <b>Pipeline</b> and <b>Deploy timeline</b> are live now — the rest ship per-view.
       </div>
     </section>
+  );
+}
+
+// ── loading skeleton (shared by both live views) ────────────────────────────────────────────────
+function StatSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-[86px] animate-pulse rounded-lg border"
+          style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-secondary)" }}
+        />
+      ))}
+    </div>
   );
 }
 
 // ── page ──────────────────────────────────────────────────────────────────────────────────────────
 export function ArtifactPipeline() {
   const [tab, setTab] = useState<TabId>("pipe");
-  const [days, setDays] = useState(14);
-  const [filter, setFilter] = useState<PipeFilter>("all");
-  const [data, setData] = useState<BuildsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const reqId = useRef(0);
+  const [days, setDays] = useState(7); // operator ask 2026-07-23: default to a 7-day window
+  const [range, setRange] = useState<ArtifactDateRange | null>(null); // an explicit range overrides `days`
+  const [pipeFilter, setPipeFilter] = useState<PipeFilter>("all");
+  const [deployFilter, setDeployFilter] = useState<DeployFilter>("all");
 
-  const load = useCallback(
+  const [buildsData, setBuildsData] = useState<BuildsResponse | null>(null);
+  const [buildsLoading, setBuildsLoading] = useState(true);
+  const [buildsError, setBuildsError] = useState<string | null>(null);
+  const buildsReqId = useRef(0);
+
+  const [deploysData, setDeploysData] = useState<DeploysResponse | null>(null);
+  const [deploysLoading, setDeploysLoading] = useState(true);
+  const [deploysError, setDeploysError] = useState<string | null>(null);
+  const deploysReqId = useRef(0);
+
+  const windowArg = range ?? undefined;
+
+  const loadBuilds = useCallback(
     async (refresh: boolean) => {
-      const id = ++reqId.current;
-      setLoading(true);
-      setError(null);
+      const id = ++buildsReqId.current;
+      setBuildsLoading(true);
+      setBuildsError(null);
       try {
-        const resp = await getArtifactBuilds({ days, refresh });
-        if (id !== reqId.current) return; // a newer window is in flight — drop this one
-        setData(resp);
+        const resp = await getArtifactBuilds({ days, refresh, startDate: windowArg?.start, endDate: windowArg?.end });
+        if (id !== buildsReqId.current) return; // a newer window is in flight — drop this one
+        setBuildsData(resp);
       } catch (e) {
-        if (id !== reqId.current) return;
-        setError(e instanceof Error ? e.message : "Failed to load builds");
+        if (id !== buildsReqId.current) return;
+        setBuildsError(e instanceof Error ? e.message : "Failed to load builds");
       } finally {
-        if (id === reqId.current) setLoading(false);
+        if (id === buildsReqId.current) setBuildsLoading(false);
       }
     },
-    [days],
+    [days, windowArg?.start, windowArg?.end],
+  );
+
+  const loadDeploys = useCallback(
+    async (refresh: boolean) => {
+      const id = ++deploysReqId.current;
+      setDeploysLoading(true);
+      setDeploysError(null);
+      try {
+        const resp = await getArtifactDeploys({ days, refresh, startDate: windowArg?.start, endDate: windowArg?.end });
+        if (id !== deploysReqId.current) return;
+        setDeploysData(resp);
+      } catch (e) {
+        if (id !== deploysReqId.current) return;
+        setDeploysError(e instanceof Error ? e.message : "Failed to load deploys");
+      } finally {
+        if (id === deploysReqId.current) setDeploysLoading(false);
+      }
+    },
+    [days, windowArg?.start, windowArg?.end],
   );
 
   useEffect(() => {
-    void load(false);
-  }, [load]);
+    void loadBuilds(false);
+    void loadDeploys(false);
+  }, [loadBuilds, loadDeploys]);
+
+  const refreshAll = () => {
+    void loadBuilds(true);
+    void loadDeploys(true);
+  };
+  const loading = buildsLoading || deploysLoading;
+
+  // What the date inputs SHOW: the hand-picked range, else the window the API actually resolved
+  // (builds and deploys share one window, so either response's echoed dates agree); a local
+  // fallback only covers the first paint, before any response has landed.
+  const shownRange: ArtifactDateRange = range ?? {
+    start: buildsData?.start_date ?? deploysData?.start_date ?? isoDaysBefore(isoToday(), days - 1),
+    end: buildsData?.end_date ?? deploysData?.end_date ?? isoToday(),
+  };
 
   return (
     <main data-testid="artifact-pipeline-page" className="w-full space-y-4 px-4 py-6 lg:px-6">
       {/* header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <div
             className="grid h-10 w-10 flex-none place-items-center rounded-lg text-white"
@@ -487,19 +816,22 @@ export function ArtifactPipeline() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div
             className="inline-flex overflow-hidden rounded-md border"
             style={{ borderColor: "var(--color-border-default)" }}
           >
             {WINDOWS.map((w) => {
-              const on = w.days === days;
+              const on = w.days === days && !range;
               return (
                 <button
                   key={w.days}
                   type="button"
                   data-testid={`artifact-window-${w.days}`}
-                  onClick={() => setDays(w.days)}
+                  onClick={() => {
+                    setRange(null); // an explicit range no longer applies once a preset is chosen
+                    setDays(w.days);
+                  }}
                   className={`px-2.5 py-1 text-xs font-medium ${on ? "text-white" : ""}`}
                   style={{
                     background: on ? "var(--color-accent-blue)" : "transparent",
@@ -511,10 +843,11 @@ export function ArtifactPipeline() {
               );
             })}
           </div>
+          <DateRangePicker range={shownRange} onCommit={setRange} />
           <button
             type="button"
             data-testid="artifact-refresh"
-            onClick={() => void load(true)}
+            onClick={refreshAll}
             className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium"
             style={{ borderColor: "var(--color-border-default)", color: "var(--color-text-secondary)" }}
           >
@@ -568,33 +901,37 @@ export function ArtifactPipeline() {
       </div>
 
       {/* body */}
-      {tab === "pipe" ? (
+      {tab === "pipe" && (
         <>
-          {error && (
+          {buildsError && (
             <div
               role="alert"
               className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
               style={{ borderColor: "var(--color-accent-red)", color: "var(--color-accent-red)" }}
             >
-              <AlertTriangle className="h-4 w-4" /> {error}
+              <AlertTriangle className="h-4 w-4" /> {buildsError}
             </div>
           )}
-          {loading && !data && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[86px] animate-pulse rounded-lg border"
-                  style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-secondary)" }}
-                />
-              ))}
-            </div>
-          )}
-          {data && <PipelineView data={data} filter={filter} onFilter={setFilter} />}
+          {buildsLoading && !buildsData && <StatSkeleton />}
+          {buildsData && <PipelineView data={buildsData} filter={pipeFilter} onFilter={setPipeFilter} />}
         </>
-      ) : (
-        <ComingSoon tab={tab} />
       )}
+      {tab === "deploy" && (
+        <>
+          {deploysError && (
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+              style={{ borderColor: "var(--color-accent-red)", color: "var(--color-accent-red)" }}
+            >
+              <AlertTriangle className="h-4 w-4" /> {deploysError}
+            </div>
+          )}
+          {deploysLoading && !deploysData && <StatSkeleton />}
+          {deploysData && <DeployTimelineView data={deploysData} filter={deployFilter} onFilter={setDeployFilter} />}
+        </>
+      )}
+      {tab !== "pipe" && tab !== "deploy" && <ComingSoon tab={tab} />}
     </main>
   );
 }

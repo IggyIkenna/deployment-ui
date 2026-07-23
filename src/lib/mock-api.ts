@@ -2922,6 +2922,101 @@ function mockArtifactBuilds(params: URLSearchParams) {
     },
   };
 }
+
+type MockDeployOverrides = {
+  workload: string;
+  revision: string;
+  cloud: "gcp" | "aws";
+  digest: string;
+  change_type: "new" | "config" | "rollback" | "failed";
+  at: string;
+  held_for?: string;
+  live?: boolean;
+  deployer?: string;
+};
+function mockDeploy(o: MockDeployOverrides) {
+  return {
+    workload: o.workload,
+    revision: o.revision,
+    cloud: o.cloud,
+    digest: o.digest,
+    built_from: "",
+    resolvable: false,
+    change_type: o.change_type,
+    at: o.at,
+    held_for: o.held_for ?? "",
+    live: o.live ?? false,
+    deployer: o.deployer ?? "Cloud Build",
+    link_kind: "revision",
+    section: "",
+  };
+}
+function mockArtifactDeploys(params: URLSearchParams) {
+  const now = new Date();
+  const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * 3_600_000).toISOString();
+  const days = Number(params.get("days") ?? 7);
+  const start =
+    params.get("start_date") ?? new Date(now.getTime() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const end = params.get("end_date") ?? now.toISOString().slice(0, 10);
+
+  const rows = [
+    mockDeploy({
+      workload: "uts-shared-deployment-api",
+      revision: "uts-shared-deployment-api-00255-rtk",
+      cloud: "gcp",
+      digest: "sha256:c05dd3d678ef",
+      change_type: "new",
+      at: at(1),
+      live: true,
+    }),
+    mockDeploy({
+      workload: "uts-shared-deployment-api",
+      revision: "uts-shared-deployment-api-00254-djz",
+      cloud: "gcp",
+      digest: "sha256:261137b83e42",
+      change_type: "config",
+      at: at(3.6),
+      held_for: "2h36m",
+    }),
+    mockDeploy({
+      workload: "deployment-dashboard",
+      revision: "deployment-dashboard-00221-pbq",
+      cloud: "gcp",
+      digest: "sha256:37a9ab503fb9",
+      change_type: "new",
+      at: at(2),
+      live: true,
+    }),
+    mockDeploy({
+      workload: "deployment-service",
+      revision: "deployment-service-00001-lqw",
+      cloud: "gcp",
+      digest: "sha256:83803e21331f",
+      change_type: "failed",
+      at: at(20),
+      live: true, // the newest attempt Cloud Run has, even though it never went ready
+      deployer: "unified-trading-sa",
+    }),
+  ];
+
+  const total = rows.length;
+  const configOnly = rows.filter((r) => r.change_type === "config").length;
+  const failed = rows.filter((r) => r.change_type === "failed").length;
+  const liveNow = rows.filter((r) => r.live).length;
+  return {
+    days,
+    start_date: start,
+    end_date: end,
+    generated_at: now.toISOString(),
+    rows,
+    stats: {
+      total,
+      config_only_pct: total ? +((100 * configOnly) / total).toFixed(1) : 0,
+      live_now: liveNow,
+      failed,
+    },
+  };
+}
 function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow) {
   const days = win.days;
   const scale = days / 30;
@@ -3149,11 +3244,12 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (path === "/api/costs/timeseries") return json(mockCostTimeseries(win, cloud));
   }
 
-  // Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page. Only the
-  // builds view has a backend today; the page's other four tabs render a static placeholder.
+  // Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page. Builds +
+  // deploys have a backend today; the page's other three tabs render a static placeholder.
   if (path.startsWith("/api/artifacts/")) {
     const params = new URL(url, "http://mock").searchParams;
     if (path === "/api/artifacts/builds") return json(mockArtifactBuilds(params));
+    if (path === "/api/artifacts/deploys") return json(mockArtifactDeploys(params));
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —
