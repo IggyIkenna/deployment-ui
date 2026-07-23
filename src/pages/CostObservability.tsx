@@ -88,7 +88,8 @@ const DIM_NOTE: Record<CostDimension, string> = {
   day: "daily totals across selected clouds",
   sku: "Google/AWS SKU",
   label: "GCP business label · pick a key → (AWS/GitHub have no labels)",
-  waste: "idle static/elastic IPs · orphaned disks — money paid for nothing running",
+  waste:
+    "idle IPs · orphaned disks/images · stale backups · VMs billed past when their job finished — money paid for nothing running",
 };
 // The GCP labels the "By label" dimension can group by (matches the backend LabelKey).
 const LABEL_KEYS: { value: CostLabelKey; label: string }[] = [
@@ -159,7 +160,16 @@ const WASTE_LABEL: Record<string, string> = {
   idle_static_ip: "idle IP",
   idle_elastic_ip: "idle IP",
   orphaned_disk: "orphaned",
+  orphaned_image: "orphaned",
+  orphaned_machine_image: "stale backup",
+  orphaned_snapshot: "stale backup",
+  stopped_vm_disk: "idle since stop",
 };
+// Red = a live resource, proven (not heuristic) to trace back to nothing running — reclaim it now.
+// Amber = everything else: idle-IP SKUs (definitive but a config toggle, not a delete), age-heuristic
+// backup artifacts (might be a deliberate retention window), and stopped_vm_disk (historical — the
+// $ already happened, possibly on a resource already deleted; nothing to click today).
+const WASTE_RED_KINDS = new Set(["orphaned_disk", "orphaned_image"]);
 // Resource rows only — a row IS the idle/orphaned resource, and its own GROSS cost is the waste
 // amount: what the idle thing actually costs, pre-credit. NET can round to ~$0 when a promo credit
 // masks it (an idle IP is ~$2/mo gross, fully credited today), which would read as "not waste" —
@@ -171,7 +181,7 @@ function WasteCell({ r, currency }: { r: CostBreakdownRow; currency: Ccy }) {
     <span className="inline-flex items-center gap-1.5">
       <span
         className={`rounded border px-1 text-[9px] font-bold uppercase ${
-          r.waste_kind === "orphaned_disk"
+          WASTE_RED_KINDS.has(r.waste_kind ?? "")
             ? "border-[var(--color-accent-red)]/50 text-[var(--color-accent-red)]"
             : "border-[var(--color-accent-amber)]/50 text-[var(--color-accent-amber)]"
         }`}
