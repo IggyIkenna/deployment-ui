@@ -193,6 +193,8 @@ describe("Deployments page (unified all-modes table)", () => {
       reapable_total: 1,
       monthly_idle_usd: 15.6,
       monthly_reapable_usd: 5.2,
+      total_idle_cost_incurred_usd: 3.9,
+      total_reapable_cost_incurred_usd: 1.3,
       orphans: [],
     });
   });

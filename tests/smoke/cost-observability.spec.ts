@@ -61,6 +61,26 @@ test.describe("Cost Observability page", () => {
     await expect(table).toContainText("mtds-perp-funding-backfill");
   });
 
+  test("Waste tab (after By label) shows only idle/orphaned resources, not the full resource set", async ({ page }) => {
+    await page.goto("/ops/costs");
+    // Positioned right after "By label" (Deployments cost-visibility follow-up, 2026-07-23).
+    const dims = page.getByTestId("cost-observability-page").getByRole("button", { name: /^By |^Waste$/ });
+    await expect(dims.nth(6)).toHaveText("By label");
+    await expect(dims.nth(7)).toHaveText("Waste");
+
+    await page.getByRole("button", { name: "Waste", exact: true }).click();
+    const table = page.getByTestId("cost-breakdown-table");
+    await expect(table).toBeVisible();
+    // Only the two waste-flagged resources from the shared resource fixture — the non-waste ones
+    // (e.g. the mtds-* VMs the "By resource" test above asserts ARE present) must be absent here.
+    await expect(table).toContainText("harsh-static-ip");
+    await expect(table).toContainText("ikenna-windows-tokyo-restored");
+    await expect(table).not.toContainText("mtds-perp-funding-backfill");
+    // Header total reflects the waste-only scope ($5.95 + $68.62 = $74.57 @ default 30d), not the
+    // full resource-dimension total the same fixtures would sum to.
+    await expect(page.getByTestId("cost-observability-page")).toContainText("$74.57 total");
+  });
+
   test("cloud filter narrows to a single cloud", async ({ page }) => {
     await page.goto("/ops/costs");
     // Scope to the page — "AWS" also matches the global app-header cloud toggle.

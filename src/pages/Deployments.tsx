@@ -1664,6 +1664,14 @@ export function DeploymentsContent({
                       <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
                         {orphanData ? fmtIdleUsd(orphanData.monthly_idle_usd) : "—"}
                       </p>
+                      {orphanData ? (
+                        <p
+                          className="text-[10px] text-[var(--color-text-tertiary)]"
+                          data-testid="deployments-orphans-card-idle-cost-so-far"
+                        >
+                          {fmtIdleUsd(orphanData.total_idle_cost_incurred_usd)} spent so far
+                        </p>
+                      ) : null}
                     </CardContent>
                   </Card>
                   <Card
@@ -1681,6 +1689,14 @@ export function DeploymentsContent({
                       <p className="text-2xl font-semibold text-emerald-400">
                         {orphanData ? fmtIdleUsd(orphanData.monthly_reapable_usd) : "—"}
                       </p>
+                      {orphanData ? (
+                        <p
+                          className="text-[10px] text-[var(--color-text-tertiary)]"
+                          data-testid="deployments-orphans-card-reclaimable-cost-so-far"
+                        >
+                          {fmtIdleUsd(orphanData.total_reapable_cost_incurred_usd)} spent so far
+                        </p>
+                      ) : null}
                     </CardContent>
                   </Card>
                 </div>
