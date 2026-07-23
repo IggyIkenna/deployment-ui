@@ -13,7 +13,7 @@
  * Plan: deployment_ui_monitoring_pane_2026_06_19.md (unified ledger UI P1).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, BellRing, ExternalLink, Radio, RefreshCw } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getUnifiedAlerts, type UnifiedAlertEntry, type UnifiedAlerts } from "../api/client";
@@ -220,6 +220,9 @@ export function AlertsContent() {
   const [data, setData] = useState<UnifiedAlerts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Ref, not state: `load` closes over this with an empty dep array (stable identity for the
+  // 60s interval below), so a state read here would always see the initial-render value.
+  const loadInFlightRef = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { sort, onHeaderClick } = useColumnSort<AlertSortKey>(initialSortFromParams(searchParams));
 
@@ -291,12 +294,22 @@ export function AlertsContent() {
   }, [setSearchParams]);
 
   const load = useCallback(() => {
+    // A real /api/alerts response now takes ~240s (single-day alerting-service walk). Without
+    // this guard, the 60s auto-refresh interval below — plus the immediate refresh
+    // useVisibilityPausedInterval fires on every tab-visibility-regain — would stack multiple
+    // concurrent slow requests against a backend that's already measured to OOM under load
+    // (deployment_alerts_ingestion_completeness_2026_07_20.md). Skip if one is still in flight.
+    if (loadInFlightRef.current) return;
+    loadInFlightRef.current = true;
     setLoading(true);
     setError(null);
     getUnifiedAlerts()
       .then(setData)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        loadInFlightRef.current = false;
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
