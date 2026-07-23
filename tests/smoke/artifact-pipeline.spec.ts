@@ -1,7 +1,8 @@
 /**
  * Smoke (pw:L2): Artifact Pipeline page (/ops/artifacts) renders against the mock API — the live
- * Pipeline (builds) tab's stat band + table + filters, and the not-yet-wired tabs' placeholder.
- * Plan: unified-trading-pm/plans/active/artifact_pipeline_observability_2026_07_17.md (Phase: UI — Pipeline tab).
+ * Pipeline (builds) and Deploy timeline tabs' stat bands + tables + filters, the date-range picker,
+ * the help dialog, and the not-yet-wired tabs' placeholder.
+ * Plan: unified-trading-pm/plans/active/artifact_pipeline_observability_2026_07_17.md (Phase: UI — Pipeline + Deploys tabs).
  */
 
 import { expect, test } from "@playwright/test";
@@ -47,5 +48,63 @@ test.describe("Artifact Pipeline page", () => {
 
     await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("artifact-pipe-view")).toBeVisible();
+  });
+
+  test("defaults to a 7-day window; the Deploy timeline tab renders its live stat band and filters", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    // Operator ask 2026-07-23: the page opens on a 7-day window, not 14 — the active pill is
+    // filled with the accent color, an inactive one is transparent (rgba(0, 0, 0, 0)).
+    const sevenDayPreset = page.getByTestId("artifact-window-7");
+    await expect(sevenDayPreset).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+    await page.getByTestId("artifact-tab-deploy").click();
+    await expect(page.getByTestId("artifact-deploy-view")).toBeVisible();
+    await expect(page.getByTestId("deploy-stat-total")).toBeVisible();
+    await expect(page.getByTestId("deploy-stat-live")).toBeVisible();
+
+    const allRows = await page.getByTestId("deploy-row").count();
+    expect(allRows).toBeGreaterThan(0);
+
+    // "Failed / paused" narrows to the never-ready revision; the stat band stays whole-window.
+    await page.getByTestId("deploy-filter-fail").click();
+    await expect(page.getByTestId("deploy-row")).toHaveCount(1);
+    await expect(page.getByTestId("deploy-row").first()).toContainText("deployment-service");
+
+    await page.getByTestId("deploy-filter-all").click();
+    expect(await page.getByTestId("deploy-row").count()).toBe(allRows);
+  });
+
+  test("the date-range picker drives a refetch and deselects the window presets", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+
+    await page.getByTestId("artifact-range-start").fill("2026-07-01");
+    // A hand-picked range takes over — no preset pill reads as selected (transparent) any more.
+    await expect(page.getByTestId("artifact-window-7")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+    // Picking a preset again clears the custom range and goes back to a `days`-driven window.
+    await page.getByTestId("artifact-window-30").click();
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+  });
+
+  test("the help dialog explains the page controls and both live tabs' columns", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+
+    await expect(page.getByText("Artifact Pipeline — quick guide")).toHaveCount(0);
+    await page.getByTestId("artifact-help-button").click();
+    await expect(page.getByText("Artifact Pipeline — quick guide")).toBeVisible();
+
+    // Both live tabs' column glossaries are present in the same dialog, not split across two.
+    await expect(page.getByText("Pipeline tab — every build")).toBeVisible();
+    await expect(page.getByText("Deploy timeline tab — every deploy")).toBeVisible();
+    await expect(page.getByText(/expand its full step-by-step timeline/i)).toBeVisible();
+    await expect(page.getByText(/never had a successful deploy/i)).toBeVisible();
+
+    // Escape closes it (the Dialog component's own documented behavior).
+    await page.keyboard.press("Escape");
+    await expect(page.getByText("Artifact Pipeline — quick guide")).toHaveCount(0);
   });
 });

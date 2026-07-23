@@ -4311,7 +4311,15 @@ export type UnifiedAlertStream = RepoCiAlertStream;
 export type UnifiedAlerts = RepoCiAlerts;
 
 export async function getUnifiedAlerts(): Promise<UnifiedAlerts> {
-  return fetchJson<UnifiedAlerts>("/alerts");
+  // The alerting-service source plane walks its full day-partition object set synchronously
+  // server-side (deployment_alerts_ingestion_completeness_2026_07_20.md) — even with the
+  // narrowed 1-day default (deployment-api@8623c5f), a real response measured ~240s in prod
+  // (2026-07-23). The shared apiClient's 120s timeout would abort client-side before a
+  // legitimately-in-progress (not hung) response lands, surfacing as a false "Request was
+  // cancelled" — dedicated longer-timeout client instead, same pattern as
+  // retryFailedShards's retryClient.
+  const alertsClient = createApiClient(createClientConfig(API_BASE, { timeoutMs: 480_000 }));
+  return alertsClient.get<UnifiedAlerts>("/alerts");
 }
 
 // --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------

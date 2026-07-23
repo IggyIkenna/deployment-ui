@@ -609,6 +609,28 @@ export interface ArtifactQuery {
   refresh?: boolean;
 }
 
+// Bound the wait for every artifact-pipeline read: the backend reads live cloud APIs, and a stale
+// gRPC channel can hang. Without an abort the page's spinner hangs forever; 45s clears a cold
+// multi-page scan (measured: Cloud Build ~5s, Cloud Run revisions ~11s cold) yet still fails loud.
+const ARTIFACT_FETCH_TIMEOUT_MS = 45_000;
+
+async function fetchArtifactApi(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ARTIFACT_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        `Timed out after ${ARTIFACT_FETCH_TIMEOUT_MS / 1000}s — the deployment API is slow or unreachable.`,
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** GET /api/artifacts/builds — recent build history, both clouds + both lanes. */
 export async function getArtifactBuilds(query: ArtifactQuery = {}): Promise<BuildsResponse> {
   const qs = new URLSearchParams();
@@ -622,23 +644,58 @@ export async function getArtifactBuilds(query: ArtifactQuery = {}): Promise<Buil
   if (query.lane && query.lane !== "all") qs.set("lane", query.lane);
   if (query.status && query.status !== "all") qs.set("status", query.status);
   if (query.refresh) qs.set("refresh", "true");
-  // Bound the wait: the backend reads live cloud APIs, and a stale gRPC channel can be slow. Without
-  // an abort the page's spinner hangs forever; 45s clears a cold multi-page scan yet still fails loud.
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45_000);
-  try {
-    const response = await fetch(`${DEPLOYMENT_API}/api/artifacts/builds?${qs.toString()}`, {
-      signal: controller.signal,
-    });
-    return await handleResponse<BuildsResponse>(response);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Timed out after 45s — the deployment API is slow or unreachable.");
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
+  const response = await fetchArtifactApi(`${DEPLOYMENT_API}/api/artifacts/builds?${qs.toString()}`);
+  return handleResponse<BuildsResponse>(response);
+}
+
+/** One deploy event — a Cloud Run revision, classified new / config-only / rollback / failed. */
+export interface DeployRow {
+  workload: string;
+  revision: string;
+  cloud: ArtifactCloud;
+  digest: string; // resolved image digest ("" when unresolvable)
+  built_from: string; // git sha this digest joins to ("" — the Running view's runtime-join job)
+  resolvable: boolean;
+  change_type: "new" | "config" | "rollback" | "failed";
+  at: string; // ISO
+  held_for: string; // pre-formatted ("2h36m") — "" for the current/newest revision
+  live: boolean; // serving right now (or the newest attempt, if none ever went ready)
+  deployer: string; // "Cloud Build" | an SA short name | a human email
+  link_kind: string; // "revision" | "vm" | "op" — which console link the UI would build
+  section: string;
+}
+
+/** Stat-tile figures. `live_now` is a POINT-IN-TIME count, never narrowed by the date window. */
+export interface DeploysStats {
+  total: number;
+  config_only_pct: number; // % of windowed deploys that shipped nothing (same digest redeployed)
+  live_now: number;
+  failed: number; // never went ready
+}
+
+/** The Deploy timeline view envelope. `start_date`/`end_date` echo the resolved window. */
+export interface DeploysResponse {
+  days: number;
+  start_date: string;
+  end_date: string;
+  generated_at: string;
+  rows: DeployRow[];
+  stats: DeploysStats;
+}
+
+/** GET /api/artifacts/deploys — every Cloud Run revision as a classified deploy event. */
+export async function getArtifactDeploys(query: ArtifactQuery = {}): Promise<DeploysResponse> {
+  const qs = new URLSearchParams();
+  if (query.startDate && query.endDate) {
+    qs.set("start_date", query.startDate);
+    qs.set("end_date", query.endDate);
+  } else if (query.days != null) {
+    qs.set("days", String(query.days));
   }
+  if (query.cloud && query.cloud !== "all") qs.set("cloud", query.cloud);
+  if (query.refresh) qs.set("refresh", "true");
+  const response = await fetchArtifactApi(`${DEPLOYMENT_API}/api/artifacts/deploys?${qs.toString()}`);
+  return handleResponse<DeploysResponse>(response);
 }
 
 // Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=
