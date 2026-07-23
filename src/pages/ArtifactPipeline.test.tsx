@@ -317,4 +317,27 @@ describe("ArtifactPipeline", () => {
     fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument();
   });
+
+  it("the help dialog explains both live tabs' columns and closes cleanly", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
+
+    expect(screen.queryByText("Artifact Pipeline — quick guide")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("artifact-help-button"));
+    expect(screen.getByText("Artifact Pipeline — quick guide")).toBeInTheDocument();
+
+    // Covers the page-level controls and both live tabs' column glossaries — not just a title. Uses
+    // text unique to the dialog's explanatory copy (some HelpTerm labels, e.g. "Why it failed",
+    // collide with the live table's own column headers still rendered behind the dialog).
+    expect(screen.getByText("Using this page")).toBeInTheDocument();
+    expect(screen.getByText("Pipeline tab — every build")).toBeInTheDocument();
+    expect(screen.getByText("Deploy timeline tab — every deploy")).toBeInTheDocument();
+    expect(screen.getByText(/expand its full step-by-step timeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/looks forward/i)).toBeInTheDocument();
+
+    // The Dialog component closes on Escape (its own documented behavior) — cheaper + more robust
+    // than targeting its icon-only close button, which carries no accessible name.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("Artifact Pipeline — quick guide")).not.toBeInTheDocument();
+  });
 });

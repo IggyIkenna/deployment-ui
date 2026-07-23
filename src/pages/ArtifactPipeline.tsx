@@ -12,7 +12,7 @@
  * and the same native `<input type="date">` range picker (operator ask 2026-07-23).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, HelpCircle, Package, RefreshCw } from "lucide-react";
 
 import {
   getArtifactBuilds,
@@ -22,6 +22,7 @@ import {
   type DeployRow,
   type DeploysResponse,
 } from "../api/deploymentApi";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 // ── tabs ────────────────────────────────────────────────────────────────────────────────────────
 type TabId = "run" | "deploy" | "pipe" | "art" | "health";
@@ -721,6 +722,142 @@ function StatSkeleton() {
   );
 }
 
+// ── help dialog (mirrors CostObservability's CostHelpDialog exactly — same primitives, own content) ─
+function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function HelpTerm({ term, children }: { term: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-[124px] flex-none font-semibold text-[var(--color-text-primary)]">{term}</span>
+      <span className="flex-1 text-[var(--color-text-secondary)]">{children}</span>
+    </div>
+  );
+}
+
+function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogHeader onClose={onClose}>
+        <DialogTitle>Artifact Pipeline — quick guide</DialogTitle>
+      </DialogHeader>
+      <DialogContent className="space-y-4 text-[13px] leading-relaxed">
+        <p className="text-[var(--color-text-secondary)]">
+          The build → artifact → deploy estate, end-to-end: every{" "}
+          <b className="text-[var(--color-text-primary)]">Cloud Build</b> run and every{" "}
+          <b className="text-[var(--color-text-primary)]">Cloud Run deploy</b>, read live from GCP — nothing here is
+          mocked or hand-written. <b className="text-[var(--color-text-primary)]">GCP</b> is the active production
+          estate; <b className="text-[var(--color-text-primary)]">AWS</b> is intentionally parked (no credits) — its
+          rows, when they arrive, are parked, not broken.
+        </p>
+
+        <HelpSection title="Using this page">
+          <HelpTerm term="Window">
+            7 / 14 / 30-day presets, or type exact dates with the picker next to them — either drives both live tabs at
+            once.
+          </HelpTerm>
+          <HelpTerm term="Date range">
+            Two date fields; picking one clears the day-preset pills (a hand-picked range takes over). Pick a preset
+            again to go back to a rolling window.
+          </HelpTerm>
+          <HelpTerm term="Refresh">Bypasses the ~5-minute server cache and re-reads the cloud APIs live.</HelpTerm>
+          <HelpTerm term="Tabs">
+            <b className="text-[var(--color-text-primary)]">Pipeline</b> and{" "}
+            <b className="text-[var(--color-text-primary)]">Deploy timeline</b> are live now. The other three
+            (What&apos;s running, Artifacts, Health) show what they&apos;ll do once their backend lands — not built yet.
+          </HelpTerm>
+        </HelpSection>
+
+        <HelpSection title="Pipeline tab — every build">
+          <p className="text-[var(--color-text-secondary)]">
+            One row per Cloud Build run (both lanes — the Docker-image build and the VM tarball build).
+          </p>
+          <HelpTerm term="Stat tiles">
+            All computed from the rows in the window, not hand-written: total builds, success rate, failed count, median
+            duration, and how many commits got built twice (wasted).
+          </HelpTerm>
+          <HelpTerm term="Filters">
+            Failed only · one lane · one cloud — instant, no new fetch (the whole window is already loaded).
+          </HelpTerm>
+          <HelpTerm term="Repo / Lane / Cloud">Which repo, which build lane, and which cloud ran it.</HelpTerm>
+          <HelpTerm term="Status">SUCCESS / FAILURE / WORKING, colour-coded.</HelpTerm>
+          <HelpTerm term="Commit">
+            The short git SHA. An <Pill tone="amber">dup</Pill> badge means this exact commit was built more than once
+            in the window — wasted compute.
+          </HelpTerm>
+          <HelpTerm term="Started / Took">When the build kicked off, and how long it ran.</HelpTerm>
+          <HelpTerm term="Produced">
+            The image this build pushed, if it pushed one. A <Pill tone="cyan">⇄</Pill> badge on Commit means the same
+            commit was ALSO built as the other lane (image and tarball both).
+          </HelpTerm>
+          <HelpTerm term="Why it failed">
+            A one-line reason for a red build. <b className="text-[var(--color-text-primary)]">Click any row</b> to
+            expand its full step-by-step timeline, the detailed failure message, and a link to the Cloud Build log.
+          </HelpTerm>
+        </HelpSection>
+
+        <HelpSection title="Deploy timeline tab — every deploy">
+          <p className="text-[var(--color-text-secondary)]">
+            One row per <b className="text-[var(--color-text-primary)]">Cloud Run revision</b> — every time a workload
+            got redeployed, Cloud Run creates a new revision, so this is the deploy history of the estate.
+          </p>
+          <HelpTerm term="Stat tiles">
+            Deploys in window, % that were config-only (no code change), how many workloads are live right now (a
+            snapshot — not narrowed by the date range), and how many deploys never went healthy.
+          </HelpTerm>
+          <HelpTerm term="Filters">
+            <b className="text-[var(--color-text-primary)]">New code only</b> hides config-only churn ·{" "}
+            <b className="text-[var(--color-text-primary)]">Live now</b> = what&apos;s serving this instant ·{" "}
+            <b className="text-[var(--color-text-primary)]">Failed</b> = never went healthy.
+          </HelpTerm>
+          <HelpTerm term="Workload">
+            The Cloud Run service name — can differ from the repo name (e.g. the <code>deployment-api</code> repo
+            deploys to <code>uts-shared-deployment-api</code>).
+          </HelpTerm>
+          <HelpTerm term="Revision">Cloud Run&apos;s own deploy counter for that workload.</HelpTerm>
+          <HelpTerm term="Change">
+            <b className="text-[var(--color-text-primary)]">new</b> = a different image shipped ·{" "}
+            <b className="text-[var(--color-text-primary)]">config-only</b> = same image redeployed, nothing shipped ·{" "}
+            <b className="text-[var(--color-text-primary)]">rollback</b> = reverted to an earlier image ·{" "}
+            <b className="text-[var(--color-text-primary)]">failed</b> = never went healthy.
+          </HelpTerm>
+          <HelpTerm term="Digest">
+            The exact <code>sha256:…</code> image running — resolved and recorded by Cloud Run itself, so it&apos;s
+            provable even though the deploy command used a mutable tag.
+          </HelpTerm>
+          <HelpTerm term="When · held for">
+            When this revision deployed, and how long it stayed live before something replaced it. &quot;Held for&quot;
+            looks forward — the current live revision always shows blank, since nothing has replaced it yet.
+          </HelpTerm>
+          <HelpTerm term="Deployer">
+            Usually &quot;Cloud Build&quot; (the CI pipeline); a service-account name or human email means someone
+            deployed by hand.
+          </HelpTerm>
+          <HelpTerm term="Live badge">
+            Marks the revision actually serving traffic. A row can show both{" "}
+            <b className="text-[var(--color-text-primary)]">failed</b> and{" "}
+            <span className="inline-flex">
+              <Pill tone="green">live now</Pill>
+            </span>{" "}
+            — that means the workload has never had a successful deploy, so this broken revision is still the newest
+            thing Cloud Run has for it.
+          </HelpTerm>
+          <p className="text-[var(--color-text-tertiary)]">
+            &quot;Built from&quot; (the commit this digest resolves to) isn&apos;t shown yet — that digest→commit join
+            is the job of the upcoming <b>What&apos;s running</b> tab, deliberately not duplicated here.
+          </p>
+        </HelpSection>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── page ──────────────────────────────────────────────────────────────────────────────────────────
 export function ArtifactPipeline() {
   const [tab, setTab] = useState<TabId>("pipe");
@@ -728,6 +865,7 @@ export function ArtifactPipeline() {
   const [range, setRange] = useState<ArtifactDateRange | null>(null); // an explicit range overrides `days`
   const [pipeFilter, setPipeFilter] = useState<PipeFilter>("all");
   const [deployFilter, setDeployFilter] = useState<DeployFilter>("all");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [buildsData, setBuildsData] = useState<BuildsResponse | null>(null);
   const [buildsLoading, setBuildsLoading] = useState(true);
@@ -854,8 +992,20 @@ export function ArtifactPipeline() {
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            aria-label="What is this page? Quick guide & column definitions"
+            data-testid="artifact-help-button"
+            className="grid h-[26px] w-[26px] place-items-center rounded-md border text-xs font-medium"
+            style={{ borderColor: "var(--color-border-default)", color: "var(--color-text-secondary)" }}
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
+
+      <ArtifactHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* GCP active / AWS parked context banner */}
       <div
