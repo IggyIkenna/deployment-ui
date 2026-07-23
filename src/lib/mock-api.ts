@@ -3332,6 +3332,21 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
       // axis (IP/disk SKUs, not instance core/ram) — "other".
       ["harsh-static-ip", "gcp", 5.95, "Compute Engine", "other", "other"],
       ["ikenna-windows-tokyo-restored", "gcp", 68.62, "Compute Engine", "disk", "other"],
+      // Backup-artifact + billing-history-reconstructed waste kinds (mirror the live audit's 2nd
+      // pass, 2026-07-23) — a forgotten custom image/machine-image/snapshot, and a VM's disk still
+      // billing after its own compute usage stopped (the label carries "(idle since <date>)" exactly
+      // like the real backend's synthetic row, so the UI's longer-label rendering gets exercised).
+      ["kenny-mega-cpu-deletable-windows-image-000042", "gcp", 2.22, "Compute Engine", "other", "other"],
+      ["windows-dev-image-20251221", "gcp", 3.03, "Compute Engine", "other", "other"],
+      ["market-tick-backfill-base", "gcp", 1.11, "Compute Engine", "other", "other"],
+      [
+        "cefi-binance-futures-2020-heavy-20260712-084547 (idle since 2026-07-13)",
+        "gcp",
+        0.57,
+        "Compute Engine",
+        "other",
+        "other",
+      ],
     ],
     bucket: [
       ["central-element-323112-events", "gcp", 2494, "GCS", "bucket"],
@@ -3392,9 +3407,21 @@ function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow
   };
   // Resource-only: cost-waste flags — a row IS the idle/orphaned resource (its own cost is the
   // waste amount), never a cross-referenced sub-amount on another row.
-  const RESOURCE_WASTE: Record<string, "idle_static_ip" | "orphaned_disk"> = {
+  const RESOURCE_WASTE: Record<
+    string,
+    | "idle_static_ip"
+    | "orphaned_disk"
+    | "orphaned_image"
+    | "orphaned_machine_image"
+    | "orphaned_snapshot"
+    | "stopped_vm_disk"
+  > = {
     "harsh-static-ip": "idle_static_ip",
     "ikenna-windows-tokyo-restored": "orphaned_disk",
+    "kenny-mega-cpu-deletable-windows-image-000042": "orphaned_image",
+    "windows-dev-image-20251221": "orphaned_machine_image",
+    "market-tick-backfill-base": "orphaned_snapshot",
+    "cefi-binance-futures-2020-heavy-20260712-084547 (idle since 2026-07-13)": "stopped_vm_disk",
   };
   // "Waste" dimension — the SAME per-resource rows as "resource", filtered to just the
   // waste-flagged ones (mirrors the real backend: dimension=waste reuses _by_resource's

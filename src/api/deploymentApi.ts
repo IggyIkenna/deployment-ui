@@ -451,11 +451,20 @@ export interface CostBreakdownRow {
   // event-log bucket that's ~all Class-A writes on a few GB) reads honestly. Keys present only
   // when non-zero: storage | operations | egress | other; they sum to ~`cost`.
   cost_by_component?: Record<string, number> | null;
-  // Resource-only (dimension=resource rows): cost-waste flags — a row IS an idle static/elastic IP
-  // or an orphaned disk when is_idle is true (its own `cost` is the waste amount); "" when not
-  // flagged (never a false-positive orphan when the running-VM cross-ref is unavailable).
+  // Resource-only (dimension=resource rows) + synthetic waste-dimension rows: cost-waste flags —
+  // when is_idle is true, the row's own `cost`/`gross` IS the waste amount (for stopped_vm_disk that
+  // amount is already narrowed to the post-compute-stop days, not the resource's whole-window cost);
+  // "" when not flagged (never a false-positive when a live cross-ref is unavailable).
   is_idle?: boolean;
-  waste_kind?: "" | "idle_static_ip" | "orphaned_disk" | "idle_elastic_ip";
+  waste_kind?:
+    | ""
+    | "idle_static_ip"
+    | "orphaned_disk"
+    | "idle_elastic_ip"
+    | "stopped_vm_disk"
+    | "orphaned_image"
+    | "orphaned_machine_image"
+    | "orphaned_snapshot";
   // VM rows only, parsed from GCP billing system_labels (no Compute API). "" / null when unset.
   machine_type?: string;
   vcpu?: number | null;

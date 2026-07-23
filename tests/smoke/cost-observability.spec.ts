@@ -71,14 +71,21 @@ test.describe("Cost Observability page", () => {
     await page.getByRole("button", { name: "Waste", exact: true }).click();
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
-    // Only the two waste-flagged resources from the shared resource fixture — the non-waste ones
+    // Only the waste-flagged resources from the shared resource fixture — the non-waste ones
     // (e.g. the mtds-* VMs the "By resource" test above asserts ARE present) must be absent here.
+    // Six kinds covered: idle IP, orphaned disk, orphaned image, stale machine image, stale
+    // snapshot, and a stopped_vm_disk row (billing-history reconstruction — its label carries the
+    // "(idle since <date>)" suffix the real backend's synthetic rows use).
     await expect(table).toContainText("harsh-static-ip");
     await expect(table).toContainText("ikenna-windows-tokyo-restored");
+    await expect(table).toContainText("kenny-mega-cpu-deletable-windows-image-000042");
+    await expect(table).toContainText("windows-dev-image-20251221");
+    await expect(table).toContainText("market-tick-backfill-base");
+    await expect(table).toContainText("idle since 2026-07-13");
     await expect(table).not.toContainText("mtds-perp-funding-backfill");
-    // Header total reflects the waste-only scope ($5.95 + $68.62 = $74.57 @ default 30d), not the
-    // full resource-dimension total the same fixtures would sum to.
-    await expect(page.getByTestId("cost-observability-page")).toContainText("$74.57 total");
+    // Header total reflects the waste-only scope (5.95 + 68.62 + 2.22 + 3.03 + 1.11 + 0.57 = 81.50
+    // @ default 30d), not the full resource-dimension total the same fixtures would sum to.
+    await expect(page.getByTestId("cost-observability-page")).toContainText("$81.50 total");
   });
 
   test("cloud filter narrows to a single cloud", async ({ page }) => {
