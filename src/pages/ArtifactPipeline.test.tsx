@@ -340,4 +340,81 @@ describe("ArtifactPipeline", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("Artifact Pipeline — quick guide")).not.toBeInTheDocument();
   });
+
+  it("sorting the Pipeline table by Repo orders rows alphabetically and reverses on a second click", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+
+    fireEvent.click(screen.getByTestId("pipe-th-repo-sort"));
+    let rows = screen.getAllByTestId("pipe-row");
+    expect(rows[0]).toHaveTextContent("deployment-api");
+    expect(rows[3]).toHaveTextContent("market-tick-data-service");
+
+    fireEvent.click(screen.getByTestId("pipe-th-repo-sort"));
+    rows = screen.getAllByTestId("pipe-row");
+    expect(rows[0]).toHaveTextContent("market-tick-data-service");
+    expect(rows[3]).toHaveTextContent("deployment-api");
+  });
+
+  it("the Repo column's multi-select filter isolates several repos at once, and clears via the reset link", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+    expect(screen.queryByTestId("pipe-colfilters-clear")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pipe-filter-repo-toggle"));
+    const menu = screen.getByTestId("pipe-filter-repo-menu");
+    fireEvent.click(within(menu).getByTestId("pipe-filter-repo-opt-deployment-api").querySelector("input")!);
+    fireEvent.click(within(menu).getByTestId("pipe-filter-repo-opt-execution-service").querySelector("input")!);
+
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(rows).toHaveLength(2);
+    expect(rows.some((r) => r.textContent?.includes("deployment-api"))).toBe(true);
+    expect(rows.some((r) => r.textContent?.includes("execution-service"))).toBe(true);
+    // stats stay whole-window, matching the existing pill-filter convention
+    expect(screen.getByTestId("pipe-stat-total")).toHaveTextContent("4");
+
+    fireEvent.click(screen.getByTestId("pipe-colfilters-clear"));
+    expect(screen.getAllByTestId("pipe-row")).toHaveLength(4);
+    expect(screen.queryByTestId("pipe-colfilters-clear")).not.toBeInTheDocument();
+  });
+
+  it("a text column filter (Why it failed) narrows the Pipeline table by substring", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+
+    fireEvent.change(screen.getByTestId("pipe-filter-failure"), { target: { value: "docker build" } });
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("market-tick-data-service");
+  });
+
+  it("the Workload column's multi-select filter isolates a Deploy timeline workload", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-deploy"));
+    await waitFor(() => expect(screen.getAllByTestId("deploy-row")).toHaveLength(3));
+
+    fireEvent.click(screen.getByTestId("deploy-filter-workload-toggle"));
+    const menu = screen.getByTestId("deploy-filter-workload-menu");
+    fireEvent.click(within(menu).getByTestId("deploy-filter-workload-opt-deployment-service").querySelector("input")!);
+
+    const rows = screen.getAllByTestId("deploy-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("deployment-service");
+
+    fireEvent.click(screen.getByTestId("deploy-colfilters-clear"));
+    expect(screen.getAllByTestId("deploy-row")).toHaveLength(3);
+  });
+
+  it("sorting the Deploy timeline by When orders revisions chronologically", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-deploy"));
+    await waitFor(() => expect(screen.getAllByTestId("deploy-row")).toHaveLength(3));
+
+    fireEvent.click(screen.getByTestId("deploy-th-at-sort"));
+    const rows = screen.getAllByTestId("deploy-row");
+    // ascending: oldest first
+    expect(rows[0]).toHaveTextContent("deployment-service-00001-lqw");
+    expect(rows[1]).toHaveTextContent("uts-shared-deployment-api-00254-djz");
+    expect(rows[2]).toHaveTextContent("uts-shared-deployment-api-00255-rtk");
+  });
 });

@@ -1,7 +1,8 @@
 /**
  * Smoke (pw:L2): Artifact Pipeline page (/ops/artifacts) renders against the mock API — the live
- * Pipeline (builds) and Deploy timeline tabs' stat bands + tables + filters, the date-range picker,
- * the help dialog, and the not-yet-wired tabs' placeholder.
+ * Pipeline (builds) and Deploy timeline tabs' stat bands + tables + filters, column sort/multi-select
+ * filters (Repo / Workload, operator ask 2026-07-23), the date-range picker, the help dialog, and the
+ * not-yet-wired tabs' placeholder.
  * Plan: unified-trading-pm/plans/active/artifact_pipeline_observability_2026_07_17.md (Phase: UI — Pipeline + Deploys tabs).
  */
 
@@ -106,5 +107,47 @@ test.describe("Artifact Pipeline page", () => {
     // Escape closes it (the Dialog component's own documented behavior).
     await page.keyboard.press("Escape");
     await expect(page.getByText("Artifact Pipeline — quick guide")).toHaveCount(0);
+  });
+
+  test("Pipeline: clicking the Repo header sorts rows, and the Repo funnel multi-selects several repos", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+    const allRows = await page.getByTestId("pipe-row").count();
+
+    await page.getByTestId("pipe-th-repo-sort").click();
+    await expect(page.getByTestId("pipe-row").first()).toContainText("deployment-api");
+
+    await page.getByTestId("pipe-filter-repo-toggle").click();
+    const menu = page.getByTestId("pipe-filter-repo-menu");
+    await menu.getByTestId("pipe-filter-repo-opt-deployment-service").locator("input").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(2);
+    for (const row of await page.getByTestId("pipe-row").all()) {
+      await expect(row).toContainText("deployment-service");
+    }
+
+    await page.getByTestId("pipe-colfilters-clear").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(allRows);
+  });
+
+  test("Deploy timeline: the Workload funnel multi-selects a workload, and sort orders by When", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-deploy").click();
+    await expect(page.getByTestId("deploy-row").first()).toBeVisible();
+    const allRows = await page.getByTestId("deploy-row").count();
+
+    await page.getByTestId("deploy-filter-workload-toggle").click();
+    const menu = page.getByTestId("deploy-filter-workload-menu");
+    await menu.getByTestId("deploy-filter-workload-opt-deployment-service").locator("input").click();
+    await expect(page.getByTestId("deploy-row")).toHaveCount(1);
+    await expect(page.getByTestId("deploy-row").first()).toContainText("deployment-service");
+
+    await page.getByTestId("deploy-colfilters-clear").click();
+    await expect(page.getByTestId("deploy-row")).toHaveCount(allRows);
+
+    // Ascending "When" sort puts the oldest revision first — the fixture's deployment-service row.
+    await page.getByTestId("deploy-th-at-sort").click();
+    await expect(page.getByTestId("deploy-row").first()).toContainText("deployment-service");
   });
 });

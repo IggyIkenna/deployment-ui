@@ -10,9 +10,15 @@
  * Deliberately self-contained (mirroring CostObservability): plain fetch + useState/useEffect with a
  * request-id guard per view, small inline primitives styled off the app's CSS custom-property tokens,
  * and the same native `<input type="date">` range picker (operator ask 2026-07-23).
+ *
+ * Both live tables' columns are sortable (click a header) and most are filterable (the funnel icon —
+ * a multi-select checklist for enum-shaped columns, a substring box for free-text ones); **Repo**
+ * (Pipeline) and **Workload** (Deploy timeline) get the multi-select explicitly (operator ask
+ * 2026-07-23) so several repos/workloads can be isolated at once. Column sort/filter is client-side
+ * over the already-loaded window, same as the existing pill filters — no new fetch.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, HelpCircle, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, Package, RefreshCw } from "lucide-react";
 
 import {
   getArtifactBuilds,
@@ -137,6 +143,153 @@ function changeLabel(change: string): string {
   return change;
 }
 
+// ── column sort + per-column filter (both tables — client-side over the loaded window) ────────────
+type SortDir = "asc" | "desc";
+interface ColumnSort {
+  key: string;
+  dir: SortDir;
+}
+
+/** asc → desc → cleared, mirroring the common three-state header-click convention. */
+function toggleColumnSort(current: ColumnSort | null, key: string): ColumnSort | null {
+  if (!current || current.key !== key) return { key, dir: "asc" };
+  if (current.dir === "asc") return { key, dir: "desc" };
+  return null;
+}
+
+function compareSortValues(a: string | number, b: string | number): number {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b));
+}
+
+/** "2h36m" / "9m02s" / "41s" → seconds; "" (unknown) sorts first. */
+function parseDurationToSeconds(text: string): number {
+  if (!text) return -1;
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(text.trim());
+  if (!m) return -1;
+  const hours = m[1] ? Number(m[1]) : 0;
+  const minutes = m[2] ? Number(m[2]) : 0;
+  const seconds = m[3] ? Number(m[3]) : 0;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values.filter((v) => v !== ""))).sort((a, b) => a.localeCompare(b));
+}
+
+interface PipeColumnFilters {
+  repo: Set<string>;
+  lane: Set<string>;
+  cloud: Set<string>;
+  status: Set<string>;
+  branch: Set<string>;
+  trigger: string;
+  sha: string;
+  produced: string;
+  failure: string;
+}
+
+const EMPTY_PIPE_COLUMN_FILTERS: PipeColumnFilters = {
+  repo: new Set(),
+  lane: new Set(),
+  cloud: new Set(),
+  status: new Set(),
+  branch: new Set(),
+  trigger: "",
+  sha: "",
+  produced: "",
+  failure: "",
+};
+
+function matchesPipeColumnFilters(row: BuildRow, f: PipeColumnFilters): boolean {
+  if (f.repo.size > 0 && !f.repo.has(row.repo)) return false;
+  if (f.lane.size > 0 && !f.lane.has(row.lane)) return false;
+  if (f.cloud.size > 0 && !f.cloud.has(row.cloud)) return false;
+  if (f.status.size > 0 && !f.status.has(row.status)) return false;
+  if (f.branch.size > 0 && !f.branch.has(row.branch)) return false;
+  if (f.trigger && !row.trigger.toLowerCase().includes(f.trigger.toLowerCase())) return false;
+  if (f.sha && !row.sha.toLowerCase().includes(f.sha.toLowerCase())) return false;
+  if (f.produced && !row.produced.toLowerCase().includes(f.produced.toLowerCase())) return false;
+  if (f.failure && !row.failure.toLowerCase().includes(f.failure.toLowerCase())) return false;
+  return true;
+}
+
+function pipeSortValue(row: BuildRow, key: string): string | number {
+  switch (key) {
+    case "repo":
+      return row.repo;
+    case "lane":
+      return row.lane;
+    case "cloud":
+      return row.cloud;
+    case "status":
+      return row.status;
+    case "trigger":
+      return row.trigger;
+    case "sha":
+      return row.sha;
+    case "branch":
+      return row.branch;
+    case "started_at":
+      return row.started_at ? new Date(row.started_at).getTime() : -1;
+    case "duration":
+      return parseDurationToSeconds(row.duration);
+    case "produced":
+      return row.produced;
+    default:
+      return "";
+  }
+}
+
+interface DeployColumnFilters {
+  workload: Set<string>;
+  cloud: Set<string>;
+  change: Set<string>;
+  deployer: Set<string>;
+  revision: string;
+  digest: string;
+}
+
+const EMPTY_DEPLOY_COLUMN_FILTERS: DeployColumnFilters = {
+  workload: new Set(),
+  cloud: new Set(),
+  change: new Set(),
+  deployer: new Set(),
+  revision: "",
+  digest: "",
+};
+
+function matchesDeployColumnFilters(row: DeployRow, f: DeployColumnFilters): boolean {
+  if (f.workload.size > 0 && !f.workload.has(row.workload)) return false;
+  if (f.cloud.size > 0 && !f.cloud.has(row.cloud)) return false;
+  if (f.change.size > 0 && !f.change.has(row.change_type)) return false;
+  if (f.deployer.size > 0 && !f.deployer.has(row.deployer)) return false;
+  if (f.revision && !row.revision.toLowerCase().includes(f.revision.toLowerCase())) return false;
+  if (f.digest && !row.digest.toLowerCase().includes(f.digest.toLowerCase())) return false;
+  return true;
+}
+
+function deploySortValue(row: DeployRow, key: string): string | number {
+  switch (key) {
+    case "workload":
+      return row.workload;
+    case "revision":
+      return row.revision;
+    case "cloud":
+      return row.cloud;
+    case "change_type":
+      return row.change_type;
+    case "digest":
+      return row.digest;
+    case "at":
+      return row.at ? new Date(row.at).getTime() : -1;
+    case "deployer":
+      return row.deployer;
+    default:
+      return "";
+  }
+}
+
 // ── formatting helpers ──────────────────────────────────────────────────────────────────────────
 function fmtDurationSec(seconds: number | null): string {
   if (seconds == null) return "—";
@@ -218,6 +371,184 @@ function Pill({ tone, children }: { tone: PillTone; children: React.ReactNode })
   );
 }
 
+/** A header's funnel icon + checklist popover — a multi-select filter for an enum-shaped column
+ * (Repo / Workload get this explicitly per operator ask 2026-07-23; other bounded columns reuse it
+ * for consistency). Options come from the whole loaded window, not the already-filtered rows, so
+ * picking one filter never hides the others' options. */
+function MultiSelectFilter({
+  label,
+  options,
+  selected,
+  onChange,
+  testId,
+}: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  testId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative inline-flex" ref={ref}>
+      <button
+        type="button"
+        data-testid={`${testId}-toggle`}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={`Filter by ${label}`}
+        className="inline-flex items-center rounded p-0.5"
+        style={{ color: selected.size > 0 ? "var(--color-accent-blue)" : "var(--color-text-tertiary)" }}
+      >
+        <Filter className="h-2.5 w-2.5" />
+        {selected.size > 0 && <span className="ml-0.5 text-[9px] tabular-nums">{selected.size}</span>}
+      </button>
+      {open && (
+        <div
+          data-testid={`${testId}-menu`}
+          className="absolute left-0 top-full z-30 mt-1 max-h-60 w-52 overflow-y-auto rounded-md border p-1.5 shadow-lg"
+          style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-secondary)" }}
+        >
+          <div className="mb-1 flex items-center justify-between px-1">
+            <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-tertiary)" }}>
+              {label}
+            </span>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                data-testid={`${testId}-clear`}
+                onClick={() => onChange(new Set())}
+                className="text-[10px] underline"
+                style={{ color: "var(--color-accent-blue)" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {options.length === 0 && (
+            <div className="px-1 py-1 text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+              No values in window
+            </div>
+          )}
+          {options.map((opt) => {
+            const checked = selected.has(opt);
+            return (
+              <label
+                key={opt}
+                data-testid={`${testId}-opt-${opt}`}
+                className="flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-[11px] font-normal normal-case hover:bg-[var(--color-bg-tertiary,var(--color-bg-primary))]"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = new Set(selected);
+                    if (checked) next.delete(opt);
+                    else next.add(opt);
+                    onChange(next);
+                  }}
+                />
+                <span className="truncate">{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A compact substring-search box for a free-text column's header. */
+function TextFilterInput({
+  value,
+  onChange,
+  placeholder,
+  testId,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  testId: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      data-testid={testId}
+      className="h-[16px] w-[64px] rounded border px-1 text-[9.5px] font-normal normal-case outline-none"
+      style={{
+        borderColor: value ? "var(--color-accent-blue)" : "var(--color-border-default)",
+        background: "transparent",
+        color: "var(--color-text-primary)",
+      }}
+    />
+  );
+}
+
+/** One `<th>`: an optional click-to-sort label (▲/▼/↕) plus an optional filter control underneath —
+ * shared by both live tables so every column's sort/filter chrome looks and behaves identically. */
+function ColumnHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  filterNode,
+  testId,
+}: {
+  label: string;
+  sortKey?: string;
+  sort?: ColumnSort | null;
+  onSort?: (key: string) => void;
+  filterNode?: React.ReactNode;
+  testId: string;
+}) {
+  const active = sortKey != null && sort?.key === sortKey;
+  return (
+    <th className="px-2.5 py-2 align-top font-medium" data-testid={testId}>
+      <div className="flex items-center gap-1 whitespace-nowrap">
+        {sortKey && onSort ? (
+          <button
+            type="button"
+            onClick={() => onSort(sortKey)}
+            data-testid={`${testId}-sort`}
+            className="inline-flex items-center gap-1"
+          >
+            {label}
+            <span
+              className="text-[9px]"
+              style={{ color: active ? "var(--color-accent-blue)" : "var(--color-text-tertiary)" }}
+            >
+              {active ? (sort?.dir === "asc" ? "▲" : "▼") : "↕"}
+            </span>
+          </button>
+        ) : (
+          <span>{label}</span>
+        )}
+        {filterNode}
+      </div>
+    </th>
+  );
+}
+
 /** Two native `<input type="date">`s, mirroring CostObservability's DateRangePicker exactly: the
  * `min`/`max` attributes make the ranges the API rejects (inverted, >366d, ending in the future)
  * unreachable from the UI rather than merely error-handled. */
@@ -293,7 +624,40 @@ function PipelineView({
       return next;
     });
 
-  const rows = useMemo(() => data.rows.filter((r) => matchesFilter(r, filter)), [data.rows, filter]);
+  const [sort, setSort] = useState<ColumnSort | null>(null);
+  const onSort = (key: string) => setSort((s) => toggleColumnSort(s, key));
+  const [colFilters, setColFilters] = useState<PipeColumnFilters>(EMPTY_PIPE_COLUMN_FILTERS);
+
+  // Options are drawn from the whole loaded window, never the already-filtered rows, so checking one
+  // box never hides the rest of a column's own values.
+  const repoOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.repo)), [data.rows]);
+  const laneOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.lane)), [data.rows]);
+  const cloudOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.cloud)), [data.rows]);
+  const statusOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.status)), [data.rows]);
+  const branchOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.branch)), [data.rows]);
+
+  const activeColFilterCount =
+    colFilters.repo.size +
+    colFilters.lane.size +
+    colFilters.cloud.size +
+    colFilters.status.size +
+    colFilters.branch.size +
+    (colFilters.trigger ? 1 : 0) +
+    (colFilters.sha ? 1 : 0) +
+    (colFilters.produced ? 1 : 0) +
+    (colFilters.failure ? 1 : 0);
+
+  const rows = useMemo(() => {
+    let out = data.rows.filter((r) => matchesFilter(r, filter) && matchesPipeColumnFilters(r, colFilters));
+    if (sort) {
+      const { key, dir } = sort;
+      out = [...out].sort((a, b) => {
+        const cmp = compareSortValues(pipeSortValue(a, key), pipeSortValue(b, key));
+        return dir === "asc" ? cmp : -cmp;
+      });
+    }
+    return out;
+  }, [data.rows, filter, colFilters, sort]);
   const s = data.stats;
 
   return (
@@ -362,8 +726,23 @@ function PipelineView({
         </div>
         <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
           <Pill tone="cyan">⇄ both lanes</Pill> = one commit built as image and tarball · <Pill tone="amber">dup</Pill>{" "}
-          = same commit built twice · click a row for the step timeline
+          = same commit built twice · click a row for the step timeline · click a column header to sort, the funnel to
+          filter it
         </span>
+        {(activeColFilterCount > 0 || sort) && (
+          <button
+            type="button"
+            data-testid="pipe-colfilters-clear"
+            onClick={() => {
+              setColFilters(EMPTY_PIPE_COLUMN_FILTERS);
+              setSort(null);
+            }}
+            className="text-[11px] underline"
+            style={{ color: "var(--color-accent-blue)" }}
+          >
+            Clear column filters/sort
+          </button>
+        )}
       </div>
 
       {/* table */}
@@ -371,24 +750,146 @@ function PipelineView({
         <table className="w-full min-w-[980px] border-collapse text-xs">
           <thead>
             <tr style={{ color: "var(--color-text-tertiary)" }} className="text-left">
-              {[
-                "Repo",
-                "Lane",
-                "Cloud",
-                "Status",
-                "Triggered by",
-                "Commit",
-                "Branch",
-                "Started",
-                "Took",
-                "Produced",
-                "Why it failed",
-                "",
-              ].map((h, i) => (
-                <th key={i} className="whitespace-nowrap px-2.5 py-2 font-medium">
-                  {h}
-                </th>
-              ))}
+              <ColumnHeader
+                label="Repo"
+                sortKey="repo"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-repo"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Repo"
+                    options={repoOptions}
+                    selected={colFilters.repo}
+                    onChange={(v) => setColFilters((f) => ({ ...f, repo: v }))}
+                    testId="pipe-filter-repo"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Lane"
+                sortKey="lane"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-lane"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Lane"
+                    options={laneOptions}
+                    selected={colFilters.lane}
+                    onChange={(v) => setColFilters((f) => ({ ...f, lane: v }))}
+                    testId="pipe-filter-lane-col"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Cloud"
+                sortKey="cloud"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-cloud"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Cloud"
+                    options={cloudOptions}
+                    selected={colFilters.cloud}
+                    onChange={(v) => setColFilters((f) => ({ ...f, cloud: v }))}
+                    testId="pipe-filter-cloud-col"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Status"
+                sortKey="status"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-status"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Status"
+                    options={statusOptions}
+                    selected={colFilters.status}
+                    onChange={(v) => setColFilters((f) => ({ ...f, status: v }))}
+                    testId="pipe-filter-status-col"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Triggered by"
+                sortKey="trigger"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-trigger"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.trigger}
+                    onChange={(v) => setColFilters((f) => ({ ...f, trigger: v }))}
+                    placeholder="search…"
+                    testId="pipe-filter-trigger"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Commit"
+                sortKey="sha"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-sha"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.sha}
+                    onChange={(v) => setColFilters((f) => ({ ...f, sha: v }))}
+                    placeholder="sha…"
+                    testId="pipe-filter-sha"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Branch"
+                sortKey="branch"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-branch"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Branch"
+                    options={branchOptions}
+                    selected={colFilters.branch}
+                    onChange={(v) => setColFilters((f) => ({ ...f, branch: v }))}
+                    testId="pipe-filter-branch-col"
+                  />
+                }
+              />
+              <ColumnHeader label="Started" sortKey="started_at" sort={sort} onSort={onSort} testId="pipe-th-started" />
+              <ColumnHeader label="Took" sortKey="duration" sort={sort} onSort={onSort} testId="pipe-th-duration" />
+              <ColumnHeader
+                label="Produced"
+                sortKey="produced"
+                sort={sort}
+                onSort={onSort}
+                testId="pipe-th-produced"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.produced}
+                    onChange={(v) => setColFilters((f) => ({ ...f, produced: v }))}
+                    placeholder="image…"
+                    testId="pipe-filter-produced"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Why it failed"
+                testId="pipe-th-failure"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.failure}
+                    onChange={(v) => setColFilters((f) => ({ ...f, failure: v }))}
+                    placeholder="search…"
+                    testId="pipe-filter-failure"
+                  />
+                }
+              />
+              <th className="px-2.5 py-2" data-testid="pipe-th-expand" />
             </tr>
           </thead>
           <tbody>
@@ -548,7 +1049,34 @@ function DeployTimelineView({
   filter: DeployFilter;
   onFilter: (f: DeployFilter) => void;
 }) {
-  const rows = useMemo(() => data.rows.filter((r) => matchesDeployFilter(r, filter)), [data.rows, filter]);
+  const [sort, setSort] = useState<ColumnSort | null>(null);
+  const onSort = (key: string) => setSort((s) => toggleColumnSort(s, key));
+  const [colFilters, setColFilters] = useState<DeployColumnFilters>(EMPTY_DEPLOY_COLUMN_FILTERS);
+
+  const workloadOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.workload)), [data.rows]);
+  const cloudOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.cloud)), [data.rows]);
+  const changeOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.change_type)), [data.rows]);
+  const deployerOptions = useMemo(() => uniqueSorted(data.rows.map((r) => r.deployer)), [data.rows]);
+
+  const activeColFilterCount =
+    colFilters.workload.size +
+    colFilters.cloud.size +
+    colFilters.change.size +
+    colFilters.deployer.size +
+    (colFilters.revision ? 1 : 0) +
+    (colFilters.digest ? 1 : 0);
+
+  const rows = useMemo(() => {
+    let out = data.rows.filter((r) => matchesDeployFilter(r, filter) && matchesDeployColumnFilters(r, colFilters));
+    if (sort) {
+      const { key, dir } = sort;
+      out = [...out].sort((a, b) => {
+        const cmp = compareSortValues(deploySortValue(a, key), deploySortValue(b, key));
+        return dir === "asc" ? cmp : -cmp;
+      });
+    }
+    return out;
+  }, [data.rows, filter, colFilters, sort]);
   const s = data.stats;
 
   return (
@@ -610,8 +1138,23 @@ function DeployTimelineView({
           })}
         </div>
         <span className="text-[11.5px]" style={{ color: "var(--color-text-tertiary)" }}>
-          <b>New code only</b> hides the config-only churn · <b>Live now</b> = what is serving this instant
+          <b>New code only</b> hides the config-only churn · <b>Live now</b> = what is serving this instant · click a
+          column header to sort, the funnel to filter it
         </span>
+        {(activeColFilterCount > 0 || sort) && (
+          <button
+            type="button"
+            data-testid="deploy-colfilters-clear"
+            onClick={() => {
+              setColFilters(EMPTY_DEPLOY_COLUMN_FILTERS);
+              setSort(null);
+            }}
+            className="text-[11px] underline"
+            style={{ color: "var(--color-accent-blue)" }}
+          >
+            Clear column filters/sort
+          </button>
+        )}
       </div>
 
       {/* table */}
@@ -619,11 +1162,102 @@ function DeployTimelineView({
         <table className="w-full min-w-[860px] border-collapse text-xs">
           <thead>
             <tr style={{ color: "var(--color-text-tertiary)" }} className="text-left">
-              {["Workload", "Revision", "Cloud", "Change", "Digest", "When · held for", "Deployer", ""].map((h, i) => (
-                <th key={i} className="whitespace-nowrap px-2.5 py-2 font-medium">
-                  {h}
-                </th>
-              ))}
+              <ColumnHeader
+                label="Workload"
+                sortKey="workload"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-workload"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Workload"
+                    options={workloadOptions}
+                    selected={colFilters.workload}
+                    onChange={(v) => setColFilters((f) => ({ ...f, workload: v }))}
+                    testId="deploy-filter-workload"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Revision"
+                sortKey="revision"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-revision"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.revision}
+                    onChange={(v) => setColFilters((f) => ({ ...f, revision: v }))}
+                    placeholder="search…"
+                    testId="deploy-filter-revision"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Cloud"
+                sortKey="cloud"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-cloud"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Cloud"
+                    options={cloudOptions}
+                    selected={colFilters.cloud}
+                    onChange={(v) => setColFilters((f) => ({ ...f, cloud: v }))}
+                    testId="deploy-filter-cloud-col"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Change"
+                sortKey="change_type"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-change"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Change"
+                    options={changeOptions}
+                    selected={colFilters.change}
+                    onChange={(v) => setColFilters((f) => ({ ...f, change: v }))}
+                    testId="deploy-filter-change-col"
+                  />
+                }
+              />
+              <ColumnHeader
+                label="Digest"
+                sortKey="digest"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-digest"
+                filterNode={
+                  <TextFilterInput
+                    value={colFilters.digest}
+                    onChange={(v) => setColFilters((f) => ({ ...f, digest: v }))}
+                    placeholder="sha256:…"
+                    testId="deploy-filter-digest"
+                  />
+                }
+              />
+              <ColumnHeader label="When · held for" sortKey="at" sort={sort} onSort={onSort} testId="deploy-th-at" />
+              <ColumnHeader
+                label="Deployer"
+                sortKey="deployer"
+                sort={sort}
+                onSort={onSort}
+                testId="deploy-th-deployer"
+                filterNode={
+                  <MultiSelectFilter
+                    label="Deployer"
+                    options={deployerOptions}
+                    selected={colFilters.deployer}
+                    onChange={(v) => setColFilters((f) => ({ ...f, deployer: v }))}
+                    testId="deploy-filter-deployer-col"
+                  />
+                }
+              />
+              <th className="px-2.5 py-2" data-testid="deploy-th-live" />
             </tr>
           </thead>
           <tbody>
@@ -772,6 +1406,12 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
             <b className="text-[var(--color-text-primary)]">Deploy timeline</b> are live now. The other three
             (What&apos;s running, Artifacts, Health) show what they&apos;ll do once their backend lands — not built yet.
           </HelpTerm>
+          <HelpTerm term="Sort &amp; filter">
+            Click any column header to sort by it (click again to reverse, a third click clears it). The{" "}
+            <Filter className="mb-0.5 inline h-2.5 w-2.5" /> funnel opens a per-column filter — a checklist for a
+            bounded column (multi-select, so you can pick several at once — e.g. a few repos or workloads together) or a
+            search box for free text. Both are instant, client-side over the loaded window — no new fetch.
+          </HelpTerm>
         </HelpSection>
 
         <HelpSection title="Pipeline tab — every build">
@@ -785,7 +1425,11 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
           <HelpTerm term="Filters">
             Failed only · one lane · one cloud — instant, no new fetch (the whole window is already loaded).
           </HelpTerm>
-          <HelpTerm term="Repo / Lane / Cloud">Which repo, which build lane, and which cloud ran it.</HelpTerm>
+          <HelpTerm term="Repo / Lane / Cloud">
+            Which repo, which build lane, and which cloud ran it.{" "}
+            <b className="text-[var(--color-text-primary)]">Repo</b>
+            's funnel is multi-select — check off several repos at once to isolate them.
+          </HelpTerm>
           <HelpTerm term="Status">SUCCESS / FAILURE / WORKING, colour-coded.</HelpTerm>
           <HelpTerm term="Commit">
             The short git SHA. An <Pill tone="amber">dup</Pill> badge means this exact commit was built more than once
@@ -818,7 +1462,8 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
           </HelpTerm>
           <HelpTerm term="Workload">
             The Cloud Run service name — can differ from the repo name (e.g. the <code>deployment-api</code> repo
-            deploys to <code>uts-shared-deployment-api</code>).
+            deploys to <code>uts-shared-deployment-api</code>). Its funnel is multi-select — check off several workloads
+            at once to isolate them.
           </HelpTerm>
           <HelpTerm term="Revision">Cloud Run&apos;s own deploy counter for that workload.</HelpTerm>
           <HelpTerm term="Change">
