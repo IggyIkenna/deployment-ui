@@ -11,6 +11,10 @@
  * request-id guard per view, small inline primitives styled off the app's CSS custom-property tokens,
  * and the same native `<input type="date">` range picker (operator ask 2026-07-23).
  *
+ * No page title/banner (operator ask 2026-07-23) — the header row is just the tab bar (left) and the
+ * window/date-range/refresh/help controls (right); the page description + GCP-active/AWS-parked
+ * framing that used to sit there now lives entirely in the help dialog.
+ *
  * Every live table's columns are sortable (click a header) and most are filterable (the funnel icon —
  * a multi-select checklist for enum-shaped columns, a substring box for free-text ones); **Repo**
  * (Pipeline, Artifacts), **Workload/Service** (Deploy timeline, What's running), and **Area** (Health)
@@ -19,7 +23,7 @@
  * filters — no new fetch.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, RefreshCw } from "lucide-react";
 
 import {
   getArtifactBuilds,
@@ -2501,6 +2505,13 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
           <HelpTerm term="Tabs">
             All five tabs are live — every one reads the real cloud APIs, nothing is mocked.
           </HelpTerm>
+          <HelpTerm term="GCP / AWS">
+            All deployments run on <b className="text-[var(--color-text-primary)]">GCP</b> — the active production
+            estate. The <b className="text-[var(--color-text-primary)]">AWS</b> estate is{" "}
+            <b className="text-[var(--color-text-primary)]">deliberately stopped</b> — deferred while credits are
+            unavailable, kept intact, resumes when they return. AWS rows are{" "}
+            <b className="text-[var(--color-text-primary)]">parked, not broken</b>.
+          </HelpTerm>
           <HelpTerm term="Sort &amp; filter">
             Click any column header to sort by it (click again to reverse, a third click clears it). The{" "}
             <Filter className="mb-0.5 inline h-2.5 w-2.5" /> funnel opens a per-column filter — a checklist for a
@@ -2838,21 +2849,33 @@ export function ArtifactPipeline() {
 
   return (
     <main data-testid="artifact-pipeline-page" className="w-full space-y-4 px-4 py-6 lg:px-6">
-      {/* header */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="grid h-10 w-10 flex-none place-items-center rounded-lg text-white"
-            style={{ background: "linear-gradient(135deg, var(--color-accent-blue), var(--color-accent-purple))" }}
-          >
-            <Package className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Artifact Pipeline</h1>
-            <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-              Build → artifact → deploy, end-to-end across GCP (active) and AWS (parked)
-            </p>
-          </div>
+      {/* header: tab bar (left) + window/date/refresh/help (right) */}
+      <div
+        className="flex flex-col gap-3 border-b pb-3 lg:flex-row lg:items-center lg:justify-between"
+        style={{ borderColor: "var(--color-border-default)" }}
+      >
+        <div className="flex flex-wrap gap-1">
+          {TABS.map((t) => {
+            const on = t.id === tab;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`artifact-tab-${t.id}`}
+                onClick={() => setTab(t.id)}
+                className="flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium"
+                style={{
+                  borderColor: on ? "var(--color-accent-blue)" : "transparent",
+                  color: on ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+                }}
+              >
+                {t.label}
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+                  {t.hint}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div
@@ -2906,49 +2929,6 @@ export function ArtifactPipeline() {
       </div>
 
       <ArtifactHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
-
-      {/* GCP active / AWS parked context banner */}
-      <div
-        className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-xs"
-        style={{
-          borderColor: "var(--color-border-default)",
-          borderLeft: "3px solid var(--color-accent-blue)",
-          background: "var(--color-bg-secondary)",
-          color: "var(--color-text-secondary)",
-        }}
-      >
-        <Pill tone="cyan">GCP = active production</Pill>
-        <Pill tone="blue">AWS = intentionally parked</Pill>
-        <span>
-          All deployments run on <b>GCP</b>. The <b>AWS</b> estate is <b>deliberately stopped</b> — deferred while
-          credits are unavailable, kept intact, resumes when they return. AWS rows are <b>parked, not broken</b>.
-        </span>
-      </div>
-
-      {/* tab bar */}
-      <div className="flex flex-wrap gap-1 border-b" style={{ borderColor: "var(--color-border-default)" }}>
-        {TABS.map((t) => {
-          const on = t.id === tab;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              data-testid={`artifact-tab-${t.id}`}
-              onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium"
-              style={{
-                borderColor: on ? "var(--color-accent-blue)" : "transparent",
-                color: on ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-              }}
-            >
-              {t.label}
-              <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
-                {t.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* body */}
       {tab === "pipe" && (
