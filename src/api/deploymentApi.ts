@@ -698,6 +698,131 @@ export async function getArtifactDeploys(query: ArtifactQuery = {}): Promise<Dep
   return handleResponse<DeploysResponse>(response);
 }
 
+/** One registry repo (Artifact Registry / ECR), rolled up from its individually pushed images. */
+export interface ImageRow {
+  repo: string;
+  cloud: ArtifactCloud;
+  registry: string;
+  image_count: number; // -1 for a roll-up carrying a size instead of a count
+  tags: string[]; // tags on the newest image(s)
+  last_pushed: string; // ISO ("" if unknown)
+  running_on: string; // a workload name, or "" if nothing runs it
+  state: "running" | "paused" | "zeroed" | "active" | "parked" | "legacy" | "empty" | string;
+  size_bytes: number | null;
+  is_aggregate: boolean;
+  note: string;
+}
+
+export interface ImagesStats {
+  total_repos: number;
+  running: number;
+  parked: number; // AWS deferred (paused / zeroed / idle) — kept, not GC
+  legacy: number; // GCP AR GC candidates
+  empty: number;
+}
+
+export interface ImagesResponse {
+  generated_at: string;
+  rows: ImageRow[];
+  stats: ImagesStats;
+}
+
+/** GET /api/artifacts/images — the registry inventory, one row per repo. */
+export async function getArtifactImages(
+  query: { cloud?: "all" | ArtifactCloud; refresh?: boolean } = {},
+): Promise<ImagesResponse> {
+  const qs = new URLSearchParams();
+  if (query.cloud && query.cloud !== "all") qs.set("cloud", query.cloud);
+  if (query.refresh) qs.set("refresh", "true");
+  const response = await fetchArtifactApi(`${DEPLOYMENT_API}/api/artifacts/images?${qs.toString()}`);
+  return handleResponse<ImagesResponse>(response);
+}
+
+// DRIFT_* flags on a RunningVersion — ordered strongest-provenance → weakest (mirrors the backend).
+export type DriftFlag = "pinned" | "ok" | "stale" | "floating" | "hand" | "fake" | "unknown" | "fragmented" | string;
+
+export interface RunningHost {
+  name: string;
+  kind: string; // "Cloud Run svc" | "Cloud Run job" | "GCE VM" | "App Runner" | "ECS" | "EC2 VM"
+  launched_at: string;
+}
+
+export interface RunningVersion {
+  version: string; // the human tag/pin label (":latest", ":<sha>", "@sha256:…")
+  artifact: string; // full artifact ref ("" when the digest never resolved)
+  digest: string;
+  built_from: string; // git commit this version resolves to ("" = honestly unknown)
+  drift: DriftFlag[];
+  hosts: RunningHost[];
+  why: string; // one-paragraph, honest explanation of the drift verdict
+}
+
+export interface RunningGroup {
+  service: string;
+  lane: ArtifactLane;
+  cloud: ArtifactCloud;
+  fragmented: boolean; // >1 version of this service live at once
+  frag_note: string;
+  versions: RunningVersion[];
+}
+
+export interface RunningStats {
+  services: number;
+  versions: number;
+  fragmented: number; // services running >1 version right now (the headline number)
+  floating: number; // versions on a floating :latest
+  hand: number; // hand-deployed versions
+  unknown: number; // versions with an unresolvable commit
+}
+
+export interface RunningResponse {
+  generated_at: string;
+  groups: RunningGroup[];
+  stats: RunningStats;
+}
+
+/** GET /api/artifacts/running — every live workload, its runtime-joined version + drift verdict. */
+export async function getArtifactRunning(query: { refresh?: boolean } = {}): Promise<RunningResponse> {
+  const qs = new URLSearchParams();
+  if (query.refresh) qs.set("refresh", "true");
+  const response = await fetchArtifactApi(`${DEPLOYMENT_API}/api/artifacts/running?${qs.toString()}`);
+  return handleResponse<RunningResponse>(response);
+}
+
+export type HealthSeverity = "high" | "med" | "low" | "deferred" | string;
+
+export interface HealthCondition {
+  condition: string;
+  severity: HealthSeverity;
+  count: string; // heterogeneous display string ("2 svc" | "fleet" | "40%" | "13")
+  area: string; // "pipeline · CI" | "deploy · AWS" | …
+  tab: string; // which view proves it: running | deploy | pipe | art
+  meaning: string;
+  evidence: string;
+}
+
+export interface HealthStats {
+  high: number;
+  med: number;
+  low: number;
+  deferred: number;
+  real_defects: number; // high + med + low (excludes the intentional deferred tier)
+}
+
+export interface HealthResponse {
+  generated_at: string;
+  conditions: HealthCondition[];
+  stats: HealthStats;
+}
+
+/** GET /api/artifacts/health — measured pipeline conditions, severity-ranked. */
+export async function getArtifactHealth(query: { refresh?: boolean } = {}): Promise<HealthResponse> {
+  const qs = new URLSearchParams();
+  if (query.refresh) qs.set("refresh", "true");
+  const response = await fetchArtifactApi(`${DEPLOYMENT_API}/api/artifacts/health?${qs.toString()}`);
+  return handleResponse<HealthResponse>(response);
+}
+
 // Filtered VM events — GET /api/vm/{vm_name}/events?since=&type=&limit=
 export interface VMLifecycleEvent {
   event: string;

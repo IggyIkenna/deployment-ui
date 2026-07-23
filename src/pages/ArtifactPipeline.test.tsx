@@ -4,13 +4,16 @@ import { MemoryRouter } from "react-router-dom";
 import { ArtifactPipeline } from "./ArtifactPipeline";
 import * as api from "../api/deploymentApi";
 
-// The page eagerly fetches BOTH live views (Pipeline + Deploy timeline) on mount, so both client
-// calls are mocked in every test even when a given test only asserts on one of them. Fixtures cover
-// success / failure / dup / cross-lane / AWS (builds) and new / config / failed / live (deploys), so
-// the stat bands, row filters, and the failure drawer are all exercised.
+// The page eagerly fetches all FIVE live views on mount, so every client call is mocked in every
+// test even when a given test only asserts on one of them. Fixtures cover success / failure / dup /
+// cross-lane / AWS (builds), new / config / failed / live (deploys), running / legacy / parked
+// (images), ok / floating / unknown / hand (running), and every severity tier (health).
 vi.mock("../api/deploymentApi", () => ({
   getArtifactBuilds: vi.fn(),
   getArtifactDeploys: vi.fn(),
+  getArtifactImages: vi.fn(),
+  getArtifactRunning: vi.fn(),
+  getArtifactHealth: vi.fn(),
 }));
 
 const builds: api.BuildsResponse = {
@@ -172,6 +175,129 @@ const deploys: api.DeploysResponse = {
   },
 };
 
+const images: api.ImagesResponse = {
+  generated_at: "2026-07-23T12:00:00Z",
+  rows: [
+    {
+      repo: "deployment-api",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 270,
+      tags: ["a557471", "0.10.0"],
+      last_pushed: "2026-07-23T10:00:00Z",
+      running_on: "uts-shared-deployment-api",
+      state: "running",
+      size_bytes: 1_699_956_926,
+      is_aggregate: false,
+      note: "",
+    },
+    {
+      repo: "retired-legacy-service",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 3,
+      tags: ["deadbee"],
+      last_pushed: "2026-03-01T00:00:00Z",
+      running_on: "",
+      state: "legacy",
+      size_bytes: 512_000_000,
+      is_aggregate: false,
+      note: "",
+    },
+    {
+      repo: "execution-service",
+      cloud: "aws",
+      registry: "ECR",
+      image_count: 0,
+      tags: [],
+      last_pushed: "",
+      running_on: "",
+      state: "parked",
+      size_bytes: null,
+      is_aggregate: false,
+      note: "AWS ECR not read yet (parked, no credits)",
+    },
+  ],
+  stats: { total_repos: 3, running: 1, parked: 1, legacy: 1, empty: 0 },
+};
+
+const running: api.RunningResponse = {
+  generated_at: "2026-07-23T12:00:00Z",
+  groups: [
+    {
+      service: "uts-shared-deployment-api",
+      lane: "image",
+      cloud: "gcp",
+      fragmented: false,
+      frag_note: "",
+      versions: [
+        {
+          version: ":a557471",
+          artifact: "unified-trading-system/deployment-api",
+          digest: "sha256:c05dd3d678ef",
+          built_from: "a557471",
+          drift: ["ok"],
+          hosts: [{ name: "uts-shared-deployment-api", kind: "Cloud Run svc", launched_at: "2026-07-23T11:00:00Z" }],
+          why: "resolves to deployment-api@a557471 (main), built by deployment-api-build.",
+        },
+      ],
+    },
+    {
+      service: "deployment-dashboard",
+      lane: "image",
+      cloud: "gcp",
+      fragmented: false,
+      frag_note: "",
+      versions: [
+        {
+          version: ":latest",
+          artifact: "unified-trading-system/deployment-dashboard",
+          digest: "sha256:37a9ab503fb9",
+          built_from: "",
+          drift: ["floating"],
+          hosts: [{ name: "deployment-dashboard", kind: "Cloud Run svc", launched_at: "2026-07-23T10:00:00Z" }],
+          why: "the resolved image is tagged only :latest.",
+        },
+      ],
+    },
+  ],
+  stats: { services: 2, versions: 2, fragmented: 0, floating: 1, hand: 0, unknown: 0 },
+};
+
+const health: api.HealthResponse = {
+  generated_at: "2026-07-23T12:00:00Z",
+  conditions: [
+    {
+      condition: "AWS builds/deploys/registry are not read yet",
+      severity: "deferred",
+      count: "all AWS",
+      area: "cross-cutting · AWS",
+      tab: "pipe",
+      meaning: "The AWS estate is deliberately stopped while credits are unavailable.",
+      evidence: "AWS providers are not yet wired into this page.",
+    },
+    {
+      condition: "A workload is serving its newest revision even though that revision never went ready",
+      severity: "high",
+      count: "1",
+      area: "deploy · GCP",
+      tab: "deploy",
+      meaning: "Cloud Run has nothing newer to fall back to.",
+      evidence: "deployment-service",
+    },
+    {
+      condition: "A live workload resolves to an image tagged only :latest",
+      severity: "med",
+      count: "1",
+      area: "running · GCP",
+      tab: "running",
+      meaning: "No SHA-traceable tag.",
+      evidence: "deployment-dashboard",
+    },
+  ],
+  stats: { high: 1, med: 1, low: 0, deferred: 1, real_defects: 2 },
+};
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -184,6 +310,9 @@ describe("ArtifactPipeline", () => {
   beforeEach(() => {
     vi.mocked(api.getArtifactBuilds).mockResolvedValue(builds);
     vi.mocked(api.getArtifactDeploys).mockResolvedValue(deploys);
+    vi.mocked(api.getArtifactImages).mockResolvedValue(images);
+    vi.mocked(api.getArtifactRunning).mockResolvedValue(running);
+    vi.mocked(api.getArtifactHealth).mockResolvedValue(health);
   });
 
   it("defaults to a 7-day window and the live Pipeline tab", async () => {
@@ -306,19 +435,106 @@ describe("ArtifactPipeline", () => {
     );
   });
 
-  it("shows a placeholder for the not-yet-wired tabs and returns to a live tab", async () => {
+  it("switching tabs shows each live view and returns cleanly to Pipeline", async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("artifact-tab-run"));
-    expect(screen.getByTestId("artifact-placeholder")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("artifact-run-view")).toBeInTheDocument());
     expect(screen.queryByTestId("artifact-pipe-view")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument();
   });
 
-  it("the help dialog explains both live tabs' columns and closes cleanly", async () => {
+  it("the Artifacts tab renders the registry stat band + rows, sorts by Repo, and multi-selects a repo", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-art"));
+    await waitFor(() => expect(screen.getAllByTestId("art-row")).toHaveLength(3));
+
+    expect(screen.getByTestId("art-stat-total")).toHaveTextContent("3");
+    expect(screen.getByTestId("art-stat-running")).toHaveTextContent("1");
+    expect(screen.getByTestId("art-stat-legacy")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByTestId("art-th-repo-sort"));
+    let rows = screen.getAllByTestId("art-row");
+    expect(rows[0]).toHaveTextContent("deployment-api");
+
+    fireEvent.click(screen.getByTestId("art-filter-repo-toggle"));
+    const menu = screen.getByTestId("art-filter-repo-menu");
+    fireEvent.click(within(menu).getByTestId("art-filter-repo-opt-deployment-api").querySelector("input")!);
+    rows = screen.getAllByTestId("art-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("deployment-api");
+
+    fireEvent.click(screen.getByTestId("art-colfilters-clear"));
+    expect(screen.getAllByTestId("art-row")).toHaveLength(3);
+  });
+
+  it("the Legacy filter pill narrows the Artifacts table to GC candidates", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-art"));
+    await waitFor(() => expect(screen.getAllByTestId("art-row")).toHaveLength(3));
+
+    fireEvent.click(screen.getByTestId("art-filter-legacy"));
+    const rows = screen.getAllByTestId("art-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("retired-legacy-service");
+  });
+
+  it("the What's running tab renders the runtime-join stat band, expands a row's why, and multi-selects a service", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-run"));
+    await waitFor(() => expect(screen.getAllByTestId("run-row")).toHaveLength(2));
+
+    expect(screen.getByTestId("run-stat-services")).toHaveTextContent("2");
+    expect(screen.getByTestId("run-stat-floating")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByTestId("run-filter-floating"));
+    let rows = screen.getAllByTestId("run-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("deployment-dashboard");
+    fireEvent.click(rows[0]);
+    expect(screen.getByText(/tagged only :latest/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("run-filter-all"));
+    fireEvent.click(screen.getByTestId("run-filter-service-toggle"));
+    const menu = screen.getByTestId("run-filter-service-menu");
+    fireEvent.click(
+      within(menu).getByTestId("run-filter-service-opt-uts-shared-deployment-api").querySelector("input")!,
+    );
+    rows = screen.getAllByTestId("run-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("uts-shared-deployment-api");
+  });
+
+  it("the Health tab renders the severity stat band, filters by pill, sorts by severity, and multi-selects an area", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-health"));
+    await waitFor(() => expect(screen.getAllByTestId("health-row")).toHaveLength(3));
+
+    expect(screen.getByTestId("health-stat-defects")).toHaveTextContent("2");
+    expect(screen.getByTestId("health-stat-high")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByTestId("health-filter-high"));
+    let rows = screen.getAllByTestId("health-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("never went ready");
+
+    fireEvent.click(screen.getByTestId("health-filter-all"));
+    fireEvent.click(screen.getByTestId("health-th-severity-sort"));
+    rows = screen.getAllByTestId("health-row");
+    expect(rows[0]).toHaveTextContent("deferred"); // ascending: deferred(0) < med(2) < high(3)
+
+    fireEvent.click(screen.getByTestId("health-filter-area-toggle"));
+    const menu = screen.getByTestId("health-filter-area-menu");
+    fireEvent.click(within(menu).getByTestId("health-filter-area-opt-running · GCP").querySelector("input")!);
+    rows = screen.getAllByTestId("health-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("deployment-dashboard");
+  });
+
+  it("the help dialog explains all five live tabs' columns and closes cleanly", async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
 
@@ -326,7 +542,7 @@ describe("ArtifactPipeline", () => {
     fireEvent.click(screen.getByTestId("artifact-help-button"));
     expect(screen.getByText("Artifact Pipeline — quick guide")).toBeInTheDocument();
 
-    // Covers the page-level controls and both live tabs' column glossaries — not just a title. Uses
+    // Covers the page-level controls and every live tab's column glossary — not just a title. Uses
     // text unique to the dialog's explanatory copy (some HelpTerm labels, e.g. "Why it failed",
     // collide with the live table's own column headers still rendered behind the dialog).
     expect(screen.getByText("Using this page")).toBeInTheDocument();
@@ -334,10 +550,90 @@ describe("ArtifactPipeline", () => {
     expect(screen.getByText("Deploy timeline tab — every deploy")).toBeInTheDocument();
     expect(screen.getByText(/expand its full step-by-step timeline/i)).toBeInTheDocument();
     expect(screen.getByText(/looks forward/i)).toBeInTheDocument();
+    expect(screen.getByText("What's running tab — the headline runtime join")).toBeInTheDocument();
+    expect(screen.getByText("Artifacts tab — the registry inventory")).toBeInTheDocument();
+    expect(screen.getByText(/measured conditions, not a hand-written checklist/i)).toBeInTheDocument();
 
     // The Dialog component closes on Escape (its own documented behavior) — cheaper + more robust
     // than targeting its icon-only close button, which carries no accessible name.
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("Artifact Pipeline — quick guide")).not.toBeInTheDocument();
+  });
+
+  it("sorting the Pipeline table by Repo orders rows alphabetically and reverses on a second click", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+
+    fireEvent.click(screen.getByTestId("pipe-th-repo-sort"));
+    let rows = screen.getAllByTestId("pipe-row");
+    expect(rows[0]).toHaveTextContent("deployment-api");
+    expect(rows[3]).toHaveTextContent("market-tick-data-service");
+
+    fireEvent.click(screen.getByTestId("pipe-th-repo-sort"));
+    rows = screen.getAllByTestId("pipe-row");
+    expect(rows[0]).toHaveTextContent("market-tick-data-service");
+    expect(rows[3]).toHaveTextContent("deployment-api");
+  });
+
+  it("the Repo column's multi-select filter isolates several repos at once, and clears via the reset link", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+    expect(screen.queryByTestId("pipe-colfilters-clear")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pipe-filter-repo-toggle"));
+    const menu = screen.getByTestId("pipe-filter-repo-menu");
+    fireEvent.click(within(menu).getByTestId("pipe-filter-repo-opt-deployment-api").querySelector("input")!);
+    fireEvent.click(within(menu).getByTestId("pipe-filter-repo-opt-execution-service").querySelector("input")!);
+
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(rows).toHaveLength(2);
+    expect(rows.some((r) => r.textContent?.includes("deployment-api"))).toBe(true);
+    expect(rows.some((r) => r.textContent?.includes("execution-service"))).toBe(true);
+    // stats stay whole-window, matching the existing pill-filter convention
+    expect(screen.getByTestId("pipe-stat-total")).toHaveTextContent("4");
+
+    fireEvent.click(screen.getByTestId("pipe-colfilters-clear"));
+    expect(screen.getAllByTestId("pipe-row")).toHaveLength(4);
+    expect(screen.queryByTestId("pipe-colfilters-clear")).not.toBeInTheDocument();
+  });
+
+  it("a text column filter (Why it failed) narrows the Pipeline table by substring", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+
+    fireEvent.change(screen.getByTestId("pipe-filter-failure"), { target: { value: "docker build" } });
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("market-tick-data-service");
+  });
+
+  it("the Workload column's multi-select filter isolates a Deploy timeline workload", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-deploy"));
+    await waitFor(() => expect(screen.getAllByTestId("deploy-row")).toHaveLength(3));
+
+    fireEvent.click(screen.getByTestId("deploy-filter-workload-toggle"));
+    const menu = screen.getByTestId("deploy-filter-workload-menu");
+    fireEvent.click(within(menu).getByTestId("deploy-filter-workload-opt-deployment-service").querySelector("input")!);
+
+    const rows = screen.getAllByTestId("deploy-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("deployment-service");
+
+    fireEvent.click(screen.getByTestId("deploy-colfilters-clear"));
+    expect(screen.getAllByTestId("deploy-row")).toHaveLength(3);
+  });
+
+  it("sorting the Deploy timeline by When orders revisions chronologically", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-deploy"));
+    await waitFor(() => expect(screen.getAllByTestId("deploy-row")).toHaveLength(3));
+
+    fireEvent.click(screen.getByTestId("deploy-th-at-sort"));
+    const rows = screen.getAllByTestId("deploy-row");
+    // ascending: oldest first
+    expect(rows[0]).toHaveTextContent("deployment-service-00001-lqw");
+    expect(rows[1]).toHaveTextContent("uts-shared-deployment-api-00254-djz");
+    expect(rows[2]).toHaveTextContent("uts-shared-deployment-api-00255-rtk");
   });
 });

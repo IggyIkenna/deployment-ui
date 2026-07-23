@@ -3017,6 +3017,292 @@ function mockArtifactDeploys(params: URLSearchParams) {
     },
   };
 }
+type MockImageRow = {
+  repo: string;
+  cloud: "gcp" | "aws";
+  registry: string;
+  image_count: number;
+  tags: string[];
+  last_pushed: string;
+  running_on: string;
+  state: string;
+  size_bytes: number | null;
+  is_aggregate?: boolean;
+  note?: string;
+};
+function mockImage(o: MockImageRow) {
+  return { is_aggregate: false, note: "", ...o };
+}
+function mockArtifactImages() {
+  const now = new Date();
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
+  const rows = [
+    mockImage({
+      repo: "deployment-api",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 270,
+      tags: ["a557471", "0.10.0"],
+      last_pushed: daysAgo(0.1),
+      running_on: "uts-shared-deployment-api",
+      state: "running",
+      size_bytes: 1_699_956_926,
+    }),
+    mockImage({
+      repo: "deployment-service",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 165,
+      tags: ["f000ee3"],
+      last_pushed: daysAgo(3),
+      running_on: "deployment-service",
+      state: "running",
+      size_bytes: 1_028_196_313,
+    }),
+    mockImage({
+      repo: "market-tick-data-service",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 1901,
+      tags: ["9e11c02"],
+      last_pushed: daysAgo(1),
+      running_on: "",
+      state: "active",
+      size_bytes: 996_130_088,
+    }),
+    mockImage({
+      repo: "retired-legacy-service",
+      cloud: "gcp",
+      registry: "unified-trading-system",
+      image_count: 3,
+      tags: ["deadbee"],
+      last_pushed: daysAgo(120),
+      running_on: "",
+      state: "legacy",
+      size_bytes: 512_000_000,
+    }),
+    mockImage({
+      repo: "execution-service",
+      cloud: "aws",
+      registry: "ECR",
+      image_count: 0,
+      tags: [],
+      last_pushed: "",
+      running_on: "",
+      state: "parked",
+      size_bytes: null,
+      note: "AWS ECR not read yet (parked, no credits)",
+    }),
+  ];
+  return {
+    generated_at: now.toISOString(),
+    rows,
+    stats: {
+      total_repos: rows.length,
+      running: rows.filter((r) => r.state === "running").length,
+      parked: rows.filter((r) => r.state === "parked").length,
+      legacy: rows.filter((r) => r.state === "legacy").length,
+      empty: rows.filter((r) => r.state === "empty").length,
+    },
+  };
+}
+
+type MockRunningVersion = {
+  version: string;
+  artifact: string;
+  digest: string;
+  built_from: string;
+  drift: string[];
+  hosts: { name: string; kind: string; launched_at: string }[];
+  why: string;
+};
+type MockRunningGroup = {
+  service: string;
+  lane: "image" | "tarball";
+  cloud: "gcp" | "aws";
+  version: MockRunningVersion;
+};
+function mockArtifactRunning() {
+  const now = new Date();
+  const hoursAgo = (n: number) => new Date(now.getTime() - n * 3_600_000).toISOString();
+  const groups: MockRunningGroup[] = [
+    {
+      service: "uts-shared-deployment-api",
+      lane: "image",
+      cloud: "gcp",
+      version: {
+        version: ":a557471",
+        artifact: "unified-trading-system/deployment-api",
+        digest: "sha256:c05dd3d678ef",
+        built_from: "a557471",
+        drift: ["ok"],
+        hosts: [{ name: "uts-shared-deployment-api", kind: "Cloud Run svc", launched_at: hoursAgo(1) }],
+        why: "resolves to deployment-api@a557471 (main), built by deployment-api-build.",
+      },
+    },
+    {
+      service: "deployment-dashboard",
+      lane: "image",
+      cloud: "gcp",
+      version: {
+        version: ":latest",
+        artifact: "unified-trading-system/deployment-dashboard",
+        digest: "sha256:37a9ab503fb9",
+        built_from: "",
+        drift: ["floating"],
+        hosts: [{ name: "deployment-dashboard", kind: "Cloud Run svc", launched_at: hoursAgo(2) }],
+        why: "the resolved image is tagged only :latest — no SHA-traceable tag, so a future push could silently change what this digest means without a new deploy.",
+      },
+    },
+    {
+      service: "deployment-service",
+      lane: "image",
+      cloud: "gcp",
+      version: {
+        version: "sha256:83803e21331",
+        artifact: "",
+        digest: "sha256:83803e21331f",
+        built_from: "",
+        drift: ["unknown"],
+        hosts: [{ name: "deployment-service", kind: "Cloud Run svc", launched_at: hoursAgo(20) }],
+        why: "digest sha256:83803e21331f… isn't in the current Artifact Registry inventory (deleted, or never pushed via CI).",
+      },
+    },
+    {
+      service: "greeks-service",
+      lane: "image",
+      cloud: "gcp",
+      version: {
+        version: ":6aad829",
+        artifact: "unified-trading-system/greeks-service",
+        digest: "sha256:0764487cfac3",
+        built_from: "6aad829",
+        drift: ["ok", "hand"],
+        hosts: [{ name: "greeks-service", kind: "Cloud Run svc", launched_at: hoursAgo(6) }],
+        why: "resolves to greeks-service@6aad829 (main), built by greeks-service-build. deployed by someone@example.com, not the CI pipeline.",
+      },
+    },
+  ];
+  const groupRows = groups.map((g) => ({
+    service: g.service,
+    lane: g.lane,
+    cloud: g.cloud,
+    fragmented: false,
+    frag_note: "",
+    versions: [g.version],
+  }));
+  const allVersions = groups.map((g) => g.version);
+  return {
+    generated_at: now.toISOString(),
+    groups: groupRows,
+    stats: {
+      services: groups.length,
+      versions: groups.length,
+      fragmented: 0,
+      floating: allVersions.filter((v) => v.drift.includes("floating")).length,
+      hand: allVersions.filter((v) => v.drift.includes("hand")).length,
+      unknown: allVersions.filter((v) => v.drift.includes("unknown")).length,
+    },
+  };
+}
+
+type MockHealthCondition = {
+  condition: string;
+  severity: "high" | "med" | "low" | "deferred";
+  count: string;
+  area: string;
+  tab: string;
+  meaning: string;
+  evidence: string;
+};
+function mockArtifactHealth() {
+  const conditions: MockHealthCondition[] = [
+    {
+      condition: "AWS builds/deploys/registry are not read yet",
+      severity: "deferred",
+      count: "all AWS",
+      area: "cross-cutting · AWS",
+      tab: "pipe",
+      meaning: "The AWS estate is deliberately stopped while credits are unavailable — parked, not broken.",
+      evidence: "AWS CodeBuild/App Runner/ECS/ECR providers are not yet wired into this page.",
+    },
+    {
+      condition: "A workload is serving its newest revision even though that revision never went ready",
+      severity: "high",
+      count: "1",
+      area: "deploy · GCP",
+      tab: "deploy",
+      meaning: "Cloud Run has nothing newer to fall back to, so a broken deploy is still what's live.",
+      evidence: "deployment-service",
+    },
+    {
+      condition: "Builds failed in the last 7 days",
+      severity: "med",
+      count: "1",
+      area: "pipeline · CI",
+      tab: "pipe",
+      meaning: "Each failure blocked that commit from reaching a registry image.",
+      evidence: "market-tick-data-service",
+    },
+    {
+      condition: "A commit was built more than once in the last 7 days",
+      severity: "low",
+      count: "1",
+      area: "pipeline · CI",
+      tab: "pipe",
+      meaning: "Wasted compute — the second build produces an identical artifact to the first.",
+      evidence: "see the Pipeline tab's 'dup' badge",
+    },
+    {
+      condition: "A live workload resolves to an image tagged only :latest",
+      severity: "med",
+      count: "1",
+      area: "running · GCP",
+      tab: "running",
+      meaning:
+        "No SHA-traceable tag — a future push could silently change what this digest means without a new deploy.",
+      evidence: "deployment-dashboard",
+    },
+    {
+      condition: "A live workload was deployed by something other than the CI pipeline",
+      severity: "med",
+      count: "1",
+      area: "running · GCP",
+      tab: "running",
+      meaning: "Bypasses the build record this page's provenance chain relies on.",
+      evidence: "greeks-service",
+    },
+    {
+      condition: "VM tarball-lane workloads carry no measured git commit yet",
+      severity: "med",
+      count: "fleet",
+      area: "running · GCP tarball lane",
+      tab: "running",
+      meaning:
+        "The GCE VM registry entry's git_commit/image_digest fields are stamped \"\" at launch today, so What's running can only cover the Cloud Run (image) lane until the launch-time stamp change lands.",
+      evidence: "plans/active/artifact_pipeline_observability_2026_07_17.md § Honest gaps",
+    },
+    {
+      condition: "A registry repo has accumulated hundreds of images with no lifecycle/GC policy",
+      severity: "low",
+      count: "1901",
+      area: "artifacts · GCP AR",
+      tab: "art",
+      meaning: "market-tick-data-service alone carries 1901 images — storage cost keeps climbing with no expiry.",
+      evidence: "repo=market-tick-data-service",
+    },
+  ];
+  const high = conditions.filter((c) => c.severity === "high").length;
+  const med = conditions.filter((c) => c.severity === "med").length;
+  const low = conditions.filter((c) => c.severity === "low").length;
+  const deferred = conditions.filter((c) => c.severity === "deferred").length;
+  return {
+    generated_at: new Date().toISOString(),
+    conditions,
+    stats: { high, med, low, deferred, real_defects: high + med + low },
+  };
+}
+
 function mockCostBreakdown(dimension: string, cloud: string, win: MockCostWindow) {
   const days = win.days;
   const scale = days / 30;
@@ -3244,12 +3530,15 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     if (path === "/api/costs/timeseries") return json(mockCostTimeseries(win, cloud));
   }
 
-  // Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page. Builds +
-  // deploys have a backend today; the page's other three tabs render a static placeholder.
+  // Artifact pipeline (mirrors deployment-api routes/artifacts.py) — /ops/artifacts page. All five
+  // views are live: builds, deploys, images (registry), running (the digest→build join), health.
   if (path.startsWith("/api/artifacts/")) {
     const params = new URL(url, "http://mock").searchParams;
     if (path === "/api/artifacts/builds") return json(mockArtifactBuilds(params));
     if (path === "/api/artifacts/deploys") return json(mockArtifactDeploys(params));
+    if (path === "/api/artifacts/images") return json(mockArtifactImages());
+    if (path === "/api/artifacts/running") return json(mockArtifactRunning());
+    if (path === "/api/artifacts/health") return json(mockArtifactHealth());
   }
 
   // Repo-CI dashboard (mirrors deployment-api routes/repo_ci.py mock fixtures —

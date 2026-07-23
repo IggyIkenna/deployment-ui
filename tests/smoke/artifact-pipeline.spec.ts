@@ -1,8 +1,9 @@
 /**
- * Smoke (pw:L2): Artifact Pipeline page (/ops/artifacts) renders against the mock API — the live
- * Pipeline (builds) and Deploy timeline tabs' stat bands + tables + filters, the date-range picker,
- * the help dialog, and the not-yet-wired tabs' placeholder.
- * Plan: unified-trading-pm/plans/active/artifact_pipeline_observability_2026_07_17.md (Phase: UI — Pipeline + Deploys tabs).
+ * Smoke (pw:L2): Artifact Pipeline page (/ops/artifacts) renders against the mock API — all five
+ * live tabs' (Pipeline, Deploy timeline, Artifacts, What's running, Health) stat bands + tables +
+ * filters, column sort/multi-select filters (Repo / Workload / Service / Area, operator ask
+ * 2026-07-23), the date-range picker, and the help dialog.
+ * Plan: unified-trading-pm/plans/active/artifact_pipeline_observability_2026_07_17.md (Phase: UI — all five tabs).
  */
 
 import { expect, test } from "@playwright/test";
@@ -34,16 +35,16 @@ test.describe("Artifact Pipeline page", () => {
     expect(await page.getByTestId("pipe-row").count()).toBe(allRows);
   });
 
-  test("expands a failed build's drawer and switches to a placeholder tab and back", async ({ page }) => {
+  test("expands a failed build's drawer and switches to another live tab and back", async ({ page }) => {
     await page.goto("/ops/artifacts");
     await page.getByTestId("pipe-filter-fail").click();
     await page.getByTestId("pipe-row").first().click();
     // The drawer's failure detail is unique copy (the heading collides with the filter-bar hint).
     await expect(page.getByText(/COPY failed: no source files/i)).toBeVisible();
 
-    // A not-yet-wired tab shows the honest placeholder; the live tab restores the pipeline view.
+    // Switching tabs shows the other live view; coming back restores the pipeline view.
     await page.getByTestId("artifact-tab-run").click();
-    await expect(page.getByTestId("artifact-placeholder")).toBeVisible();
+    await expect(page.getByTestId("artifact-run-view")).toBeVisible();
     await expect(page.getByTestId("artifact-pipe-view")).toHaveCount(0);
 
     await page.getByTestId("artifact-tab-pipe").click();
@@ -89,7 +90,7 @@ test.describe("Artifact Pipeline page", () => {
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
   });
 
-  test("the help dialog explains the page controls and both live tabs' columns", async ({ page }) => {
+  test("the help dialog explains the page controls and all five live tabs' columns", async ({ page }) => {
     await page.goto("/ops/artifacts");
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
 
@@ -97,14 +98,128 @@ test.describe("Artifact Pipeline page", () => {
     await page.getByTestId("artifact-help-button").click();
     await expect(page.getByText("Artifact Pipeline — quick guide")).toBeVisible();
 
-    // Both live tabs' column glossaries are present in the same dialog, not split across two.
+    // Every live tab's column glossary is present in the same dialog, not split across several.
     await expect(page.getByText("Pipeline tab — every build")).toBeVisible();
     await expect(page.getByText("Deploy timeline tab — every deploy")).toBeVisible();
     await expect(page.getByText(/expand its full step-by-step timeline/i)).toBeVisible();
     await expect(page.getByText(/never had a successful deploy/i)).toBeVisible();
+    await expect(page.getByText("What's running tab — the headline runtime join")).toBeVisible();
+    await expect(page.getByText("Artifacts tab — the registry inventory")).toBeVisible();
+    await expect(page.getByText(/measured conditions, not a hand-written checklist/i)).toBeVisible();
 
     // Escape closes it (the Dialog component's own documented behavior).
     await page.keyboard.press("Escape");
     await expect(page.getByText("Artifact Pipeline — quick guide")).toHaveCount(0);
+  });
+
+  test("Pipeline: clicking the Repo header sorts rows, and the Repo funnel multi-selects several repos", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+    const allRows = await page.getByTestId("pipe-row").count();
+
+    await page.getByTestId("pipe-th-repo-sort").click();
+    await expect(page.getByTestId("pipe-row").first()).toContainText("deployment-api");
+
+    await page.getByTestId("pipe-filter-repo-toggle").click();
+    const menu = page.getByTestId("pipe-filter-repo-menu");
+    await menu.getByTestId("pipe-filter-repo-opt-deployment-service").locator("input").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(2);
+    for (const row of await page.getByTestId("pipe-row").all()) {
+      await expect(row).toContainText("deployment-service");
+    }
+
+    await page.getByTestId("pipe-colfilters-clear").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(allRows);
+  });
+
+  test("Deploy timeline: the Workload funnel multi-selects a workload, and sort orders by When", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-deploy").click();
+    await expect(page.getByTestId("deploy-row").first()).toBeVisible();
+    const allRows = await page.getByTestId("deploy-row").count();
+
+    await page.getByTestId("deploy-filter-workload-toggle").click();
+    const menu = page.getByTestId("deploy-filter-workload-menu");
+    await menu.getByTestId("deploy-filter-workload-opt-deployment-service").locator("input").click();
+    await expect(page.getByTestId("deploy-row")).toHaveCount(1);
+    await expect(page.getByTestId("deploy-row").first()).toContainText("deployment-service");
+
+    await page.getByTestId("deploy-colfilters-clear").click();
+    await expect(page.getByTestId("deploy-row")).toHaveCount(allRows);
+
+    // Ascending "When" sort puts the oldest revision first — the fixture's deployment-service row.
+    await page.getByTestId("deploy-th-at-sort").click();
+    await expect(page.getByTestId("deploy-row").first()).toContainText("deployment-service");
+  });
+
+  test("Artifacts: the registry stat band renders, the Legacy pill filters, and the Repo funnel multi-selects", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-art").click();
+    await expect(page.getByTestId("art-row").first()).toBeVisible();
+    const allRows = await page.getByTestId("art-row").count();
+    await expect(page.getByTestId("art-stat-total")).toContainText(String(allRows));
+
+    await page.getByTestId("art-filter-legacy").click();
+    await expect(page.getByTestId("art-row")).toHaveCount(1);
+    await expect(page.getByTestId("art-row").first()).toContainText("retired-legacy-service");
+    await page.getByTestId("art-filter-all").click();
+
+    await page.getByTestId("art-filter-repo-toggle").click();
+    const menu = page.getByTestId("art-filter-repo-menu");
+    await menu.getByTestId("art-filter-repo-opt-deployment-api").locator("input").click();
+    await expect(page.getByTestId("art-row")).toHaveCount(1);
+    await expect(page.getByTestId("art-row").first()).toContainText("deployment-api");
+
+    await page.getByTestId("art-colfilters-clear").click();
+    await expect(page.getByTestId("art-row")).toHaveCount(allRows);
+  });
+
+  test("What's running: the drift stat band renders, Floating filters, a row expands, and Service multi-selects", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-run").click();
+    await expect(page.getByTestId("run-row").first()).toBeVisible();
+    const allRows = await page.getByTestId("run-row").count();
+    await expect(page.getByTestId("run-stat-services")).toContainText(String(allRows));
+
+    await page.getByTestId("run-filter-floating").click();
+    await expect(page.getByTestId("run-row")).toHaveCount(1);
+    await page.getByTestId("run-row").first().click();
+    await expect(page.getByText(/no SHA-traceable tag/i)).toBeVisible();
+    await page.getByTestId("run-filter-all").click();
+
+    await page.getByTestId("run-filter-service-toggle").click();
+    const menu = page.getByTestId("run-filter-service-menu");
+    await menu.getByTestId("run-filter-service-opt-greeks-service").locator("input").click();
+    await expect(page.getByTestId("run-row")).toHaveCount(1);
+    await expect(page.getByTestId("run-row").first()).toContainText("greeks-service");
+  });
+
+  test("Health: the severity stat band renders, the High pill filters, and the Area funnel multi-selects", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-health").click();
+    await expect(page.getByTestId("health-row").first()).toBeVisible();
+    const allRows = await page.getByTestId("health-row").count();
+    await expect(page.getByTestId("health-stat-defects")).toBeVisible();
+
+    await page.getByTestId("health-filter-high").click();
+    await expect(page.getByTestId("health-row")).toHaveCount(1);
+    await expect(page.getByTestId("health-row").first()).toContainText("never went ready");
+    await page.getByTestId("health-filter-all").click();
+
+    await page.getByTestId("health-filter-area-toggle").click();
+    const menu = page.getByTestId("health-filter-area-menu");
+    await menu.getByTestId("health-filter-area-opt-running · GCP").locator("input").click();
+    await expect(page.getByTestId("health-row")).toHaveCount(2); // the floating + hand-deploy conditions
+
+    await page.getByTestId("health-colfilters-clear").click();
+    await expect(page.getByTestId("health-row")).toHaveCount(allRows);
   });
 });
