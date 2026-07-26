@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { defineConfig, devices } from "@playwright/test";
 
 // Smoke/e2e specs REQUIRE the mock API, so they must not reuse a LIVE-mode dev server.
@@ -8,8 +9,28 @@ import { defineConfig, devices } from "@playwright/test";
 // the mock webServer below always owns it and never collides with :5183. CI (where nothing
 // is on 5199) starts a fresh mock server there. Override both via env if 5199 is taken.
 // SSOT: promotion_queue_conflict_wall_pileup_2026_06_17 P3.
-const PORT = process.env.PLAYWRIGHT_PORT ?? "5199";
+//
+// Per-slot port derivation (fix: playwright_reuse_existing_server_cross_slot_false_results_2026_07_20.md)
+// -- with 10+ per-slot worktrees on one host all defaulting to :5199, a late-arriving slot's
+// `reuseExistingServer: true` silently attached to an EARLIER slot's dev server and tested
+// foreign code (measured 2026-07-20). Slot-N is derived from the checkout path (`.tabs/<N>/`) so
+// each slot gets its own default port and can never collide; 0 (the un-slotted default, still
+// 5199) when not in a slot clone. SSOT for slot-N derivation: scripts/hooks/slot-identity-lib.sh.
+const SLOT = Number(process.cwd().match(/\/\.tabs\/(\d+)\//)?.[1] ?? 0);
+const PORT = process.env.PLAYWRIGHT_PORT ?? String(5199 + SLOT);
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
+
+// Surface whether the dev server is already up (about to be REUSED -- the visible signal for a
+// possible cross-slot/foreign attach, in case the port derivation above is ever wrong) vs will be
+// freshly spawned by webServer below, instead of a silent reuse.
+try {
+  execSync(`curl -sf -o /dev/null --max-time 1 "${BASE_URL}"`, { stdio: "ignore" });
+  console.log(`[playwright.config] slot=${SLOT} port=${PORT} dev server @ ${BASE_URL} -- ALREADY UP, will be REUSED`);
+} catch {
+  console.log(
+    `[playwright.config] slot=${SLOT} port=${PORT} dev server @ ${BASE_URL} -- not up, will be freshly SPAWNED`,
+  );
+}
 
 export default defineConfig({
   testDir: "./tests",
