@@ -276,7 +276,13 @@ function PanelHeader({
 // ---------- inline help tooltip (hover/focus reveals a readable explanation) ----------
 function InfoTip({ text, testId }: { text: string; testId?: string }) {
   return (
-    <span className="group relative inline-flex focus:outline-none" data-testid={testId} tabIndex={0} aria-label={text}>
+    <span
+      role="button"
+      className="group relative inline-flex focus:outline-none"
+      data-testid={testId}
+      tabIndex={0}
+      aria-label={text}
+    >
       <Info
         aria-hidden="true"
         className="h-3.5 w-3.5 cursor-help text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
