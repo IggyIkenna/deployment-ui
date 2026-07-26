@@ -214,7 +214,7 @@ describe("FixturesBrowser", () => {
     );
   });
 
-  it("warns when the chosen range exceeds the server-side span cap", async () => {
+  it("shows the full-history catalogue coverage note even for a multi-year range (no server-side span cap)", async () => {
     render(<FixturesBrowser />);
     await waitFor(() => expect(screen.getByTestId("fixtures-browser-window-note")).toBeTruthy());
 
@@ -222,7 +222,9 @@ describe("FixturesBrowser", () => {
     fireEvent.change(screen.getByLabelText(/To date/i), { target: { value: "2026-01-01" } });
 
     await waitFor(() => {
-      expect(screen.getByTestId("fixtures-browser-window-note").textContent).toMatch(/reads only the first 120/);
+      const note = screen.getByTestId("fixtures-browser-window-note").textContent ?? "";
+      expect(note).toMatch(/covers full history, 2019-01-01→present/);
+      expect(note).not.toMatch(/reads only the first/);
     });
   });
 });
