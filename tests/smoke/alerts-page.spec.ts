@@ -355,9 +355,21 @@ test.describe("Alerts page", () => {
     await expect(page).toHaveURL(/sort_key=subject&sort_dir=asc/);
     await expect(page.getByTestId("alert-entry-0")).toContainText("quality-gates-v2 FAILED on main");
 
-    // All three params coexist in the URL and the vm_down row never reappears in any order.
+    // All three params coexist in the URL and the vm_down row never reappears in the filtered +
+    // sorted timeline, in any order. Scoped to `alert-timeline` (not `page`-wide): the separate
+    // Streams summary strip above (`alert-streams`) is a DELIBERATELY unfiltered "current worst
+    // state per (repo, workflow)" overview (operator decision A, 2026-07-21 — see Alerts.tsx's
+    // own comment above that section), so it always shows the vm-watchdog stream's current
+    // vm_down message regardless of the Timeline's active filters. An unscoped `page.getByText`
+    // here matches that unrelated, by-design row and false-positives on a "clobbering" bug that
+    // doesn't exist — verified by reproducing this exact sequence with `alert-timeline`-scoped and
+    // `alert-streams`-scoped locators independently: the Timeline-scoped count is 0 immediately
+    // after the kind+date filter (before any sort), and stays 0 after the sort click; only the
+    // Streams-scoped count is 1, throughout. The filter -> sort `useMemo` composition itself never
+    // clobbers — this locator fix is what makes the test assert what its own docstring says it
+    // proves.
     await expect(page).toHaveURL(/kind=alert/);
     await expect(page).toHaveURL(/alert_to=2026-06-10/);
-    await expect(page.getByText("VM DOWN: cefi-binance-futures-backfill")).toHaveCount(0);
+    await expect(page.getByTestId("alert-timeline").getByText("VM DOWN: cefi-binance-futures-backfill")).toHaveCount(0);
   });
 });
