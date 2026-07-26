@@ -67,24 +67,19 @@ function groupForDisplay(leagues: FixturesByLeagueAndDay, leagueNames: LeagueNam
 /** Default window the browser opens on, as day offsets from today (UTC). */
 const DEFAULT_DAYS_BACK = 7;
 const DEFAULT_DAYS_FORWARD = 30;
-/** Server-side span cap (`fixtures_browser._MAX_WINDOW_SPAN_DAYS`) — a wider
- *  range is truncated by the API, so say so rather than silently under-report. */
-const MAX_SPAN_DAYS = 120;
+/** Earliest date the catalogue covers (`prod/catalog.parquet`'s `--since
+ *  2019-01-01` full-history rollup, deployment-api@dbbf64c) — shown in the
+ *  window note so the UI never implies a narrower bound than the backend
+ *  actually serves. There is no server-side span cap anymore: the old
+ *  `_MAX_WINDOW_SPAN_DAYS=120` day-walk truncation was retired when
+ *  `fixtures_browser.py` switched to reading the single rolled-up catalogue. */
+const CATALOGUE_COVERAGE_START = "2019-01-01";
 
 /** ISO `YYYY-MM-DD` for today (UTC) offset by `delta` days. */
 function isoDayOffsetUtc(delta: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
-}
-
-function spanDays(startIso: string, endIso: string): number | null {
-  const a = Date.parse(`${startIso}T00:00:00Z`);
-  const b = Date.parse(`${endIso}T00:00:00Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) {
-    return null;
-  }
-  return Math.abs(Math.round((b - a) / 86_400_000));
 }
 
 export function FixturesBrowser() {
@@ -132,7 +127,6 @@ export function FixturesBrowser() {
 
   const grouped = useMemo(() => groupForDisplay(leagues, leagueNames), [leagues, leagueNames]);
   const totalFixtures = useMemo(() => grouped.reduce((acc, g) => acc + g.fixtureCount, 0), [grouped]);
-  const span = useMemo(() => spanDays(startDate, endDate), [startDate, endDate]);
 
   return (
     <Card data-testid="fixtures-browser-card">
@@ -220,9 +214,7 @@ export function FixturesBrowser() {
             {endDate}
             {leagueId.trim() ? ` · league ${leagueId.trim()}` : ""}
             {team.trim() ? ` · team ~ "${team.trim()}"` : ""}
-            {span != null && span > MAX_SPAN_DAYS
-              ? ` — range spans ${span} days; the API reads only the first ${MAX_SPAN_DAYS}.`
-              : " (windowed — not the full historical catalogue)."}
+            {` (catalogue covers full history, ${CATALOGUE_COVERAGE_START}→present — no range-length limit).`}
           </p>
         )}
       </CardHeader>
