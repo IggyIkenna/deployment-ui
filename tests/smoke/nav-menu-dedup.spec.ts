@@ -87,17 +87,18 @@ test("the legacy duplicate-route quarantine is gone — one plain route per scre
   }
 });
 
-test("the always-visible top bar carries the same 16 entries as the dropdown", async ({ page }) => {
+test("the always-visible top bar carries the same 17 entries as the dropdown", async ({ page }) => {
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 10 cockpit tabs + the 6 screens with no cockpit twin = the dropdown's 16. (Was 15/5 with a
+  // 10 cockpit tabs + the 7 screens with no cockpit twin = the dropdown's 17. (Was 15/5 with a
   // stale "vm-deployments" in this list — that route is now fully retired, off canonical nav
-  // entirely; "artifacts" + "venue-config" are canonical instead.)
+  // entirely; "artifacts" + "venue-config" are canonical instead; "vm-resource-comparison"
+  // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md.)
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
-  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(6);
+  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(7);
 
-  for (const id of ["home", "epics", "data-status", "costs", "artifacts", "venue-config"]) {
+  for (const id of ["home", "epics", "data-status", "costs", "artifacts", "venue-config", "vm-resource-comparison"]) {
     await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
   }
 });
