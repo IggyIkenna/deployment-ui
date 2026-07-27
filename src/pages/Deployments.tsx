@@ -1296,6 +1296,12 @@ export function DeploymentsContent({
   // deliberately filters what's already on the page (decision: "options from distinct service values
   // in the loaded inventory ... client-side", deployment_ui_date_range_filter_and_search_2026_07_20).
   const serviceFilter = searchParams.get("service") ?? "";
+  // Git-commit is client-side (Phase 3b artifact-pipeline cross-link) — a pre-loaded deep-link
+  // filter, not a dropdown the operator picks from: an /ops/artifacts "What's running" version row
+  // links here with `?git_commit=<sha>` so exactly the hosts running that artifact show up. Exact
+  // match against the row's own git_commit (honest null on a row with no registry entry / no stamp
+  // yet never matches, so the filter correctly excludes them rather than false-positive-including).
+  const gitCommitFilter = searchParams.get("git_commit") ?? "";
   // Region is a server-side filter (WS-D reconciliation) — defaults to asia-northeast1 (the configured
   // default census); "all" sweeps every region, or pick a specific one from the dynamic list.
   const regionFilter = searchParams.get("region") ?? "asia-northeast1";
@@ -1838,6 +1844,26 @@ export function DeploymentsContent({
                   />
                   <TargetSearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
                 </div>
+                {/* Pre-loaded deep-link filter (Phase 3b) — an /ops/artifacts version row lands here
+                  via ?git_commit=<sha>; no dropdown owns it, so show it explicitly + let it be cleared. */}
+                {gitCommitFilter && (
+                  <div
+                    className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"
+                    data-testid="deployments-git-commit-filter"
+                  >
+                    <Badge variant="info">
+                      filtered to commit <code className="ml-1">{gitCommitFilter}</code>
+                    </Badge>
+                    <button
+                      type="button"
+                      className="underline hover:text-[var(--color-text-primary)]"
+                      data-testid="deployments-git-commit-filter-clear"
+                      onClick={() => setParam("git_commit", "")}
+                    >
+                      clear
+                    </button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {error && (
@@ -1875,6 +1901,7 @@ export function DeploymentsContent({
                         (kindFilters.size === 0 || kindFilters.has(i.kind)) &&
                         (!launchedByFilter || (i.launched_by ?? "unknown") === launchedByFilter) &&
                         (!serviceFilter || i.service === serviceFilter) &&
+                        (!gitCommitFilter || i.git_commit === gitCommitFilter) &&
                         (!searchQuery || i.name.toLowerCase().includes(searchQuery))
                       );
                     })}

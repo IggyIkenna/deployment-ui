@@ -4,7 +4,7 @@
  * Inherits the tab-trigger assertions that used to live in Cockpit.test.tsx: the bar was
  * lifted out of the Cockpit into the Header (operator 2026-07-17), so the triggers are no
  * longer that page's to render. What's pinned here is the contract the lift must preserve —
- * the same 16 entries as the dropdown, the retired per-mode tabs staying dead, and cockpit
+ * the same 15 entries as the dropdown, the retired per-mode tabs staying dead, and cockpit
  * entries rendering as URL Links (which is what lets the bar select a tab from any route).
  */
 
@@ -23,18 +23,7 @@ function renderAt(path: string) {
 }
 
 // live/batch/paper collapsed into ONE "deployments" tab (operator 2026-07-08 merge).
-const TAB_IDS = [
-  "health",
-  "deploy",
-  "deployments",
-  "fleet",
-  "consolidators",
-  "ci",
-  "alerts",
-  "launch",
-  "chaos",
-  "safety",
-];
+const TAB_IDS = ["health", "deploy", "deployments", "consolidators", "ci", "alerts", "launch", "chaos", "safety"];
 
 describe("TopNavBar", () => {
   it("renders every cockpit tab trigger (incl. the merged Deployments tab)", () => {
@@ -58,23 +47,23 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("shows all 16 canonical entries — the same list as the dropdown", () => {
+  it("shows all 15 canonical entries — the same list as the dropdown", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {
     renderAt("/ops/costs");
     expect(screen.getByTestId("top-nav-bar")).toBeTruthy();
     // Each former pane is now its own plain route (2026-07-17: `?tab=` retired).
-    expect(screen.getByTestId("cockpit-tab-fleet").getAttribute("href")).toBe("/fleet");
+    expect(screen.getByTestId("cockpit-tab-consolidators").getAttribute("href")).toBe("/consolidators");
   });
 
   it("marks the active entry via aria-current, driven by the URL", () => {
-    renderAt("/fleet");
-    expect(screen.getByTestId("cockpit-tab-fleet").getAttribute("aria-current")).toBe("page");
+    renderAt("/consolidators");
+    expect(screen.getByTestId("cockpit-tab-consolidators").getAttribute("aria-current")).toBe("page");
     expect(screen.getByTestId("cockpit-tab-health").getAttribute("aria-current")).toBeNull();
   });
 

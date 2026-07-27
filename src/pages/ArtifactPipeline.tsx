@@ -23,6 +23,7 @@
  * filters — no new fetch.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, RefreshCw } from "lucide-react";
 
 import {
@@ -1630,6 +1631,45 @@ function DeployRowLine({ row }: { row: DeployRow }) {
   );
 }
 
+const GCP_PROJECT = "central-element-323112";
+const GCP_AR_LOCATION = "asia-northeast1"; // measured live 2026-07-27: the unified-trading-system repo's actual location
+const AWS_ACCOUNT_ID = "427895769566";
+const AWS_DEFAULT_REGION = "ap-northeast-1"; // matches DeploymentDetail.tsx's EC2 console fallback
+
+/** Deep-link to a registry console — Artifact Registry or ECR (Phase 3b, console deep-links). Pure
+ *  URL construction from an artifact's identity, following `consoleUrl()`'s pattern in
+ *  DeploymentDetail.tsx. `null` for a cloud/registry this page doesn't address a console for. */
+function artifactConsoleUrl(cloud: string, registry: string, repo: string): { href: string; label: string } | null {
+  if (cloud === "gcp") {
+    return {
+      href: `https://console.cloud.google.com/artifacts/docker/${GCP_PROJECT}/${GCP_AR_LOCATION}/${encodeURIComponent(registry)}/${encodeURIComponent(repo)}?project=${GCP_PROJECT}`,
+      label: "Artifact Registry",
+    };
+  }
+  if (cloud === "aws" && registry === "ECR") {
+    return {
+      href: `https://${AWS_DEFAULT_REGION}.console.aws.amazon.com/ecr/repositories/private/${AWS_ACCOUNT_ID}/${encodeURIComponent(repo)}?region=${AWS_DEFAULT_REGION}`,
+      label: "ECR console",
+    };
+  }
+  return null;
+}
+
+function registryConsoleUrl(row: ImageRow): { href: string; label: string } | null {
+  return artifactConsoleUrl(row.cloud, row.registry, row.repo);
+}
+
+/** Same console deep-link, but parsed from a "What's running" version's `artifact` ref
+ *  (`"<registry>/<repo>"`, e.g. "unified-trading-system/deployment-api") — that view has no
+ *  separate registry/repo fields, just the joined ref. `null` when the digest never resolved to an
+ *  artifact (an honestly-unknown row) or the ref doesn't parse into exactly two segments. */
+function runningArtifactConsoleUrl(cloud: string, artifact: string): { href: string; label: string } | null {
+  if (!artifact) return null;
+  const slash = artifact.indexOf("/");
+  if (slash <= 0 || slash === artifact.length - 1) return null;
+  return artifactConsoleUrl(cloud, artifact.slice(0, slash), artifact.slice(slash + 1));
+}
+
 // ── the live Artifacts (registry inventory) view ────────────────────────────────────────────────
 function ArtifactsView({
   data,
@@ -1865,10 +1905,24 @@ function ArtifactsView({
             )}
             {rows.map((r) => {
               const cellBorder = { borderTop: "1px solid var(--color-border-default)" };
+              const consoleLink = registryConsoleUrl(r);
               return (
                 <tr key={`${r.cloud}-${r.registry}-${r.repo}`} className="align-top" data-testid="art-row">
                   <td className="px-2.5 py-2 font-medium" style={cellBorder}>
                     {r.repo}
+                    {consoleLink && (
+                      <a
+                        href={consoleLink.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-1.5 underline"
+                        style={{ color: "var(--color-accent-blue)" }}
+                        data-testid="art-console-link"
+                        title={consoleLink.label}
+                      >
+                        ↗
+                      </a>
+                    )}
                   </td>
                   <td className="px-2.5 py-2 uppercase" style={{ ...cellBorder, color: "var(--color-text-secondary)" }}>
                     {r.cloud}
@@ -2220,6 +2274,38 @@ function RunningRowLine({ row, isOpen, onToggle }: { row: RunningTableRow; isOpe
                   Artifact: <span className="font-mono">{v.artifact}</span>
                 </div>
               )}
+              {/* Cross-links (Phase 3b, operator requirement 2026-07-17) — verify this is the right
+                artifact: jump to its registry console, or to the Deployments view pre-filtered to
+                exactly the hosts running this commit. */}
+              <div className="flex flex-wrap items-center gap-3">
+                {(() => {
+                  const consoleLink = runningArtifactConsoleUrl(row.cloud, v.artifact);
+                  return (
+                    consoleLink && (
+                      <a
+                        href={consoleLink.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                        style={{ color: "var(--color-accent-blue)" }}
+                        data-testid="run-console-link"
+                      >
+                        {consoleLink.label} ↗
+                      </a>
+                    )
+                  );
+                })()}
+                {v.built_from && (
+                  <Link
+                    to={`/deployments?git_commit=${encodeURIComponent(v.built_from)}`}
+                    className="underline"
+                    style={{ color: "var(--color-accent-blue)" }}
+                    data-testid="run-deployments-link"
+                  >
+                    View hosts on this commit in Deployments ↗
+                  </Link>
+                )}
+              </div>
               <div>
                 <div className="mb-1 font-medium" style={{ color: "var(--color-text-secondary)" }}>
                   Hosts

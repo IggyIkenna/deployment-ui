@@ -37,7 +37,9 @@ describe("NAV_GROUPS canonical entries", () => {
 
   it("never point at a route that was deleted in the plain-routes cutover", () => {
     // These were `?tab=` compat redirects / folded standalones — gone (or redirect-only, no nav).
-    const removed = ["/ops/live-deployments", "/infra", "/repos"];
+    // /fleet itself was removed 2026-07-27 (deployment_ui_fleet_tab_removal_2026_07_27.md) — fleet
+    // git-health's only home is now agent-orchestrator's own dashboard.
+    const removed = ["/ops/live-deployments", "/infra", "/repos", "/fleet"];
     const offenders = canonicalItems.filter((i) => removed.includes(i.to));
     expect(offenders.map((o) => `${o.id} → ${o.to}`)).toEqual([]);
   });
@@ -48,7 +50,6 @@ describe("NAV_GROUPS canonical entries", () => {
       "/cockpit", // health
       "/deploy",
       "/deployments",
-      "/fleet",
       "/consolidators",
       "/ci",
       "/alerts",
@@ -112,11 +113,12 @@ describe("cockpit bar / dropdown shared source", () => {
   it("splits the canonical entries into former-pane tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 10 former cockpit panes + the 6 screens with no pane heritage = 16 canonical entries
+    // 9 former cockpit panes + the 6 screens with no pane heritage = 15 canonical entries
     // (vm-deployments moved to the legacy quarantine — see "legacy quarantine" describe above;
-    // venue-config is its relocated venue-panel replacement, added 2026-07-21).
-    expect(tabs).toHaveLength(10);
+    // venue-config is its relocated venue-panel replacement, added 2026-07-21; fleet's own pane
+    // was removed 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md).
+    expect(tabs).toHaveLength(9);
     expect(links).toEqual(["home", "epics", "venue-config", "data-status", "costs", "artifacts"]);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(15);
   });
 });

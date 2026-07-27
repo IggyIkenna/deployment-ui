@@ -23,6 +23,20 @@ test.describe("WS-D full-estate deployment cockpit", () => {
     await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toHaveCount(0);
   });
 
+  test("git_commit URL param (Phase 3b artifact-pipeline deep-link) pre-filters to hosts on that commit", async ({
+    page,
+  }) => {
+    await page.goto("/deployments?git_commit=a557471");
+    await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toBeVisible();
+    // A running row with no matching (or no) git_commit is excluded.
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toHaveCount(0);
+    await expect(page.getByTestId("deployments-git-commit-filter")).toContainText("a557471");
+
+    await page.getByTestId("deployments-git-commit-filter-clear").click();
+    await expect(page.getByTestId("deployment-row-cefi-live-trading-1")).toBeVisible();
+    await expect(page.getByTestId("deployments-git-commit-filter")).toHaveCount(0);
+  });
+
   test("#5 red leaked-resources badge shows on a non-running VM with a lingering disk, not on a clean VM", async ({
     page,
   }) => {

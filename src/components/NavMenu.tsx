@@ -150,16 +150,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    heading: "Fleet & Cost",
+    heading: "Cost & Artifacts",
     items: [
-      {
-        id: "fleet",
-        to: "/fleet",
-        label: "Fleet",
-        icon: Layers,
-        desc: "git health · dirty repos",
-        short: "Fleet",
-      },
       {
         id: "costs",
         to: "/ops/costs",
@@ -236,8 +228,9 @@ export const NAV_GROUPS: NavGroup[] = [
   // The "Duplicate routes — pending removal" quarantine group was DELETED 2026-07-17 together
   // with its routes: the UI moved to ONE plain-URL scheme (operator decision), so `?tab=` is
   // gone and the standalone/redirect duplicates it existed to compare no longer exist. /repos
-  // and /infra survive only as bookmark-compat redirects in App.tsx (→ /ci, /fleet), with no
-  // nav entry.
+  // survives only as a bookmark-compat redirect in App.tsx (→ /ci), with no nav entry. /infra
+  // (formerly → /fleet) has no redirect target left since /fleet's own removal (2026-07-27,
+  // deployment_ui_fleet_tab_removal_2026_07_27.md) and now falls through to the catch-all.
   // The "Legacy" quarantine group (/vm-deployments, reintroduced for the Fleet-tab consolidation,
   // BLK-7cb5bbbc) was REMOVED 2026-07-21 — both features it existed to preserve now have real
   // homes: "Reconcile Registry" moved to /deployments' header, and the raw active+archive VM
@@ -251,7 +244,7 @@ export const NAV_GROUPS: NavGroup[] = [
 /** The deduplicated nav — one entry per screen (excludes the legacy quarantine). */
 export const NAV_GROUPS_CANONICAL = NAV_GROUPS.filter((g) => !g.legacy);
 
-/** The 14 canonical entries, flat + in group order. Drives BOTH the dropdown and the cockpit bar. */
+/** The 15 canonical entries, flat + in group order. Drives BOTH the dropdown and the cockpit bar. */
 export const NAV_ITEMS_CANONICAL = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
 
 /**
@@ -264,7 +257,6 @@ const PLAIN_ROUTE_TO_TAB_ID: Record<string, string> = {
   "/cockpit": "health",
   "/deploy": "deploy",
   "/deployments": "deployments",
-  "/fleet": "fleet",
   "/consolidators": "consolidators",
   "/ci": "ci",
   "/alerts": "alerts",

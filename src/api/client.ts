@@ -1425,6 +1425,9 @@ export interface TurboHonestInstrumentStatus {
 export interface TurboUnderlyingStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  missing_dates?: string[];
+  dates_found_list?: string[];
   completion_pct: number;
   data_types?: Record<string, TurboDataTypeStatus>;
 }
@@ -1432,6 +1435,9 @@ export interface TurboUnderlyingStatus {
 export interface TurboInstrumentTypeStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  missing_dates?: string[];
+  dates_found_list?: string[];
   completion_pct: number;
   data_types?: Record<string, TurboDataTypeStatus>;
   underlyings?: Record<string, TurboUnderlyingStatus>;
@@ -4329,71 +4335,6 @@ export async function getUnifiedAlerts(days?: number): Promise<UnifiedAlerts> {
   const alertsClient = createApiClient(createClientConfig(API_BASE, { timeoutMs: 480_000 }));
   const query = days !== undefined ? `?days=${days}` : "";
   return alertsClient.get<UnifiedAlerts>(`/alerts${query}`);
-}
-
-// --- Fleet git-health (proxied from agent-orchestrator; operator decision v2) -------
-
-export interface FleetGitRepoHealth {
-  name: string;
-  state: string;
-  dirty_files: number;
-  ahead: number;
-  behind: number;
-  local_sha: string;
-  not_clean_since: string | null;
-  unpushed_plans: string[];
-  drift_violation: boolean;
-}
-
-export interface FleetGitSlotHealth {
-  slot_id: number;
-  host: string | null;
-  reported_at: string | null;
-  reporter_stale: boolean;
-  ff_pull_last_run: string | null;
-  ff_pull_last_result: string | null;
-  ff_cron_stale: boolean;
-  repos: FleetGitRepoHealth[];
-}
-
-export interface FleetGitHostHealth {
-  host: string;
-  vm_id: string | null;
-  slots: FleetGitSlotHealth[];
-}
-
-export interface FleetGitSummary {
-  hosts: number;
-  slots: number;
-  repos_total: number;
-  dirty: number;
-  behind: number;
-  ahead: number;
-  diverged: number;
-  clean: number;
-  drift_violations: number;
-  reporter_stale_slots: number;
-  ff_cron_stale_slots: number;
-}
-
-export interface FleetGitData {
-  generated_at: string;
-  scope: string;
-  summary: FleetGitSummary;
-  hosts: FleetGitHostHealth[];
-  drift_violations: Array<Record<string, string>>;
-  vm_errors: Array<Record<string, string>>;
-}
-
-export interface FleetGitHealthProxy {
-  available: boolean;
-  reason: string;
-  orchestrator_url: string;
-  data: FleetGitData | null;
-}
-
-export async function getFleetGitHealth(): Promise<FleetGitHealthProxy> {
-  return fetchJson<FleetGitHealthProxy>("/repo-ci/fleet-git-health");
 }
 
 // Gap-4: per-repo orchestrator working/pending state (ci_pipeline_self_healing_gaps_2026_06_11)

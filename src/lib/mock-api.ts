@@ -1320,6 +1320,11 @@ interface MockDeploymentItem {
   package_type?: string | null;
   revision?: string | null;
   region?: string | null;
+  // Artifact-pipeline cross-link (Phase 3b) — the image/tarball this VM booted, straight off its
+  // registry entry. Undefined/"" on every mock row except the one seeded for the git_commit
+  // deep-link regression test below.
+  image_digest?: string | null;
+  git_commit?: string | null;
   // --- Mock-only fields (NOT on the real contract; kept so the /detail popover mock has
   //     data to show; the UI list no longer reads these). ---
   net_recv_mbps?: number | null;
@@ -1348,6 +1353,7 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: 42,
     captured_progress: 18234,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-live-capture-1/run.log",
+    git_commit: "a557471",
     machine_type: "n2-highmem-16",
     zone: "asia-northeast1-c",
     cost_actual_usd: 38.4,
@@ -2427,101 +2433,6 @@ function mockEscalations() {
   };
 }
 
-// Fleet git-health proxy (mirrors deployment-api _mock_fleet_git_health) — one laptop
-// host with a clean slot + a drift-violating slot, so the Fleet Git tab renders the
-// proxied data AND the orchestrator deep-link.
-function mockFleetGitHealth() {
-  return {
-    available: true,
-    reason: "",
-    orchestrator_url: "https://api.agent-orchestrator.odum-research.com",
-    data: {
-      generated_at: new Date().toISOString(),
-      scope: "fleet",
-      summary: {
-        hosts: 1,
-        slots: 2,
-        repos_total: 3,
-        dirty: 1,
-        behind: 1,
-        ahead: 1,
-        diverged: 0,
-        clean: 1,
-        drift_violations: 1,
-        reporter_stale_slots: 0,
-        ff_cron_stale_slots: 0,
-      },
-      hosts: [
-        {
-          host: "laptop",
-          vm_id: null,
-          slots: [
-            {
-              slot_id: 1,
-              host: "laptop",
-              reported_at: new Date().toISOString(),
-              reporter_stale: false,
-              ff_pull_last_run: new Date().toISOString(),
-              ff_pull_last_result: "ok",
-              ff_cron_stale: false,
-              repos: [
-                {
-                  name: "unified-trading-pm",
-                  state: "clean",
-                  dirty_files: 0,
-                  ahead: 0,
-                  behind: 0,
-                  local_sha: "abc1234",
-                  not_clean_since: null,
-                  unpushed_plans: [],
-                  drift_violation: false,
-                },
-              ],
-            },
-            {
-              slot_id: 3,
-              host: "laptop",
-              reported_at: new Date().toISOString(),
-              reporter_stale: false,
-              ff_pull_last_run: new Date().toISOString(),
-              ff_pull_last_result: "skip:dirty",
-              ff_cron_stale: false,
-              repos: [
-                {
-                  name: "mtds",
-                  state: "dirty",
-                  dirty_files: 3,
-                  ahead: 0,
-                  behind: 1,
-                  local_sha: "def5678",
-                  not_clean_since: new Date().toISOString(),
-                  unpushed_plans: [],
-                  drift_violation: false,
-                },
-                {
-                  name: "execution-service",
-                  state: "ahead",
-                  dirty_files: 0,
-                  ahead: 2,
-                  behind: 0,
-                  local_sha: "fed9876",
-                  not_clean_since: new Date().toISOString(),
-                  unpushed_plans: [],
-                  drift_violation: true,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      drift_violations: [
-        { host: "laptop", slot: "3", repo: "execution-service", state: "ahead", ahead: "2", behind: "0" },
-      ],
-      vm_errors: [],
-    },
-  };
-}
-
 function mockRepoCiDetail(repo: string) {
   const overview = mockRepoCiOverview();
   const row = overview.repos.find((r) => r.repo === repo) ?? overview.repos[0];
@@ -3592,9 +3503,6 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path === "/api/repo-ci/overview") {
     return json(mockRepoCiOverview());
-  }
-  if (path === "/api/repo-ci/fleet-git-health") {
-    return json(mockFleetGitHealth());
   }
   if (path === "/api/repo-ci/escalations") {
     return json(mockEscalations());

@@ -47,7 +47,6 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import {
   CockpitHealth,
   CockpitDeploy,
-  CockpitFleet,
   CockpitConsolidators,
   CockpitCi,
   CockpitAlerts,
@@ -171,7 +170,6 @@ function App() {
                       Grouped with Deploy & Deployments (NavMenu.tsx) — these panels configure/inform
                       the VM deployment workflow, not Fleet's git-health/orphan-VM observability. */}
                   <Route path="/venue-config" element={<VenueConfig />} />
-                  <Route path="/fleet" element={<CockpitFleet />} />
                   <Route path="/consolidators" element={<CockpitConsolidators />} />
                   <Route path="/ci" element={<CockpitCi />} />
                   <Route path="/alerts" element={<CockpitAlerts />} />
@@ -201,11 +199,13 @@ function App() {
                       </main>
                     }
                   />
-                  {/* Compat redirects for old bookmarks only (no nav entry): `?tab=` is gone,
-                      so these forward to the canonical plain route. /repos → /ci, /infra →
-                      /fleet (FleetInfra removed 2026-07-21 — Fleet is now git-health-only). */}
+                  {/* Compat redirect for old bookmarks only (no nav entry): `?tab=` is gone,
+                      so this forwards to the canonical plain route. /fleet itself is RETIRED
+                      (2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md) — fleet
+                      git-health's only home is now agent-orchestrator's own dashboard, so
+                      /infra (its earlier redirect target) has nowhere left to forward to and
+                      falls through to the catch-all below instead of chaining dead redirects. */}
                   <Route path="/repos" element={<Navigate to="/ci" replace />} />
-                  <Route path="/infra" element={<Navigate to="/fleet" replace />} />
                   <Route
                     path="*"
                     element={

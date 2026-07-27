@@ -477,6 +477,23 @@ describe("ArtifactPipeline", () => {
     expect(screen.getAllByTestId("art-row")).toHaveLength(3);
   });
 
+  it("the Artifacts tab's console link builds the right GCP/AWS registry URL per row (Phase 3b cross-links)", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-art"));
+    await waitFor(() => expect(screen.getAllByTestId("art-row")).toHaveLength(3));
+
+    const rows = screen.getAllByTestId("art-row");
+    const gcpRow = rows.find((r) => r.textContent?.includes("deployment-api"))!;
+    const gcpLink = within(gcpRow).getByTestId("art-console-link") as HTMLAnchorElement;
+    expect(gcpLink.href).toContain(
+      "console.cloud.google.com/artifacts/docker/central-element-323112/asia-northeast1/unified-trading-system/deployment-api",
+    );
+
+    const awsRow = rows.find((r) => r.textContent?.includes("execution-service"))!;
+    const awsLink = within(awsRow).getByTestId("art-console-link") as HTMLAnchorElement;
+    expect(awsLink.href).toContain("console.aws.amazon.com/ecr/repositories/private/427895769566/execution-service");
+  });
+
   it("the Legacy filter pill narrows the Artifacts table to GC candidates", async () => {
     renderPage();
     fireEvent.click(screen.getByTestId("artifact-tab-art"));
@@ -512,6 +529,31 @@ describe("ArtifactPipeline", () => {
     rows = screen.getAllByTestId("run-row");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveTextContent("uts-shared-deployment-api");
+  });
+
+  it("a What's running row's expanded detail cross-links to the registry console and the Deployments view (Phase 3b)", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-run"));
+    await waitFor(() => expect(screen.getAllByTestId("run-row")).toHaveLength(2));
+
+    // deployment-dashboard: floating, built_from="" — console link present, no Deployments link
+    // (an empty commit can't deep-link to anything).
+    fireEvent.click(screen.getByTestId("run-filter-floating"));
+    let rows = screen.getAllByTestId("run-row");
+    fireEvent.click(rows[0]);
+    const consoleLink = screen.getByTestId("run-console-link") as HTMLAnchorElement;
+    expect(consoleLink.href).toContain(
+      "console.cloud.google.com/artifacts/docker/central-element-323112/asia-northeast1/unified-trading-system/deployment-dashboard",
+    );
+    expect(screen.queryByTestId("run-deployments-link")).not.toBeInTheDocument();
+
+    // uts-shared-deployment-api: built_from="a557471" — both links present, deep-linking the commit.
+    fireEvent.click(screen.getByTestId("run-filter-all"));
+    rows = screen.getAllByTestId("run-row");
+    const pinnedRow = rows.find((r) => r.textContent?.includes("uts-shared-deployment-api"))!;
+    fireEvent.click(pinnedRow);
+    const deployLink = screen.getByTestId("run-deployments-link") as HTMLAnchorElement;
+    expect(deployLink.getAttribute("href")).toBe("/deployments?git_commit=a557471");
   });
 
   it("the Health tab renders the severity stat band, filters by pill, sorts by severity, and multi-selects an area", async () => {
