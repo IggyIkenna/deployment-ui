@@ -55,6 +55,7 @@ import {
   CockpitSafety,
 } from "./pages/Cockpit";
 import { CostObservability } from "./pages/CostObservability";
+import { VmResourceComparison } from "./pages/VmResourceComparison";
 import { ArtifactPipeline } from "./pages/ArtifactPipeline";
 import { DeploymentsPage } from "./pages/Deployments";
 import { DeploymentDetail } from "./pages/DeploymentDetail";
@@ -184,6 +185,7 @@ function App() {
                       DeploymentDetail's History card links to it directly for per-run drill-down. */}
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
                   <Route path="/ops/costs" element={<CostObservability />} />
+                  <Route path="/ops/vm-resources" element={<VmResourceComparison />} />
                   <Route path="/ops/artifacts" element={<ArtifactPipeline />} />
                   <Route path="/ops/vms/:vmName" element={<VmDetail />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />

@@ -27,8 +27,11 @@ import {
   fetchVmFilteredEvents,
   getDeploymentDetail,
   getDeploymentInventory,
+  getResourceRollingWindow,
   type DeploymentDetail as DeploymentDetailData,
   type DeploymentItem,
+  type ResourceRollingWindowRow,
+  type ResourceWindow,
   type VmDeploymentEntry,
   type VMLifecycleEvent,
 } from "../api/deploymentApi";
@@ -302,12 +305,19 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Work-health card — the deep D.1 metric vector from GET /{name}/detail (parent D.2). Honest
- *  point-in-time today (rolling-window persistence pending → sparkline once it lands). null for a
- *  kind without /proc capture (services/jobs) reads as an explicit "VM-only", never a fake 0. */
+const RESOURCE_WINDOWS: ResourceWindow[] = ["1h", "4h", "24h", "1wk"];
+
+/** Work-health card — the deep D.1 metric vector from GET /{name}/detail (parent D.2), PLUS a
+ *  rolling-window selector backed by the durable BigQuery aggregate
+ *  (deployment_durable_operational_data_bigquery_2026_07_21.md). "Live" shows the point-in-time
+ *  snapshot (unchanged); 1h/4h/24h/1wk shows avg/p95 over that window instead. null for a kind
+ *  without /proc capture (services/jobs) reads as an explicit "VM-only", never a fake 0. */
 function WorkHealthCard({ name, health }: { name: string; health?: string | null }) {
   const [detail, setDetail] = useState<DeploymentDetailData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [windowSel, setWindowSel] = useState<ResourceWindow | "live">("live");
+  const [rolling, setRolling] = useState<ResourceRollingWindowRow | null>(null);
+  const [rollingLoading, setRollingLoading] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -321,15 +331,33 @@ function WorkHealthCard({ name, health }: { name: string; health?: string | null
     };
   }, [name]);
 
+  useEffect(() => {
+    if (windowSel === "live") {
+      setRolling(null);
+      return;
+    }
+    let active = true;
+    setRollingLoading(true);
+    getResourceRollingWindow(windowSel, name)
+      .then((r) => active && setRolling(r.rows[0] ?? null))
+      .catch(() => active && setRolling(null))
+      .finally(() => active && setRollingLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [name, windowSel]);
+
   const hasVector = detail != null && (detail.cpu_pct != null || detail.mem_pct != null || detail.disk_pct != null);
   const fmtPct = (v: number | null) => (v == null ? "—" : `${Math.round(v)}%`);
   const fmtRate = (v: number | null) =>
     v == null ? "—" : v >= 1e6 ? `${(v / 1e6).toFixed(1)} MB/s` : `${Math.max(1, Math.round(v / 1e3))} KB/s`;
+  const fmtAvgP95 = (avg: number | null, p95: number | null) =>
+    avg == null ? "—" : `${Math.round(avg)}% avg / ${p95 == null ? "—" : Math.round(p95) + "%"} p95`;
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
           <Activity className="h-4 w-4 text-[var(--color-accent-cyan)]" />
           Work-health
           {health && (
@@ -337,33 +365,66 @@ function WorkHealthCard({ name, health }: { name: string; health?: string | null
               {health}
             </Chip>
           )}
+          <span className="ml-auto flex gap-1" data-testid="detail-work-health-window-selector">
+            {(["live", ...RESOURCE_WINDOWS] as const).map((w) => (
+              <button
+                key={w}
+                type="button"
+                data-testid={`detail-work-health-window-${w}`}
+                onClick={() => setWindowSel(w)}
+                className={`text-[10px] px-2 py-0.5 rounded border ${
+                  windowSel === w
+                    ? "bg-[var(--color-accent-cyan)] text-black border-transparent"
+                    : "border-[var(--color-border)] text-[var(--color-text-muted)]"
+                }`}
+              >
+                {w === "live" ? "Live" : w}
+              </button>
+            ))}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent data-testid="detail-work-health">
-        {loading && !detail ? (
-          <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
-        ) : hasVector && detail ? (
-          <dl className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm">
-            <Metric label="cpu" value={fmtPct(detail.cpu_pct)} />
-            <Metric
-              label="mem"
-              value={`${fmtPct(detail.mem_pct)}${detail.mem_slope != null && detail.mem_slope > 0 ? " ↑" : ""}`}
-            />
-            <Metric label="disk" value={fmtPct(detail.disk_pct)} />
-            <Metric label="io-write" value={fmtRate(detail.io_write_rate_bytes_sec)} />
-            <Metric label="net-recv" value={fmtRate(detail.net_recv_rate_bytes_sec)} />
-            <Metric
-              label="workload"
-              value={detail.workload_alive == null ? "—" : detail.workload_alive ? "alive" : "PID gone"}
-            />
+        {windowSel === "live" ? (
+          loading && !detail ? (
+            <p className="text-xs text-[var(--color-text-muted)]">Loading…</p>
+          ) : hasVector && detail ? (
+            <dl className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-sm">
+              <Metric label="cpu" value={fmtPct(detail.cpu_pct)} />
+              <Metric
+                label="mem"
+                value={`${fmtPct(detail.mem_pct)}${detail.mem_slope != null && detail.mem_slope > 0 ? " ↑" : ""}`}
+              />
+              <Metric label="disk" value={fmtPct(detail.disk_pct)} />
+              <Metric label="io-write" value={fmtRate(detail.io_write_rate_bytes_sec)} />
+              <Metric label="net-recv" value={fmtRate(detail.net_recv_rate_bytes_sec)} />
+              <Metric
+                label="workload"
+                value={detail.workload_alive == null ? "—" : detail.workload_alive ? "alive" : "PID gone"}
+              />
+            </dl>
+          ) : (
+            <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-work-health-na">
+              No /proc metric vector for this kind (VM-only today).
+            </p>
+          )
+        ) : rollingLoading && !rolling ? (
+          <p className="text-xs text-[var(--color-text-muted)]">Loading {windowSel} rollup…</p>
+        ) : rolling ? (
+          <dl className="grid grid-cols-3 gap-3 text-sm" data-testid="detail-work-health-rolling">
+            <Metric label="cpu" value={fmtAvgP95(rolling.avg_cpu_pct, rolling.p95_cpu_pct)} />
+            <Metric label="mem" value={fmtAvgP95(rolling.avg_mem_pct, rolling.p95_mem_pct)} />
+            <Metric label="disk" value={fmtAvgP95(rolling.avg_disk_pct, rolling.p95_disk_pct)} />
           </dl>
         ) : (
-          <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-work-health-na">
-            No /proc metric vector for this kind (VM-only today).
+          <p className="text-xs text-[var(--color-text-muted)]" data-testid="detail-work-health-rolling-na">
+            No {windowSel} samples yet for this target.
           </p>
         )}
         <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
-          Point-in-time sample — rolling-window persistence pending (sparklines once it lands).
+          {windowSel === "live"
+            ? "Point-in-time sample — pick a window above for the durable BigQuery rolling aggregate."
+            : `${rolling?.sample_count ?? 0} samples over the last ${windowSel}, from the durable resource_samples table.`}
         </p>
       </CardContent>
     </Card>

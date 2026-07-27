@@ -4296,6 +4296,79 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       });
     }
   }
+  // GET /api/vm-resources/rolling + /api/vm-resources/process-category — rolling-window
+  // aggregate (deployment_durable_operational_data_bigquery_2026_07_21.md). Derives a plausible
+  // avg/min/max/p95 from each VM row's point-in-time cpu_pct/mem_pct/disk_pct so the comparison
+  // page + WorkHealthCard window selector have real-shaped data to render against in mock mode.
+  if (path === "/api/vm-resources/rolling") {
+    const reqUrl = new URL(url, "http://x");
+    const window = (reqUrl.searchParams.get("window") ?? "1h") as "1h" | "4h" | "24h" | "1wk";
+    const vmNameFilter = reqUrl.searchParams.get("vm_name");
+    const vmRows = MOCK_DEPLOYMENT_INVENTORY.filter(
+      (i) => i.kind === "VM" && i.cpu_pct != null && (!vmNameFilter || i.name === vmNameFilter),
+    );
+    const rows = vmRows.map((row) => {
+      const cpu = row.cpu_pct ?? 0;
+      const mem = row.mem_pct ?? 0;
+      const disk = row.disk_pct ?? 0;
+      return {
+        vm_name: row.name,
+        service: row.service ?? "",
+        avg_cpu_pct: cpu,
+        min_cpu_pct: Math.max(0, cpu - 15),
+        max_cpu_pct: Math.min(100, cpu + 10),
+        p95_cpu_pct: Math.min(100, cpu + 7),
+        avg_mem_pct: mem,
+        min_mem_pct: Math.max(0, mem - 10),
+        max_mem_pct: Math.min(100, mem + 8),
+        p95_mem_pct: Math.min(100, mem + 5),
+        avg_disk_pct: disk,
+        min_disk_pct: Math.max(0, disk - 3),
+        max_disk_pct: Math.min(100, disk + 3),
+        p95_disk_pct: Math.min(100, disk + 2),
+        sample_count: window === "1h" ? 60 : window === "4h" ? 240 : window === "24h" ? 1440 : 10080,
+      };
+    });
+    return json({ window, rows });
+  }
+  if (path === "/api/vm-resources/process-category") {
+    const reqUrl = new URL(url, "http://x");
+    const window = (reqUrl.searchParams.get("window") ?? "1h") as "1h" | "4h" | "24h" | "1wk";
+    const vmName = reqUrl.searchParams.get("vm_name") ?? "";
+    return json({
+      vm_name: vmName,
+      window,
+      rows: [
+        {
+          category: "worker_agent",
+          avg_cpu_pct: 45,
+          max_cpu_pct: 88,
+          avg_mem_pct: 30,
+          max_mem_pct: 55,
+          distinct_pids: 12,
+          sample_count: 60,
+        },
+        {
+          category: "ci",
+          avg_cpu_pct: 8,
+          max_cpu_pct: 25,
+          avg_mem_pct: 5,
+          max_mem_pct: 12,
+          distinct_pids: 3,
+          sample_count: 60,
+        },
+        {
+          category: "orchestrator",
+          avg_cpu_pct: 4,
+          max_cpu_pct: 10,
+          avg_mem_pct: 6,
+          max_mem_pct: 9,
+          distinct_pids: 1,
+          sample_count: 60,
+        },
+      ],
+    });
+  }
   // GET /api/deployments/{name}/run-log/{metadata,tail,download} — WS-4 run.log viewer
   // (deployment_ui_vm_log_viewer_2026_07_20.md). Mirrors deployment-api's
   // RunLogMetadataResponse/RunLogTailResponse/RunLogDownloadResponse. A row with
