@@ -3004,6 +3004,19 @@ function mockArtifactImages() {
       size_bytes: null,
       note: "AWS ECR not read yet (parked, no credits)",
     }),
+    // Phase 3d — the GCS tarball-manifest bucket's Artifacts-view row (distinct `registry` key so it
+    // never collides with the AR rows above, sharing the "deployment-service" repo name).
+    mockImage({
+      repo: "deployment-service",
+      cloud: "gcp",
+      registry: "gcs-tarball-bucket",
+      image_count: 2,
+      tags: ["f000ee3"],
+      last_pushed: daysAgo(0.2),
+      running_on: "",
+      state: "active",
+      size_bytes: 42_000_000,
+    }),
   ];
   return {
     generated_at: now.toISOString(),
