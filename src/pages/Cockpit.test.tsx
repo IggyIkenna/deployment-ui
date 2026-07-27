@@ -2,16 +2,19 @@
  * Unit tests for the cockpit pane page-components.
  *
  * Since the `?tab=` scheme was retired (2026-07-17) each pane is its own plain-route page
- * component (CockpitHealth = /cockpit, CockpitDeploy = /deploy, CockpitFleet = /fleet, …)
- * instead of one `Cockpit` that switch-rendered on `?tab=`. These tests render the pane
- * components directly. The always-visible nav bar is asserted in TopNavBar / nav-menu specs.
- * No API mocks needed (placeholders).
+ * component (CockpitHealth = /cockpit, CockpitDeploy = /deploy, …) instead of one `Cockpit`
+ * that switch-rendered on `?tab=`. These tests render the pane components directly. The
+ * always-visible nav bar is asserted in TopNavBar / nav-menu specs. No API mocks needed
+ * (placeholders).
+ *
+ * CockpitFleet (/fleet) was removed 2026-07-27 — fleet git-health's only home is now
+ * agent-orchestrator's own dashboard; see deployment_ui_fleet_tab_removal_2026_07_27.md.
  */
 
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { CockpitHealth, CockpitDeploy, CockpitFleet } from "./Cockpit";
+import { CockpitHealth, CockpitDeploy } from "./Cockpit";
 
 function renderPane(node: React.ReactElement) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -44,13 +47,6 @@ describe("Cockpit panes", () => {
     }
     expect(screen.queryByTestId("cockpit-console-live-ops")).toBeNull();
     expect(screen.queryByTestId("cockpit-console-vm-deployments")).toBeNull();
-  });
-
-  it("Fleet pane renders the git-health section (VM-census + reconciliation cards removed 2026-07-21)", () => {
-    renderPane(<CockpitFleet />);
-    expect(screen.getByTestId("cockpit-fleet")).toBeTruthy();
-    expect(screen.getByTestId("cockpit-fleet-git")).toBeTruthy();
-    expect(screen.queryByTestId("cockpit-fleet-card-unknown")).toBeNull();
   });
 
   it("Deploy pane exposes the batch/live/paper deploy entry points", () => {

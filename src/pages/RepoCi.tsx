@@ -1600,9 +1600,19 @@ export function RepoDetailPanel({ repo, stagingDormant = false }: { repo: string
         <Link to={`/service/${detail.repo}/monitor`} className="text-cyan-400 hover:underline">
           Deployments
         </Link>
-        <Link to="/fleet" className="text-cyan-400 hover:underline" data-testid="repo-detail-fleet-link">
-          Fleet Git
-        </Link>
+        {/* deployment-ui's own /fleet page was removed 2026-07-27 (deployment_ui_fleet_tab_removal_2026_07_27.md)
+            — fleet git-health's only home is now agent-orchestrator's own dashboard (a top-bar
+            popover on its per-VM Dashboard, reached with no extra navigation from where an
+            operator already is). External link, same pattern as the GitHub link above. */}
+        <a
+          href="https://agent-orchestrator.odum-research.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+          data-testid="repo-detail-fleet-link"
+        >
+          Fleet Git <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
       {/* Promotion pipeline strip — where this repo sits in LDR → staging → SIT → main → image. */}
       <PromotionPipeline detail={detail} stagingDormant={stagingDormant} />

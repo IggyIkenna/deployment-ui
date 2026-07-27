@@ -45,14 +45,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Markdown } from "../components/Markdown";
 import consolidatorsHelpDoc from "../docs/consolidators-help.md?raw";
-import { FleetGitContent } from "./FleetGit";
 import { RepoCiContent } from "./RepoCi";
 import { AlertsLogsTab } from "../components/cockpit/AlertsLogsTab";
 import { ChaosContent } from "./Chaos";
 import { SafetyOpsContent } from "./SafetyOps";
 import { LaunchTab } from "../components/cockpit/LaunchTab";
 import { DeployConsole } from "../components/cockpit/DeployConsole";
-import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 import {
   getDeploymentFreshness,
@@ -127,12 +125,16 @@ const HEALTH_TILES: Tile[] = [
     to: "/deployments",
   },
   {
+    // /fleet itself was removed 2026-07-27 (deployment_ui_fleet_tab_removal_2026_07_27.md) —
+    // this tile's VM-census framing (running/zombie/OOM/unknown) already lived at /deployments
+    // since the 2026-07-21 consolidation folded that content there (Fleet had gone
+    // git-health-only); repointing here just matches where the described data actually is.
     id: "fleet",
     label: "Fleet VMs (GCP+AWS)",
     icon: Server,
     status: "placeholder",
     metric: "running · zombie · OOM · unknown · incl. orchestrator",
-    to: "/fleet",
+    to: "/deployments",
   },
   {
     id: "consolidators",
@@ -488,27 +490,6 @@ function DeployTab() {
       {/* The embedded deploy console: launch / rollback (DeployForm + BuildSelector) + build &
           deployment history — REUSING the existing components (Phase 6). */}
       <DeployConsole />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Fleet — VM-census embed + cross-cloud reconciliation cards REMOVED 2026-07-21
-// (deployment_ui_fleet_tab_consolidation_2026_07_21.md): both were redundant with
-// Deployments (which already shows every VM + its status) and AO's own dashboard.
-// The idle-spend orphan capability (rollup cards, verdict/stopped-age, reap/delete
-// actions) was MERGED into Deployments (not removed) in earlier todos of that same
-// plan, so its embed here is now also redundant — Fleet is git-health-only.
-// ---------------------------------------------------------------------------
-
-function FleetTab() {
-  return (
-    <div data-testid="cockpit-fleet">
-      <div data-testid="cockpit-fleet-git">
-        <ErrorBoundary fallbackTitle="Fleet git failed to load">
-          <FleetGitContent />
-        </ErrorBoundary>
-      </div>
     </div>
   );
 }
@@ -1295,15 +1276,6 @@ export function CockpitDeploy() {
   return (
     <main className={PANE_SHELL}>
       <DeployTab />
-    </main>
-  );
-}
-
-/** `/fleet` — census · orphans · git · infra. */
-export function CockpitFleet() {
-  return (
-    <main className={PANE_SHELL}>
-      <FleetTab />
     </main>
   );
 }
