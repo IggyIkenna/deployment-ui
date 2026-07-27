@@ -5475,6 +5475,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                       dates_found: number;
                                                       dates_expected: number;
                                                       completion_pct: number;
+                                                      dates_missing?: number;
+                                                      missing_dates?: string[];
+                                                      dates_found_list?: string[];
                                                       data_types?: Record<
                                                         string,
                                                         {
@@ -5489,6 +5492,9 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                           dates_found: number;
                                                           dates_expected: number;
                                                           completion_pct: number;
+                                                          dates_missing?: number;
+                                                          missing_dates?: string[];
+                                                          dates_found_list?: string[];
                                                           data_types?: Record<
                                                             string,
                                                             {
@@ -5500,6 +5506,10 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                         }
                                                       >;
                                                     };
+                                                    const itFoundList = it.dates_found_list ?? [];
+                                                    const itMissingList = it.missing_dates ?? [];
+                                                    const itHasDates =
+                                                      itFoundList.length > 0 || itMissingList.length > 0;
                                                     return (
                                                       <details key={itName} className="group/itype">
                                                         <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
@@ -5529,84 +5539,204 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                                                             {formatPct(it.completion_pct)}%
                                                           </span>
                                                         </summary>
+                                                        {itHasDates && (
+                                                          <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                            <div className="flex gap-3">
+                                                              {itFoundList.length > 0 && (
+                                                                <details>
+                                                                  <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                    {it.dates_found} available — click a day to drill
+                                                                    down
+                                                                  </summary>
+                                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                    <DateList
+                                                                      dates={itFoundList}
+                                                                      btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                      testIdPrefix={`itype-date-found-${name}-${itName}`}
+                                                                      onClickDate={(date) =>
+                                                                        openShardDetail({
+                                                                          service: serviceName,
+                                                                          asset_group: catName,
+                                                                          venue: name,
+                                                                          day: date,
+                                                                          instrument_type: itName,
+                                                                          data_type: "",
+                                                                        })
+                                                                      }
+                                                                    />
+                                                                  </div>
+                                                                </details>
+                                                              )}
+                                                              {itMissingList.length > 0 && (
+                                                                <details>
+                                                                  <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                    {itMissingList.length} missing
+                                                                  </summary>
+                                                                  <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                    <DateList
+                                                                      dates={itMissingList}
+                                                                      btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                      testIdPrefix={`itype-date-missing-${name}-${itName}`}
+                                                                      onClickDate={(date) =>
+                                                                        openShardDetail({
+                                                                          service: serviceName,
+                                                                          asset_group: catName,
+                                                                          venue: name,
+                                                                          day: date,
+                                                                          instrument_type: itName,
+                                                                          data_type: "",
+                                                                        })
+                                                                      }
+                                                                    />
+                                                                  </div>
+                                                                </details>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        )}
                                                         {/* Per-underlying breakdown (options_chain / futures_chain) */}
                                                         {it.underlyings && Object.keys(it.underlyings).length > 0 && (
                                                           <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
                                                             <span className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wide font-medium">
                                                               Underlyings
                                                             </span>
-                                                            {Object.entries(it.underlyings).map(([ulName, ulData]) => (
-                                                              <details key={ulName} className="group/ul">
-                                                                <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
-                                                                  <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
-                                                                  <span className="text-[10px] font-mono truncate">
-                                                                    {ulName}
-                                                                  </span>
-                                                                  <div className="flex-1" />
-                                                                  <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
-                                                                    {ulData.dates_found}/{ulData.dates_expected}
-                                                                  </span>
-                                                                  <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
-                                                                    <div
-                                                                      className="h-full"
+                                                            {Object.entries(it.underlyings).map(([ulName, ulData]) => {
+                                                              const ulFoundList = ulData.dates_found_list ?? [];
+                                                              const ulMissingList = ulData.missing_dates ?? [];
+                                                              const ulHasDates =
+                                                                ulFoundList.length > 0 || ulMissingList.length > 0;
+                                                              return (
+                                                                <details key={ulName} className="group/ul">
+                                                                  <summary className="flex items-center gap-2 py-0.5 px-1.5 rounded cursor-pointer hover:bg-[var(--color-bg-hover)] select-none list-none [&::-webkit-details-marker]:hidden">
+                                                                    <ChevronRight className="h-2.5 w-2.5 text-[var(--color-text-muted)] shrink-0 transition-transform group-open/ul:rotate-90" />
+                                                                    <span className="text-[10px] font-mono truncate">
+                                                                      {ulName}
+                                                                    </span>
+                                                                    <div className="flex-1" />
+                                                                    <span className="text-[9px] text-[var(--color-text-muted)] font-mono shrink-0">
+                                                                      {ulData.dates_found}/{ulData.dates_expected}
+                                                                    </span>
+                                                                    <div className="w-10 h-1 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden shrink-0">
+                                                                      <div
+                                                                        className="h-full"
+                                                                        style={{
+                                                                          width: `${ulData.completion_pct}%`,
+                                                                          backgroundColor: getCompletionColor(
+                                                                            ulData.completion_pct,
+                                                                          ),
+                                                                        }}
+                                                                      />
+                                                                    </div>
+                                                                    <span
+                                                                      className="text-[9px] font-mono w-8 text-right shrink-0"
                                                                       style={{
-                                                                        width: `${ulData.completion_pct}%`,
-                                                                        backgroundColor: getCompletionColor(
+                                                                        color: getCompletionColor(
                                                                           ulData.completion_pct,
                                                                         ),
                                                                       }}
-                                                                    />
-                                                                  </div>
-                                                                  <span
-                                                                    className="text-[9px] font-mono w-8 text-right shrink-0"
-                                                                    style={{
-                                                                      color: getCompletionColor(ulData.completion_pct),
-                                                                    }}
-                                                                  >
-                                                                    {formatPct(ulData.completion_pct)}%
-                                                                  </span>
-                                                                </summary>
-                                                                {ulData.data_types &&
-                                                                  Object.keys(ulData.data_types).length > 0 && (
-                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
-                                                                      {Object.entries(ulData.data_types).map(
-                                                                        ([dtName, dtData]) => (
-                                                                          <div
-                                                                            key={dtName}
-                                                                            className="flex items-center gap-2 py-0.5 px-1.5"
-                                                                          >
-                                                                            <span
-                                                                              className="text-[9px] font-mono text-[var(--color-text-secondary)]"
-                                                                              style={{
-                                                                                color: getCompletionColor(
-                                                                                  dtData.completion_pct,
-                                                                                ),
-                                                                              }}
-                                                                            >
-                                                                              {dtName}
-                                                                            </span>
-                                                                            <div className="flex-1" />
-                                                                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
-                                                                              {dtData.dates_found}/
-                                                                              {dtData.dates_expected}
-                                                                            </span>
-                                                                            <span
-                                                                              className="text-[8px] font-mono w-7 text-right"
-                                                                              style={{
-                                                                                color: getCompletionColor(
-                                                                                  dtData.completion_pct,
-                                                                                ),
-                                                                              }}
-                                                                            >
-                                                                              {formatPct(dtData.completion_pct)}%
-                                                                            </span>
-                                                                          </div>
-                                                                        ),
-                                                                      )}
+                                                                    >
+                                                                      {formatPct(ulData.completion_pct)}%
+                                                                    </span>
+                                                                  </summary>
+                                                                  {ulHasDates && (
+                                                                    <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5">
+                                                                      <div className="flex gap-3">
+                                                                        {ulFoundList.length > 0 && (
+                                                                          <details>
+                                                                            <summary className="text-[8px] text-[var(--color-accent-green)] cursor-pointer hover:underline">
+                                                                              {ulData.dates_found} available — click a
+                                                                              day to drill down
+                                                                            </summary>
+                                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                              <DateList
+                                                                                dates={ulFoundList}
+                                                                                btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-success-bg)] text-[var(--color-accent-green)] hover:brightness-110 focus:outline-none"
+                                                                                testIdPrefix={`underlying-date-found-${name}-${itName}-${ulName}`}
+                                                                                onClickDate={(date) =>
+                                                                                  openShardDetail({
+                                                                                    service: serviceName,
+                                                                                    asset_group: catName,
+                                                                                    venue: name,
+                                                                                    day: date,
+                                                                                    instrument_type: itName,
+                                                                                    data_type: "",
+                                                                                    underlying: ulName,
+                                                                                  })
+                                                                                }
+                                                                              />
+                                                                            </div>
+                                                                          </details>
+                                                                        )}
+                                                                        {ulMissingList.length > 0 && (
+                                                                          <details>
+                                                                            <summary className="text-[8px] text-[var(--color-accent-red)] cursor-pointer hover:underline">
+                                                                              {ulMissingList.length} missing
+                                                                            </summary>
+                                                                            <div className="mt-0.5 flex flex-wrap gap-0.5 max-h-20 overflow-y-auto">
+                                                                              <DateList
+                                                                                dates={ulMissingList}
+                                                                                btnClassName="text-[7px] font-mono px-1 py-0.5 rounded bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] hover:brightness-110 focus:outline-none"
+                                                                                testIdPrefix={`underlying-date-missing-${name}-${itName}-${ulName}`}
+                                                                                onClickDate={(date) =>
+                                                                                  openShardDetail({
+                                                                                    service: serviceName,
+                                                                                    asset_group: catName,
+                                                                                    venue: name,
+                                                                                    day: date,
+                                                                                    instrument_type: itName,
+                                                                                    data_type: "",
+                                                                                    underlying: ulName,
+                                                                                  })
+                                                                                }
+                                                                              />
+                                                                            </div>
+                                                                          </details>
+                                                                        )}
+                                                                      </div>
                                                                     </div>
                                                                   )}
-                                                              </details>
-                                                            ))}
+                                                                  {ulData.data_types &&
+                                                                    Object.keys(ulData.data_types).length > 0 && (
+                                                                      <div className="ml-5 pl-2 border-l border-[var(--color-border-subtle)] py-0.5 space-y-0.5">
+                                                                        {Object.entries(ulData.data_types).map(
+                                                                          ([dtName, dtData]) => (
+                                                                            <div
+                                                                              key={dtName}
+                                                                              className="flex items-center gap-2 py-0.5 px-1.5"
+                                                                            >
+                                                                              <span
+                                                                                className="text-[9px] font-mono text-[var(--color-text-secondary)]"
+                                                                                style={{
+                                                                                  color: getCompletionColor(
+                                                                                    dtData.completion_pct,
+                                                                                  ),
+                                                                                }}
+                                                                              >
+                                                                                {dtName}
+                                                                              </span>
+                                                                              <div className="flex-1" />
+                                                                              <span className="text-[8px] text-[var(--color-text-muted)] font-mono">
+                                                                                {dtData.dates_found}/
+                                                                                {dtData.dates_expected}
+                                                                              </span>
+                                                                              <span
+                                                                                className="text-[8px] font-mono w-7 text-right"
+                                                                                style={{
+                                                                                  color: getCompletionColor(
+                                                                                    dtData.completion_pct,
+                                                                                  ),
+                                                                                }}
+                                                                              >
+                                                                                {formatPct(dtData.completion_pct)}%
+                                                                              </span>
+                                                                            </div>
+                                                                          ),
+                                                                        )}
+                                                                      </div>
+                                                                    )}
+                                                                </details>
+                                                              );
+                                                            })}
                                                           </div>
                                                         )}
                                                         {/* Direct data_types (when no underlyings) */}

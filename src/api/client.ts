@@ -1425,6 +1425,9 @@ export interface TurboHonestInstrumentStatus {
 export interface TurboUnderlyingStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  missing_dates?: string[];
+  dates_found_list?: string[];
   completion_pct: number;
   data_types?: Record<string, TurboDataTypeStatus>;
 }
@@ -1432,6 +1435,9 @@ export interface TurboUnderlyingStatus {
 export interface TurboInstrumentTypeStatus {
   dates_found: number;
   dates_expected: number;
+  dates_missing?: number;
+  missing_dates?: string[];
+  dates_found_list?: string[];
   completion_pct: number;
   data_types?: Record<string, TurboDataTypeStatus>;
   underlyings?: Record<string, TurboUnderlyingStatus>;
