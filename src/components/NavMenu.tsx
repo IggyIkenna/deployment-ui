@@ -161,6 +161,14 @@ export const NAV_GROUPS: NavGroup[] = [
         short: "Costs",
       },
       {
+        id: "vm-resource-comparison",
+        to: "/ops/vm-resources",
+        label: "VM Resources",
+        icon: Activity,
+        desc: "Cross-VM CPU/mem/disk rolling-window comparison",
+        short: "VM Resources",
+      },
+      {
         id: "artifacts",
         to: "/ops/artifacts",
         label: "Artifacts",

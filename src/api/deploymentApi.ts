@@ -1247,6 +1247,72 @@ export async function getDeploymentDetail(name: string): Promise<DeploymentDetai
 }
 
 // -------------------------------------------------------------------------
+// Rolling-window resource history (deployment_durable_operational_data_bigquery_2026_07_21.md)
+// — GET /api/vm-resources/rolling + /api/vm-resources/process-category. Durable BigQuery-backed
+// aggregates alongside (not instead of) the live-snapshot `DeploymentDetail` fields above.
+
+export type ResourceWindow = "1h" | "4h" | "24h" | "1wk";
+
+export interface ResourceRollingWindowRow {
+  vm_name: string;
+  service: string;
+  avg_cpu_pct: number | null;
+  min_cpu_pct: number | null;
+  max_cpu_pct: number | null;
+  p95_cpu_pct: number | null;
+  avg_mem_pct: number | null;
+  min_mem_pct: number | null;
+  max_mem_pct: number | null;
+  p95_mem_pct: number | null;
+  avg_disk_pct: number | null;
+  min_disk_pct: number | null;
+  max_disk_pct: number | null;
+  p95_disk_pct: number | null;
+  sample_count: number;
+}
+
+export interface ResourceRollingWindowResponse {
+  window: ResourceWindow;
+  rows: ResourceRollingWindowRow[];
+}
+
+export interface ProcessCategoryRow {
+  category: string;
+  avg_cpu_pct: number | null;
+  max_cpu_pct: number | null;
+  avg_mem_pct: number | null;
+  max_mem_pct: number | null;
+  distinct_pids: number;
+  sample_count: number;
+}
+
+export interface ProcessCategoryBreakdownResponse {
+  vm_name: string;
+  window: ResourceWindow;
+  rows: ProcessCategoryRow[];
+}
+
+/** vm_name omitted -> every VM's rollup for the window (the cross-VM comparison view). */
+export async function getResourceRollingWindow(
+  window: ResourceWindow,
+  vmName?: string,
+): Promise<ResourceRollingWindowResponse> {
+  const params = new URLSearchParams({ window });
+  if (vmName) params.set("vm_name", vmName);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/rolling?${params.toString()}`);
+  return handleResponse<ResourceRollingWindowResponse>(response);
+}
+
+export async function getProcessCategoryBreakdown(
+  vmName: string,
+  window: ResourceWindow,
+): Promise<ProcessCategoryBreakdownResponse> {
+  const params = new URLSearchParams({ vm_name: vmName, window });
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/process-category?${params.toString()}`);
+  return handleResponse<ProcessCategoryBreakdownResponse>(response);
+}
+
+// -------------------------------------------------------------------------
 // run.log viewer (WS-4, deployment_ui_vm_log_viewer_2026_07_20.md) — size,
 // bounded tail, signed-URL download for a VM's actual run.log content. Mirrors
 // deployment-api `RunLogMetadataResponse`/`RunLogTailResponse`/`RunLogDownloadResponse`
