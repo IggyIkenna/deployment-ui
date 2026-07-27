@@ -315,15 +315,16 @@ describe("ArtifactPipeline", () => {
     vi.mocked(api.getArtifactHealth).mockResolvedValue(health);
   });
 
-  it("defaults to a 7-day window and the live Pipeline tab", async () => {
+  it("defaults to a 7-day window and the live What's running tab", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toHaveTextContent("4"));
+    await waitFor(() => expect(screen.getAllByTestId("run-row")).toHaveLength(2));
     expect(screen.getByTestId("artifact-window-7")).toHaveStyle({ background: "var(--color-accent-blue)" });
     expect(api.getArtifactBuilds).toHaveBeenCalledWith(expect.objectContaining({ days: 7 }));
   });
 
   it("renders the Pipeline stat band + one row per build", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toHaveTextContent("4"));
     expect(screen.getByTestId("pipe-stat-success")).toHaveTextContent("75%");
     expect(screen.getByTestId("pipe-stat-failed")).toHaveTextContent("1");
@@ -334,6 +335,7 @@ describe("ArtifactPipeline", () => {
 
   it("filters Pipeline rows client-side without changing the stat band", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
 
     fireEvent.click(screen.getByTestId("pipe-filter-fail"));
@@ -354,6 +356,7 @@ describe("ArtifactPipeline", () => {
 
   it("expands a failed build to show its step timeline and failure detail", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
     // Filter to the single failure row so the click target is unambiguous.
     fireEvent.click(screen.getByTestId("pipe-filter-fail"));
@@ -367,6 +370,7 @@ describe("ArtifactPipeline", () => {
 
   it("switches to the live Deploy timeline tab and renders its data-derived stat band", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("artifact-tab-deploy"));
@@ -405,6 +409,7 @@ describe("ArtifactPipeline", () => {
 
   it("committing an explicit date range refetches both views with start/end, not days", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
     vi.mocked(api.getArtifactBuilds).mockClear();
     vi.mocked(api.getArtifactDeploys).mockClear();
@@ -420,6 +425,7 @@ describe("ArtifactPipeline", () => {
 
   it("choosing a window preset clears any custom range", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
     fireEvent.change(screen.getByTestId("artifact-range-start"), { target: { value: "2026-07-01" } });
     await waitFor(() =>
@@ -435,16 +441,16 @@ describe("ArtifactPipeline", () => {
     );
   });
 
-  it("switching tabs shows each live view and returns cleanly to Pipeline", async () => {
+  it("switching tabs shows each live view and returns cleanly to the default What's running tab", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument());
-
-    fireEvent.click(screen.getByTestId("artifact-tab-run"));
     await waitFor(() => expect(screen.getByTestId("artifact-run-view")).toBeInTheDocument());
-    expect(screen.queryByTestId("artifact-pipe-view")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
-    expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("artifact-pipe-view")).toBeInTheDocument());
+    expect(screen.queryByTestId("artifact-run-view")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("artifact-tab-run"));
+    expect(screen.getByTestId("artifact-run-view")).toBeInTheDocument();
   });
 
   it("the Artifacts tab renders the registry stat band + rows, sorts by Repo, and multi-selects a repo", async () => {
@@ -536,6 +542,7 @@ describe("ArtifactPipeline", () => {
 
   it("the help dialog explains all five live tabs' columns and closes cleanly", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getByTestId("pipe-stat-total")).toBeInTheDocument());
 
     expect(screen.queryByText("Artifact Pipeline — quick guide")).not.toBeInTheDocument();
@@ -562,6 +569,7 @@ describe("ArtifactPipeline", () => {
 
   it("sorting the Pipeline table by Repo orders rows alphabetically and reverses on a second click", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
 
     fireEvent.click(screen.getByTestId("pipe-th-repo-sort"));
@@ -577,6 +585,7 @@ describe("ArtifactPipeline", () => {
 
   it("the Repo column's multi-select filter isolates several repos at once, and clears via the reset link", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
     expect(screen.queryByTestId("pipe-colfilters-clear")).not.toBeInTheDocument();
 
@@ -599,6 +608,7 @@ describe("ArtifactPipeline", () => {
 
   it("a text column filter (Why it failed) narrows the Pipeline table by substring", async () => {
     renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
     await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
 
     fireEvent.change(screen.getByTestId("pipe-filter-failure"), { target: { value: "docker build" } });

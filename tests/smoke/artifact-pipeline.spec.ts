@@ -14,7 +14,9 @@ test.describe("Artifact Pipeline page", () => {
     await expect(page).toHaveURL(/\/ops\/artifacts$/);
     await expect(page.getByTestId("artifact-pipeline-page")).toBeVisible();
 
-    // Defaults to the live Pipeline tab: stat band populated from the mock builds response.
+    // Defaults to the live What's running tab (operator decision 2026-07-24) — switch to Pipeline
+    // to exercise its stat band populated from the mock builds response.
+    await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("artifact-pipe-view")).toBeVisible();
     await expect(page.getByTestId("pipe-stat-total")).toContainText("8");
     await expect(page.getByTestId("pipe-stat-failed")).toContainText("1");
@@ -35,8 +37,16 @@ test.describe("Artifact Pipeline page", () => {
     expect(await page.getByTestId("pipe-row").count()).toBe(allRows);
   });
 
+  test("defaults to the live What's running tab", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await expect(page.getByTestId("artifact-run-view")).toBeVisible();
+    await expect(page.getByTestId("run-row").first()).toBeVisible();
+    await expect(page.getByTestId("artifact-pipe-view")).toHaveCount(0);
+  });
+
   test("expands a failed build's drawer and switches to another live tab and back", async ({ page }) => {
     await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
     await page.getByTestId("pipe-filter-fail").click();
     await page.getByTestId("pipe-row").first().click();
     // The drawer's failure detail is unique copy (the heading collides with the filter-bar hint).
@@ -79,6 +89,7 @@ test.describe("Artifact Pipeline page", () => {
 
   test("the date-range picker drives a refetch and deselects the window presets", async ({ page }) => {
     await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
 
     await page.getByTestId("artifact-range-start").fill("2026-07-01");
@@ -92,6 +103,7 @@ test.describe("Artifact Pipeline page", () => {
 
   test("the help dialog explains the page controls and all five live tabs' columns", async ({ page }) => {
     await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
 
     await expect(page.getByText("Artifact Pipeline — quick guide")).toHaveCount(0);
@@ -116,6 +128,7 @@ test.describe("Artifact Pipeline page", () => {
     page,
   }) => {
     await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
     const allRows = await page.getByTestId("pipe-row").count();
 

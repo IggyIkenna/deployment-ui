@@ -2746,7 +2746,7 @@ function ArtifactHelpDialog({ open, onClose }: { open: boolean; onClose: () => v
 
 // ── page ──────────────────────────────────────────────────────────────────────────────────────────
 export function ArtifactPipeline() {
-  const [tab, setTab] = useState<TabId>("pipe");
+  const [tab, setTab] = useState<TabId>("run");
   const [days, setDays] = useState(7); // operator ask 2026-07-23: default to a 7-day window
   const [range, setRange] = useState<ArtifactDateRange | null>(null); // an explicit range overrides `days`
   const [pipeFilter, setPipeFilter] = useState<PipeFilter>("all");
