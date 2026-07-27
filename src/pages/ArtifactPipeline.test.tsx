@@ -354,6 +354,49 @@ describe("ArtifactPipeline", () => {
     expect(screen.getAllByTestId("pipe-row")).toHaveLength(4);
   });
 
+  it("the Tarball lane filter narrows to real tarball BuildFact rows (Phase 3d)", async () => {
+    const withTarball: api.BuildsResponse = {
+      ...builds,
+      rows: [
+        ...builds.rows,
+        {
+          repo: "alerting-service",
+          lane: "tarball",
+          cloud: "gcp",
+          status: "SUCCESS",
+          trigger: "code-tarball-refresh",
+          sha: "4b3aad7",
+          branch: "live-defi-rollout",
+          started_at: "2026-07-12T12:15:54Z",
+          duration: "",
+          produced: "gs://deployment-scripts-test-project/code/alerting-service-code@4b3aad7.tar.gz",
+          build_id: "alerting-service-code@4b3aad7",
+          failure: "",
+          failure_type: "",
+          failure_detail: "",
+          log_url: "",
+          dup: false,
+          cross_lane: false,
+          steps: [],
+        },
+      ],
+      stats: { ...builds.stats, total: builds.stats.total + 1 },
+    };
+    vi.mocked(api.getArtifactBuilds).mockResolvedValue(withTarball);
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(5));
+
+    fireEvent.click(screen.getByTestId("pipe-filter-tarball"));
+    const rows = screen.getAllByTestId("pipe-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("alerting-service");
+
+    fireEvent.click(screen.getByTestId("pipe-filter-image"));
+    expect(screen.getAllByTestId("pipe-row")).toHaveLength(4); // the 4 original image-lane rows
+  });
+
   it("expands a failed build to show its step timeline and failure detail", async () => {
     renderPage();
     fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
@@ -503,6 +546,42 @@ describe("ArtifactPipeline", () => {
     const rows = screen.getAllByTestId("art-row");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveTextContent("retired-legacy-service");
+  });
+
+  it("the Artifacts tab renders tarball-lane rows and the Registry funnel isolates them (Phase 3d)", async () => {
+    const withTarball: api.ImagesResponse = {
+      ...images,
+      rows: [
+        ...images.rows,
+        {
+          repo: "alerting-service",
+          cloud: "gcp",
+          registry: "gcs-tarball-bucket",
+          image_count: 2,
+          tags: ["4b3aad7"],
+          last_pushed: "2026-07-12T12:15:54Z",
+          running_on: "",
+          state: "active",
+          size_bytes: 900_000,
+          is_aggregate: false,
+          note: "",
+        },
+      ],
+      stats: { ...images.stats, total_repos: images.stats.total_repos + 1 },
+    };
+    vi.mocked(api.getArtifactImages).mockResolvedValue(withTarball);
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-art"));
+    await waitFor(() => expect(screen.getAllByTestId("art-row")).toHaveLength(4));
+
+    fireEvent.click(screen.getByTestId("art-filter-registry-col-toggle"));
+    const menu = screen.getByTestId("art-filter-registry-col-menu");
+    fireEvent.click(within(menu).getByTestId("art-filter-registry-col-opt-gcs-tarball-bucket").querySelector("input")!);
+    const rows = screen.getAllByTestId("art-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("alerting-service");
+    expect(rows[0]).toHaveTextContent("gcs-tarball-bucket");
   });
 
   it("the What's running tab renders the runtime-join stat band, expands a row's why, and multi-selects a service", async () => {

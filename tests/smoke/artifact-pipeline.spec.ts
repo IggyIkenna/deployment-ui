@@ -147,6 +147,23 @@ test.describe("Artifact Pipeline page", () => {
     await expect(page.getByTestId("pipe-row")).toHaveCount(allRows);
   });
 
+  test("Pipeline: the Tarball lane filter narrows to real tarball BuildFact rows (Phase 3d)", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
+    await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
+    const allRows = await page.getByTestId("pipe-row").count();
+
+    await page.getByTestId("pipe-filter-tarball").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(1);
+    await expect(page.getByTestId("pipe-row").first()).toContainText("features");
+
+    await page.getByTestId("pipe-filter-image").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(allRows - 1); // every row except the one tarball build
+
+    await page.getByTestId("pipe-filter-all").click();
+    await expect(page.getByTestId("pipe-row")).toHaveCount(allRows);
+  });
+
   test("Deploy timeline: the Workload funnel multi-selects a workload, and sort orders by When", async ({ page }) => {
     await page.goto("/ops/artifacts");
     await page.getByTestId("artifact-tab-deploy").click();
@@ -189,6 +206,20 @@ test.describe("Artifact Pipeline page", () => {
 
     await page.getByTestId("art-colfilters-clear").click();
     await expect(page.getByTestId("art-row")).toHaveCount(allRows);
+  });
+
+  test("Artifacts: tarball-lane rows render and the Registry funnel isolates them (Phase 3d)", async ({ page }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-art").click();
+    await expect(page.getByTestId("art-row").first()).toBeVisible();
+
+    await page.getByTestId("art-filter-registry-col-toggle").click();
+    const menu = page.getByTestId("art-filter-registry-col-menu");
+    await menu.getByTestId("art-filter-registry-col-opt-gcs-tarball-bucket").locator("input").click();
+    await expect(page.getByTestId("art-row")).toHaveCount(1);
+    await expect(page.getByTestId("art-row").first()).toContainText("gcs-tarball-bucket");
+
+    await page.getByTestId("art-colfilters-clear").click();
   });
 
   test("Artifacts: the repo cell's console link opens the right Artifact Registry URL (Phase 3b cross-link)", async ({
