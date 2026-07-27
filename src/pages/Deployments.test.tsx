@@ -64,6 +64,7 @@ const LIVE_ITEMS = [
     heartbeat_age_seconds: 42,
     captured_progress: null,
     run_log_uri: "gs://b/vm-logs/defi-live-capture-1/run.log",
+    git_commit: "a557471",
   },
   {
     name: "cefi-live-trading-1",
@@ -269,6 +270,18 @@ describe("Deployments page (unified all-modes table)", () => {
     await waitFor(() => expect(screen.getByTestId("deployment-row-sports-backfill-20260621")).toBeInTheDocument());
     expect(screen.queryByTestId("deployment-row-manifest-consolidator")).not.toBeInTheDocument();
     expect(mockGetInventory).toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+  });
+
+  it("the git_commit URL param (Phase 3b artifact-pipeline deep-link) pre-filters to hosts on that commit", async () => {
+    renderAt("/deployments?git_commit=a557471");
+    await waitFor(() => expect(screen.getByTestId("deployment-row-defi-live-capture-1")).toBeInTheDocument());
+    // The other running row (cefi-live-trading-1) carries no git_commit → excluded.
+    expect(screen.queryByTestId("deployment-row-cefi-live-trading-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("deployments-git-commit-filter")).toHaveTextContent("a557471");
+
+    fireEvent.click(screen.getByTestId("deployments-git-commit-filter-clear"));
+    await waitFor(() => expect(screen.getByTestId("deployment-row-cefi-live-trading-1")).toBeInTheDocument());
+    expect(screen.queryByTestId("deployments-git-commit-filter")).not.toBeInTheDocument();
   });
 
   it("selecting a mode in the filter refetches scoped to that umbrella", async () => {

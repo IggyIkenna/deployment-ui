@@ -1320,6 +1320,11 @@ interface MockDeploymentItem {
   package_type?: string | null;
   revision?: string | null;
   region?: string | null;
+  // Artifact-pipeline cross-link (Phase 3b) — the image/tarball this VM booted, straight off its
+  // registry entry. Undefined/"" on every mock row except the one seeded for the git_commit
+  // deep-link regression test below.
+  image_digest?: string | null;
+  git_commit?: string | null;
   // --- Mock-only fields (NOT on the real contract; kept so the /detail popover mock has
   //     data to show; the UI list no longer reads these). ---
   net_recv_mbps?: number | null;
@@ -1348,6 +1353,7 @@ const MOCK_DEPLOYMENT_INVENTORY: MockDeploymentItem[] = [
     heartbeat_age_seconds: 42,
     captured_progress: 18234,
     run_log_uri: "gs://deployment-scripts-prd/vm-logs/defi-live-capture-1/run.log",
+    git_commit: "a557471",
     machine_type: "n2-highmem-16",
     zone: "asia-northeast1-c",
     cost_actual_usd: 38.4,

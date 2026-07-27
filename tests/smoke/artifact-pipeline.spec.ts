@@ -191,6 +191,37 @@ test.describe("Artifact Pipeline page", () => {
     await expect(page.getByTestId("art-row")).toHaveCount(allRows);
   });
 
+  test("Artifacts: the repo cell's console link opens the right Artifact Registry URL (Phase 3b cross-link)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-art").click();
+    await expect(page.getByTestId("art-row").first()).toBeVisible();
+
+    const deploymentApiRow = page.getByTestId("art-row").filter({ hasText: "deployment-api" });
+    const link = deploymentApiRow.getByTestId("art-console-link");
+    await expect(link).toHaveAttribute(
+      "href",
+      /console\.cloud\.google\.com\/artifacts\/docker\/central-element-323112\/asia-northeast1\/unified-trading-system\/deployment-api/,
+    );
+  });
+
+  test("What's running: an expanded row cross-links to the registry console and the Deployments view (Phase 3b)", async ({
+    page,
+  }) => {
+    await page.goto("/ops/artifacts");
+    await page.getByTestId("artifact-tab-run").click();
+    await expect(page.getByTestId("run-row").first()).toBeVisible();
+
+    const pinnedRow = page.getByTestId("run-row").filter({ hasText: "uts-shared-deployment-api" });
+    await pinnedRow.click();
+    await expect(page.getByTestId("run-console-link")).toHaveAttribute(
+      "href",
+      /console\.cloud\.google\.com\/artifacts\/docker\/central-element-323112\/asia-northeast1\/unified-trading-system\/deployment-api/,
+    );
+    await expect(page.getByTestId("run-deployments-link")).toHaveAttribute("href", "/deployments?git_commit=a557471");
+  });
+
   test("What's running: the drift stat band renders, Floating filters, a row expands, and Service multi-selects", async ({
     page,
   }) => {

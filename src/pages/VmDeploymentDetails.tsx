@@ -18,6 +18,8 @@ import {
   FIELD_DEPLOYMENT_ID,
   FIELD_EVENTS_EMITTED,
   FIELD_EXIT_CODE,
+  FIELD_GIT_COMMIT,
+  FIELD_IMAGE_DIGEST,
   FIELD_LAST_HEARTBEAT,
   FIELD_LOG_URI,
   FIELD_MODE,
@@ -115,6 +117,10 @@ export function VmDeploymentDetails() {
     [FIELD_ROWS_ERROR, entry.rows_error],
     [FIELD_EVENTS_EMITTED, entry.events_emitted],
     [FIELD_LOG_URI, entry.log_uri],
+    // BoM fields (Phase 3b) — "" until the Phase 3c stamp lands or on a pre-BoM row; formatValue's
+    // "" → "—" fallback below already handles that honestly, same as every other optional field here.
+    [FIELD_IMAGE_DIGEST, entry.image_digest ?? null],
+    [FIELD_GIT_COMMIT, entry.git_commit ?? null],
   ];
 
   return (

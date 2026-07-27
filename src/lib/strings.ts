@@ -71,3 +71,5 @@ export const FIELD_ROWS_OUT = "Rows out";
 export const FIELD_ROWS_ERROR = "Rows error";
 export const FIELD_EVENTS_EMITTED = "Events emitted";
 export const FIELD_LOG_URI = "Log URI";
+export const FIELD_IMAGE_DIGEST = "Image digest";
+export const FIELD_GIT_COMMIT = "Git commit";

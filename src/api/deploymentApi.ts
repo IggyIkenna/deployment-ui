@@ -82,6 +82,11 @@ export interface VmDeploymentEntry {
   zone?: string | null;
   uptime_hours?: number | null;
   health_status?: string | null;
+  // BoM fields (already sent by VmDeploymentEntryModel) — "" until the Phase 3c stamp lands, or on
+  // a pre-BoM row (honest absence, not surfaced as a fabricated value).
+  image_digest?: string;
+  git_commit?: string;
+  dep_versions?: Record<string, string>;
 }
 
 export interface VmDeploymentsListResponse {
@@ -1116,6 +1121,12 @@ export interface DeploymentItem {
   grace_hours?: number | null; // the stopped-age threshold (hours) the verdict was computed against
   stopped_age_hours?: number | null; // hours since last_stop_timestamp (falls back to creation)
   monthly_disk_usd?: number | null; // ESTIMATE — same list-rate model as /api/fleet/orphans
+  // Artifact-pipeline cross-link (Phase 3b) — the image/tarball this VM booted, straight off its
+  // registry entry. null = honest absence (no registry entry, or a pre-BoM/pre-stamp row), never a
+  // fabricated "". Lets /ops/artifacts' "What's running" deep-link a version into this page via
+  // ?git_commit=<sha>.
+  image_digest?: string | null;
+  git_commit?: string | null;
 }
 
 // GET /api/deployments/{name}/detail → deployment-api `DeploymentDetailResponse`
