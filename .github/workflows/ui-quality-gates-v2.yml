@@ -29,13 +29,18 @@ on:
 
 jobs:
   quality-gates-v2:
-    runs-on: [self-hosted, glue]
-    # 25min (was 10, GitHub-hosted default): measured 2026-07-28 on this shared box under real I/O
-    # contention — actions/setup-node's npm-cache-save step alone took ~4m40s on a cold cache
-    # (near-instant on ubuntu-latest's fast ephemeral disk), git clone of unified-trading-pm ~1m15s,
-    # npm ci did not finish within the remaining budget. Revisit down once the shared box's I/O
-    # contention is addressed (see plans/active/github_actions_operator_gated_followups_2026_07_17.md).
-    timeout-minutes: 25
+    # TEMPORARILY REVERTED to ubuntu-latest 2026-07-28 (~19:46 UTC): the shared orchestrator VM
+    # (i-0c9b283b31d6b5ca7) is in an active, worsening capacity incident — load average hit 151.26,
+    # swap essentially exhausted (272KB free of 15GB) — the SAME signature multiple other repos hit
+    # this same day (strategy-service, execution-service, ibkr-gateway-infra — see
+    # plans/active/issues/fleet_wide_qg_self_hosted_runner_capacity_crisis_2026_07_27.md), all fixed
+    # with this exact precedented revert. Two self-hosted attempts here already failed on this same
+    # contention (a 10min then a 25min job timeout, then a 300s internal typecheck-step timeout —
+    # none were a config problem, the host genuinely could not complete the work in time). Re-attempt
+    # self-hosted once that doc confirms the capacity incident has actually cleared, not on a fixed
+    # schedule — this revert unblocks PR #440 now rather than waiting indefinitely on a worsening host.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CLOUD_MOCK_MODE: "true"
       CLOUD_PROVIDER: "local"
