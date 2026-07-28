@@ -30,7 +30,12 @@ on:
 jobs:
   quality-gates-v2:
     runs-on: [self-hosted, glue]
-    timeout-minutes: 10
+    # 25min (was 10, GitHub-hosted default): measured 2026-07-28 on this shared box under real I/O
+    # contention — actions/setup-node's npm-cache-save step alone took ~4m40s on a cold cache
+    # (near-instant on ubuntu-latest's fast ephemeral disk), git clone of unified-trading-pm ~1m15s,
+    # npm ci did not finish within the remaining budget. Revisit down once the shared box's I/O
+    # contention is addressed (see plans/active/github_actions_operator_gated_followups_2026_07_17.md).
+    timeout-minutes: 25
     env:
       CLOUD_MOCK_MODE: "true"
       CLOUD_PROVIDER: "local"
