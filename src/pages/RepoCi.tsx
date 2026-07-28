@@ -59,6 +59,8 @@ import {
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { GhRateBudget } from "../components/GhRateBudget";
+import { ChangeFreezeBanner } from "../components/ChangeFreezeBanner";
+import { VersionCoherencePanel } from "../components/VersionCoherencePanel";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
@@ -1879,6 +1881,10 @@ export function RepoCiContent() {
           {error}
         </div>
       )}
+      {/* G5 — standing change-freeze banner. Independent of `overview`'s own load state (a separate
+          Firestore verdict-store read) so it renders even if the repo-CI GitHub aggregation is slow
+          or errored; self-hides when both check_types read CLEAR. */}
+      <ChangeFreezeBanner />
       {overview && (
         <>
           {/* Promotion-stalled banner — the one-glance "here's WHY the fleet isn't reaching main":
@@ -1934,6 +1940,7 @@ export function RepoCiContent() {
             />
             <PromotionHeldPanel held={overview.promotion_held} />
             <SemverHealthPanel health={overview.semver_health} />
+            <VersionCoherencePanel />
           </div>
           {selectedRepo ? (
             <Card>

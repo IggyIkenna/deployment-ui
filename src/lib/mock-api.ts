@@ -2433,6 +2433,53 @@ function mockEscalations() {
   };
 }
 
+// Version-coherence panel (mirrors deployment-api routes/version_coherence.py's own mock fixture —
+// one repo per verdict class so every chip tone is exercised, pinned by the playwright regression
+// spec tests/smoke/verdict-store-panels.spec.ts).
+function mockVersionCoherenceOverview() {
+  return {
+    generated_at: "2026-07-27T12:00:00+00:00",
+    source: "mock",
+    repos: {
+      "unified-trading-library": { verdict: "OK", reasons: [], checked_at: "2026-07-27T11:30:00Z" },
+      "instruments-service": {
+        verdict: "VERSION_SPLIT",
+        reasons: ["instruments-service: version split (source pyproject.version != manifest SSOT)"],
+        checked_at: "2026-07-27T11:30:00Z",
+      },
+      "deployment-api": {
+        verdict: "VESTIGIAL_SCALAR_DRIFT",
+        reasons: ["deployment-api: repositories{}.version=0.42.0 != versions{}=0.57.0"],
+        checked_at: "2026-07-27T11:30:00Z",
+      },
+      "strategy-service": {
+        verdict: "DEP_FLOOR_UNSATISFIABLE",
+        reasons: [
+          "strategy-service -> unified-trading-library: versions{}=0.48.0 does not satisfy declared range '>=0.60.0,<1.0.0'",
+        ],
+        checked_at: "2026-07-27T11:30:00Z",
+      },
+    },
+  };
+}
+
+// Change-freeze panel (mirrors deployment-api routes/change_freeze.py's own mock fixture — one
+// BLOCKED + one CLEAR check_type so the banner's both states are exercised).
+function mockChangeFreezeStatus() {
+  return {
+    generated_at: "2026-07-27T12:00:00+00:00",
+    source: "mock",
+    checks: {
+      PROD_DEPLOY: {
+        verdict: "BLOCKED",
+        reason: "US market open volatility window (freeze-us-open): 13:25 to 13:55 UTC",
+        checked_at: "2026-07-27T13:30:00Z",
+      },
+      AUTONOMOUS: { verdict: "CLEAR", reason: null, checked_at: "2026-07-27T13:30:00Z" },
+    },
+  };
+}
+
 function mockRepoCiDetail(repo: string) {
   const overview = mockRepoCiOverview();
   const row = overview.repos.find((r) => r.repo === repo) ?? overview.repos[0];
@@ -3519,6 +3566,14 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   if (path === "/api/repo-ci/escalations") {
     return json(mockEscalations());
+  }
+  // Firestore verdict-store panels (monitoring_control_plane_master_2026_06_10.md) — read-only
+  // proxies of unified-trading-pm's version-coherence-check.yml / change-freeze-check.yml verdicts.
+  if (path === "/api/version-coherence/overview") {
+    return json(mockVersionCoherenceOverview());
+  }
+  if (path === "/api/change-freeze/status") {
+    return json(mockChangeFreezeStatus());
   }
   // GitHub rate-budget tracker — the whole fleet shares ONE PAT (5000/hr REST).
   // Mock seeds a healthy REST pool + a low GraphQL pool so the tracker's
