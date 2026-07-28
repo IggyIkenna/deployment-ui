@@ -43,7 +43,11 @@ test.describe("VM resource rolling-window views", () => {
   test("cross-VM comparison page filters by service name", async ({ page }) => {
     await page.goto("/ops/vm-resources");
     await expect(page.getByTestId("vm-resource-comparison-table")).toBeVisible();
-    const totalRows = await page.getByTestId("vm-resource-comparison-row").count();
+    // The table itself renders during the loading state (before rows.length > 0), so wait
+    // for a row rather than racing .count() against the still-in-flight fetch.
+    const rowsLocator = page.getByTestId("vm-resource-comparison-row");
+    await expect(rowsLocator.first()).toBeVisible();
+    const totalRows = await rowsLocator.count();
     expect(totalRows).toBeGreaterThan(0);
 
     await page.getByTestId("vm-resource-comparison-service-filter").fill("market-tick-data-service");
