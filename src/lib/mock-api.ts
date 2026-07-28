@@ -4390,17 +4390,39 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const reqUrl = new URL(url, "http://x");
     const window = (reqUrl.searchParams.get("window") ?? "1h") as "1h" | "4h" | "24h" | "1wk";
     const vmName = reqUrl.searchParams.get("vm_name") ?? "";
+    // All 5 real categories (categorize() in process_category_sampler.py) -- a live pull
+    // against i-0c9b283b31d6b5ca7 confirmed the shape: mostly "other" (every non-agent host
+    // process), a handful of "ci" (Runner.Listener), a few "worker_agent"/"ao_plan_work"
+    // (interactive vs tmux_spawn-dispatched claude sessions), and exactly one "orchestrator".
     return json({
       vm_name: vmName,
       window,
       rows: [
+        {
+          category: "other",
+          avg_cpu_pct: 2,
+          max_cpu_pct: 15,
+          avg_mem_pct: 1,
+          max_mem_pct: 4,
+          distinct_pids: 452,
+          sample_count: 60,
+        },
         {
           category: "worker_agent",
           avg_cpu_pct: 45,
           max_cpu_pct: 88,
           avg_mem_pct: 30,
           max_mem_pct: 55,
-          distinct_pids: 12,
+          distinct_pids: 5,
+          sample_count: 60,
+        },
+        {
+          category: "ao_plan_work",
+          avg_cpu_pct: 38,
+          max_cpu_pct: 82,
+          avg_mem_pct: 26,
+          max_mem_pct: 48,
+          distinct_pids: 10,
           sample_count: 60,
         },
         {
@@ -4409,7 +4431,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           max_cpu_pct: 25,
           avg_mem_pct: 5,
           max_mem_pct: 12,
-          distinct_pids: 3,
+          distinct_pids: 39,
           sample_count: 60,
         },
         {

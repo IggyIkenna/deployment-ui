@@ -9,17 +9,43 @@
  * Route: /ops/vm-resources.
  */
 
-import { useEffect, useState } from "react";
-import { Activity, RefreshCw } from "lucide-react";
-import { getResourceRollingWindow, type ResourceRollingWindowRow, type ResourceWindow } from "../api/deploymentApi";
+import { Fragment, useEffect, useState } from "react";
+import { Activity, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  getProcessCategoryBreakdown,
+  getResourceRollingWindow,
+  type ProcessCategoryRow,
+  type ResourceRollingWindowRow,
+  type ResourceWindow,
+} from "../api/deploymentApi";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 const RESOURCE_WINDOWS: ResourceWindow[] = ["1h", "4h", "24h", "1wk"];
 
 type SortKey = "vm_name" | "avg_cpu_pct" | "avg_mem_pct" | "avg_disk_pct";
 
+// process_category_sampler.py's categorize() -- keep in sync with that SSOT.
+const CATEGORY_COLORS: Record<string, string> = {
+  worker_agent: "var(--color-accent-cyan)",
+  ao_plan_work: "var(--color-accent-purple)",
+  ci: "var(--color-accent-amber)",
+  orchestrator: "var(--color-accent-green)",
+  other: "var(--color-text-muted)",
+};
+
 function fmtPct(v: number | null): string {
   return v == null ? "—" : `${Math.round(v)}%`;
+}
+
+/** ProcessCategoryRow[] -> one recharts datum per category, stacked-bar shaped (mirrors
+ * DeploymentFrequencyChart's stackId="a" pattern) so a single bar shows the CPU-share split. */
+function toChartDatum(rows: ProcessCategoryRow[]): Record<string, string | number> {
+  const datum: Record<string, string | number> = { window: "avg CPU %" };
+  for (const row of rows) {
+    datum[row.category] = row.avg_cpu_pct ?? 0;
+  }
+  return datum;
 }
 
 export function VmResourceComparison() {
@@ -29,6 +55,10 @@ export function VmResourceComparison() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("avg_cpu_pct");
+  const [expandedVm, setExpandedVm] = useState<string | null>(null);
+  const [categoryRows, setCategoryRows] = useState<Record<string, ProcessCategoryRow[]>>({});
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -42,6 +72,24 @@ export function VmResourceComparison() {
       active = false;
     };
   }, [windowSel]);
+
+  useEffect(() => {
+    if (!expandedVm) return;
+    let active = true;
+    setCategoryLoading(true);
+    setCategoryError(null);
+    getProcessCategoryBreakdown(expandedVm, windowSel)
+      .then((r) => active && setCategoryRows((prev) => ({ ...prev, [expandedVm]: r.rows })))
+      .catch(() => active && setCategoryError("Failed to load process-category breakdown"))
+      .finally(() => active && setCategoryLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [expandedVm, windowSel]);
+
+  function toggleExpanded(vmName: string) {
+    setExpandedVm((prev) => (prev === vmName ? null : vmName));
+  }
 
   const filtered = rows
     .filter((r) => !serviceFilter || r.service.toLowerCase().includes(serviceFilter.toLowerCase()))
@@ -131,26 +179,124 @@ export function VmResourceComparison() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((r) => (
-                    <tr
-                      key={`${r.vm_name}:${r.service}`}
-                      className="border-b border-[var(--color-border)]/50"
-                      data-testid="vm-resource-comparison-row"
-                    >
-                      <td className="py-1 pr-3 font-mono">{r.vm_name}</td>
-                      <td className="py-1 pr-3">{r.service}</td>
-                      <td className="py-1 pr-3">
-                        {fmtPct(r.avg_cpu_pct)} / {fmtPct(r.p95_cpu_pct)}
-                      </td>
-                      <td className="py-1 pr-3">
-                        {fmtPct(r.avg_mem_pct)} / {fmtPct(r.p95_mem_pct)}
-                      </td>
-                      <td className="py-1 pr-3">
-                        {fmtPct(r.avg_disk_pct)} / {fmtPct(r.p95_disk_pct)}
-                      </td>
-                      <td className="py-1 pr-3">{r.sample_count}</td>
-                    </tr>
-                  ))}
+                  {filtered.map((r) => {
+                    const isExpanded = expandedVm === r.vm_name;
+                    const breakdown = categoryRows[r.vm_name];
+                    return (
+                      <Fragment key={`${r.vm_name}:${r.service}`}>
+                        <tr
+                          className="border-b border-[var(--color-border)]/50 cursor-pointer hover:bg-[var(--color-accent-dim)]"
+                          data-testid="vm-resource-comparison-row"
+                          onClick={() => toggleExpanded(r.vm_name)}
+                        >
+                          <td className="py-1 pr-3 font-mono flex items-center gap-1">
+                            {isExpanded ? (
+                              <ChevronDown className="h-3 w-3 shrink-0" data-testid="process-breakdown-chevron-open" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 shrink-0" />
+                            )}
+                            {r.vm_name}
+                          </td>
+                          <td className="py-1 pr-3">{r.service}</td>
+                          <td className="py-1 pr-3">
+                            {fmtPct(r.avg_cpu_pct)} / {fmtPct(r.p95_cpu_pct)}
+                          </td>
+                          <td className="py-1 pr-3">
+                            {fmtPct(r.avg_mem_pct)} / {fmtPct(r.p95_mem_pct)}
+                          </td>
+                          <td className="py-1 pr-3">
+                            {fmtPct(r.avg_disk_pct)} / {fmtPct(r.p95_disk_pct)}
+                          </td>
+                          <td className="py-1 pr-3">{r.sample_count}</td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${r.vm_name}:${r.service}:breakdown`}>
+                            <td colSpan={6} className="pb-3 pt-1 pl-6" data-testid="process-breakdown-panel">
+                              {categoryLoading && !breakdown ? (
+                                <p className="text-xs text-[var(--color-text-muted)]">Loading process breakdown…</p>
+                              ) : categoryError ? (
+                                <p className="text-xs text-red-400" data-testid="process-breakdown-error">
+                                  {categoryError}
+                                </p>
+                              ) : !breakdown || breakdown.length === 0 ? (
+                                <p
+                                  className="text-xs text-[var(--color-text-muted)]"
+                                  data-testid="process-breakdown-empty"
+                                >
+                                  No process_samples rows for this VM/window yet.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  <p className="text-xs text-[var(--color-text-muted)]">
+                                    Process-category breakdown — {r.vm_name}, last {windowSel}
+                                  </p>
+                                  <div data-testid="process-breakdown-chart" style={{ width: "100%", height: 80 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart
+                                        layout="vertical"
+                                        data={[toChartDatum(breakdown)]}
+                                        margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                        <XAxis
+                                          type="number"
+                                          unit="%"
+                                          tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+                                        />
+                                        <YAxis type="category" dataKey="window" hide />
+                                        <Tooltip
+                                          contentStyle={{
+                                            backgroundColor: "var(--color-surface)",
+                                            border: "1px solid var(--color-border)",
+                                            borderRadius: "6px",
+                                            fontSize: 12,
+                                          }}
+                                        />
+                                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                                        {breakdown.map((row) => (
+                                          <Bar
+                                            key={row.category}
+                                            dataKey={row.category}
+                                            name={row.category}
+                                            stackId="a"
+                                            fill={CATEGORY_COLORS[row.category] ?? "var(--color-text-muted)"}
+                                          />
+                                        ))}
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                  <table className="w-full text-xs" data-testid="process-breakdown-table">
+                                    <thead>
+                                      <tr className="text-left text-[var(--color-text-muted)]">
+                                        <th className="py-1 pr-3">Category</th>
+                                        <th className="py-1 pr-3">CPU (avg/max)</th>
+                                        <th className="py-1 pr-3">Mem (avg/max)</th>
+                                        <th className="py-1 pr-3">Distinct PIDs</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {breakdown.map((row) => (
+                                        <tr key={row.category} data-testid="process-breakdown-row">
+                                          <td className="py-1 pr-3">{row.category}</td>
+                                          <td className="py-1 pr-3">
+                                            {fmtPct(row.avg_cpu_pct)} / {fmtPct(row.max_cpu_pct)}
+                                          </td>
+                                          <td className="py-1 pr-3">
+                                            {fmtPct(row.avg_mem_pct)} / {fmtPct(row.max_mem_pct)}
+                                          </td>
+                                          <td className="py-1 pr-3">{row.distinct_pids}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

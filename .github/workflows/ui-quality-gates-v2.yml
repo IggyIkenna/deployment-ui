@@ -29,6 +29,16 @@ on:
 
 jobs:
   quality-gates-v2:
+    # TEMPORARILY REVERTED to ubuntu-latest 2026-07-28 (~19:46 UTC): the shared orchestrator VM
+    # (i-0c9b283b31d6b5ca7) is in an active, worsening capacity incident — load average hit 151.26,
+    # swap essentially exhausted (272KB free of 15GB) — the SAME signature multiple other repos hit
+    # this same day (strategy-service, execution-service, ibkr-gateway-infra — see
+    # plans/active/issues/fleet_wide_qg_self_hosted_runner_capacity_crisis_2026_07_27.md), all fixed
+    # with this exact precedented revert. Two self-hosted attempts here already failed on this same
+    # contention (a 10min then a 25min job timeout, then a 300s internal typecheck-step timeout —
+    # none were a config problem, the host genuinely could not complete the work in time). Re-attempt
+    # self-hosted once that doc confirms the capacity incident has actually cleared, not on a fixed
+    # schedule — this revert unblocks PR #440 now rather than waiting indefinitely on a worsening host.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -59,4 +59,31 @@ test.describe("VM resource rolling-window views", () => {
       await expect(filteredRows.nth(i)).toContainText("market-tick-data-service");
     }
   });
+
+  test("cross-VM comparison page expands a VM row to show its process-category breakdown", async ({ page }) => {
+    await page.goto("/ops/vm-resources");
+    const rows = page.getByTestId("vm-resource-comparison-row");
+    await expect(rows.first()).toBeVisible();
+
+    // Collapsed by default -- no breakdown panel rendered yet.
+    await expect(page.getByTestId("process-breakdown-panel")).not.toBeVisible();
+
+    await rows.first().click();
+    await expect(page.getByTestId("process-breakdown-chevron-open")).toBeVisible();
+    await expect(page.getByTestId("process-breakdown-panel")).toBeVisible();
+    await expect(page.getByTestId("process-breakdown-chart")).toBeVisible();
+
+    // Mock fixture returns all 5 process_category_sampler.py categories.
+    const table = page.getByTestId("process-breakdown-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("other");
+    await expect(table).toContainText("worker_agent");
+    await expect(table).toContainText("ao_plan_work");
+    await expect(table).toContainText("ci");
+    await expect(table).toContainText("orchestrator");
+
+    // Clicking the same row again collapses it.
+    await rows.first().click();
+    await expect(page.getByTestId("process-breakdown-panel")).not.toBeVisible();
+  });
 });
