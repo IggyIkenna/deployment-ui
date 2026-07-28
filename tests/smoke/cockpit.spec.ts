@@ -6,10 +6,12 @@
  * placeholder data first; this spec guards the navigation + structure so a later
  * data-wiring change can't silently drop a tab/tile. It asserts:
  *  - "/" redirects to /cockpit (cockpit is the default page)
- *  - all 7 tabs render (Health · Deploy · Live · Batch · Paper · Fleet · Consolidators)
+ *  - all tabs render (see TAB_IDS below — Fleet was removed entirely 2026-07-27, see
+ *    deployment_ui_fleet_tab_removal_2026_07_27.md; Live/Batch/Paper merged into Deployments
+ *    2026-07-08)
  *  - the Health landing tile grid (every monitoring domain present)
  *  - each tab switches and renders its pane (Deploy entry points, dynamics tables,
- *    Fleet reconciliation, Consolidators)
+ *    Consolidators)
  *  - the Header "Cockpit" nav link routes here from another page
  *
  * The page makes NO /api calls yet (placeholders) — only the app-shell mocks are needed.
@@ -38,7 +40,6 @@ const TAB_IDS = [
   "health",
   "deploy",
   "deployments",
-  "fleet",
   "consolidators",
   "ci",
   "alerts",
@@ -88,12 +89,11 @@ test.describe("Cockpit — scaffold IA", () => {
 
   test("each tab switches and renders its pane", async ({ page }) => {
     await mockBase(page);
-    await page.goto("/fleet");
+    // /fleet was removed entirely 2026-07-27 (deployment_ui_fleet_tab_removal_2026_07_27.md
+    // — fleet git-health consolidates onto agent-orchestrator's own dashboard instead); this
+    // test now starts from /cockpit and only exercises tabs that still exist.
+    await page.goto("/cockpit");
     await page.waitForLoadState("networkidle");
-    // VM-census embed + reconciliation cards + the FleetOrphans idle-spend embed all REMOVED
-    // 2026-07-21 (redundant with / merged into Deployments); Fleet is now git-health-only.
-    await expect(page.getByTestId("cockpit-fleet")).toBeVisible();
-    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
 
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();
@@ -417,25 +417,19 @@ test.describe("Cockpit — per-deployment manifest-derived freshness", () => {
 });
 
 /**
- * Regression: the cockpit folds the existing /ops/live-deployments + /fleet/git surfaces
- * IN-PLACE (reusing LiveDeploymentsContent / FleetGitContent — no nav-away, no new fetch
- * logic). Guards Phase 0.5 "Fold /ops/live-deployments + /fleet/git into Live/Fleet/Health".
- * The FleetInfra (orchestrator/infra tiles) fold was REMOVED 2026-07-21
- * (deployment_ui_fleet_tab_consolidation_2026_07_21.md — AO owns orchestrator health now).
+ * Regression: the cockpit folds the existing /ops/live-deployments surface IN-PLACE (reusing
+ * LiveDeploymentsContent — no nav-away, no new fetch logic). Guards Phase 0.5 "Fold
+ * /ops/live-deployments into Live/Health". The Fleet-git fold this describe block used to guard
+ * (`/fleet`, FleetGitContent) was REMOVED ENTIRELY 2026-07-27
+ * (deployment_ui_fleet_tab_removal_2026_07_27.md — fleet git-health consolidates onto
+ * agent-orchestrator's own dashboard instead, not folded into a deployment-ui tab anymore).
  */
-test.describe("Cockpit — Live-ops + Fleet-git folds", () => {
+test.describe("Cockpit — Live-ops fold", () => {
   test("Deployments tab folds the live-ops running-services + event/log surface", async ({ page }) => {
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-live-ops")).toBeVisible();
     await expect(page.getByTestId("live-deployments-content")).toBeVisible();
-  });
-
-  test("Fleet tab shows only the git-health surface (no infra/orchestrator section)", async ({ page }) => {
-    await page.goto("/fleet");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByTestId("cockpit-fleet-git")).toBeVisible();
-    await expect(page.getByTestId("cockpit-fleet-infra")).toHaveCount(0);
   });
 });
 
