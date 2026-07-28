@@ -4361,6 +4361,62 @@ export async function getEscalations(): Promise<EscalationsProxy> {
   return fetchJson<EscalationsProxy>("/repo-ci/escalations");
 }
 
+// --- Version-coherence panel — GET /api/version-coherence/overview --------------
+// Reads the Firestore verdict-store unified-trading-pm's version-coherence-check.yml (scheduled,
+// every 30 min) writes via assert_version_coherence.py --json + write_version_coherence_verdicts.py.
+// Read-only: this panel NEVER re-derives VERSION_SPLIT / VESTIGIAL_SCALAR_DRIFT /
+// DEP_FLOOR_UNSATISFIABLE itself — it renders the checker's stored VERDICT (the do-NOT-reimplement
+// trap: CLAUDE.md § "Manifest version-surface semantics"). Plan:
+// unified-trading-pm/plans/active/monitoring_control_plane_master_2026_06_10.md.
+
+export type VersionCoherenceVerdict =
+  "OK" | "VERSION_SPLIT" | "VESTIGIAL_SCALAR_DRIFT" | "DEP_FLOOR_UNSATISFIABLE" | "UNKNOWN";
+
+export interface VersionCoherenceRepoVerdict {
+  verdict: VersionCoherenceVerdict;
+  reasons: string[];
+  checked_at: string | null;
+}
+
+export interface VersionCoherenceOverview {
+  generated_at: string;
+  /** "firestore" (live, possibly empty pre-first-run) | "unavailable" (Firestore unreachable) | "mock". */
+  source: string;
+  repos: Record<string, VersionCoherenceRepoVerdict>;
+}
+
+export async function getVersionCoherenceOverview(): Promise<VersionCoherenceOverview> {
+  return fetchJson<VersionCoherenceOverview>("/version-coherence/overview");
+}
+
+// --- Change-freeze panel — GET /api/change-freeze/status ------------------------
+// Reads the Firestore verdict-store unified-trading-pm's change-freeze-check.yml (the inline bash
+// recurrence/DST evaluator, plans/ops/change-freeze-calendar.csv) writes on every invocation.
+// Read-only: this panel NEVER re-evaluates the recurrence/DST calendar logic itself — reimplementing
+// 6 recurrence types + DST notes in TypeScript would risk drifting from the real gate (the G5 trap
+// flagged when this panel was first scoped).
+
+export type ChangeFreezeVerdict = "CLEAR" | "BLOCKED" | "UNKNOWN";
+/** The two check_type keys change-freeze-check.yml writes. */
+export type ChangeFreezeCheckType = "PROD_DEPLOY" | "AUTONOMOUS";
+
+export interface ChangeFreezeCheckStatus {
+  verdict: ChangeFreezeVerdict;
+  /** The blocking window's description when verdict === "BLOCKED"; null otherwise. */
+  reason: string | null;
+  checked_at: string | null;
+}
+
+export interface ChangeFreezeStatus {
+  generated_at: string;
+  source: string; // "firestore" | "unavailable" | "mock"
+  checks: Record<string, ChangeFreezeCheckStatus>;
+}
+
+export async function getChangeFreezeStatus(): Promise<ChangeFreezeStatus> {
+  return fetchJson<ChangeFreezeStatus>("/change-freeze/status");
+}
+
 // VmLifecycleClass/VmRunStatus: OrphanEntry below still uses them (FleetInfra's VM-census UI + its dedicated
 // types/fetchers were removed 2026-07-21 — deployment_ui_fleet_tab_consolidation_2026_07_21.md — AO owns
 // orchestrator/VM-census health now; the deployment-api endpoints stay, just no longer UI-consumed).
