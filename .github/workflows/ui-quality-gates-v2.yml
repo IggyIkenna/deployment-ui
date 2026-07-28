@@ -29,7 +29,7 @@ on:
 
 jobs:
   quality-gates-v2:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, glue]
     timeout-minutes: 10
     env:
       CLOUD_MOCK_MODE: "true"
