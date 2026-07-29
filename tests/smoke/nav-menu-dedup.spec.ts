@@ -86,7 +86,7 @@ test("the legacy duplicate-route quarantine is gone — one plain route per scre
   }
 });
 
-test("the always-visible top bar carries the same 17 entries as the dropdown", async ({ page }) => {
+test("the always-visible top bar carries the same 16 entries as the dropdown", async ({ page }) => {
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
@@ -106,7 +106,7 @@ test("the always-visible top bar carries the same 17 entries as the dropdown", a
 test("the top bar stays visible OFF the cockpit — the point of lifting it out", async ({ page }) => {
   // Regression: as a cockpit TabsList, the bar vanished on exactly the 4 entries that
   // navigate away (Services / Epics / VMs / Costs), so it could never be the primary nav.
-  await page.goto("/ops/costs");
+  await page.goto("/costs");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(9);
 
@@ -120,7 +120,7 @@ test("the top bar stays visible OFF the cockpit — the point of lifting it out"
 test("a top-bar route link navigates to its own route", async ({ page }) => {
   await page.goto("/cockpit");
   await page.getByTestId("cockpit-navlink-costs").click();
-  await expect(page).toHaveURL(/\/ops\/costs/);
+  await expect(page).toHaveURL(/\/costs/);
 });
 
 test("Data Status is one click from the top bar and really selects the tab", async ({ page }) => {

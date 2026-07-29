@@ -63,10 +63,10 @@ describe("NAV_GROUPS canonical entries", () => {
 
   it("reach the screens that have NO cockpit-pane heritage", () => {
     const reached = new Set(canonicalItems.map((i) => i.to));
-    // /home = service picker, /epics = plans, /ops/costs = spend, and Data Status is a
+    // /home = service picker, /epics = plans, /costs = spend, and Data Status is a
     // per-service tab so it defaults to the canonical instruments-service. /vm-deployments
     // is fully retired (see "legacy quarantine" describe below), reachable nowhere in nav.
-    for (const to of ["/home", "/epics", "/ops/costs", "/service/instruments-service/data-status"]) {
+    for (const to of ["/home", "/epics", "/costs", "/service/instruments-service/data-status"]) {
       expect(reached).toContain(to);
     }
     expect(reached).not.toContain("/vm-deployments");

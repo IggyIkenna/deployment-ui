@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "generated_at": "2026-07-17T15:19:10.877Z",
-  "orphans": ["/infra", "/ops/vms/:vmName", "/repos"]
+  "generated_at": "2026-07-29T12:26:33.866Z",
+  "orphans": ["/ops/artifacts", "/ops/costs", "/ops/vm-resources", "/ops/vms/:vmName", "/repos", "/vms/:vmName"]
 }

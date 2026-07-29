@@ -2,7 +2,7 @@
  * Smoke tests — VmDetail page.
  * Item 12: VM detail error states. (The DailyCosts-page coverage this file used to carry was
  * superseded by the Cost Observability redesign — see cost-observability.spec.ts, which tests
- * the current /ops/costs page against its real fetchCostSummary/Breakdown/Timeseries contract.)
+ * the current /costs page against its real fetchCostSummary/Breakdown/Timeseries contract.)
  */
 
 import { expect, type Page, test } from "@playwright/test";
@@ -72,7 +72,7 @@ test.describe("VmDetail page", () => {
   test("renders vm name in title", async ({ page }) => {
     await mockBase(page);
     await mockVmEventsOk(page);
-    await page.goto("/ops/vms/cefi-backfill-20260515");
+    await page.goto("/vms/cefi-backfill-20260515");
     await page.waitForLoadState("networkidle");
 
     const title = page.locator('[data-testid="vm-detail-title"]');
@@ -83,7 +83,7 @@ test.describe("VmDetail page", () => {
   test("shows events timeline container", async ({ page }) => {
     await mockBase(page);
     await mockVmEventsOk(page);
-    await page.goto("/ops/vms/cefi-backfill-20260515");
+    await page.goto("/vms/cefi-backfill-20260515");
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator('[data-testid="vm-events-timeline"]')).toBeVisible();
@@ -92,7 +92,7 @@ test.describe("VmDetail page", () => {
   test("shows error alert in timeline when events API fails", async ({ page }) => {
     await mockBase(page);
     await mockVmEventsError(page);
-    await page.goto("/ops/vms/cefi-backfill-20260515");
+    await page.goto("/vms/cefi-backfill-20260515");
     await page.waitForLoadState("networkidle");
 
     const alert = page.locator('[data-testid="vm-events-timeline"] [role="alert"]');

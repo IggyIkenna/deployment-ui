@@ -158,7 +158,7 @@ const HEALTH_TILES: Tile[] = [
     icon: CircleDollarSign,
     status: "placeholder",
     metric: "tri-cloud spend · budget wall",
-    to: "/ops/costs",
+    to: "/costs",
   },
   { id: "alerts", label: "Alerts", icon: AlertTriangle, status: "placeholder", metric: "open by class", to: "/alerts" },
   {
@@ -167,7 +167,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Package,
     status: "placeholder",
     metric: "image builds · deployments · tarballs",
-    to: "/ops/artifacts",
+    to: "/artifacts",
   },
   {
     id: "vm-resources",
@@ -175,7 +175,7 @@ const HEALTH_TILES: Tile[] = [
     icon: Cpu,
     status: "placeholder",
     metric: "cross-VM CPU · memory · disk comparison",
-    to: "/ops/vm-resource-comparison",
+    to: "/vm-resources",
   },
 ];
 

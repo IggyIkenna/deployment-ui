@@ -184,10 +184,15 @@ function App() {
                       an archive/"all" status view). /vm-deployments/:deploymentId stays live —
                       DeploymentDetail's History card links to it directly for per-run drill-down. */}
                   <Route path="/vm-deployments/:deploymentId" element={<VmDeploymentDetails />} />
-                  <Route path="/ops/costs" element={<CostObservability />} />
-                  <Route path="/ops/vm-resources" element={<VmResourceComparison />} />
-                  <Route path="/ops/artifacts" element={<ArtifactPipeline />} />
-                  <Route path="/ops/vms/:vmName" element={<VmDetail />} />
+                  <Route path="/costs" element={<CostObservability />} />
+                  <Route path="/vm-resources" element={<VmResourceComparison />} />
+                  <Route path="/artifacts" element={<ArtifactPipeline />} />
+                  <Route path="/vms/:vmName" element={<VmDetail />} />
+                  {/* Compat redirects — /ops/* paths flattened to top-level 2026-07-29 */}
+                  <Route path="/ops/costs" element={<Navigate to="/costs" replace />} />
+                  <Route path="/ops/vm-resources" element={<Navigate to="/vm-resources" replace />} />
+                  <Route path="/ops/artifacts" element={<Navigate to="/artifacts" replace />} />
+                  <Route path="/ops/vms/:vmName" element={<Navigate to="/vms/:vmName" replace />} />
                   <Route path="/research/ml-experiments" element={<MlExperiments />} />
                   <Route path="/research/strategy-backtests" element={<StrategyBacktests />} />
                   <Route path="/research/execution-backtests" element={<ExecutionBacktests />} />

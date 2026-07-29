@@ -2159,7 +2159,7 @@ export function CostObservability() {
             <h1 className="text-xl font-semibold tracking-tight">Cost Observability</h1>
             <p className="flex items-center gap-1 text-xs text-[var(--color-text-tertiary)]">
               <span>
-                GCP · AWS · GitHub&nbsp;&nbsp;/&nbsp;&nbsp;<span className="font-mono">/ops/costs</span>
+                GCP · AWS · GitHub&nbsp;&nbsp;/&nbsp;&nbsp;<span className="font-mono">/costs</span>
               </span>
               <InfoTip
                 testId="cost-currency-tz-note"
