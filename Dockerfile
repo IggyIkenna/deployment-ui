@@ -17,12 +17,14 @@ WORKDIR /app
 COPY unified-admin-ui/packages/core /unified-admin-ui/packages/core
 
 # Install dependencies (layer caching: package files before source)
-COPY package*.json ./
-RUN npm ci
+# pnpm (not npm) as of 2026-07-29 — pnpm-lock.yaml is the lockfile of record.
+RUN npm install -g pnpm@10
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # ── Production: nginx serving static files ───────────────────────────────────
 FROM nginx:alpine AS prod
