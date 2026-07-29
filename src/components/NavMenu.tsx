@@ -41,7 +41,7 @@ type NavGroup = { heading: string; items: NavItem[]; legacy?: boolean };
  * some entries pointed at a cockpit tab, others at the standalone page holding the
  * SAME component — so which chrome you got depended on which item you clicked, and
  * the same content appeared under two labels. Every canonical entry below now points
- * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/ops/costs` are
+ * at the cockpit tab wherever a fold exists; `/home`, `/epics`, `/costs` are
  * canonical because they have no cockpit twin.
  *
  * `/vm-deployments` (the standalone list page) is fully RETIRED as of 2026-07-21 — its
@@ -154,7 +154,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: "costs",
-        to: "/ops/costs",
+        to: "/costs",
         label: "Costs",
         icon: CircleDollarSign,
         desc: "Tri-cloud spend breakdown",
@@ -162,7 +162,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "vm-resource-comparison",
-        to: "/ops/vm-resources",
+        to: "/vm-resources",
         label: "VM Resources",
         icon: Activity,
         desc: "Cross-VM CPU/mem/disk rolling-window comparison",
@@ -170,7 +170,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         id: "artifacts",
-        to: "/ops/artifacts",
+        to: "/artifacts",
         label: "Artifacts",
         icon: Package,
         desc: "Build → artifact → deploy pipeline",

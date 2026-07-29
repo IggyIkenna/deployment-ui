@@ -51,7 +51,7 @@ const PAGES: Array<{ name: string; path: string }> = [
   { name: "Strategy Backtests", path: "/research/strategy-backtests" },
   { name: "Execution Backtests", path: "/research/execution-backtests" },
   { name: "Deployments", path: "/deployments" },
-  { name: "Daily Costs", path: "/ops/costs" },
+  { name: "Daily Costs", path: "/costs" },
 ];
 
 // ── Per-page axe scans ────────────────────────────────────────────────────

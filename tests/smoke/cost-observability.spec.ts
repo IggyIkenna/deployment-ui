@@ -1,5 +1,5 @@
 /**
- * Smoke (pw:L2): Cost Observability page (/ops/costs) renders against the mock API and
+ * Smoke (pw:L2): Cost Observability page (/costs) renders against the mock API and
  * its filters/sort drive re-renders.
  * Plan: unified-trading-pm/plans/active/cost_observability_ui_2026_07_08.md Phase B/C.
  */
@@ -8,8 +8,8 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Cost Observability page", () => {
   test("renders the KPI band, charts, breakdown, and leaf tables", async ({ page }) => {
-    await page.goto("/ops/costs");
-    await expect(page).toHaveURL(/\/ops\/costs$/);
+    await page.goto("/costs");
+    await expect(page).toHaveURL(/\/costs$/);
     await expect(page.getByTestId("cost-observability-page")).toBeVisible();
 
     // KPI total is populated (non-zero) from the mock summary.
@@ -39,7 +39,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("USD⇄GBP toggle re-denominates GCP to £, leaves AWS in $ (GCP-invoice tally view)", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-cloud-total-gcp")).toContainText("$");
     await page.getByRole("button", { name: "GBP", exact: true }).click();
     // GCP (GBP-native) switches to its raw £; AWS has no GBP figure so stays $.
@@ -53,7 +53,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("dimension switch re-renders the breakdown (resource shows VM/bucket rows)", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await page.getByRole("button", { name: "By resource" }).click();
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
@@ -62,7 +62,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("Waste tab (after By label) shows only idle/orphaned resources, not the full resource set", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     // Positioned right after "By label" (Deployments cost-visibility follow-up, 2026-07-23).
     const dims = page.getByTestId("cost-observability-page").getByRole("button", { name: /^By |^Waste$/ });
     await expect(dims.nth(6)).toHaveText("By label");
@@ -89,7 +89,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("cloud filter narrows to a single cloud", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     // Scope to the page — "AWS" also matches the global app-header cloud toggle.
     const pageRoot = page.getByTestId("cost-observability-page");
     await pageRoot.getByRole("button", { name: "AWS", exact: true }).click();
@@ -97,7 +97,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("time-range presets change the window label", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await page.getByRole("button", { name: "7d" }).click();
     await expect(page.getByText("Total spend · last 7 days")).toBeVisible();
   });
@@ -105,7 +105,7 @@ test.describe("Cost Observability page", () => {
   test("By day at 90d lists every day in a bounded scroll region (regression: 15-row table cap removed)", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     // Widen to a 90-day window, then slice by day — the mock emits one row per day (~90).
     await pageRoot.getByRole("button", { name: "90d", exact: true }).click();
@@ -125,7 +125,7 @@ test.describe("Cost Observability page", () => {
   test("breakdown bars + table are merged into one table with an inline bar-in-cell (regression: separate bar chart removed)", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
 
@@ -151,7 +151,7 @@ test.describe("Cost Observability page", () => {
   test("breakdown table shows gross/credit columns only where a credit applies (mirrors the KPI band)", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
 
@@ -172,7 +172,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("By bucket shows storage/class-split/$-per-GB columns formatted in GB, not bytes", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
     const table = page.getByTestId("cost-breakdown-table");
@@ -204,7 +204,7 @@ test.describe("Cost Observability page", () => {
   test("By bucket splits cost into storage/operations/egress columns reflecting each bucket's real driver", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     await pageRoot.getByRole("button", { name: "By bucket", exact: true }).click();
     const table = page.getByTestId("cost-breakdown-table");
@@ -239,7 +239,7 @@ test.describe("Cost Observability page", () => {
   test("By resource shows machine specs + cost-waste badges (idle IP / orphaned disk) made visually obvious", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     await pageRoot.getByRole("button", { name: "By resource", exact: true }).click();
     const table = page.getByTestId("cost-breakdown-table");
@@ -278,7 +278,7 @@ test.describe("Cost Observability page", () => {
         resource: 400,
       };
     });
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
@@ -301,7 +301,7 @@ test.describe("Cost Observability page", () => {
         resource: 400,
       };
     });
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const pageRoot = page.getByTestId("cost-observability-page");
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
@@ -321,7 +321,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("headline shows net with the gross − credits derivation", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     // Total tile leads with net, then the derivation line (mock gives GCP ~20% promo credit).
     const bd = page.getByTestId("cost-total-breakdown");
     await expect(bd).toBeVisible();
@@ -335,7 +335,7 @@ test.describe("Cost Observability page", () => {
   test("leaf tables carry the same dimension-aware detail columns as the breakdown table (machine/waste, storage)", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
 
     // "Top compute instances" is pinned to vm rows — same Machine/Waste columns as the breakdown
     // table's "By resource" view, not a separate/lesser column set.
@@ -355,7 +355,7 @@ test.describe("Cost Observability page", () => {
 
   test("leaf table detail columns scroll horizontally instead of overflowing on narrow widths", async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 900 });
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     const scroller = page.getByTestId("leaf-vm-scroll");
     await expect(scroller).toBeVisible();
     const overflow = await scroller.evaluate((el) => el.scrollWidth - el.clientWidth);
@@ -365,7 +365,7 @@ test.describe("Cost Observability page", () => {
   test("By-label dimension: label-key selector + per-column filter + pagination + resizable container", async ({
     page,
   }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await page.getByRole("button", { name: "By label", exact: true }).click();
     const table = page.getByTestId("cost-breakdown-table");
     await expect(table).toBeVisible();
@@ -399,7 +399,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("help guide: opens from the top bar, carries the moved provisional note, closes on Escape", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-breakdown-table")).toBeVisible();
 
     await page.getByTestId("cost-help-button").click();
@@ -418,7 +418,7 @@ test.describe("Cost Observability page", () => {
   // unified-trading-pm/plans/active/cost_observability_ui_2026_07_08.md (date-range follow-up).
 
   test("shows the date range up front, populated from the window the API resolved", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-total")).toBeVisible();
 
     // No "Custom" mode to enter — the range is the window, always on screen.
@@ -434,7 +434,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("a preset repopulates the date range with its resolved window", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-total")).toBeVisible();
     const startBefore = await page.getByTestId("cost-range-start").inputValue();
 
@@ -448,7 +448,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("hand-picking a window refilters the page and deselects every preset", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-total")).toBeVisible();
     await expect(page.getByRole("button", { name: "30d" })).toHaveAttribute("aria-pressed", "true");
 
@@ -464,7 +464,7 @@ test.describe("Cost Observability page", () => {
   });
 
   test("bounds the date inputs so an inverted range is unreachable", async ({ page }) => {
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-total")).toBeVisible();
 
     // The API 400s an inverted range; the control cannot express one in the first place.
@@ -484,7 +484,7 @@ test.describe("Cost Observability page", () => {
         "2026-06-01:2026-06-10": 1500, // the 10-day window resolves LATE
       };
     });
-    await page.goto("/ops/costs");
+    await page.goto("/costs");
     await expect(page.getByTestId("cost-total")).toBeVisible();
 
     await page.getByTestId("cost-range-start").fill("2026-06-01");

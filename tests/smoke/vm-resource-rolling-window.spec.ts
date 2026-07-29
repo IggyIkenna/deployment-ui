@@ -3,7 +3,7 @@
  *
  * Regression guard for deployment_durable_operational_data_bigquery_2026_07_21.md:
  * the WorkHealthCard window selector (Live/1h/4h/24h/1wk) on the deployment detail page,
- * and the new cross-VM comparison page at /ops/vm-resources. Runs against the mock API
+ * and the new cross-VM comparison page at /vm-resources. Runs against the mock API
  * (VITE_MOCK_API); fixtures for /api/vm-resources/rolling + /process-category live in
  * src/lib/mock-api.ts.
  */
@@ -28,7 +28,7 @@ test.describe("VM resource rolling-window views", () => {
   });
 
   test("cross-VM comparison page lists VMs with rolling stats and supports a window switch", async ({ page }) => {
-    await page.goto("/ops/vm-resources");
+    await page.goto("/vm-resources");
     await expect(page.getByTestId("vm-resource-comparison-page")).toBeVisible();
     await expect(page.getByTestId("vm-resource-comparison-table")).toBeVisible();
     const rows = page.getByTestId("vm-resource-comparison-row");
@@ -41,7 +41,7 @@ test.describe("VM resource rolling-window views", () => {
   });
 
   test("cross-VM comparison page filters by service name", async ({ page }) => {
-    await page.goto("/ops/vm-resources");
+    await page.goto("/vm-resources");
     await expect(page.getByTestId("vm-resource-comparison-table")).toBeVisible();
     // The table itself renders during the loading state (before rows.length > 0), so wait
     // for a row rather than racing .count() against the still-in-flight fetch.
@@ -61,7 +61,7 @@ test.describe("VM resource rolling-window views", () => {
   });
 
   test("cross-VM comparison page expands a VM row to show its process-category breakdown", async ({ page }) => {
-    await page.goto("/ops/vm-resources");
+    await page.goto("/vm-resources");
     const rows = page.getByTestId("vm-resource-comparison-row");
     await expect(rows.first()).toBeVisible();
 

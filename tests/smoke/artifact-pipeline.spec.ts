@@ -1,5 +1,5 @@
 /**
- * Smoke (pw:L2): Artifact Pipeline page (/ops/artifacts) renders against the mock API — all five
+ * Smoke (pw:L2): Artifact Pipeline page (/artifacts) renders against the mock API — all five
  * live tabs' (Pipeline, Deploy timeline, Artifacts, What's running, Health) stat bands + tables +
  * filters, column sort/multi-select filters (Repo / Workload / Service / Area, operator ask
  * 2026-07-23), the date-range picker, and the help dialog.
@@ -10,8 +10,8 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Artifact Pipeline page", () => {
   test("renders the live Pipeline stat band, build rows, and filters", async ({ page }) => {
-    await page.goto("/ops/artifacts");
-    await expect(page).toHaveURL(/\/ops\/artifacts$/);
+    await page.goto("/artifacts");
+    await expect(page).toHaveURL(/\/artifacts$/);
     await expect(page.getByTestId("artifact-pipeline-page")).toBeVisible();
 
     // Defaults to the live What's running tab (operator decision 2026-07-24) — switch to Pipeline
@@ -38,14 +38,14 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("defaults to the live What's running tab", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await expect(page.getByTestId("artifact-run-view")).toBeVisible();
     await expect(page.getByTestId("run-row").first()).toBeVisible();
     await expect(page.getByTestId("artifact-pipe-view")).toHaveCount(0);
   });
 
   test("expands a failed build's drawer and switches to another live tab and back", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-pipe").click();
     await page.getByTestId("pipe-filter-fail").click();
     await page.getByTestId("pipe-row").first().click();
@@ -64,7 +64,7 @@ test.describe("Artifact Pipeline page", () => {
   test("defaults to a 7-day window; the Deploy timeline tab renders its live stat band and filters", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     // Operator ask 2026-07-23: the page opens on a 7-day window, not 14 — the active pill is
     // filled with the accent color, an inactive one is transparent (rgba(0, 0, 0, 0)).
     const sevenDayPreset = page.getByTestId("artifact-window-7");
@@ -88,7 +88,7 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("the date-range picker drives a refetch and deselects the window presets", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
 
@@ -102,7 +102,7 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("the help dialog explains the page controls and all five live tabs' columns", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
 
@@ -127,7 +127,7 @@ test.describe("Artifact Pipeline page", () => {
   test("Pipeline: clicking the Repo header sorts rows, and the Repo funnel multi-selects several repos", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
     const allRows = await page.getByTestId("pipe-row").count();
@@ -148,7 +148,7 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("Pipeline: the Tarball lane filter narrows to real tarball BuildFact rows (Phase 3d)", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-pipe").click();
     await expect(page.getByTestId("pipe-stat-total")).toBeVisible();
     const allRows = await page.getByTestId("pipe-row").count();
@@ -165,7 +165,7 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("Deploy timeline: the Workload funnel multi-selects a workload, and sort orders by When", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-deploy").click();
     await expect(page.getByTestId("deploy-row").first()).toBeVisible();
     const allRows = await page.getByTestId("deploy-row").count();
@@ -187,7 +187,7 @@ test.describe("Artifact Pipeline page", () => {
   test("Artifacts: the registry stat band renders, the Legacy pill filters, and the Repo funnel multi-selects", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-art").click();
     await expect(page.getByTestId("art-row").first()).toBeVisible();
     const allRows = await page.getByTestId("art-row").count();
@@ -209,7 +209,7 @@ test.describe("Artifact Pipeline page", () => {
   });
 
   test("Artifacts: tarball-lane rows render and the Registry funnel isolates them (Phase 3d)", async ({ page }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-art").click();
     await expect(page.getByTestId("art-row").first()).toBeVisible();
 
@@ -225,7 +225,7 @@ test.describe("Artifact Pipeline page", () => {
   test("Artifacts: the repo cell's console link opens the right Artifact Registry URL (Phase 3b cross-link)", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-art").click();
     await expect(page.getByTestId("art-row").first()).toBeVisible();
 
@@ -240,7 +240,7 @@ test.describe("Artifact Pipeline page", () => {
   test("What's running: an expanded row cross-links to the registry console and the Deployments view (Phase 3b)", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-run").click();
     await expect(page.getByTestId("run-row").first()).toBeVisible();
 
@@ -256,7 +256,7 @@ test.describe("Artifact Pipeline page", () => {
   test("What's running: the drift stat band renders, Floating filters, a row expands, and Service multi-selects", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-run").click();
     await expect(page.getByTestId("run-row").first()).toBeVisible();
     const allRows = await page.getByTestId("run-row").count();
@@ -278,7 +278,7 @@ test.describe("Artifact Pipeline page", () => {
   test("Health: the severity stat band renders, the High pill filters, and the Area funnel multi-selects", async ({
     page,
   }) => {
-    await page.goto("/ops/artifacts");
+    await page.goto("/artifacts");
     await page.getByTestId("artifact-tab-health").click();
     await expect(page.getByTestId("health-row").first()).toBeVisible();
     const allRows = await page.getByTestId("health-row").count();
