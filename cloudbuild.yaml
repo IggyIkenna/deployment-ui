@@ -37,7 +37,9 @@ steps:
       - "-c"
       - |
         set -e
-        npm ci --prefer-offline 2>/dev/null || npm ci
+        # pnpm (not npm) as of 2026-07-29 — pnpm-lock.yaml is the lockfile of record.
+        npm install -g pnpm@10
+        pnpm install --frozen-lockfile
         echo "--- Typecheck ---"
         npm run typecheck 2>/dev/null || npm run type-check
         echo "--- Lint ---"
