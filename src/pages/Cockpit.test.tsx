@@ -31,7 +31,16 @@ describe("Cockpit panes", () => {
   it("Health shows the full monitoring tile grid", () => {
     renderPane(<CockpitHealth />);
     expect(screen.getByTestId("cockpit-health")).toBeTruthy();
-    for (const id of ["deployments", "fleet", "consolidators", "coverage", "ci", "github", "billing", "alerts"]) {
+    for (const id of [
+      "deployments",
+      "consolidators",
+      "coverage",
+      "ci",
+      "billing",
+      "alerts",
+      "artifacts",
+      "vm-resources",
+    ]) {
       expect(screen.getByTestId(`cockpit-tile-${id}`)).toBeTruthy();
     }
   });

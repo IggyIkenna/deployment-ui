@@ -32,13 +32,13 @@ import {
   Boxes,
   CircleDollarSign,
   Clock,
+  Cpu,
   Database,
   GitBranch,
-  Github,
   HelpCircle,
   Layers,
+  Package,
   Radio,
-  Server,
   ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -125,18 +125,6 @@ const HEALTH_TILES: Tile[] = [
     to: "/deployments",
   },
   {
-    // /fleet itself was removed 2026-07-27 (deployment_ui_fleet_tab_removal_2026_07_27.md) —
-    // this tile's VM-census framing (running/zombie/OOM/unknown) already lived at /deployments
-    // since the 2026-07-21 consolidation folded that content there (Fleet had gone
-    // git-health-only); repointing here just matches where the described data actually is.
-    id: "fleet",
-    label: "Fleet VMs (GCP+AWS)",
-    icon: Server,
-    status: "placeholder",
-    metric: "running · zombie · OOM · unknown · incl. orchestrator",
-    to: "/deployments",
-  },
-  {
     id: "consolidators",
     label: "Manifest Consolidators",
     icon: Database,
@@ -165,14 +153,6 @@ const HEALTH_TILES: Tile[] = [
     to: "/ci",
   },
   {
-    id: "github",
-    label: "GitHub Health",
-    icon: Github,
-    status: "placeholder",
-    metric: "rate-limit · Actions minutes",
-    to: "/ci",
-  },
-  {
     id: "billing",
     label: "Billing (GitHub+GCP+AWS)",
     icon: CircleDollarSign,
@@ -181,6 +161,22 @@ const HEALTH_TILES: Tile[] = [
     to: "/ops/costs",
   },
   { id: "alerts", label: "Alerts", icon: AlertTriangle, status: "placeholder", metric: "open by class", to: "/alerts" },
+  {
+    id: "artifacts",
+    label: "Artifacts (registry + builds)",
+    icon: Package,
+    status: "placeholder",
+    metric: "image builds · deployments · tarballs",
+    to: "/ops/artifacts",
+  },
+  {
+    id: "vm-resources",
+    label: "VM Resources",
+    icon: Cpu,
+    status: "placeholder",
+    metric: "cross-VM CPU · memory · disk comparison",
+    to: "/ops/vm-resource-comparison",
+  },
 ];
 
 // Consoles & tools — entry points to the existing wired pages that are folding INTO
@@ -201,11 +197,9 @@ const CONSOLES: { id: string; label: string; icon: React.ComponentType<{ classNa
 // Cockpit-tile id → backend health-overview tile id (the rollup names a subset of the
 // landing tiles). The rest (live/batch/paper) are filled from the umbrella summaries.
 const OVERVIEW_TILE_BY_COCKPIT_ID: Record<string, string> = {
-  fleet: "fleet",
   consolidators: "consolidator",
   coverage: "coverage",
   alerts: "alerts",
-  github: "gh_budget",
   billing: "cost",
 };
 
