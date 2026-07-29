@@ -21,7 +21,6 @@ const CANONICAL: [string, string, string][] = [
   ["cockpit", "/cockpit", "cockpit-page"],
   ["deploy", "/deploy", "cockpit-deploy"],
   ["deployments", "/deployments", "cockpit-deployments"],
-  ["fleet", "/fleet", "cockpit-fleet"],
   ["consolidators", "/consolidators", "cockpit-consolidators"],
   ["repos", "/ci", "cockpit-ci"],
   ["alerts", "/alerts", "cockpit-alerts"],
@@ -91,11 +90,12 @@ test("the always-visible top bar carries the same 17 entries as the dropdown", a
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 10 cockpit tabs + the 7 screens with no cockpit twin = the dropdown's 17. (Was 15/5 with a
+  // 9 cockpit tabs + the 7 screens with no cockpit twin = the dropdown's 16. (Was 15/5 with a
   // stale "vm-deployments" in this list — that route is now fully retired, off canonical nav
   // entirely; "artifacts" + "venue-config" are canonical instead; "vm-resource-comparison"
-  // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md.)
-  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
+  // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md. Fleet tab
+  // removed 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md.)
+  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(9);
   await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(7);
 
   for (const id of ["home", "epics", "data-status", "costs", "artifacts", "venue-config", "vm-resource-comparison"]) {
@@ -108,12 +108,13 @@ test("the top bar stays visible OFF the cockpit — the point of lifting it out"
   // navigate away (Services / Epics / VMs / Costs), so it could never be the primary nav.
   await page.goto("/ops/costs");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
-  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(10);
+  await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(9);
 
   // ...and a cockpit tab is still one click away from a non-cockpit route.
-  await page.getByTestId("cockpit-tab-fleet").click();
-  await expect(page).toHaveURL(/\/fleet/);
-  await expect(page.getByTestId("cockpit-fleet")).toBeVisible({ timeout: 15_000 });
+  // Fleet tab was removed 2026-07-27; clicking a remaining tab (Deploy) proves the bar still works.
+  await page.getByTestId("cockpit-tab-deploy").click();
+  await expect(page).toHaveURL(/\/deploy/);
+  await expect(page.getByTestId("cockpit-deploy")).toBeVisible({ timeout: 15_000 });
 });
 
 test("a top-bar route link navigates to its own route", async ({ page }) => {
@@ -144,13 +145,10 @@ test("the top bar is the only nav chrome — the cockpit no longer renders its o
 });
 
 test("bookmark-compat redirects forward the old ?tab= URLs to their plain route", async ({ page }) => {
-  // 2026-07-17: /alerts and /fleet are now canonical PLAIN routes (no redirect). Only /repos and
-  // /infra survive as bookmark-compat redirects — /repos → /ci, /infra → /fleet (the Fleet route
-  // is now git-health-only; FleetInfra was removed 2026-07-21). No nav entry points at them.
-  for (const [from, dest, mounted] of [
-    ["/repos", "/ci", "cockpit-ci"],
-    ["/infra", "/fleet", "cockpit-fleet"],
-  ]) {
+  // 2026-07-17: /alerts is now a canonical PLAIN route (no redirect). Only /repos survives as a
+  // bookmark-compat redirect — /repos → /ci. /infra was removed 2026-07-27 (its redirect target
+  // /fleet was retired — deployment_ui_fleet_tab_removal_2026_07_27.md). No nav entry points at it.
+  for (const [from, dest, mounted] of [["/repos", "/ci", "cockpit-ci"]]) {
     await page.goto(from);
     await expect(page).toHaveURL(new RegExp(`\\${dest}$`));
     await expect(page.getByTestId(mounted)).toBeVisible({ timeout: 15_000 });
@@ -159,11 +157,12 @@ test("bookmark-compat redirects forward the old ?tab= URLs to their plain route"
 
 test("a redirect fires even when a service was previously selected", async ({ page }) => {
   // Regression: ServiceUrlSync used to own these paths and could keep the stale per-service
-  // view on screen instead of the target (that was the /infra bug, nav audit 2026-07-17).
+  // view on screen instead of the target. /infra was removed (its redirect target /fleet was
+  // retired 2026-07-27); /repos → /ci is the remaining bookmark-compat redirect to verify.
   await page.goto("/home");
   await expect(page.getByTestId("services-overview")).toBeVisible({ timeout: 15_000 });
 
-  await page.goto("/infra");
-  await expect(page).toHaveURL(/\/fleet/);
-  await expect(page.getByTestId("cockpit-fleet")).toBeVisible({ timeout: 15_000 });
+  await page.goto("/repos");
+  await expect(page).toHaveURL(/\/ci$/);
+  await expect(page.getByTestId("cockpit-ci")).toBeVisible({ timeout: 15_000 });
 });

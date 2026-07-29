@@ -269,7 +269,7 @@ test.describe("Repos CI page", () => {
   });
 
   // Operator cross-link rule (2026-06-10): repo drill-down deep-links the existing surfaces.
-  test("repo drill-down cross-links to GitHub / data-status / fleet", async ({ page }) => {
+  test("repo drill-down cross-links to GitHub / data-status / Fleet Git (AO dashboard)", async ({ page }) => {
     await page.goto("/repos");
     await page.getByTestId("repo-dropdown").selectOption("execution-service");
     const links = page.getByTestId("repo-detail-crosslinks");
@@ -278,7 +278,10 @@ test.describe("Repos CI page", () => {
       "href",
       "https://github.com/IggyIkenna/execution-service",
     );
-    await expect(page.getByTestId("repo-detail-fleet-link")).toHaveAttribute("href", "/fleet");
+    await expect(page.getByTestId("repo-detail-fleet-link")).toHaveAttribute(
+      "href",
+      "https://agent-orchestrator.odum-research.com/",
+    );
   });
 
   // L294 (promotion_queue_conflict_wall_pileup_2026_06_17 § Class D): the detail pipeline strip
