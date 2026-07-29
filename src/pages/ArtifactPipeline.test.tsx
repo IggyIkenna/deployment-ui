@@ -1,3 +1,13 @@
+// @vitest-environment jsdom
+//
+// This file's toHaveStyle() assertions check a `background: var(--token)`
+// shorthand value. happy-dom's CSSStyleDeclaration parser doesn't resolve
+// that shorthand-with-custom-property combination the way jsdom's cssstyle
+// engine does, so getComputedStyle() comes back empty under happy-dom even
+// though the rendered DOM (and the real browser) has the right style. This
+// is a genuine happy-dom CSS-engine gap, not a bug the environment swap
+// exposed — pin this one file back to jsdom rather than reverting the
+// repo-wide happy-dom default (see vitest.config.ts).
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";

@@ -21,7 +21,14 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
+    // Switched from jsdom to happy-dom 2026-07-29 (2-3x faster for DOM-heavy
+    // component tests; the fleet already confirmed jsdom env overhead as the
+    // dominant cost driver — see the STEP_TIMEOUT_TEST comment in
+    // scripts/quality-gates.sh). A handful of tests that depend on
+    // jsdom-specific DOM API completeness stay on jsdom via a per-file
+    // `// @vitest-environment jsdom` pragma rather than reverting this
+    // repo-wide default.
+    environment: "happy-dom",
     globals: true,
     setupFiles: ["./src/setupTests.ts"],
     include: [
