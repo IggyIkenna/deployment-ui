@@ -74,7 +74,16 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByTestId("cockpit-health")).toBeVisible();
-    for (const id of ["deployments", "fleet", "consolidators", "coverage", "ci", "github", "billing", "alerts"]) {
+    for (const id of [
+      "deployments",
+      "consolidators",
+      "coverage",
+      "ci",
+      "billing",
+      "alerts",
+      "artifacts",
+      "vm-resources",
+    ]) {
       await expect(page.getByTestId(`cockpit-tile-${id}`)).toBeVisible();
     }
     // The landing is wired to GET /api/health/overview — the live rollup banner replaces the
@@ -83,8 +92,6 @@ test.describe("Cockpit — scaffold IA", () => {
     await expect(page.getByTestId("cockpit-health-error")).toHaveCount(0);
     // The consolidator overview tile carries the real value from the rollup ("DOWN for: cefi" in mock).
     await expect(page.getByTestId("cockpit-tile-consolidators")).toContainText("cefi");
-    // The fleet tile reflects the rollup census, not the placeholder em-dash.
-    await expect(page.getByTestId("cockpit-tile-status-fleet")).not.toHaveText("—");
   });
 
   test("each tab switches and renders its pane", async ({ page }) => {
