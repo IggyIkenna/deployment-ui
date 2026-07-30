@@ -312,6 +312,42 @@ describe("rowSeverity", () => {
       ),
     ).toBe(2);
   });
+
+  it("stuck_in_sit: null (tri-state 'unknown' under staging_dormant_mode) does NOT count as stuck — severity falls back to other signals only (2026-07-30)", () => {
+    // null must behave identically to false here (both falsy in JS) — an "unknown" answer must
+    // never masquerade as a real stuck signal. See
+    // /plans/active/issues/repo_ci_stuck_in_sit_tristate_2026_07_29.md.
+    expect(
+      rowSeverity(
+        row({
+          sit: {
+            in_breaking_pending: true,
+            staging_locked: false,
+            staging_locked_reason: null,
+            last_sit_run_status: null,
+            last_sit_run_age_min: null,
+            stuck_in_sit: null,
+          },
+        }),
+      ),
+    ).toBe(0);
+    // with a genuinely stuck PR alongside a null SIT signal, the real signal still wins (2).
+    expect(
+      rowSeverity(
+        row({
+          open_prs: [{ repo: "r", number: 1, stuck_class: "conflicting" }],
+          sit: {
+            in_breaking_pending: true,
+            staging_locked: false,
+            staging_locked_reason: null,
+            last_sit_run_status: null,
+            last_sit_run_age_min: null,
+            stuck_in_sit: null,
+          },
+        }),
+      ),
+    ).toBe(2);
+  });
 });
 
 describe("isDrainingClass", () => {

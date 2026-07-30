@@ -4026,7 +4026,12 @@ export interface RepoCiSitState {
   staging_locked_reason: string | null;
   last_sit_run_status: string | null;
   last_sit_run_age_min: number | null;
-  stuck_in_sit: boolean;
+  // bool | null (2026-07-30 tri-state fix): null means "cannot currently tell" — the backend
+  // emits it while staging_dormant_mode is on, since breaking_pending's only writer never fires
+  // in that mode. Every consumer treats null the same as false (both falsy in JS), which is the
+  // correct "no signal" suppression — see
+  // /plans/active/issues/repo_ci_stuck_in_sit_tristate_2026_07_29.md.
+  stuck_in_sit: boolean | null;
 }
 
 export interface RepoCiSitJob {
