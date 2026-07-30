@@ -157,7 +157,9 @@ export function StreamingLogsPanel({ vmName, date, targetRef, onClose }: Streami
           <div className="text-gray-500">No matching events found</div>
         )}
         {!loading && filteredEntries.length === 0 && !searchText && (
-          <div className="text-gray-500">No events yet — waiting for stream</div>
+          <div className="text-gray-500" data-testid="streaming-logs-empty">
+            No events yet — waiting for stream
+          </div>
         )}
         {filteredEntries.map((entry, idx) => (
           <div key={idx} className="py-1 border-b border-gray-800">
