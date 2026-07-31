@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Epic: deployment_and_user_management_master
+# Lifecycle: permanent
+# Delete-when: NA
 # Stop deployment-ui + deployment-api.
 set -euo pipefail
 
