@@ -8,17 +8,18 @@ deployments and live trading service deployments.
 
 ## What it does
 
-| Tab            | Purpose                                                                                                                 |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Deploy         | Submit a new deployment — select service, mode (batch/live), image version, feature branch, date range, and asset scope |
-| Data Status    | Data readiness check — which data files are present in GCS for the selected deployment scope and date range             |
-| Builds         | Cloud Build run history — trigger status, logs link, commit SHA, duration per build                                     |
-| Readiness      | Service readiness probe — checks all services respond healthy before a live deployment proceeds                         |
-| Service Status | Live Cloud Run instance status — deployed version, instance count, health per service                                   |
-| Config         | Active deployment config viewer — rendered config for the current deployment                                            |
-| History        | Historical deployment log — all past deployments with version, status, triggered-by, and timestamps                     |
+The top-bar nav (`src/components/NavMenu.tsx` — single source of truth for both the desktop dropdown and mobile
+hamburger) groups 16 screens into 7 sections:
 
-There is also an **Overview / Epics** top-level tab for workspace-level deployment tracking.
+| Group                | Screens                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| Overview             | Cockpit (health rollup, default page) · Home (service picker) · Epics & Plans                      |
+| Deploy & Deployments | Deploy Console (launch/rollback) · Deployments (live/batch/paper + live ops) · Venue Config        |
+| Data                 | Data Status (per-service GCS coverage/manifest) · Consolidators (index age, shard fallback)        |
+| Cost & Artifacts     | Costs (tri-cloud spend) · VM Resources (cross-VM CPU/mem/disk) · Artifacts (build→artifact→deploy) |
+| Repos & Alerts       | Repos / CI (last-green, promotion lag) · Alerts & Logs                                             |
+| Safety & Chaos       | Safety Ops (kill-switch + guardrails) · Chaos (resilience testing)                                 |
+| Research             | Launch Console (ML · strategy · execution backtests)                                               |
 
 ## Architecture
 
@@ -32,7 +33,7 @@ This is a separate repo from the deployment backend per the UI/service separatio
 
 ```bash
 npm install
-cp .env.example .env.development   # set VITE_API_URL and VITE_OAUTH_CLIENT_ID
+cp .env.example .env.development   # set VITE_DEPLOYMENT_API_URL and VITE_GOOGLE_CLIENT_ID
 npm run dev                         # http://localhost:5183
 ```
 
@@ -44,12 +45,12 @@ VITE_MOCK_API=true VITE_SKIP_AUTH=true npm run dev
 
 ## Environment variables
 
-| Variable               | Default                 | Description                               |
-| ---------------------- | ----------------------- | ----------------------------------------- |
-| `VITE_API_URL`         | `http://localhost:8004` | deployment-api base URL                   |
-| `VITE_OAUTH_CLIENT_ID` | —                       | Google OAuth client ID                    |
-| `VITE_MOCK_API`        | `false`                 | Enable client-side static mock mode       |
-| `VITE_SKIP_AUTH`       | `false`                 | Bypass auth gate (use with VITE_MOCK_API) |
+| Variable                  | Default                 | Description                               |
+| ------------------------- | ----------------------- | ----------------------------------------- |
+| `VITE_DEPLOYMENT_API_URL` | `http://localhost:8004` | deployment-api base URL                   |
+| `VITE_GOOGLE_CLIENT_ID`   | —                       | Google OAuth client ID                    |
+| `VITE_MOCK_API`           | `false`                 | Enable client-side static mock mode       |
+| `VITE_SKIP_AUTH`          | `false`                 | Bypass auth gate (use with VITE_MOCK_API) |
 
 ## Tests
 
