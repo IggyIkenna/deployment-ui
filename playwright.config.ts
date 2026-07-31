@@ -38,7 +38,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Serialize everywhere, not just CI (fix: deployment_ui_l2_smoke_gate_red_2026_07_17.md). Unbounded local
+  // parallelism spins ~8 concurrent chromium instances on this shared, multi-agent-slot host; under contention
+  // from other slots' work the 5s default assertion timeout trips on slow-to-render pages, and WHICH specs trip
+  // varies run-to-run. Measured: two back-to-back full-parallel runs on an identical pristine tree produced 15 and
+  // 17 "failures" respectively, with different compositions each time; --workers=1 on the same tree reproduced
+  // exactly 3, consistently. Most of this gate's chased "drift" across many prior health-checks was this, not real
+  // regressions.
+  workers: 1,
   reporter: "html",
 
   use: {
