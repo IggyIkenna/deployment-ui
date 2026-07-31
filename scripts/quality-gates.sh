@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Epic: infrastructure_master
+# Lifecycle: permanent
+# Delete-when: NA
 # Quality Gates Stub — TypeScript/React UI
 # SSOT: unified-trading-pm/codex/06-coding-standards/quality-gates-ui-template.sh
 #

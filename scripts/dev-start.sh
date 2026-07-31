@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Epic: deployment_and_user_management_master
+# Lifecycle: permanent
+# Delete-when: NA
 # Start deployment-ui + deployment-api for local development.
 # Ports are hardcoded to match ui-api-mapping.json (SSOT):
 #   UI:  5183
