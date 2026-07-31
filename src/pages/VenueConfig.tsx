@@ -10,7 +10,7 @@ import { VenueTardisWindowsPanel } from "../components/VenueTardisWindowsPanel";
  * These previously only rendered inside `VmDeploymentsContent`'s non-compact mode (the
  * standalone, now-legacy-quarantined `/vm-deployments` page) — see
  * `unified-trading-pm/plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md`.
- * Grouped under "Deploy & Deployments" in NavMenu.tsx: all 4 panels directly configure/inform
+ * Grouped under "Deploy & Deployments" in navItems.ts: all 4 panels directly configure/inform
  * the VM deployment workflow (credential status, backfill date ranges, relaunch cost, Tardis
  * concurrency), so they belong next to Deploy Console / Deployments, not under Fleet (which is
  * git-health/orphan-VM infra observability, a different concern).

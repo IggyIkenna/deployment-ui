@@ -148,20 +148,12 @@ describe("Header", () => {
     await waitFor(() => expect(screen.getByText("GCS API")).toBeTruthy());
   });
 
-  it("top-left trigger opens a dismissable page-nav menu (does not force-navigate)", () => {
+  it("brand mark is a static, non-interactive logo — the dropdown it used to trigger is gone", () => {
     vi.spyOn(apiClient, "getHealth").mockResolvedValue(makeHealth());
     renderHeader();
-    const trigger = screen.getByTestId("nav-cockpit");
-    expect(trigger).toBeTruthy();
-    // Closed by default — the page links are not in the DOM (keeps the top bar quiet).
+    expect(screen.getByTestId("brand")).toBeTruthy();
+    // The dropdown trigger + its own testid, and the panel it used to open, no longer exist.
+    expect(screen.queryByTestId("nav-cockpit")).toBeNull();
     expect(screen.queryByTestId("nav-menu")).toBeNull();
-    expect(screen.queryByText("VM Deployments")).toBeNull();
-    // Clicking the trigger reveals the grouped page nav instead of navigating away.
-    // vm-deployments (the standalone list page) is fully retired (2026-07-21), so it no longer
-    // renders here (see NavMenu.test.tsx "legacy quarantine" for the nav-side coverage).
-    fireEvent.click(trigger);
-    expect(screen.getByTestId("nav-menu")).toBeTruthy();
-    expect(screen.getByTestId("nav-menu-item-deployments")).toBeTruthy();
-    expect(screen.getByTestId("nav-menu-item-chaos")).toBeTruthy();
   });
 });

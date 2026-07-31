@@ -1,5 +1,5 @@
 /**
- * Header — the one top bar: brand + nav trigger · always-visible page nav · status chip.
+ * Header — the one top bar: brand · always-visible page nav · status chip.
  *
  * Layout (operator 2026-07-17): the bar used to spend its left third on a two-line
  * "Unified Trading Deployment / deployment monitoring & orchestration" title and its right
@@ -8,56 +8,32 @@
  * "UTS", the utilities collapse into StatusMenu, and the reclaimed middle carries TopNavBar
  * on every route.
  *
- * The dropdown (NavMenu) is deliberately KEPT alongside the bar: both render the same 14
- * canonical entries, and the operator is comparing the two interaction models.
+ * The top-left dropdown (NavMenu) that used to sit alongside the bar was DELETED 2026-07-28
+ * (RULED — the bar is reachable on every route, the dropdown's earlier cockpit placement was
+ * not; see plans/active/issues/deployment_ui_nav_consolidation_2026_07_17.md). The bar is now
+ * the sole desktop nav surface; the brand mark is a static, non-interactive logo.
  */
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, Server, X } from "lucide-react";
-import { NavMenu, NAV_LINKS_FLAT } from "./NavMenu";
+import { NAV_LINKS_FLAT } from "./navItems";
 import { StatusMenu } from "./StatusMenu";
 import { TopNavBar } from "./TopNavBar";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
 
   return (
     <header className="relative border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]">
       <div className="flex items-center gap-2 px-3 py-2 md:gap-3 md:px-4">
-        {/* Top-left trigger — opens the page-nav dropdown. Internal operator tool, so this
-            is a menu affordance (dismissable), not a customer-facing home logo. */}
-        <button
-          type="button"
-          data-testid="nav-cockpit"
-          onClick={() => setNavOpen((v) => !v)}
-          aria-haspopup="menu"
-          aria-expanded={navOpen}
-          aria-label="Open navigation menu"
-          className="group flex shrink-0 items-center gap-2"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-accent-cyan)]/30 bg-[var(--color-accent-cyan)]/10 group-hover:border-[var(--color-accent-cyan)]">
+        {/* Static brand mark — no longer a menu trigger now that the dropdown is gone. */}
+        <div data-testid="brand" className="flex shrink-0 items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-accent-cyan)]/30 bg-[var(--color-accent-cyan)]/10">
             <Server className="h-4 w-4 text-[var(--color-accent-cyan)]" />
           </div>
-          <h1 className="flex items-center gap-1 text-base font-semibold tracking-tight text-[var(--color-text-primary)]">
-            UTS
-            <svg
-              className={`h-4 w-4 text-[var(--color-text-tertiary)] transition-transform ${navOpen ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </h1>
-        </button>
-
-        <NavMenu open={navOpen} onClose={() => setNavOpen(false)} />
+          <h1 className="text-base font-semibold tracking-tight text-[var(--color-text-primary)]">UTS</h1>
+        </div>
 
         {/* The reclaimed middle — the always-visible page nav, on every route. */}
         <TopNavBar />

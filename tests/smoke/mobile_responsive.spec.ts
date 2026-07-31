@@ -102,10 +102,9 @@ test.describe("Mobile — iPhone SE (375×667)", () => {
     await mockCommon(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
-    // Scoped to the mobile-only hamburger (md:hidden) — `getByRole` with a
-    // /menu|hamburger|navigation/i name also matches the always-visible
-    // "nav-cockpit" trigger (aria-label "Open navigation menu"), which is a
-    // separate control, not the mobile hamburger this test targets.
+    // Scoped to the mobile-only hamburger (md:hidden) via its own testid — the top-left
+    // dropdown trigger this comment used to warn about a name-collision with was DELETED
+    // 2026-07-28 (RULED, deployment_ui_nav_consolidation_2026_07_17.md).
     const hamburger = page.getByTestId("mobile-menu-btn");
     if (await hamburger.isVisible()) {
       await hamburger.click();

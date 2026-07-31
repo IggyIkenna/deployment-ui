@@ -168,7 +168,7 @@ function App() {
                   {/* Canonical home for the 4 venue-config panels, relocated out of the
                       legacy-quarantined /vm-deployments page (2026-07-21, see
                       unified-trading-pm/plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md).
-                      Grouped with Deploy & Deployments (NavMenu.tsx) — these panels configure/inform
+                      Grouped with Deploy & Deployments (navItems.ts) — these panels configure/inform
                       the VM deployment workflow, not Fleet's git-health/orphan-VM observability. */}
                   <Route path="/venue-config" element={<VenueConfig />} />
                   <Route path="/consolidators" element={<CockpitConsolidators />} />

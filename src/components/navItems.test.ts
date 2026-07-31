@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { cockpitTabIdFor, NAV_GROUPS, NAV_GROUPS_CANONICAL, NAV_ITEMS_CANONICAL, NAV_LINKS_FLAT } from "./NavMenu";
+import { cockpitTabIdFor, NAV_GROUPS, NAV_GROUPS_CANONICAL, NAV_ITEMS_CANONICAL, NAV_LINKS_FLAT } from "./navItems";
 
 const canonicalItems = NAV_GROUPS_CANONICAL.flatMap((g) => g.items);
 
@@ -91,7 +91,7 @@ describe("NAV_LINKS_FLAT (mobile hamburger parity)", () => {
   });
 });
 
-describe("cockpit bar / dropdown shared source", () => {
+describe("cockpit bar / mobile-menu shared source", () => {
   it("NAV_ITEMS_CANONICAL is exactly the canonical entries, in group order", () => {
     expect(NAV_ITEMS_CANONICAL).toEqual(canonicalItems);
   });
