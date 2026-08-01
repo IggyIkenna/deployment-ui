@@ -116,8 +116,7 @@ test("a top-bar route link navigates to its own route", async ({ page }) => {
 test("Data Status is one click from the top bar and really selects the tab", async ({ page }) => {
   // Data Status is a PER-SERVICE tab, so the nav entry names a default service
   // (instruments-service — the one the cockpit's Data Coverage tile reads). The deep-link
-  // must land ON the tab, not just on the service view's default (Deploy) tab — that's the
-  // failure mode ServiceUrlSync's state/URL race produces, and it is invisible from the URL.
+  // must land ON the tab, not just on the service view's default (Deploy) tab.
   await page.goto("/cockpit");
   await page.getByTestId("cockpit-navlink-data-status").click();
   await expect(page).toHaveURL(/\/service\/instruments-service\/data-status/);
@@ -146,9 +145,9 @@ test("bookmark-compat redirects forward the old ?tab= URLs to their plain route"
 });
 
 test("a redirect fires even when a service was previously selected", async ({ page }) => {
-  // Regression: ServiceUrlSync used to own these paths and could keep the stale per-service
-  // view on screen instead of the target. /infra was removed (its redirect target /fleet was
-  // retired 2026-07-27); /repos → /ci is the remaining bookmark-compat redirect to verify.
+  // Regression: a real-route service view must not survive navigating to a plain redirect
+  // route. /infra was removed (its redirect target /fleet was retired 2026-07-27); /repos →
+  // /ci is the remaining bookmark-compat redirect to verify.
   await page.goto("/home");
   await expect(page.getByTestId("services-overview")).toBeVisible({ timeout: 15_000 });
 

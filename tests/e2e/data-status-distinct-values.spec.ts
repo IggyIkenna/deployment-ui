@@ -33,8 +33,8 @@ test("Distinct Values renders all four axes with non-canonical badges, no consol
     if (resp.status() >= 500) fiveXx.push(resp.status());
   });
 
-  // Deep-link straight to the service's Data Status tab (see `ServiceUrlSync.tsx`'s
-  // `/service/{name}/{tab}` scheme) rather than the sidebar-click flow.
+  // Deep-link straight to the service's Data Status tab (see `HomeShell.tsx`'s
+  // `/service/{name}/{tab}` route) rather than the sidebar-click flow.
   await page.goto(`/service/${SERVICE}/data-status`);
   await page.waitForLoadState("networkidle");
 

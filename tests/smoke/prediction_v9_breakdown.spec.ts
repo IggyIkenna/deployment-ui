@@ -21,10 +21,10 @@
  * fire. The assertions below therefore drive the BUILT-IN mock fixtures (the
  * SSOT for what actually renders in mock mode). The DataStatusTab also only
  * mounts when a service is selected AND the data-status tab is active, so we
- * navigate to the canonical URL `/service/{name}/data-status` (the home shell's
- * ServiceUrlSync drives state from this path) — landing on `/` shows the deploy
- * tab with no service and renders NONE of this surface. The page.route stubs are
- * retained as a defensive no-op (harmless if the mock-fetch override is ever
+ * navigate to the canonical URL `/service/{name}/data-status` (a real route rendering
+ * the home shell — HomeShell.tsx derives service/tab from this path) — landing on `/`
+ * shows the deploy tab with no service and renders NONE of this surface. The page.route
+ * stubs are retained as a defensive no-op (harmless if the mock-fetch override is ever
  * removed). The required built-in fixtures (OTHER catch-all bucket + the
  * coverage-summary `canonical_question_group` breakdown) live in mock-api.ts.
  *

@@ -113,10 +113,10 @@ for (const svc of MOCK_SERVICES) {
     const { statusLog } = await setupMocks(page);
 
     // Deep-link straight to the service's Data Status tab via the current
-    // `/service/{name}/{tab}` URL scheme (see `ServiceUrlSync.tsx`) instead of
+    // `/service/{name}/{tab}` real route (see `HomeShell.tsx`) instead of
     // the retired `/home` + sidebar-text-click flow: `/home` itself still
-    // renders (it falls through to the `*` catch-all route in `App.tsx`), but
-    // the sidebar's visible label strips the "-service" suffix
+    // renders (its own real route in `App.tsx`), but the sidebar's visible
+    // label strips the "-service" suffix
     // (`ServiceList.tsx`'s `ServiceItem` renders
     // `serviceName.replace("-service", "").replace(/-/g, " ")`), so
     // `getByText(svc.name, { exact: true })` never matches for any service

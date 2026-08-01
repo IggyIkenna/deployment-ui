@@ -139,8 +139,8 @@ const HEALTH_TILES: Tile[] = [
     status: "placeholder",
     metric: "% captured per asset_group",
     // The data-status surface is the per-service home-shell tab (deep-linkable via
-    // /service/{name}/data-status — ServiceUrlSync). market-tick-data-service is the
-    // canonical availability-manifest owner, so the coverage drill lands there (NOT the
+    // /service/{name}/data-status — a real route rendering HomeShell). market-tick-data-service
+    // is the canonical availability-manifest owner, so the coverage drill lands there (NOT the
     // generic /deployments inventory, which carries no %-captured-per-asset_group view).
     to: "/service/market-tick-data-service/data-status",
   },

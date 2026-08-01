@@ -36,7 +36,7 @@ test("Axis Value Census renders raw distinct values (incl. duplicates) with no c
   });
 
   // Deep-link straight to the service's Data Status tab (see
-  // `ServiceUrlSync.tsx`'s `/service/{name}/{tab}` scheme) rather than the
+  // `HomeShell.tsx`'s `/service/{name}/{tab}` route) rather than the
   // sidebar-click flow — mirrors the round-3 spec's precedent.
   await page.goto(`/service/${SERVICE}/data-status`);
   await page.waitForLoadState("networkidle");

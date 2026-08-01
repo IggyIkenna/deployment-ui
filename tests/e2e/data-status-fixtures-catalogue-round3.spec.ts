@@ -127,7 +127,7 @@ test("F1+F3 — fixtures league name + catalogue dropdowns render with no consol
   await installFixturesAndCatalogueFilterOptionsMocks(page);
 
   // Deep-link straight to the service's Data Status tab via the current
-  // `/service/{name}/{tab}` URL scheme (see `ServiceUrlSync.tsx`) instead of
+  // `/service/{name}/{tab}` real route (see `HomeShell.tsx`) instead of
   // the retired `/home` + sidebar-text-click flow: the sidebar's visible
   // label strips the "-service" suffix (`ServiceList.tsx`'s `ServiceItem`
   // renders `serviceName.replace("-service", "").replace(/-/g, " ")`), so
