@@ -1,11 +1,14 @@
 /**
  * TopNavBar — the always-visible page nav, in the top bar on EVERY route.
  *
- * The A/B twin of the top-left dropdown (NavMenu): both render the same 14 canonical
- * entries from NAV_ITEMS_CANONICAL, so they can never drift apart. Lifting it out of the
- * Cockpit (where it was a `TabsList`, visible only on /cockpit) is what makes it actually
- * "always visible" — the four entries with no cockpit twin (Services / Epics / VMs /
- * Costs) used to take the bar away with them when clicked.
+ * The SOLE desktop nav surface (RULED 2026-07-28: the top-left dropdown it used to run
+ * alongside as an A/B twin was deleted — the bar survives every route, the dropdown's
+ * earlier cockpit placement did not; see
+ * plans/active/issues/deployment_ui_nav_consolidation_2026_07_17.md). Renders the
+ * canonical entries from NAV_ITEMS_CANONICAL (also the source for the mobile hamburger
+ * list). Lifting it out of the Cockpit (where it was a `TabsList`, visible only on
+ * /cockpit) is what makes it actually "always visible" — the four entries with no cockpit
+ * twin (Services / Epics / VMs / Costs) used to take the bar away with them when clicked.
  *
  * Every entry is a plain Link to a plain route (2026-07-17: the `?tab=` scheme was retired —
  * each former cockpit tab is now its own top-level route, e.g. /fleet, /deployments). The
