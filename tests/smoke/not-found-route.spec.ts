@@ -7,7 +7,7 @@
  * failing visibly. This is what let `/infra` render the wrong screen for weeks.
  *
  * The catch-all is legitimately shared with the home shell's own surfaces (`/home`,
- * `/service/:name(/:tab)`, regex-sniffed by ServiceUrlSync) — this spec pins BOTH sides:
+ * `/service/:name(/:tab)`, real routes rendering `HomeShell`) — this spec pins BOTH sides:
  * a genuinely unknown URL gets the 404 page, while the home shell's real surfaces still
  * render normally through the same route. No page.route mocks needed — the app runs
  * against the built-in mock-api layer (VITE_MOCK_API=true, see playwright.config.ts),

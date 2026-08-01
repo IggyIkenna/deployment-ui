@@ -23,10 +23,10 @@
  * deployment shell) and is therefore detected + whitelisted by default.
  *
  * Reachability sources:
- *   1. <Link to="...">                   — react-router navigation
- *   2. navigate("..."), useNavigate()    — programmatic redirects
- *   3. <a href="...">                    — plain anchors
- *   4. Generic "/..." literals in source — permissive catch-all
+ *   1. <Link to="...">, <Link to={`...`}>     — react-router navigation (string or template)
+ *   2. navigate("..."), navigate(`...`)       — programmatic redirects (string or template)
+ *   3. <a href="...">                         — plain anchors
+ *   4. Generic "/..." literals in source      — permissive catch-all
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
@@ -140,6 +140,12 @@ const TO_STRING_RE = /\bto\s*=\s*\{?\s*["']([^"']+?)["']/g;
 const HREF_STRING_RE = /\bhref\s*[:=]\s*\{?\s*["']([^"']+?)["']/g;
 const NAV_CALL_RE = /\b(?:navigate|router\.(?:push|replace))\s*\(\s*["']([^"']+?)["']/g;
 const TO_TEMPLATE_RE = /\bto\s*=\s*\{\s*`([^`]+)`\s*\}/g;
+// Dynamic `navigate(\`/service/${id}\`)` calls — same shape as TO_TEMPLATE_RE but for
+// imperative navigation instead of a JSX `to=` attribute (added 2026-08-01: the
+// per-service home shell moved off a single regex-sniffed catch-all onto real
+// `/service/:serviceName(/:tab)` routes reached via useNavigate() template literals,
+// which NAV_CALL_RE's string-literal-only match couldn't see).
+const NAV_TEMPLATE_RE = /\b(?:navigate|router\.(?:push|replace))\s*\(\s*`([^`]+)`/g;
 // Generic "/..." literals — over-matches intentionally; reduces false
 // positives at the cost of a few false negatives.
 const GENERIC_PATH_STRING_RE = /["']\/([a-zA-Z][\w\-\/\[\]:*]*)["']/g;
@@ -196,11 +202,13 @@ for (const [, original] of fileContents) {
       if (href.startsWith("/")) rawHrefs.add(href);
     }
   }
-  TO_TEMPLATE_RE.lastIndex = 0;
-  let tm: RegExpExecArray | null;
-  while ((tm = TO_TEMPLATE_RE.exec(content)) !== null) {
-    const resolved = resolveTemplate(tm[1]);
-    if (resolved.startsWith("/")) rawHrefs.add(resolved);
+  for (const re of [TO_TEMPLATE_RE, NAV_TEMPLATE_RE]) {
+    re.lastIndex = 0;
+    let tm: RegExpExecArray | null;
+    while ((tm = re.exec(content)) !== null) {
+      const resolved = resolveTemplate(tm[1]);
+      if (resolved.startsWith("/")) rawHrefs.add(resolved);
+    }
   }
 }
 
@@ -311,9 +319,7 @@ if (MODE === "blocking") {
   printReport();
   if (newOrphans.length > 0) {
     console.log("");
-    console.log(
-      `[orphan-audit] ❌ ${newOrphans.length} NEW orphan(s) introduced since baseline:`,
-    );
+    console.log(`[orphan-audit] ❌ ${newOrphans.length} NEW orphan(s) introduced since baseline:`);
     for (const o of newOrphans) console.log(`  - ${o}`);
     console.log("");
     console.log("Fix options:");
