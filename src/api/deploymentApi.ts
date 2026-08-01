@@ -1,4 +1,3 @@
-import type { DeployJob, DeployParams, ServiceStatus } from "../types/deploymentTypes";
 import type { OrphanVerdict } from "./client";
 
 export interface BuildEntry {
@@ -19,33 +18,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(`HTTP ${response.status}: ${text}`);
   }
   return response.json() as Promise<T>;
-}
-
-export async function fetchServices(): Promise<ServiceStatus[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/services`);
-  return handleResponse<ServiceStatus[]>(response);
-}
-
-export async function triggerDeploy(params: DeployParams): Promise<DeployJob> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  return handleResponse<DeployJob>(response);
-}
-
-export async function fetchDeploymentHistory(serviceId?: string): Promise<DeployJob[]> {
-  const query = serviceId ? `?service_id=${serviceId}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments${query}`);
-  return handleResponse<DeployJob[]>(response);
-}
-
-export async function rollbackDeployment(jobId: string): Promise<DeployJob> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${jobId}/rollback`, {
-    method: "POST",
-  });
-  return handleResponse<DeployJob>(response);
 }
 
 export async function fetchBuilds(service: string, env: BuildEnvironment): Promise<BuildEntry[]> {
