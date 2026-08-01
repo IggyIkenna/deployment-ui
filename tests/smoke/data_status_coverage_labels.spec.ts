@@ -13,12 +13,22 @@
  *      to ~11.7% for a vast-empty asset_group and disagrees with "Data
  *      Coverage" (~98.5%).
  *   4. The data-status date range start input defaults to "2018-01-01".
+ *   5. With a RICHER payload that DOES carry `completion_pct_shards_weighted`
+ *      + `out_of_window`, the card renders all THREE coverage concepts as
+ *      distinct, separately-labelled values (manifest-capture "of attempted",
+ *      shards-weighted "of could-exist", and "out of window" as an explicit
+ *      count) — not one ambiguous card.
  *
  * Regression guards:
  *   - 2026-06-15: surface a distinct headline vs secondary coverage label.
  *   - 2026-06-17 (Bug 1): the two headline widgets must AGREE — the
  *     HonestCoverageCard must not display the cron's captured-only
  *     `coverage_pct` (CeFi ~11.7%) while "Data Coverage" shows ~98.5%.
+ *   - 2026-08-01: `completion_pct_shards_weighted` (could-exist) and
+ *     `out_of_window` were computed/available on the payload but never
+ *     rendered as text anywhere in this card — surfaced as two additional
+ *     distinct labelled rows (`infra_ops_residual_migration_verification_2026_07_24.md`
+ *     item 4 / `cross_cutting_satellite_ao_dispatch_batch1_2026_07_26.md` sub-item B).
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -66,6 +76,29 @@ const MOCK_HONEST_COVERAGE = {
   by_venue_data_type: {},
 };
 
+// RICHER payload shape (carries the fields the real cron omits) — proves the
+// card surfaces all three coverage concepts distinctly when the data exists,
+// rather than the card being structurally incapable of showing a third value.
+const MOCK_HONEST_COVERAGE_RICH = {
+  generated_at: "2026-08-01T00:00:00Z",
+  date: "2026-08-01",
+  by_asset_group: {
+    cefi: {
+      captured: 716159,
+      empty_confirmed: 29695893,
+      attempted_failed: 1294269,
+      expected_unattempted: 4122727,
+      out_of_window: 12345,
+      total: 35829048,
+      coverage_pct: 11.68,
+      all_shards_coverage_pct: 2.0,
+      completion_pct_shards_weighted: 27.3,
+    },
+  },
+  by_venue: {},
+  by_venue_data_type: {},
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 async function setupRoutes(page: Page) {
@@ -73,6 +106,15 @@ async function setupRoutes(page: Page) {
   await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
   await page.route("**/api/data-status/honest-coverage**", (route) => route.fulfill({ json: MOCK_HONEST_COVERAGE }));
   // Default fallback for other API calls
+  await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
+}
+
+async function setupRichRoutes(page: Page) {
+  await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
+  await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
+  await page.route("**/api/data-status/honest-coverage**", (route) =>
+    route.fulfill({ json: MOCK_HONEST_COVERAGE_RICH }),
+  );
   await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
 }
 
@@ -115,7 +157,66 @@ test.describe("data-status coverage labels regression", () => {
       const capturedText = await capturedEls.first().textContent();
       expect(capturedText).toContain("captured");
       expect(capturedText).not.toEqual(cefiHeadline);
+
+      // The could-exist row is HIDDEN (not faked as 0%) when the real cron
+      // payload doesn't carry completion_pct_shards_weighted at all.
+      const couldExistEls = page.locator('[data-testid="coverage-could-exist"]');
+      expect(await couldExistEls.count()).toBe(0);
+
+      // out_of_window IS always rendered as an explicit labelled count (0
+      // here, since this mock payload has none) — never just a bar segment.
+      const oowEls = page.locator('[data-testid="coverage-out-of-window"]');
+      expect(await oowEls.count()).toBeGreaterThan(0);
+      expect(await oowEls.first().textContent()).toBe("0");
     }
+  });
+
+  test("HonestCoverageCard: could-exist + out-of-window render as distinct labelled values when present", async ({
+    page,
+  }) => {
+    await setupRichRoutes(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+
+    const serviceLink = page.getByText("market-tick-data-service").first();
+    if (await serviceLink.isVisible()) {
+      await serviceLink.click();
+      await page.waitForLoadState("networkidle");
+    }
+
+    const headlineEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    await headlineEls
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => {
+        // Card may not be visible if we're not on the right tab — that's OK.
+      });
+
+    if ((await headlineEls.count()) === 0) return;
+
+    // (1) manifest-capture "of attempted" — unchanged headline.
+    const headlineText = await headlineEls.first().textContent();
+    expect(headlineText).toMatch(/9[0-9]\.\d%/);
+
+    // (2) captured-only secondary — unchanged.
+    const capturedEls = page.locator('[data-testid="coverage-captured"]');
+    expect(await capturedEls.count()).toBeGreaterThan(0);
+
+    // (3) shards-weighted "of could-exist" — NEW distinct value, must differ
+    // from both values above (27.3% vs the ~95.9%-range headline/captured).
+    const couldExistEls = page.locator('[data-testid="coverage-could-exist"]');
+    expect(await couldExistEls.count()).toBeGreaterThan(0);
+    const couldExistText = await couldExistEls.first().textContent();
+    expect(couldExistText).toContain("27.3");
+    expect(couldExistText).not.toEqual(headlineText);
+    expect(couldExistText).not.toEqual(await capturedEls.first().textContent());
+
+    // (4) out_of_window — NEW distinct labelled numeric value (not just a bar
+    // segment/tooltip).
+    const oowEls = page.locator('[data-testid="coverage-out-of-window"]');
+    expect(await oowEls.count()).toBeGreaterThan(0);
+    const oowText = await oowEls.first().textContent();
+    expect(oowText).toContain("12,345");
   });
 
   test("HonestCoverageCard: out-of-window label present in legend", async ({ page }) => {

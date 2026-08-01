@@ -95,6 +95,15 @@ function CoverageBar({
  *    Coverage" widget surfaces (empty_confirmed counts as covered), so the two
  *    headline numbers agree for the same asset_group.
  *  - `capturedPct` — "captured of attempted": captured / attempted-denominator.
+ *  - `couldExistPct` — the shards-weighted could-exist ratio
+ *    (`completion_pct_shards_weighted`, captured / full UAC-declared universe)
+ *    when the payload carries it, else `null` (the real cron payload doesn't
+ *    emit it — the row is hidden rather than shown as a fake 0). This is the
+ *    operator-chosen canonical metric surfaced elsewhere (e.g. the turbo
+ *    /manifest drilldown), typically much lower than `manifestCapturePct`
+ *    since it counts the never-fetched pending universe too.
+ *  - `outOfWindow` — pre-genesis/delisted/deprecated cells, excluded from
+ *    every ratio above; defaults to 0 when absent.
  *  - the resolved `knownEmpty` / `pendingFetch` split for the bar (handles the
  *    collapsed `expected_unattempted` the cron emits).
  */
@@ -113,7 +122,9 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   const attemptedDenom = captured + empty + knownEmpty + failed;
   const manifestCapturePct = attemptedDenom > 0 ? (100 * (captured + empty + knownEmpty)) / attemptedDenom : 0;
   const capturedPct = attemptedDenom > 0 ? (100 * captured) / attemptedDenom : 0;
-  return { knownEmpty, pendingFetch, manifestCapturePct, capturedPct };
+  const couldExistPct = s.completion_pct_shards_weighted ?? null;
+  const outOfWindow = s.out_of_window ?? 0;
+  return { knownEmpty, pendingFetch, manifestCapturePct, capturedPct, couldExistPct, outOfWindow };
 }
 
 /** Whole days between the coverage file's own `date` (YYYY-MM-DD, UTC) and today
@@ -229,7 +240,8 @@ export function HonestCoverageCard({ date }: { date?: string }) {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
               {AG_ORDER.filter((ag) => ag in data.by_asset_group).map((ag) => {
                 const s = data.by_asset_group[ag];
-                const { knownEmpty, pendingFetch, manifestCapturePct, capturedPct } = deriveCoverage(s);
+                const { knownEmpty, pendingFetch, manifestCapturePct, capturedPct, couldExistPct, outOfWindow } =
+                  deriveCoverage(s);
                 return (
                   <div
                     key={ag}
@@ -273,6 +285,48 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                         data-testid="coverage-captured"
                       >
                         {capturedPct.toFixed(1)}% captured
+                      </span>
+                    </div>
+                    {/* Third distinct value: shards-weighted could-exist ratio — the
+                        operator-chosen canonical metric surfaced elsewhere (e.g. the
+                        turbo /manifest drilldown). Typically much lower than the "of
+                        attempted" pair above since it counts the never-fetched pending
+                        universe too — shown separately, clearly labelled, so the two
+                        surfaces don't read as contradictory. Hidden (not faked as 0)
+                        when the payload doesn't carry the field. */}
+                    {couldExistPct !== null && (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)]"
+                          title="Shards-weighted could-exist ratio — captured / full UAC-declared universe (shards_expected). The operator-chosen canonical metric elsewhere in the UI (e.g. the turbo /manifest drilldown); counts the never-fetched pending universe, so it reads lower than 'of attempted' above."
+                        >
+                          of could-exist
+                        </span>
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                          title="completion_pct_shards_weighted"
+                          data-testid="coverage-could-exist"
+                        >
+                          {couldExistPct.toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                    {/* Third/fourth distinct value: out_of_window as an explicit
+                        labelled count, not just a bar segment/tooltip — pre-genesis /
+                        delisted / deprecated cells, never collectable, excluded from
+                        every ratio above. */}
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-[10px] text-[var(--color-text-muted)]"
+                        title="pre-genesis / delisted / deprecated — never collectable, excluded from every ratio above (not a gap)"
+                      >
+                        out of window
+                      </span>
+                      <span
+                        className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                        data-testid="coverage-out-of-window"
+                      >
+                        {outOfWindow.toLocaleString()}
                       </span>
                     </div>
                     <CoverageBar
