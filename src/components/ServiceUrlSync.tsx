@@ -25,6 +25,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 // the rest redirect into their cockpit tab — so they must NOT be listed here.
 const LANDING_PATHS = new Set(["/home"]);
 
+// Shared with App.tsx's `*` catch-all: a path only belongs to the home shell if it's
+// `/home` or a `/service/:name(/:tab)` deep link — everything else that falls through
+// to the catch-all is a genuinely unknown URL and gets the real 404 page instead.
+export function isHomeShellPath(pathname: string): boolean {
+  return LANDING_PATHS.has(pathname) || pathname.startsWith("/service/");
+}
+
 interface ServiceUrlSyncProps {
   selectedService: string | null;
   activeTab: string;
@@ -67,7 +74,7 @@ export function ServiceUrlSync({ selectedService, activeTab, onUrlService }: Ser
     prevService.current = selectedService;
     prevTab.current = activeTab;
 
-    const onHomeSurface = LANDING_PATHS.has(location.pathname) || location.pathname.startsWith("/service/");
+    const onHomeSurface = isHomeShellPath(location.pathname);
     if (!onHomeSurface || pathChanged || !stateChanged || !selectedService) return;
     const target = `/service/${encodeURIComponent(selectedService)}/${activeTab}`;
     if (location.pathname !== target) {

@@ -16,9 +16,11 @@
  * data layer in NavMenu.test.tsx (unit) regardless of which surface renders them.
  *
  * EVERY canonical nav entry must actually navigate and mount its screen without console
- * errors. A nav entry pointing at a dead/typo'd URL is invisible in unit tests (the `*`
- * catch-all silently renders Overview for any unknown path) — only a real navigation
- * catches it.
+ * errors. A nav entry pointing at a dead/typo'd URL is invisible in unit tests — only a
+ * real navigation catches it. (Until 2026-08-01 the `*` catch-all also silently rendered
+ * Overview for ANY unknown path, masking this class of bug even in e2e; see
+ * not-found-route.spec.ts for the now-real 404 coverage — a stale/typo'd nav href would
+ * now visibly 404 instead of rendering "something".)
  *
  * Regression pinned: cockpit-tab-* / cockpit-navlink-* → real screen; /infra no longer stuck
  * on the service view.
