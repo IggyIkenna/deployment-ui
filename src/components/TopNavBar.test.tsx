@@ -1,10 +1,11 @@
 /**
- * TopNavBar — the always-visible page nav in the top bar.
+ * TopNavBar — the always-visible page nav in the top bar (the sole desktop nav surface;
+ * the dropdown it used to run alongside was RULED 2026-07-28 and deleted).
  *
  * Inherits the tab-trigger assertions that used to live in Cockpit.test.tsx: the bar was
  * lifted out of the Cockpit into the Header (operator 2026-07-17), so the triggers are no
  * longer that page's to render. What's pinned here is the contract the lift must preserve —
- * the same 15 entries as the dropdown, the retired per-mode tabs staying dead, and cockpit
+ * the full NAV_ITEMS_CANONICAL list, the retired per-mode tabs staying dead, and cockpit
  * entries rendering as URL Links (which is what lets the bar select a tab from any route).
  */
 
@@ -47,7 +48,7 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("shows all 16 canonical entries — the same list as the dropdown", () => {
+  it("shows all 16 canonical entries — the bar is the sole nav surface", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);

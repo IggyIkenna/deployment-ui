@@ -91,7 +91,7 @@ describe("NAV_LINKS_FLAT (mobile hamburger parity)", () => {
   });
 });
 
-describe("cockpit bar / dropdown shared source", () => {
+describe("cockpit bar shared source (the dropdown that used to share it was deleted 2026-07-28)", () => {
   it("NAV_ITEMS_CANONICAL is exactly the canonical entries, in group order", () => {
     expect(NAV_ITEMS_CANONICAL).toEqual(canonicalItems);
   });

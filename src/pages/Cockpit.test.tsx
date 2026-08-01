@@ -4,8 +4,8 @@
  * Since the `?tab=` scheme was retired (2026-07-17) each pane is its own plain-route page
  * component (CockpitHealth = /cockpit, CockpitDeploy = /deploy, …) instead of one `Cockpit`
  * that switch-rendered on `?tab=`. These tests render the pane components directly. The
- * always-visible nav bar is asserted in TopNavBar / nav-menu specs. No API mocks needed
- * (placeholders).
+ * always-visible nav bar is asserted in TopNavBar.test.tsx / tests/smoke/top-nav-bar.spec.ts.
+ * No API mocks needed (placeholders).
  *
  * CockpitFleet (/fleet) was removed 2026-07-27 — fleet git-health's only home is now
  * agent-orchestrator's own dashboard; see deployment_ui_fleet_tab_removal_2026_07_27.md.

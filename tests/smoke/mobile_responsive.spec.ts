@@ -102,10 +102,9 @@ test.describe("Mobile — iPhone SE (375×667)", () => {
     await mockCommon(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
-    // Scoped to the mobile-only hamburger (md:hidden) — `getByRole` with a
-    // /menu|hamburger|navigation/i name also matches the always-visible
-    // "nav-cockpit" trigger (aria-label "Open navigation menu"), which is a
-    // separate control, not the mobile hamburger this test targets.
+    // Scoped to the mobile-only hamburger (md:hidden) via its testid, not a
+    // /menu|hamburger|navigation/i role query — TopNavBar's `<nav aria-label="Pages">`
+    // is also always in the DOM (hidden on mobile via md:flex) and would be a false match.
     const hamburger = page.getByTestId("mobile-menu-btn");
     if (await hamburger.isVisible()) {
       await hamburger.click();

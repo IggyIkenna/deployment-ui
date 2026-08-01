@@ -120,36 +120,17 @@ test.describe("Cockpit — scaffold IA", () => {
     await expect(page.getByTestId("cockpit-consolidator-verdict-market-data-defi")).toContainText("stale output");
   });
 
-  test("Header nav-menu routes to /cockpit from another page", async ({ page }) => {
+  test("top nav bar routes to /cockpit from another page", async ({ page }) => {
+    // Ported 2026-07-31: this used to open the top-left dropdown and click its Cockpit item;
+    // the dropdown was RULED out 2026-07-28 and deleted (see
+    // deployment_ui_nav_consolidation_2026_07_17.md) — the always-visible bar is the sole nav
+    // surface now, so the same regression is exercised via its "health" tab (/cockpit's id).
     await mockBase(page);
     await page.goto("/deployments");
     await page.waitForLoadState("networkidle");
-    // The top-left trigger opens the dropdown (no longer a direct /cockpit link)…
-    await page.getByTestId("nav-cockpit").click();
-    await expect(page.getByTestId("nav-menu")).toBeVisible();
-    // …and the Cockpit item routes there.
-    await page.getByTestId("nav-menu-item-cockpit").click();
+    await page.getByTestId("cockpit-tab-health").click();
     await expect(page).toHaveURL(/\/cockpit/);
     await expect(page.getByTestId("cockpit-page")).toBeVisible();
-  });
-
-  test("nav-menu opens then dismisses without navigating (backdrop + Escape)", async ({ page }) => {
-    await mockBase(page);
-    await page.goto("/deployments");
-    await page.waitForLoadState("networkidle");
-    await page.getByTestId("nav-cockpit").click();
-    await expect(page.getByTestId("nav-menu")).toBeVisible();
-    // Backdrop click on empty space (right of the ≤768px top-left panel, inside the
-    // 1280×720 viewport) closes it and leaves us on /deployments.
-    await page.getByTestId("nav-menu-backdrop").click({ position: { x: 1000, y: 400 } });
-    await expect(page.getByTestId("nav-menu")).toHaveCount(0);
-    await expect(page).toHaveURL(/\/deployments/);
-    // Re-open, then Escape closes it (still no navigation).
-    await page.getByTestId("nav-cockpit").click();
-    await expect(page.getByTestId("nav-menu")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByTestId("nav-menu")).toHaveCount(0);
-    await expect(page).toHaveURL(/\/deployments/);
   });
 });
 
