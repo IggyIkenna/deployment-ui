@@ -57,7 +57,8 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
         failed_shards: number;
         parameters: { mode: string };
       }>;
-      total: number;
+      total_count: number;
+      has_more: boolean;
     };
 
     expect(data.deployments).toBeDefined();
@@ -68,6 +69,12 @@ describe("deployment-ui mock-api deployment control (ph3)", () => {
     expect(statuses.size).toBeGreaterThanOrEqual(2);
     expect(statuses.has("completed")).toBe(true);
     expect(statuses.has("running") || statuses.has("failed")).toBe(true);
+
+    // Pagination contract must match deployment-api's live/mock shape
+    // (total_count + has_more, not the old `total` field) — see
+    // plans/active/issues/deployment_api_live_mock_parity_2026_07_17.md.
+    expect(data.total_count).toBe(data.deployments.length);
+    expect(data.has_more).toBe(false);
   });
 
   it("supports POST to create new deployment", async () => {
