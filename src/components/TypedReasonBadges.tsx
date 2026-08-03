@@ -56,6 +56,8 @@ export const EMPTY_REASON_KEYS = [
   "EXPECTED_BOOKMAKER_NO_LEAGUE_COVERAGE",
   "EXPECTED_NO_PROVIDER_COVERAGE",
   "EXPECTED_REFERENCE_ONLY_NO_CAPTURE_PATH",
+  "EXPECTED_ACQUISITION_PENDING",
+  "EXPECTED_SUBGRAPH_DEINDEXED",
   "EXPECTED_OUT_OF_COVERAGE_WINDOW",
   "EXPECTED_DEPRECATED_DATA_TYPE",
   "EXPECTED_REFDATA_CADENCE_CHANGE",
@@ -73,6 +75,7 @@ export const EMPTY_REASON_KEYS = [
   "EXPECTED_NO_PNL_STREAM",
   "EXPECTED_WRITE_GATE_NAN_THRESHOLD_EXCEEDED",
   "SOURCE_RETURNED_ZERO",
+  "STRATEGY_ENGINE_RETURNED_ZERO",
   "NO_INPUT_AVAILABLE",
   "LEG_ABSENT_LEFT",
   "LEG_ABSENT_RIGHT",
@@ -154,6 +157,16 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
     short: "reference-only",
     description:
       "DeFi reference-only holdings leg (SPOT_ASSET/A_TOKEN/DEBT_TOKEN) — no per-day market-data capture path by design, not a pipeline gap",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_ACQUISITION_PENDING: {
+    short: "acquisition-pending",
+    description: "Instrument is IS-listed but the venue's MTDS acquisition pipeline is not yet built",
+    color: "var(--color-accent-cyan)",
+  },
+  EXPECTED_SUBGRAPH_DEINDEXED: {
+    short: "subgraph-deindexed",
+    description: "DeFi Graph Protocol subgraph has zero indexer allocations — not currently coverable by any retry",
     color: "var(--color-accent-cyan)",
   },
   EXPECTED_PARTIAL_HALF_DAY: {
@@ -284,6 +297,11 @@ const EMPTY_REASON_META: Record<EmptyReasonKey, EmptyReasonMeta> = {
   SOURCE_RETURNED_ZERO: {
     short: "source-zero",
     description: "Source replied 200 with zero rows — honest absence (live-tradeable but illiquid)",
+    color: "var(--color-accent-yellow)",
+  },
+  STRATEGY_ENGINE_RETURNED_ZERO: {
+    short: "engine-zero",
+    description: "Strategy engine ran its own compute and legitimately produced zero instructions — hold-day decision",
     color: "var(--color-accent-yellow)",
   },
   NO_INPUT_AVAILABLE: {
