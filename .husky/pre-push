@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Delegate to the fleet's canonical pre-push guard (strict-quickmerge provenance gate) instead of
+# reimplementing it here. Husky-managed repos (JS UI: deployment-ui, unified-trading-system-ui)
+# resolve their hooks dir under .husky/ via core.hooksPath, so every hooks installer/self-heal
+# (install-hooks.sh, setup-tab-worktrees.sh, slot-cron-ff-pull.sh) skips them to avoid clobbering
+# husky's own .husky/_/ shims — which left both of these repos with NO provenance guard at all
+# until this file was added. See
+# unified-trading-pm/plans/active/issues/provenance_gate_override_and_unenforced_quickmerge_hook_2026_07_17.md.
+_ws="${UNIFIED_TRADING_WORKSPACE_ROOT:-}"
+if [ -z "$_ws" ]; then
+  _d="$(git rev-parse --show-toplevel 2>/dev/null)"
+  while [ "$_d" != "/" ] && [ ! -d "$_d/unified-trading-pm/scripts/cicd" ]; do _d="$(dirname "$_d")"; done
+  _ws="$_d"
+fi
+_guard="${_ws}/unified-trading-pm/scripts/hooks/pre-push"
+if [ -f "$_guard" ]; then
+  exec "$_guard" "$@"
+fi
+echo "husky/pre-push: canonical guard not found at ${_guard} — skipping (server-side provenance gate still applies)" >&2
