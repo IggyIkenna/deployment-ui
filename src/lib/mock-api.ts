@@ -4529,7 +4529,8 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
     const deps = getStressDeployments();
     return json({
       deployments: deps,
-      total: deps.length,
+      total_count: deps.length,
+      has_more: false,
     });
   }
   if (path.match(/^\/api\/deployments\/(.+)\/quota$/)) {
