@@ -285,6 +285,36 @@ if [ "$IS_UI_REPO" = true ]; then
                 log_skip "dist/ exists and is non-empty (library already built)"
             fi
         fi
+
+        # ── [UI.5] PRE-WARM BUILD CACHE for app repos (non-lib) ──────────────
+        # Operator directive (2026-06-10, ui_build_warm_cache_2026_06_17.md): if
+        # fundamental deps don't change, the build cache should be warm ALWAYS —
+        # only our code rebuilds. A fresh clone's FIRST `npm run build` pays
+        # Next.js/tsc's full cold-compile cost; running it once here (at setup
+        # time, no timeout) means the timed quality-gates.sh BUILD step only
+        # ever pays the cheap incremental cost afterward.
+        if [ "$IS_LIB_REPO" = false ] && [ -f "package.json" ] && grep -q '"build"[[:space:]]*:' package.json; then
+            BUILD_CACHE_WARM=false
+            if [ -d ".next/cache" ] && [ "$(ls -A .next/cache 2>/dev/null)" ]; then
+                BUILD_CACHE_WARM=true
+            elif [ -f "build-artifacts/tsbuildinfo" ] || [ -f "node_modules/.tmp/tsconfig.tsbuildinfo" ]; then
+                BUILD_CACHE_WARM=true
+            fi
+            if [ "$BUILD_CACHE_WARM" = true ] && [ "$FORCE" != true ]; then
+                log_skip "build cache already warm"
+            else
+                log_step "Pre-warm build cache (pays the cold-compile cost here, not on the timed QG gate)"
+                # No --silent here (unlike the lib-repo branch above): pnpm forwards an
+                # unrecognized trailing flag through to a compound script's last command
+                # (e.g. "tsc && vite build"), and vite's own CLI rejects an unknown
+                # `--silent` with a hard CACError — breaking the pre-warm for Vite apps.
+                if $PKG_MGR run build > /dev/null 2>&1; then
+                    log_ok "$PKG_MGR run build complete — build cache warm"
+                else
+                    log_warn "$PKG_MGR run build failed during pre-warm — quality-gates.sh's BUILD step will retry it"
+                fi
+            fi
+        fi
     fi
 
     echo ""
