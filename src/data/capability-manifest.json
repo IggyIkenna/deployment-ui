@@ -1408,16 +1408,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "ARBITRAGE_PRICE_DISPERSION",
-      "gap_type": null,
-      "readiness": "live-proven",
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -2419,16 +2409,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:deribit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_BASIS_PERP",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -3515,7 +3495,7 @@
       "from_node_id": "CARRY_STAKED_BASIS",
       "gap_type": null,
       "readiness": "live-proven",
-      "reason": "3-leg ATOMIC (stake + lending + perp). Ethereum (Lido/RocketPool + Aave + HL/GMX) and Solana (Jito/Marinade + Kamino). CeFi-perp hedge legs (Binance/Bybit/Deribit/OKX) added 2026-05-08 for May-23 cutover (master_to_live_defi_2026_05_23 \u00a71 \u2014 6-venue hedge universe). Aster pending venue onboarding \u2014 track in defi_master.",
+      "reason": "3-leg ATOMIC (stake + lending + perp). Ethereum (Lido/RocketPool + Aave + HL; GMX removed 2026-08-04, see defi_gmx_venue_removal_2026_07_25.md) and Solana (Jito/Marinade + Kamino). CeFi-perp hedge legs (Binance/Bybit/Deribit/OKX) added 2026-05-08 for May-23 cutover (master_to_live_defi_2026_05_23 \u00a71 \u2014 6-venue hedge universe). Aster pending venue onboarding \u2014 track in defi_master.",
       "relation": "trades_instrument",
       "status": "available",
       "to_node_id": "instrument_type:staking"
@@ -3679,16 +3659,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:deribit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "CARRY_STAKED_BASIS",
-      "gap_type": null,
-      "readiness": "live-proven",
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -5018,16 +4988,6 @@
       "reason": null,
       "relation": "supports",
       "status": "partial",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "EVENT_DRIVEN",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "partial",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -5293,11 +5253,11 @@
     {
       "agent_annotation": null,
       "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
+      "gap_type": "logical_dead_end",
       "readiness": "backtest-only",
-      "reason": "GMX perp liquidations have different economics than lending liquidations.",
+      "reason": "No DeFi perp-liquidation venue. Was gmx_v2-only (perp liquidations have different economics than lending liquidations); GMX removed 2026-08-04 (unreliable historical funding data, see defi_gmx_venue_removal_2026_07_25.md) leaves this cell with no remaining venue.",
       "relation": "trades_instrument",
-      "status": "partial",
+      "status": "not_available",
       "to_node_id": "instrument_type:perp"
     },
     {
@@ -5359,16 +5319,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:aave_v3"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "LIQUIDATION_CAPTURE",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "partial",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -7638,16 +7588,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "ML_DIRECTIONAL_CONTINUOUS",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -9147,16 +9087,6 @@
       "readiness": "backtest-only",
       "reason": null,
       "relation": "supports",
-      "status": "partial",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "RULES_DIRECTIONAL_CONTINUOUS",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
       "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
@@ -9878,16 +9808,6 @@
       "reason": null,
       "relation": "supports",
       "status": "partial",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "STAT_ARB_CROSS_SECTIONAL",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "partial",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -10289,16 +10209,6 @@
       "relation": "supports",
       "status": "partial",
       "to_node_id": "venue:cme"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "STAT_ARB_PAIRS_FIXED",
-      "gap_type": null,
-      "readiness": "backtest-only",
-      "reason": null,
-      "relation": "supports",
-      "status": "partial",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -14772,56 +14682,6 @@
     },
     {
       "agent_annotation": null,
-      "from_node_id": "collateral:gmx_v2",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "gmx_v2 accepts ETH (haircut=5%) \u2014 unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-      "relation": "accepts_collateral",
-      "status": "available",
-      "to_node_id": "collateral_asset:ETH"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "collateral:gmx_v2",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "gmx_v2 accepts USDC (haircut=0%) \u2014 unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-      "relation": "accepts_collateral",
-      "status": "available",
-      "to_node_id": "collateral_asset:USDC"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "collateral:gmx_v2",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "gmx_v2 accepts WBTC (haircut=5%) \u2014 unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-      "relation": "accepts_collateral",
-      "status": "available",
-      "to_node_id": "collateral_asset:WBTC"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "collateral:gmx_v2",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "gmx_v2 rejects stETH (haircut=0%) \u2014 unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-      "relation": "accepts_collateral",
-      "status": "not_available",
-      "to_node_id": "collateral_asset:stETH"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "collateral:gmx_v2",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "gmx_v2 rejects wstETH (haircut=0%) \u2014 unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-      "relation": "accepts_collateral",
-      "status": "not_available",
-      "to_node_id": "collateral_asset:wstETH"
-    },
-    {
-      "agent_annotation": null,
       "from_node_id": "collateral:hyperliquid",
       "gap_type": null,
       "readiness": null,
@@ -17068,16 +16928,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:buy",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -17259,16 +17109,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:deribit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:ARBITRAGE_PRICE_DISPERSION:sell",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -17688,16 +17528,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:CARRY_BASIS_PERP:perp",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -17869,16 +17699,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:deribit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:CARRY_BASIS_PERP_INV:perp",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -18328,16 +18148,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:CARRY_STAKED_BASIS:hedge",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -18529,16 +18339,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:deribit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:CARRY_STAKED_BASIS_DATED:hedge",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -19868,16 +19668,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:ML_DIRECTIONAL_CONTINUOUS:directional",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -20008,16 +19798,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:RULES_DIRECTIONAL_CONTINUOUS:directional",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -20138,16 +19918,6 @@
       "reason": null,
       "relation": "supports",
       "status": "available",
-      "to_node_id": "venue:gmx_v2"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:STAT_ARB_CROSS_SECTIONAL:long_basket",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
       "to_node_id": "venue:hyperliquid"
     },
     {
@@ -20199,16 +19969,6 @@
       "relation": "supports",
       "status": "available",
       "to_node_id": "venue:bybit"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "leg:STAT_ARB_CROSS_SECTIONAL:short_basket",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "supports",
-      "status": "available",
-      "to_node_id": "venue:gmx_v2"
     },
     {
       "agent_annotation": null,
@@ -23142,26 +22902,6 @@
     },
     {
       "agent_annotation": null,
-      "from_node_id": "venue:GMX-ARBITRUM",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "on_chain",
-      "status": "available",
-      "to_node_id": "chain:ARBITRUM"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "venue:GMX-AVALANCHE",
-      "gap_type": null,
-      "readiness": null,
-      "reason": null,
-      "relation": "on_chain",
-      "status": "available",
-      "to_node_id": "chain:AVALANCHE"
-    },
-    {
-      "agent_annotation": null,
       "from_node_id": "venue:GROSVENOR",
       "gap_type": null,
       "readiness": null,
@@ -24826,18 +24566,6 @@
         "venue_kind": "perp_cex"
       },
       "node_id": "collateral:deribit"
-    },
-    {
-      "kind": "collateral_policy",
-      "label": "Collateral: Gmx V2",
-      "metadata": {
-        "maintenance_margin": "",
-        "max_ltv": "",
-        "source_of_truth": "unified_api_contracts/registry/venue_collateral.py VENUE_COLLATERAL_MATRIX (Stream A audit 2026-05-07/08)",
-        "venue_id": "gmx_v2",
-        "venue_kind": "perp_dex"
-      },
-      "node_id": "collateral:gmx_v2"
     },
     {
       "kind": "collateral_policy",
@@ -27839,24 +27567,6 @@
     },
     {
       "kind": "venue",
-      "label": "Gmx Arbitrum",
-      "metadata": {
-        "category": "defi",
-        "protocol": "gmx"
-      },
-      "node_id": "venue:GMX-ARBITRUM"
-    },
-    {
-      "kind": "venue",
-      "label": "Gmx Avalanche",
-      "metadata": {
-        "category": "defi",
-        "protocol": "gmx"
-      },
-      "node_id": "venue:GMX-AVALANCHE"
-    },
-    {
-      "kind": "venue",
       "label": "Grosvenor",
       "metadata": {
         "category": "sports"
@@ -28645,14 +28355,6 @@
         "venue_category": "TRADFI"
       },
       "node_id": "venue:fx"
-    },
-    {
-      "kind": "venue",
-      "label": "Gmx V2",
-      "metadata": {
-        "asset_group": "DEFI"
-      },
-      "node_id": "venue:gmx_v2"
     },
     {
       "kind": "venue",

@@ -269,10 +269,11 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 572 nodes / 2412 edges (2026-07-21: DRIFT-cull residue
-    // pruned -- venue:drift + collateral:drift nodes and their 21 edges removed,
-    // Track 6 defi_consolidated_closeout_2026_07_18.md)
-    await expect(page.getByText(/572 nodes \/ 2412 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 568 nodes / 2386 edges (2026-08-04: gmx_v2-cull residue
+    // pruned -- venue:gmx_v2, venue:GMX-ARBITRUM, venue:GMX-AVALANCHE + collateral:gmx_v2
+    // nodes and their 26 edges removed, see defi_gmx_venue_removal_2026_07_25.md; prior
+    // 2026-07-21 DRIFT-cull prune -- 574->572 nodes / 2433->2412 edges -- already landed)
+    await expect(page.getByText(/568 nodes \/ 2386 edges/)).toBeVisible({ timeout: 10000 });
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
@@ -290,13 +291,15 @@ test.describe("CapabilityTab", () => {
     // Wait for the verdicts view (lazy-loaded)
     await expect(page.getByTestId("capability-verdicts-view")).toBeVisible({ timeout: 15000 });
 
-    // Summary counts match the bundled matrix (2026-07-21: DRIFT-cull residue pruned --
-    // 66 venue=drift cells removed across archetypes, Track 6
-    // defi_consolidated_closeout_2026_07_18.md; total=20544, available=12122,
-    // blocked=7974, not_registered=448 unchanged)
-    await expect(page.getByTestId("verdict-summary-total")).toContainText("20,544");
+    // Summary counts match the bundled matrix (2026-08-04: gmx_v2-cull residue pruned --
+    // 66 venue=gmx_v2 cells removed across 8 archetypes, see
+    // defi_gmx_venue_removal_2026_07_25.md; total=19488, available=12122 (unchanged --
+    // gmx_v2 cells contributed 0 available_algos), blocked=6918, not_registered=448
+    // unchanged. Prior 2026-07-21 DRIFT-cull prune -- total=20544, blocked=7974 --
+    // already landed.)
+    await expect(page.getByTestId("verdict-summary-total")).toContainText("19,488");
     await expect(page.getByTestId("verdict-summary-available")).toContainText("12,122");
-    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("7,974");
+    await expect(page.getByTestId("verdict-summary-blocked")).toContainText("6,918");
     await expect(page.getByTestId("verdict-summary-not-registered")).toContainText("448");
   });
 
