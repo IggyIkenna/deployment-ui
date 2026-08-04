@@ -73,6 +73,7 @@ import { AxisValueCensus } from "./AxisValueCensus";
 import { DistinctValuesPanel } from "./DistinctValuesPanel";
 import { CatalogueExplorer } from "./CatalogueExplorer";
 import { HonestCoverageCard } from "./HonestCoverageCard";
+import { PipelineTraceCard } from "./PipelineTraceCard";
 import { SportsFeatureCoverageCard } from "./SportsFeatureCoverageCard";
 import { NewListingsCard, UpcomingExpiriesCard } from "./LifecycleCards";
 import { LiveFreshnessPanel } from "./LiveFreshnessPanel";
@@ -2017,6 +2018,11 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
               with the backend's authoritative is_canonical verdict so drift /
               duplication is eyeball-able. */}
           {serviceName === "instruments-service" && <DistinctValuesPanel />}
+
+          {/* Pipeline Trace (GAP G-TRACE) — cross-service, not scoped to one
+              serviceName tab: threads one instrument/date through every stage
+              (IS->MTDS->MDPS->features->strategy->execution) in one call. */}
+          <PipelineTraceCard />
 
           {/* Honest Coverage Card — per-asset-group coverage % from daily cron VM */}
           <HonestCoverageCard />
