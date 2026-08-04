@@ -5501,6 +5501,70 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       mock: true,
     });
   }
+  // Cross-service E2E pipeline trace (GAP G-TRACE) — the PipelineTraceCard panel.
+  // Mirrors a real observed shape (upstream stages captured, a downstream stage
+  // never attempted) so mock mode exercises the same "found the stuck hop" UI
+  // path as real data. Path is `/pipeline-trace`, so it must precede the
+  // broader `/api/data-status/...` prefixes below.
+  if (path.startsWith("/api/data-status/pipeline-trace")) {
+    const reqUrl = new URL(url, "http://mock");
+    const instrument = reqUrl.searchParams.get("instrument") ?? "";
+    const date = reqUrl.searchParams.get("date") ?? "";
+    const assetGroup = (reqUrl.searchParams.get("asset_group") ?? "cefi").toLowerCase();
+    const capturedHop = (stage: number, service: string) => ({
+      stage,
+      service,
+      status: "captured" as const,
+      error_reason: "",
+      attempted_at: "2026-08-04T07:01:10.073250+00:00",
+      written_at: "2026-08-04T07:01:10.073250+00:00",
+    });
+    const neverAttemptedHop = (stage: number, service: string) => ({
+      stage,
+      service,
+      status: "never_attempted" as const,
+      error_reason: "",
+      attempted_at: "",
+      written_at: "",
+    });
+    // A well-established pair (BTC-USDT) is fully captured through the whole
+    // chain; anything else mirrors the real observed shape (upstream captured,
+    // a downstream stage never attempted) — deterministic on the instrument
+    // string so the two UI states (all-clear vs. stuck) are both reachable
+    // through this same client-side-intercepted mock path (no real network
+    // request is ever made in mock mode, so a Playwright `page.route` override
+    // cannot drive this endpoint — see tests/smoke/pipeline_trace_card.spec.ts).
+    const allCaptured = instrument.toUpperCase().includes("BTC-USDT");
+    const hops = allCaptured
+      ? [
+          capturedHop(1, "instruments-service"),
+          capturedHop(2, "market-tick-data-service"),
+          capturedHop(3, "market-data-processing-service"),
+          capturedHop(4, "features-onchain-service"),
+          capturedHop(4, "features-delta-one-service"),
+          capturedHop(4, "features-volatility-service"),
+          capturedHop(5, "strategy-service"),
+          capturedHop(6, "execution-service"),
+        ]
+      : [
+          neverAttemptedHop(1, "instruments-service"),
+          capturedHop(2, "market-tick-data-service"),
+          capturedHop(3, "market-data-processing-service"),
+          neverAttemptedHop(4, "features-onchain-service"),
+          neverAttemptedHop(4, "features-delta-one-service"),
+          neverAttemptedHop(4, "features-volatility-service"),
+          neverAttemptedHop(5, "strategy-service"),
+          neverAttemptedHop(6, "execution-service"),
+        ];
+    return json({
+      instrument,
+      date,
+      asset_group: assetGroup,
+      hops,
+      stuck_at: allCaptured ? null : "instruments-service",
+      mock: true,
+    });
+  }
   // RAW distinct-values enumeration (honest-coverage-rollup sourced) — the
   // server-side canonical-drift surface consumed by the DistinctValuesPanel.
   // Carries NON-canonical duplicate spellings (AAVE/AAVE_V3, lending/LENDING,

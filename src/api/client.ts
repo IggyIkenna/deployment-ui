@@ -3101,6 +3101,57 @@ export async function fetchDistinctValues(opts: {
   });
 }
 
+/**
+ * One hop's manifest capture status in a {@link PipelineTraceResponse} — GAP G-TRACE.
+ * Mirrors deployment-api `lookup_capture_status_for_shard`'s return contract.
+ */
+export interface PipelineTraceHop {
+  stage: number;
+  service: string;
+  status: "captured" | "empty_confirmed" | "attempted_failed" | "never_attempted";
+  error_reason: string;
+  attempted_at: string;
+  written_at: string;
+}
+
+/**
+ * `GET /data-status/pipeline-trace` — GAP G-TRACE, the cross-service E2E trace.
+ * Threads one (instrument, date) through every pipeline stage
+ * (IS -> MTDS -> MDPS -> features-* -> strategy -> execution) and reports each
+ * hop's manifest `capture_status`, so an operator can answer "where did this
+ * instrument/date get stuck" in one call instead of checking each service's
+ * data-status panel separately. `stuck_at` names the first hop (in pipeline
+ * order) whose status is not `captured`, or `null` if every hop captured.
+ */
+export interface PipelineTraceResponse {
+  instrument: string;
+  date: string;
+  asset_group: string;
+  hops: PipelineTraceHop[];
+  stuck_at: string | null;
+}
+
+export async function fetchPipelineTrace(opts: {
+  instrument: string;
+  date: string;
+  asset_group: string;
+  instrument_type?: string;
+  venue?: string;
+  chain?: string;
+  signal?: AbortSignal;
+}): Promise<PipelineTraceResponse> {
+  const params = new URLSearchParams();
+  params.set("instrument", opts.instrument);
+  params.set("date", opts.date);
+  params.set("asset_group", opts.asset_group);
+  if (opts.instrument_type) params.set("instrument_type", opts.instrument_type);
+  if (opts.venue) params.set("venue", opts.venue);
+  if (opts.chain) params.set("chain", opts.chain);
+  return fetchJson<PipelineTraceResponse>(`/data-status/pipeline-trace?${params.toString()}`, {
+    signal: opts.signal,
+  });
+}
+
 // Services that write per-venue-day-bundle parquets and support shard CSV download.
 export const SHARD_CSV_DOWNLOAD_SERVICES = new Set([
   "instruments-service",
