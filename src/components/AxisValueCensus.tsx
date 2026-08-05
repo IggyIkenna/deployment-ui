@@ -14,9 +14,24 @@ const AXIS_LABELS: Record<string, string> = {
   chain: "Chain",
   instrument_type: "Instrument type",
   data_type: "Data type",
+  source: "Source",
+  pipeline_mode: "Pipeline mode",
+  timeframe: "Timeframe",
+  quote_asset: "Quote asset",
+  margin_type: "Margin type",
 };
 
-const AXIS_ORDER = ["venue", "chain", "instrument_type", "data_type"];
+const AXIS_ORDER = [
+  "venue",
+  "chain",
+  "instrument_type",
+  "data_type",
+  "source",
+  "pipeline_mode",
+  "timeframe",
+  "quote_asset",
+  "margin_type",
+];
 
 /** Shared classes so the native `<select>` visually matches the rest of the panel. */
 const SELECT_CLASSNAME =
