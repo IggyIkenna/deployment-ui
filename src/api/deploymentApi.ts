@@ -1285,6 +1285,38 @@ export async function getProcessCategoryBreakdown(
 }
 
 // -------------------------------------------------------------------------
+// Watchdog kill/violation events (watchdog_kill_events_deployment_observability_2026_08_05.md)
+// — GET /api/watchdog/kill-events. Durable kill-event rows for the AO host's
+// resource-watchdog, read through the same BigQuery read path as the rolling
+// resource history above.
+// -------------------------------------------------------------------------
+
+export interface WatchdogKillEventRow {
+  ts: string;
+  vm_name: string;
+  pid: number;
+  slot_id: string;
+  command: string;
+  reason: string;
+  rss_mb: number;
+  limit_mb: number;
+  pressure_level: string;
+  killed: boolean;
+}
+
+export interface WatchdogKillEventsResponse {
+  hours: number;
+  vm_name: string | null;
+  rows: WatchdogKillEventRow[];
+}
+
+export async function getWatchdogKillEvents(vmName: string, hours: number): Promise<WatchdogKillEventsResponse> {
+  const params = new URLSearchParams({ vm_name: vmName, hours: String(hours) });
+  const response = await fetch(`${DEPLOYMENT_API}/api/watchdog/kill-events?${params.toString()}`);
+  return handleResponse<WatchdogKillEventsResponse>(response);
+}
+
+// -------------------------------------------------------------------------
 // run.log viewer (WS-4, deployment_ui_vm_log_viewer_2026_07_20.md) — size,
 // bounded tail, signed-URL download for a VM's actual run.log content. Mirrors
 // deployment-api `RunLogMetadataResponse`/`RunLogTailResponse`/`RunLogDownloadResponse`

@@ -15,13 +15,24 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import {
   getProcessCategoryBreakdown,
   getResourceRollingWindow,
+  getWatchdogKillEvents,
   type ProcessCategoryRow,
   type ResourceRollingWindowRow,
   type ResourceWindow,
+  type WatchdogKillEventRow,
 } from "../api/deploymentApi";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 const RESOURCE_WINDOWS: ResourceWindow[] = ["1h", "4h", "24h", "1wk"];
+
+// GET /api/watchdog/kill-events takes an `hours` lookback (1-168); map the UI window
+// selector onto it so the kill-events panel tracks the same window as the resource view.
+const WINDOW_HOURS: Record<ResourceWindow, number> = {
+  "1h": 1,
+  "4h": 4,
+  "24h": 24,
+  "1wk": 168,
+};
 
 type SortKey = "vm_name" | "avg_cpu_pct" | "avg_mem_pct" | "avg_disk_pct";
 
@@ -59,6 +70,9 @@ export function VmResourceComparison() {
   const [categoryRows, setCategoryRows] = useState<Record<string, ProcessCategoryRow[]>>({});
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [killRows, setKillRows] = useState<Record<string, WatchdogKillEventRow[]>>({});
+  const [killLoading, setKillLoading] = useState(false);
+  const [killError, setKillError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +96,20 @@ export function VmResourceComparison() {
       .then((r) => active && setCategoryRows((prev) => ({ ...prev, [expandedVm]: r.rows })))
       .catch(() => active && setCategoryError("Failed to load process-category breakdown"))
       .finally(() => active && setCategoryLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [expandedVm, windowSel]);
+
+  useEffect(() => {
+    if (!expandedVm) return;
+    let active = true;
+    setKillLoading(true);
+    setKillError(null);
+    getWatchdogKillEvents(expandedVm, WINDOW_HOURS[windowSel])
+      .then((r) => active && setKillRows((prev) => ({ ...prev, [expandedVm]: r.rows })))
+      .catch(() => active && setKillError("Failed to load watchdog kill events"))
+      .finally(() => active && setKillLoading(false));
     return () => {
       active = false;
     };
@@ -182,6 +210,7 @@ export function VmResourceComparison() {
                   {filtered.map((r) => {
                     const isExpanded = expandedVm === r.vm_name;
                     const breakdown = categoryRows[r.vm_name];
+                    const kills = killRows[r.vm_name];
                     return (
                       <Fragment key={`${r.vm_name}:${r.service}`}>
                         <tr
@@ -291,6 +320,50 @@ export function VmResourceComparison() {
                                   </table>
                                 </div>
                               )}
+                              <div
+                                className="pt-3 mt-3 border-t border-[var(--color-border)]/50"
+                                data-testid="kill-events-panel"
+                              >
+                                <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                                  Watchdog kill events — {r.vm_name}, last {windowSel}
+                                </p>
+                                {killLoading && !kills ? (
+                                  <p className="text-xs text-[var(--color-text-muted)]">Loading kill events…</p>
+                                ) : killError ? (
+                                  <p className="text-xs text-red-400" data-testid="kill-events-error">
+                                    {killError}
+                                  </p>
+                                ) : !kills || kills.length === 0 ? (
+                                  <p className="text-xs text-[var(--color-text-muted)]" data-testid="kill-events-empty">
+                                    No watchdog kill events for this VM in the last {windowSel}.
+                                  </p>
+                                ) : (
+                                  <table className="w-full text-xs" data-testid="kill-events-table">
+                                    <thead>
+                                      <tr className="text-left text-[var(--color-text-muted)]">
+                                        <th className="py-1 pr-3">Timestamp</th>
+                                        <th className="py-1 pr-3">Command</th>
+                                        <th className="py-1 pr-3">Reason</th>
+                                        <th className="py-1 pr-3">RSS / limit</th>
+                                        <th className="py-1 pr-3">Killed</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {kills.map((k, idx) => (
+                                        <tr key={`${k.ts}:${k.pid}:${idx}`} data-testid="kill-events-row">
+                                          <td className="py-1 pr-3 font-mono whitespace-nowrap">{k.ts}</td>
+                                          <td className="py-1 pr-3 font-mono">{k.command}</td>
+                                          <td className="py-1 pr-3">{k.reason}</td>
+                                          <td className="py-1 pr-3 font-mono">
+                                            {k.rss_mb} / {k.limit_mb} MB
+                                          </td>
+                                          <td className="py-1 pr-3">{k.killed ? "yes" : "no"}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )}
