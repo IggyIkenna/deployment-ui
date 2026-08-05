@@ -76,7 +76,7 @@ jobs:
       always() && needs.quality-gates-v2.result == 'failure'
       && github.event_name == 'pull_request'
       && (github.base_ref == 'staging' || github.base_ref == 'main')
-    runs-on: [self-hosted, glue]
+    runs-on: ubuntu-latest
     steps:
       - name: Dispatch escalate-to-orchestrator (ldr_qg_failure → orchestrator worker)
         env:
@@ -129,7 +129,7 @@ jobs:
     needs: quality-gates-v2
     # UI repo: no metadata_only output from ui-quality-gates-v2.yml — fire on every push:[main].
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, glue]
+    runs-on: ubuntu-latest
     steps:
       - name: Dispatch qg-passed → cloud-build-router
         env:
@@ -159,7 +159,7 @@ jobs:
     name: Notify ci-failure-watcher (event-driven, plan L1555)
     needs: quality-gates-v2
     if: always() && needs.quality-gates-v2.result == 'failure'
-    runs-on: [self-hosted, glue]
+    runs-on: ubuntu-latest
     steps:
       - name: Dispatch ci-failure-alert → PM ci-failure-watcher
         env:
