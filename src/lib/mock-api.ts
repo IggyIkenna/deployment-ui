@@ -4446,6 +4446,47 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       ],
     });
   }
+  // GET /api/watchdog/kill-events — watchdog kill/violation events
+  // (watchdog_kill_events_deployment_observability_2026_08_05.md). Mirrors
+  // deployment-api routes/watchdog_events.py's WatchdogKillEventsResponse: optional vm_name
+  // filter + hours lookback, newest first. The fixture models the resource-watchdog's payload
+  // shape (reason strings like `rss:<kb>kB > <kb>kB`, a `killed` boolean that's false on a
+  // dry-run), one row per queryable VM.
+  if (path === "/api/watchdog/kill-events") {
+    const reqUrl = new URL(url, "http://x");
+    const hours = Number(reqUrl.searchParams.get("hours") ?? 24);
+    const vmName = reqUrl.searchParams.get("vm_name") ?? null;
+    return json({
+      hours,
+      vm_name: vmName,
+      rows: [
+        {
+          ts: "2026-08-05T00:40:11Z",
+          vm_name: vmName ?? "i-0c9b283b31d6b5ca7",
+          pid: 3188231,
+          slot_id: "slot-4",
+          command: "python -m pytest tests/data_pipeline --maxfail=3",
+          reason: "rss:51204000kB > 8388608kB",
+          rss_mb: 51204,
+          limit_mb: 8388,
+          pressure_level: "critical",
+          killed: true,
+        },
+        {
+          ts: "2026-08-05T00:31:47Z",
+          vm_name: vmName ?? "i-0c9b283b31d6b5ca7",
+          pid: 4182332,
+          slot_id: "slot-11",
+          command: "uv run claude --resume",
+          reason: "swap:5242880kB > 4194304kB",
+          rss_mb: 28760,
+          limit_mb: 8388,
+          pressure_level: "high",
+          killed: false,
+        },
+      ],
+    });
+  }
   // GET /api/deployments/{name}/run-log/{metadata,tail,download} — WS-4 run.log viewer
   // (deployment_ui_vm_log_viewer_2026_07_20.md). Mirrors deployment-api's
   // RunLogMetadataResponse/RunLogTailResponse/RunLogDownloadResponse. A row with

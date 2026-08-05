@@ -86,4 +86,29 @@ test.describe("VM resource rolling-window views", () => {
     await rows.first().click();
     await expect(page.getByTestId("process-breakdown-panel")).not.toBeVisible();
   });
+
+  test("cross-VM comparison page expands a VM row to show watchdog kill events", async ({ page }) => {
+    await page.goto("/vm-resources");
+    const rows = page.getByTestId("vm-resource-comparison-row");
+    await expect(rows.first()).toBeVisible();
+
+    // Collapsed by default -- no kill-events panel rendered yet.
+    await expect(page.getByTestId("kill-events-panel")).not.toBeVisible();
+
+    await rows.first().click();
+    await expect(page.getByTestId("kill-events-panel")).toBeVisible();
+    await expect(page.getByTestId("kill-events-table")).toBeVisible();
+
+    // Mock fixture returns the watchdog kill-event shape: timestamp, command, reason,
+    // rss_mb/limit_mb (the columns the plan's [UI] P3 todo names).
+    const table = page.getByTestId("kill-events-table");
+    await expect(table).toContainText("python -m pytest");
+    await expect(table).toContainText("rss:51204000kB > 8388608kB");
+    await expect(table).toContainText("51204 / 8388 MB");
+    await expect(table).toContainText("swap:5242880kB > 4194304kB");
+
+    // Clicking the same row again collapses the kill-events panel too.
+    await rows.first().click();
+    await expect(page.getByTestId("kill-events-panel")).not.toBeVisible();
+  });
 });
