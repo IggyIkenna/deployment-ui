@@ -60,3 +60,34 @@ test("Axis Value Census renders raw distinct values (incl. duplicates) with no c
   expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
   expect(fiveXx).toHaveLength(0);
 });
+
+test("Axis Value Census renders quote_asset and margin_type axes (v6 manifest columns)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (err) => errors.push(err.message));
+
+  await page.goto(`/service/${SERVICE}/data-status`);
+  await page.waitForLoadState("networkidle");
+
+  const card = page.getByTestId("axis-value-census-card");
+  await expect(card).toBeVisible();
+
+  // quote_asset axis — mock fixture carries USDT, USDC, BTC, ETH with distinct counts.
+  const quoteAssetSection = page.getByTestId("axis-value-census-axis-quote_asset");
+  await expect(quoteAssetSection).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-row-quote_asset-USDT")).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-row-quote_asset-BTC")).toBeVisible();
+
+  // margin_type axis — mock fixture carries coin + usd.
+  const marginTypeSection = page.getByTestId("axis-value-census-axis-margin_type");
+  await expect(marginTypeSection).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-row-margin_type-coin")).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-row-margin_type-usd")).toBeVisible();
+
+  // Other axes also added: source, pipeline_mode, timeframe, chain
+  await expect(page.getByTestId("axis-value-census-axis-source")).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-axis-pipeline_mode")).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-axis-timeframe")).toBeVisible();
+  await expect(page.getByTestId("axis-value-census-axis-chain")).toBeVisible();
+
+  expect(errors.filter((e) => !e.includes("ResizeObserver"))).toEqual([]);
+});

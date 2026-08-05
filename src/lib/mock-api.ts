@@ -5623,13 +5623,41 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
           { value: "DERIBIT", count: 2 },
           { value: "OKX-SPOT", count: 2 },
         ],
+        chain: [
+          { value: "ETHEREUM", count: 4 },
+          { value: "SOLANA", count: 3 },
+        ],
         instrument_type: [
           { value: "SPOT_PAIR", count: 2 },
           { value: "spot", count: 1 },
           { value: "spot_pair", count: 1 },
           { value: "OPTION", count: 2 },
+          { value: "PERPETUAL", count: 1 },
         ],
         data_type: [{ value: "instruments", count: 7 }],
+        source: [
+          { value: "tardis", count: 5 },
+          { value: "databento", count: 2 },
+        ],
+        pipeline_mode: [
+          { value: "batch_tardis", count: 5 },
+          { value: "live_tardis", count: 2 },
+        ],
+        timeframe: [
+          { value: "1m", count: 3 },
+          { value: "1h", count: 2 },
+          { value: "1d", count: 2 },
+        ],
+        quote_asset: [
+          { value: "USDT", count: 3 },
+          { value: "USDC", count: 2 },
+          { value: "BTC", count: 1 },
+          { value: "ETH", count: 1 },
+        ],
+        margin_type: [
+          { value: "coin", count: 3 },
+          { value: "usd", count: 4 },
+        ],
       },
       truncated_axes: [],
       mock: true,
