@@ -34,6 +34,15 @@ const WINDOW_HOURS: Record<ResourceWindow, number> = {
   "1wk": 168,
 };
 
+// The AO/orchestrator host runs the resource-watchdog (RW_VM_NAME in its systemd unit)
+// but is NOT a deployment-service-launched VM, so it has no resource_samples rows and
+// never appears in the rolling table below. Its kill/violation events are still
+// queryable via GET /api/watchdog/kill-events?vm_name=..., so we pin a dedicated surface
+// for it here rather than gating on the resource table. SSOT:
+// watchdog_kill_events_deployment_gaps_2026_08_05.md (Gap 2) +
+// unified-trading-pm/scripts/infra/resource-watchdog/resource-watchdog.service.
+const AO_HOST_VM_NAME = "ip-172-31-5-118";
+
 type SortKey = "vm_name" | "avg_cpu_pct" | "avg_mem_pct" | "avg_disk_pct";
 
 // process_category_sampler.py's categorize() -- keep in sync with that SSOT.
@@ -59,6 +68,38 @@ function toChartDatum(rows: ProcessCategoryRow[]): Record<string, string | numbe
   return datum;
 }
 
+/** Shared watchdog kill/violation-events table, used by the per-VM expanded panel and the
+ * AO-host surface. `testId` is distinct per call-site so specs can target each table
+ * without a strict-mode ambiguity. */
+function KillEventsTable({ rows, testId = "kill-events-table" }: { rows: WatchdogKillEventRow[]; testId?: string }) {
+  return (
+    <table className="w-full text-xs" data-testid={testId}>
+      <thead>
+        <tr className="text-left text-[var(--color-text-muted)]">
+          <th className="py-1 pr-3">Timestamp</th>
+          <th className="py-1 pr-3">Command</th>
+          <th className="py-1 pr-3">Reason</th>
+          <th className="py-1 pr-3">RSS / limit</th>
+          <th className="py-1 pr-3">Killed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((k, idx) => (
+          <tr key={`${k.ts}:${k.pid}:${idx}`} data-testid="kill-events-row">
+            <td className="py-1 pr-3 font-mono whitespace-nowrap">{k.ts}</td>
+            <td className="py-1 pr-3 font-mono">{k.command}</td>
+            <td className="py-1 pr-3">{k.reason}</td>
+            <td className="py-1 pr-3 font-mono">
+              {k.rss_mb} / {k.limit_mb} MB
+            </td>
+            <td className="py-1 pr-3">{k.killed ? "yes" : "no"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function VmResourceComparison() {
   const [windowSel, setWindowSel] = useState<ResourceWindow>("1h");
   const [serviceFilter, setServiceFilter] = useState("");
@@ -73,6 +114,11 @@ export function VmResourceComparison() {
   const [killRows, setKillRows] = useState<Record<string, WatchdogKillEventRow[]>>({});
   const [killLoading, setKillLoading] = useState(false);
   const [killError, setKillError] = useState<string | null>(null);
+  // AO-host kill/violation events — always queried (the AO host has no resource_samples
+  // row to gate on), tracking the same window selector as the resource view.
+  const [aoHostKills, setAoHostKills] = useState<WatchdogKillEventRow[]>([]);
+  const [aoHostKillLoading, setAoHostKillLoading] = useState(false);
+  const [aoHostKillError, setAoHostKillError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +160,21 @@ export function VmResourceComparison() {
       active = false;
     };
   }, [expandedVm, windowSel]);
+
+  // AO-host surface — independent of the resource table; reads the same kill-events
+  // endpoint filtered to the AO host's vm_name (see AO_HOST_VM_NAME above).
+  useEffect(() => {
+    let active = true;
+    setAoHostKillLoading(true);
+    setAoHostKillError(null);
+    getWatchdogKillEvents(AO_HOST_VM_NAME, WINDOW_HOURS[windowSel])
+      .then((r) => active && setAoHostKills(r.rows))
+      .catch(() => active && setAoHostKillError("Failed to load AO host watchdog kill events"))
+      .finally(() => active && setAoHostKillLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [windowSel]);
 
   function toggleExpanded(vmName: string) {
     setExpandedVm((prev) => (prev === vmName ? null : vmName));
@@ -338,30 +399,7 @@ export function VmResourceComparison() {
                                     No watchdog kill events for this VM in the last {windowSel}.
                                   </p>
                                 ) : (
-                                  <table className="w-full text-xs" data-testid="kill-events-table">
-                                    <thead>
-                                      <tr className="text-left text-[var(--color-text-muted)]">
-                                        <th className="py-1 pr-3">Timestamp</th>
-                                        <th className="py-1 pr-3">Command</th>
-                                        <th className="py-1 pr-3">Reason</th>
-                                        <th className="py-1 pr-3">RSS / limit</th>
-                                        <th className="py-1 pr-3">Killed</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {kills.map((k, idx) => (
-                                        <tr key={`${k.ts}:${k.pid}:${idx}`} data-testid="kill-events-row">
-                                          <td className="py-1 pr-3 font-mono whitespace-nowrap">{k.ts}</td>
-                                          <td className="py-1 pr-3 font-mono">{k.command}</td>
-                                          <td className="py-1 pr-3">{k.reason}</td>
-                                          <td className="py-1 pr-3 font-mono">
-                                            {k.rss_mb} / {k.limit_mb} MB
-                                          </td>
-                                          <td className="py-1 pr-3">{k.killed ? "yes" : "no"}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                  <KillEventsTable rows={kills} />
                                 )}
                               </div>
                             </td>
@@ -373,6 +411,40 @@ export function VmResourceComparison() {
                 </tbody>
               </table>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AO-host watchdog kill events — not gated on resource_samples rows: the AO host
+          runs the resource-watchdog but is not a deployment-service-launched VM, so it
+          never appears in the rolling table above. Its kill/violation events are read
+          directly from /api/watchdog/kill-events filtered to AO_HOST_VM_NAME. */}
+      <Card data-testid="ao-host-kill-events-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <span>
+              AO host ({AO_HOST_VM_NAME}) — watchdog kill events, last {windowSel}
+            </span>
+            {aoHostKillLoading && <RefreshCw className="h-3 w-3 animate-spin text-[var(--color-text-muted)]" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">
+            The AO host runs the resource-watchdog but has no resource_samples row, so its kill/violation events are
+            surfaced here independently of the VM list.
+          </p>
+          {aoHostKillError ? (
+            <p className="text-xs text-red-400" data-testid="ao-host-kill-events-error">
+              {aoHostKillError}
+            </p>
+          ) : aoHostKillLoading && aoHostKills.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]">Loading kill events…</p>
+          ) : aoHostKills.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)]" data-testid="ao-host-kill-events-empty">
+              No watchdog kill events for the AO host in the last {windowSel}.
+            </p>
+          ) : (
+            <KillEventsTable rows={aoHostKills} testId="ao-host-kill-events-table" />
           )}
         </CardContent>
       </Card>
