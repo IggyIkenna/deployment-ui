@@ -73,20 +73,30 @@ steps:
 
   - name: "gcr.io/cloud-builders/docker"
     id: "build"
-    env: ["DOCKER_BUILDKIT=1"]
+    entrypoint: "bash"
     args:
-      - "build"
-      - "-f"
-      - "Dockerfile"
-      - "--build-arg"
-      - "BUILDKIT_INLINE_CACHE=1"
-      - "--cache-from"
-      - "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:latest"
-      - "-t"
-      - "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:$SHORT_SHA"
-      - "-t"
-      - "asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:latest"
-      - "."
+      - "-c"
+      - |
+        set -e
+        # FAIL-FAST on an empty image tag (guard, landed 2026-08-06). SHORT-SHA is a Cloud Build
+        # built-in populated ONLY for repoSource (trigger) builds; a manual `gcloud builds submit`
+        # uses a storageSource and leaves it EMPTY, so the tag becomes `<img>:` and docker dies
+        # with a cryptic `invalid reference format` / exit 125. Diagnose it up front. This repo has
+        # no extract-version step, so there is no VERSION fallback — an empty SHORT_SHA is
+        # genuinely unresolvable.
+        SAFE_SHA="$SHORT_SHA"
+        if [ -z "$$SAFE_SHA" ]; then
+          echo "FATAL: cannot build an image tag — SHORT_SHA is empty." >&2
+          echo "  SHORT_SHA is set only for trigger (repoSource) builds; a manual" >&2
+          echo "  'gcloud builds submit' must pass --substitutions SHORT_SHA=<sha>." >&2
+          exit 1
+        fi
+        DOCKER_BUILDKIT=1 docker build -f Dockerfile \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:latest \
+          -t asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:$$SAFE_SHA \
+          -t asia-northeast1-docker.pkg.dev/$PROJECT_ID/${_REGISTRY_REPO}/${_SERVICE_NAME}:latest \
+          .
     waitFor: ["quality-gates", "ensure-repo", "configure-docker"]
 
   # ── Immutable sha-tag guard (first push wins) ──────────────────────────────
