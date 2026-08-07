@@ -57,7 +57,7 @@ concurrency:
 
 jobs:
   update-dep:
-    runs-on: ubuntu-latest
+    runs-on: { { RUNS_ON } }
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -225,7 +225,8 @@ jobs:
           fi
 
       - name: Commit (MINOR/PATCH non-breaking -- digest refresh -> live-defi-rollout)
-        if: (steps.update.outputs.skip != 'true' || steps.digest.outputs.changed == 'true') &&
+        if:
+          (steps.update.outputs.skip != 'true' || steps.digest.outputs.changed == 'true') &&
           steps.update.outputs.bump_type != 'major' && steps.update.outputs.is_breaking != 'true'
         run: |
           git config user.name "github-actions[bot]"
@@ -276,7 +277,8 @@ jobs:
           done
 
       - name: Commit (MAJOR/breaking -- floor re-pin + uv.lock -> live-defi-rollout)
-        if: steps.update.outputs.skip != 'true' && (steps.update.outputs.bump_type == 'major' ||
+        if:
+          steps.update.outputs.skip != 'true' && (steps.update.outputs.bump_type == 'major' ||
           steps.update.outputs.is_breaking == 'true')
         run: |
           # MAJOR/breaking dep re-pin (the floor crossed a major boundary; uv.lock was regenerated
@@ -331,7 +333,7 @@ jobs:
     name: Slack — Dep Update Failure
     needs: [update-dep]
     if: always() && needs.update-dep.result == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: { { RUNS_ON } }
     steps:
       - name: Send Slack failure alert
         env:

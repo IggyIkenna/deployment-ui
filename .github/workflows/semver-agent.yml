@@ -1020,7 +1020,8 @@ jobs:
     if: always() && needs.semver.outputs.recovered == 'true'
     uses: ./.github/workflows/notify-slack.yml
     with:
-      message: "🟢 *semver-agent RECOVERED* | deployment-ui | push to `main` | <${{ github.server_url }}/${{
+      message:
+        "🟢 *semver-agent RECOVERED* | deployment-ui | push to `main` | <${{ github.server_url }}/${{
         github.repository }}/actions/runs/${{ github.run_id }}|sha `${{ github.sha }}`> — green again after a prior
         failure"
       severity: INFO
