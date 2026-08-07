@@ -43,6 +43,6 @@ concurrency:
 jobs:
   quality-gates:
     name: Quality Gates
-    uses: IggyIkenna/unified-trading-pm/.github/workflows/quality-gates.yml@live-defi-rollout
+    uses: IggyIkenna/unified-trading-ci/.github/workflows/python-quality-gates-v2.yml@main
     secrets:
       GH_PAT: ${{ secrets.GH_PAT }}

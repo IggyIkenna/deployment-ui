@@ -150,15 +150,21 @@ function getDefaultStartDate(): string {
 // b4: Services whose manifest correctness is tracked in Data Status.
 // Services NOT in this list (execution, risk, pnl, alerting…) are runtime
 // services — their health belongs in Monitor → Live / Experiments, not here.
+// SERVICE_TO_KIND SSOT (deployment-api/_core.py) + MONITORED_SERVICES registry
+// (deployment-service/monitored_services.py) — FOLD A cutover 2026-07-18.
 const DATA_PIPELINE_SERVICES = new Set([
   "instruments-service",
   "market-tick-data-service",
   "market-data-processing-service",
-  "features-cefi-service",
-  "features-defi-service",
-  "features-tradfi-service",
+  "features-delta-one-service",
+  "features-volatility-service",
+  "features-onchain-service",
   "features-sports-service",
-  "features-prediction-service",
+  "features-calendar-service",
+  "features-multi-timeframe-service",
+  "features-cross-instrument-service",
+  "ml-service",
+  "strategy-service",
 ]);
 
 // Sub-dimension label mapping — keyed by the response key from manifest_reader
@@ -1953,7 +1959,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
           <span>
             <strong>{serviceName}</strong> is a runtime service — its health is tracked in{" "}
             <strong>Monitor → Live</strong> or <strong>Monitor → Experiments</strong>. Data Status shows manifest-driven
-            coverage for data-pipeline services only (instruments, MTDS, MDPS, features-*).
+            coverage for data-pipeline services only (instruments, MTDS, MDPS, features, ML, strategy).
           </span>
         </div>
       )}
