@@ -204,6 +204,29 @@ if [ "$IS_UI_REPO" = true ]; then
         PKG_MGR="pnpm"
         PKG_LOCK="pnpm-lock.yaml"
         PKG_INSTALL_ARGS="install --silent"
+
+        # Shared pnpm content-addressable store — for a per-slot worktree clone
+        # (.tabs/<N>/<repo>), relocate pnpm's store INSIDE .tabs/ itself. pnpm's default
+        # (~/.local/share/pnpm/store) sits on a different mount boundary than .tabs/ on
+        # this host, so its hardlink-based dedup silently falls back to full per-clone
+        # copies (confirmed via a raw `ln` EXDEV probe — same failure signature as the
+        # parallel UV_CACHE_DIR investigation in host_root_disk_full_transient_2026_07_13.md).
+        # A store-dir placed anywhere under .tabs/ hardlinks cleanly to every sibling slot
+        # (verified: identical inode + nlink>1 across two independent clones). Respects a
+        # pre-set value, same convention as UV_CACHE_DIR above.
+        _tabs_root=""
+        _walk="$PWD"
+        while [ "$_walk" != "/" ]; do
+            if [ "$(basename "$_walk")" = ".tabs" ]; then
+                _tabs_root="$_walk"
+                break
+            fi
+            _walk="$(dirname "$_walk")"
+        done
+        if [ -n "$_tabs_root" ]; then
+            export npm_config_store_dir="${npm_config_store_dir:-$_tabs_root/.pnpm-store}"
+        fi
+        unset _tabs_root _walk
     elif [ -f "yarn.lock" ]; then
         PKG_MGR="yarn"
         PKG_LOCK="yarn.lock"
