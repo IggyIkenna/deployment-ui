@@ -983,10 +983,15 @@ export type FixturesByLeagueAndDay = Record<string, Record<string, FixtureRow[]>
 /** Result of ``GET /fixtures/browse``: the grouped fixtures plus a
  *  ``league_id -> human display_name`` map (UAC-resolved server-side). An id
  *  with no registry entry is ABSENT from `leagueNames` (honest-absence — the UI
- *  falls back to the raw id, never a fabricated name). */
+ *  falls back to the raw id, never a fabricated name). ``asOf`` is the
+ *  underlying catalogue rollup's own last-modified timestamp (ISO-8601) —
+ *  ``null`` when the metadata read failed server-side (honest-absence, never
+ *  a fabricated "now"). Operator ruling 2026-08-08: label the regen-cadence
+ *  staleness rather than build a live-day overlay. */
 export interface FixturesBrowseResult {
   leagues: FixturesByLeagueAndDay;
   leagueNames: Record<string, string>;
+  asOf: string | null;
 }
 
 export async function fetchFixturesBrowse(opts?: {
@@ -1025,9 +1030,10 @@ export async function fetchFixturesBrowse(opts?: {
   const res = await fetchJson<{
     leagues: FixturesByLeagueAndDay;
     league_names?: Record<string, string>;
+    as_of?: string | null;
     mock?: boolean;
   }>(path, { signal: opts?.signal });
-  return { leagues: res.leagues ?? {}, leagueNames: res.league_names ?? {} };
+  return { leagues: res.leagues ?? {}, leagueNames: res.league_names ?? {}, asOf: res.as_of ?? null };
 }
 
 /**
