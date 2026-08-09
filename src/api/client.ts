@@ -3917,6 +3917,19 @@ export interface HonestCoverageStatusCounts {
   shards_found?: number;
   /** Total shards expected across the full UAC-declared universe. */
   shards_expected?: number;
+  /**
+   * Honest-Coverage v2 (schema_version==2) layered-coverage gate fields —
+   * additive per the coverage.json v2 schema (codex/02-data/honest-coverage-
+   * model.md "coverage.json v2 schema"). Absent on v1 (pre-2026-06-29) payloads.
+   * `denominator_complete` = whether Layer-1 (the instrument-denominator audit)
+   * is 100% for this asset_group; `instrument_gates_download` (the negation)
+   * signals Layer-2's `coverage_pct` for this AG is only a LOWER BOUND, not
+   * authoritative, until Layer-1 closes; `layer1_completeness_pct` is the raw
+   * Layer-1 completeness fraction driving the gate.
+   */
+  denominator_complete?: boolean;
+  instrument_gates_download?: boolean;
+  layer1_completeness_pct?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */
@@ -3926,6 +3939,9 @@ export interface HonestCoverageResponse {
   by_asset_group: Record<string, HonestCoverageStatusCounts>;
   by_venue: Record<string, Record<string, HonestCoverageStatusCounts>>;
   by_venue_data_type: Record<string, Record<string, Record<string, HonestCoverageStatusCounts>>>;
+  /** Honest-Coverage v2 marker — 2 on payloads carrying the layered-coverage gate
+   * fields above; absent on older v1 payloads. */
+  schema_version?: number;
   // Honest-absence: a PARTIAL measurement run (some requested asset_groups failed
   // to load — e.g. an availability-index parquet OOM in the writer) stamps these so
   // the card can show a "coverage incomplete" banner instead of silently rendering a

@@ -154,6 +154,72 @@ describe("HonestCoverageCard", () => {
     expect(screen.queryByTestId("honest-coverage-partial-banner")).toBeNull();
   });
 
+  it("Honest-Coverage v2: gates the Layer-2 headline amber + shows Layer-1 completeness when denominator_complete is false — leaves a complete AG unaffected (synthetic-gap fixture)", async () => {
+    const V2_COVERAGE: HonestCoverageResponse = {
+      generated_at: "2026-08-09T06:00:00Z",
+      date: "2026-08-09",
+      schema_version: 2,
+      by_asset_group: {
+        // Layer-1 INCOMPLETE (79.55%) — Layer-2 must be gated: amber headline,
+        // the "DENOMINATOR INCOMPLETE" badge, and the layer-1 completeness row.
+        cefi: {
+          captured: 950,
+          empty_confirmed: 0,
+          attempted_failed: 0,
+          expected_unattempted: 50,
+          total: 1000,
+          coverage_pct: 95.0,
+          denominator_complete: false,
+          instrument_gates_download: true,
+          layer1_completeness_pct: 79.5,
+        },
+        // Layer-1 COMPLETE (100%) — same near-identical Layer-2 numbers must
+        // render WITHOUT the gate: this is the "correct layer drags down"
+        // proof — only the incomplete AG's rendering is dragged into the
+        // gated/lower-bound treatment, not every AG uniformly.
+        defi: {
+          captured: 950,
+          empty_confirmed: 0,
+          attempted_failed: 0,
+          expected_unattempted: 50,
+          total: 1000,
+          coverage_pct: 95.0,
+          denominator_complete: true,
+          instrument_gates_download: false,
+          layer1_completeness_pct: 100.0,
+        },
+      },
+      by_venue: {},
+      by_venue_data_type: {},
+    };
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(V2_COVERAGE);
+
+    render(<HonestCoverageCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("cefi")).toBeTruthy();
+    });
+
+    // cefi (gated): headline carries data-layer2-gated + the incomplete badge
+    // + a visible layer-1 completeness row.
+    const headlines = screen.getAllByTestId("coverage-manifest-capture");
+    const cefiHeadline = headlines.find((el) => el.getAttribute("data-layer2-gated") === "true");
+    expect(cefiHeadline).toBeTruthy();
+    expect(cefiHeadline?.className).toContain("text-amber-500");
+
+    const badges = screen.getAllByTestId("coverage-denominator-incomplete-badge");
+    expect(badges).toHaveLength(1); // only cefi, not defi
+
+    const layer1Rows = screen.getAllByTestId("coverage-layer1-completeness").map((el) => el.textContent);
+    expect(layer1Rows).toContain("79.5%");
+    expect(layer1Rows).toContain("100.0%");
+
+    // defi (complete): its headline must NOT be gated/amber.
+    const defiHeadline = headlines.find((el) => el.getAttribute("data-layer2-gated") !== "true");
+    expect(defiHeadline).toBeTruthy();
+    expect(defiHeadline?.className).not.toContain("text-amber-500");
+  });
+
   it("shows no banner when the file is today's and complete", async () => {
     const now = new Date();
     const todayUtc = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(

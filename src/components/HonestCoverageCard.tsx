@@ -124,7 +124,24 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   const capturedPct = attemptedDenom > 0 ? (100 * captured) / attemptedDenom : 0;
   const couldExistPct = s.completion_pct_shards_weighted ?? null;
   const outOfWindow = s.out_of_window ?? 0;
-  return { knownEmpty, pendingFetch, manifestCapturePct, capturedPct, couldExistPct, outOfWindow };
+  // Honest-Coverage v2 layered-coverage gate (codex/02-data/honest-coverage-model.md
+  // "When is Layer-2 coverage trustworthy?"): `instrument_gates_download === true`
+  // means Layer-1 (the instrument-denominator audit) is NOT yet 100% for this AG, so
+  // every Layer-2 figure above (manifestCapturePct/capturedPct/couldExistPct) is only
+  // a LOWER BOUND, not authoritative, until Layer-1 closes. `layer1CompletenessPct` is
+  // hidden (not faked as 0) when the payload is v1 and doesn't carry it.
+  const layer1CompletenessPct = s.layer1_completeness_pct ?? null;
+  const layer2Gated = s.instrument_gates_download ?? false;
+  return {
+    knownEmpty,
+    pendingFetch,
+    manifestCapturePct,
+    capturedPct,
+    couldExistPct,
+    outOfWindow,
+    layer1CompletenessPct,
+    layer2Gated,
+  };
 }
 
 /** Whole days between the coverage file's own `date` (YYYY-MM-DD, UTC) and today
@@ -240,8 +257,16 @@ export function HonestCoverageCard({ date }: { date?: string }) {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
               {AG_ORDER.filter((ag) => ag in data.by_asset_group).map((ag) => {
                 const s = data.by_asset_group[ag];
-                const { knownEmpty, pendingFetch, manifestCapturePct, capturedPct, couldExistPct, outOfWindow } =
-                  deriveCoverage(s);
+                const {
+                  knownEmpty,
+                  pendingFetch,
+                  manifestCapturePct,
+                  capturedPct,
+                  couldExistPct,
+                  outOfWindow,
+                  layer1CompletenessPct,
+                  layer2Gated,
+                } = deriveCoverage(s);
                 return (
                   <div
                     key={ag}
@@ -255,21 +280,63 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                           honest-answer metric the TURBO "Data Coverage" widget shows,
                           so the two headlines agree for the same asset_group. Computed
                           from raw counts, never the cron's mislabeled captured-only
-                          `coverage_pct`. */}
+                          `coverage_pct`. Honest-Coverage v2: when Layer-1 (the
+                          instrument-denominator audit) is not yet 100% for this AG
+                          (`layer2Gated`), this figure is only a LOWER BOUND — rendered
+                          in the amber warning tone regardless of its numeric value,
+                          matching the codex SSOT's "surfaced with a ⚠ DENOMINATOR
+                          INCOMPLETE annotation" rule. */}
                       <span
                         className={`text-xs font-mono font-bold ${
-                          manifestCapturePct >= 99
-                            ? "text-emerald-600"
-                            : manifestCapturePct >= 95
-                              ? "text-yellow-600"
-                              : "text-red-600"
+                          layer2Gated
+                            ? "text-amber-500"
+                            : manifestCapturePct >= 99
+                              ? "text-emerald-600"
+                              : manifestCapturePct >= 95
+                                ? "text-yellow-600"
+                                : "text-red-600"
                         }`}
-                        title="coverage (of attempted) — (captured + empty_confirmed + known_empty) / (that + attempted_failed). Matches the TURBO 'Data Coverage' widget."
+                        title={
+                          layer2Gated
+                            ? "coverage (of attempted) — LOWER BOUND: Layer-1 instrument-denominator audit is not yet 100% complete for this asset_group, so Layer-2 download coverage is gated and may under-report the real figure."
+                            : "coverage (of attempted) — (captured + empty_confirmed + known_empty) / (that + attempted_failed). Matches the TURBO 'Data Coverage' widget."
+                        }
                         data-testid="coverage-manifest-capture"
+                        data-layer2-gated={layer2Gated ? "true" : undefined}
                       >
                         {manifestCapturePct.toFixed(1)}%
                       </span>
                     </div>
+                    {layer2Gated && (
+                      <div
+                        className="flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-500"
+                        title="Layer-1 (instrument-denominator audit) is incomplete for this asset_group — every Layer-2 figure above is a lower bound, not the authoritative coverage number."
+                        data-testid="coverage-denominator-incomplete-badge"
+                      >
+                        <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                        DENOMINATOR INCOMPLETE
+                      </div>
+                    )}
+                    {/* Layer-1 completeness — the instrument-denominator audit fraction
+                        that GATES the Layer-2 figures above (Honest-Coverage v2). Hidden
+                        (not faked as 0) when the payload is v1 and doesn't carry it. */}
+                    {layer1CompletenessPct !== null && (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)]"
+                          title="Layer-1 completeness — |EXPECTED ∩ ENUMERATED| / |EXPECTED| for this asset_group's instrument denominator. Layer-2 download coverage is only trustworthy once this reaches 100%."
+                        >
+                          layer-1 (denominator)
+                        </span>
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                          title="layer1_completeness_pct"
+                          data-testid="coverage-layer1-completeness"
+                        >
+                          {layer1CompletenessPct.toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
                     {/* Secondary: captured-only ratio (of attempted) — strict "do we
                         actually have the data" (empty_confirmed does NOT count). */}
                     <div className="flex items-center justify-between">
