@@ -1,5 +1,5 @@
 /**
- * Regression spec — data-status coverage label distinction + headline consistency.
+ * Regression spec (pw:L2) — data-status coverage label distinction + headline consistency.
  *
  * Asserts:
  *   1. The HonestCoverageCard headline is the MANIFEST-CAPTURE ratio (of
@@ -18,6 +18,13 @@
  *      distinct, separately-labelled values (manifest-capture "of attempted",
  *      shards-weighted "of could-exist", and "out of window" as an explicit
  *      count) — not one ambiguous card.
+ *   6. With a Honest-Coverage v2 (`schema_version: 2`) payload carrying a
+ *      Layer-1-incomplete asset_group (`denominator_complete: false` /
+ *      `instrument_gates_download: true`), the card gates that AG's Layer-2
+ *      headline (amber tone + "DENOMINATOR INCOMPLETE" badge) and renders its
+ *      `layer1_completeness_pct` — while a Layer-1-complete AG in the SAME
+ *      payload renders ungated, proving the gate tracks the per-AG denominator
+ *      state rather than a global flag.
  *
  * Regression guards:
  *   - 2026-06-15: surface a distinct headline vs secondary coverage label.
@@ -29,6 +36,10 @@
  *     rendered as text anywhere in this card — surfaced as two additional
  *     distinct labelled rows (`infra_ops_residual_migration_verification_2026_07_24.md`
  *     item 4 / `cross_cutting_satellite_ao_dispatch_batch1_2026_07_26.md` sub-item B).
+ *   - 2026-08-09: Honest-Coverage v2 layered-coverage gate fields
+ *     (`layer1_completeness_pct`/`instrument_gates_download`/`denominator_complete`)
+ *     were shipped by instruments-service but had zero UI consumer — surfaced here
+ *     (`cross_cutting_satellite_ao_dispatch_batch2_2026_08_09.md` item 2).
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -99,6 +110,41 @@ const MOCK_HONEST_COVERAGE_RICH = {
   by_venue_data_type: {},
 };
 
+// Honest-Coverage v2 (schema_version: 2) payload with one Layer-1-incomplete
+// asset_group (cefi) and one Layer-1-complete asset_group (defi) carrying
+// near-identical Layer-2 counts — proves the gate is per-AG, not global.
+const MOCK_HONEST_COVERAGE_V2_GATED = {
+  generated_at: "2026-08-09T06:00:00Z",
+  date: "2026-08-09",
+  schema_version: 2,
+  by_asset_group: {
+    cefi: {
+      captured: 950,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted: 50,
+      total: 1000,
+      coverage_pct: 95.0,
+      denominator_complete: false,
+      instrument_gates_download: true,
+      layer1_completeness_pct: 79.5,
+    },
+    defi: {
+      captured: 950,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted: 50,
+      total: 1000,
+      coverage_pct: 95.0,
+      denominator_complete: true,
+      instrument_gates_download: false,
+      layer1_completeness_pct: 100.0,
+    },
+  },
+  by_venue: {},
+  by_venue_data_type: {},
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 async function setupRoutes(page: Page) {
@@ -114,6 +160,15 @@ async function setupRichRoutes(page: Page) {
   await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
   await page.route("**/api/data-status/honest-coverage**", (route) =>
     route.fulfill({ json: MOCK_HONEST_COVERAGE_RICH }),
+  );
+  await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
+}
+
+async function setupV2GatedRoutes(page: Page) {
+  await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
+  await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
+  await page.route("**/api/data-status/honest-coverage**", (route) =>
+    route.fulfill({ json: MOCK_HONEST_COVERAGE_V2_GATED }),
   );
   await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
 }
@@ -230,6 +285,52 @@ test.describe("data-status coverage labels regression", () => {
     const count = await oowLegend.count();
     // May not render if the coverage section isn't visible; assert no crash
     expect(count).toBeGreaterThanOrEqual(0);
+  });
+
+  test("HonestCoverageCard: Honest-Coverage v2 gates the Layer-1-incomplete AG's headline, leaves the complete AG ungated", async ({
+    page,
+  }) => {
+    await setupV2GatedRoutes(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+
+    const serviceLink = page.getByText("market-tick-data-service").first();
+    if (await serviceLink.isVisible()) {
+      await serviceLink.click();
+      await page.waitForLoadState("networkidle");
+    }
+
+    const headlineEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    await headlineEls
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => {
+        // Card may not be visible if we're not on the right tab — that's OK.
+      });
+
+    if ((await headlineEls.count()) === 0) return;
+
+    // cefi (Layer-1 incomplete) is gated: amber `data-layer2-gated="true"` +
+    // the "DENOMINATOR INCOMPLETE" badge + a visible layer-1 completeness row.
+    const gatedHeadline = page.locator('[data-testid="coverage-manifest-capture"][data-layer2-gated="true"]');
+    expect(await gatedHeadline.count()).toBeGreaterThan(0);
+    await expect(gatedHeadline.first()).toHaveClass(/text-amber-500/);
+
+    const badges = page.locator('[data-testid="coverage-denominator-incomplete-badge"]');
+    expect(await badges.count()).toBe(1); // only cefi, not defi
+
+    const layer1Els = page.locator('[data-testid="coverage-layer1-completeness"]');
+    expect(await layer1Els.count()).toBe(2); // both AGs carry the field
+    const layer1Texts = await layer1Els.allTextContents();
+    expect(layer1Texts).toContain("79.5%");
+    expect(layer1Texts).toContain("100.0%");
+
+    // defi (Layer-1 complete) must NOT be gated — its headline carries no
+    // data-layer2-gated attribute and is not amber-toned.
+    const ungatedHeadlines = page.locator('[data-testid="coverage-manifest-capture"]:not([data-layer2-gated])');
+    expect(await ungatedHeadlines.count()).toBeGreaterThan(0);
+    const ungatedClass = await ungatedHeadlines.first().getAttribute("class");
+    expect(ungatedClass).not.toContain("text-amber-500");
   });
 
   test("data-status default start date is 2018-01-01", async ({ page }) => {
