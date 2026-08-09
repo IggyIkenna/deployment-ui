@@ -60,6 +60,7 @@ describe("FixturesBrowser", () => {
         },
       },
       leagueNames: { EPL: "English Premier League", MLS: "Major League Soccer" },
+      asOf: "2026-08-09T01:00:04.000Z",
     });
   });
 
@@ -104,7 +105,7 @@ describe("FixturesBrowser", () => {
   });
 
   it("shows an empty state when no fixtures are returned in the window", async () => {
-    fetchSpy.mockResolvedValue({ leagues: {}, leagueNames: {} });
+    fetchSpy.mockResolvedValue({ leagues: {}, leagueNames: {}, asOf: null });
     render(<FixturesBrowser />);
     await waitFor(() => {
       expect(screen.getByTestId("fixtures-browser-empty")).toBeTruthy();
@@ -125,6 +126,7 @@ describe("FixturesBrowser", () => {
     fetchSpy.mockResolvedValue({
       leagues: { "999999": { "2026-04-21": [] } },
       leagueNames: {}, // id not in the registry -> absent -> UI shows the raw id
+      asOf: "2026-08-09T01:00:04.000Z",
     });
     render(<FixturesBrowser />);
     await waitFor(() => expect(screen.getByTestId("fixtures-browser-league-name-999999")).toBeTruthy());
@@ -212,6 +214,28 @@ describe("FixturesBrowser", () => {
         team: "Arsenal",
       }),
     );
+  });
+
+  it("labels the catalogue's regen-cadence staleness honestly (operator ruling 2026-08-08, no live-day overlay)", async () => {
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(screen.getByTestId("fixtures-browser-as-of")).toBeTruthy());
+
+    const note = screen.getByTestId("fixtures-browser-as-of").textContent ?? "";
+    expect(note).toMatch(/Catalogue as of/);
+    expect(note).toMatch(/regenerated daily/);
+    // No live-day overlay: any mention of "live" is scoped to the may-lag
+    // caveat, never a claim of live/current status.
+    expect(note).toMatch(/may lag/);
+  });
+
+  it("shows an honest-absence message, not a fabricated timestamp, when the backend as_of read failed", async () => {
+    fetchSpy.mockResolvedValue({ leagues: {}, leagueNames: {}, asOf: null });
+    render(<FixturesBrowser />);
+    await waitFor(() => expect(screen.getByTestId("fixtures-browser-as-of")).toBeTruthy());
+
+    const note = screen.getByTestId("fixtures-browser-as-of").textContent ?? "";
+    expect(note).toMatch(/freshness unavailable/i);
+    expect(note).not.toMatch(/Catalogue as of/);
   });
 
   it("shows the full-history catalogue coverage note even for a multi-year range (no server-side span cap)", async () => {

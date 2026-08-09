@@ -40,6 +40,13 @@ function formatKickoffLocal(iso: string): string {
   });
 }
 
+/** Local timestamp for the catalogue's ``as_of`` freshness label — falls back
+ *  to the raw ISO string on an unparseable value rather than hiding it. */
+function formatAsOf(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
 interface LeagueGroup {
   league_id: string;
   /** Human name (UAC display_name) if the id resolved, else undefined — the UI
@@ -91,6 +98,11 @@ export function FixturesBrowser() {
   const [team, setTeam] = useState("");
   const [leagues, setLeagues] = useState<FixturesByLeagueAndDay>({});
   const [leagueNames, setLeagueNames] = useState<LeagueNames>({});
+  // Catalogue rollup's own last-modified timestamp — null when the backend's
+  // blob-metadata read failed (honest-absence, never a fabricated "now").
+  // Operator ruling 2026-08-08: accept + LABEL the regen-cadence staleness
+  // rather than build a live-day overlay (no live status polling here).
+  const [asOf, setAsOf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,10 +124,12 @@ export function FixturesBrowser() {
       });
       setLeagues(data.leagues);
       setLeagueNames(data.leagueNames);
+      setAsOf(data.asOf);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fixtures");
       setLeagues({});
       setLeagueNames({});
+      setAsOf(null);
     } finally {
       setLoading(false);
     }
@@ -215,6 +229,13 @@ export function FixturesBrowser() {
             {leagueId.trim() ? ` · league ${leagueId.trim()}` : ""}
             {team.trim() ? ` · team ~ "${team.trim()}"` : ""}
             {` (catalogue covers full history, ${CATALOGUE_COVERAGE_START}→present — no range-length limit).`}
+          </p>
+        )}
+        {!loading && !error && (
+          <p className="text-[10px] text-[var(--color-text-muted)]" data-testid="fixtures-browser-as-of">
+            {asOf
+              ? `Catalogue as of ${formatAsOf(asOf)} — regenerated daily (01:00 UTC) with a full rebuild Saturdays; live status (e.g. NS→FT) may lag until the next regen.`
+              : "Catalogue freshness unavailable — could not read the rollup's last-modified time."}
           </p>
         )}
       </CardHeader>
