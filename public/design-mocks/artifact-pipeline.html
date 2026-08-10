@@ -1813,12 +1813,12 @@
           e: "apprunner list-operations, probed live 2026-07-21",
         },
         {
-          c: "Build provenance never recorded",
+          c: "Build provenance sourced from Firestore ci_status (manifest field retired)",
           sev: "high",
           n: 3,
           area: "pipeline",
           tab: "pipe",
-          m: "<span class='mono'>deployed_versions</span> is <span class='mono'>{dev:{},staging:{},prod:{}}</span> and <span class='mono'>deployed_versions_aws</span> doesn't exist. The write code is real but has never fired for any repo.",
+          m: "The manifest no longer records build provenance — <span class='mono'>deployed_versions</span> / <span class='mono'>deployed_versions_aws</span> were RETIRED (2026-08-10). Deployed image tags now come from Firestore <span class='mono'>ci_status</span> (the SSOT) / the released-version registry instead.",
           e: "workspace-manifest.json, read directly",
         },
         {
