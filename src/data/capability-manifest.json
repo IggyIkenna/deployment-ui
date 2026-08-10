@@ -14892,46 +14892,6 @@
     },
     {
       "agent_annotation": null,
-      "from_node_id": "data_source:barchart",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "default transport for barchart",
-      "relation": "over_transport:rest",
-      "status": "available",
-      "to_node_id": "data_source:barchart"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:barchart",
-      "gap_type": null,
-      "readiness": null,
-      "reason": "batch is the baseline mode for every source",
-      "relation": "supports_mode:batch",
-      "status": "available",
-      "to_node_id": "data_source:barchart"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:barchart",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "live-mode capability for barchart lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:live",
-      "status": "not_registered",
-      "to_node_id": "data_source:barchart"
-    },
-    {
-      "agent_annotation": null,
-      "from_node_id": "data_source:barchart",
-      "gap_type": "missing_registry",
-      "readiness": null,
-      "reason": "replay-mode capability for barchart lives in the manual source-mode-capability-matrix audit, not yet codified in a UAC registry",
-      "relation": "supports_mode:replay",
-      "status": "not_registered",
-      "to_node_id": "data_source:barchart"
-    },
-    {
-      "agent_annotation": null,
       "from_node_id": "data_source:chainlink",
       "gap_type": null,
       "readiness": null,
@@ -23877,9 +23837,9 @@
     "logical_dead_end": 446,
     "logical_dead_ends": 16,
     "missing_extraction": 1,
-    "missing_registry": 150,
+    "missing_registry": 148,
     "needs_code_scan": 1,
-    "not_registered_total": 151,
+    "not_registered_total": 149,
     "orphan_nodes": 81,
     "unbuilt_dead_ends": 159
   },
@@ -24608,12 +24568,6 @@
       "label": "Api Football",
       "metadata": {},
       "node_id": "data_source:api_football"
-    },
-    {
-      "kind": "data_source",
-      "label": "Barchart",
-      "metadata": {},
-      "node_id": "data_source:barchart"
     },
     {
       "kind": "data_source",

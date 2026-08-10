@@ -31,7 +31,7 @@ const nodes: CapabilityNode[] = [
   { kind: "instrument_type", node_id: "instrument_type:spot", label: "Spot", metadata: {} },
   { kind: "venue", node_id: "venue:binance", label: "Binance", metadata: { category: "cefi" } },
   { kind: "venue", node_id: "venue:uniswap", label: "Uniswap", metadata: { category: "defi" } },
-  { kind: "data_source", node_id: "data_source:barchart", label: "Barchart", metadata: {} },
+  { kind: "data_source", node_id: "data_source:databento", label: "Databento", metadata: {} },
   { kind: "data_source", node_id: "data_source:tardis", label: "Tardis", metadata: {} },
   { kind: "archetype", node_id: "ARCH_ORPHAN", label: "Orphan Arch", metadata: {} },
 ];
@@ -105,8 +105,8 @@ const edges: CapabilityEdge[] = [
   },
   // data_source batch/live/replay + transport
   {
-    from_node_id: "data_source:barchart",
-    to_node_id: "data_source:barchart",
+    from_node_id: "data_source:databento",
+    to_node_id: "data_source:databento",
     relation: "supports_mode:batch",
     status: "available",
     gap_type: null,
@@ -115,8 +115,8 @@ const edges: CapabilityEdge[] = [
     agent_annotation: null,
   },
   {
-    from_node_id: "data_source:barchart",
-    to_node_id: "data_source:barchart",
+    from_node_id: "data_source:databento",
+    to_node_id: "data_source:databento",
     relation: "supports_mode:live",
     status: "not_registered",
     gap_type: "missing_registry",
@@ -125,8 +125,8 @@ const edges: CapabilityEdge[] = [
     agent_annotation: null,
   },
   {
-    from_node_id: "data_source:barchart",
-    to_node_id: "data_source:barchart",
+    from_node_id: "data_source:databento",
+    to_node_id: "data_source:databento",
     relation: "supports_mode:replay",
     status: "not_registered",
     gap_type: "missing_registry",
@@ -135,8 +135,8 @@ const edges: CapabilityEdge[] = [
     agent_annotation: null,
   },
   {
-    from_node_id: "data_source:barchart",
-    to_node_id: "data_source:barchart",
+    from_node_id: "data_source:databento",
+    to_node_id: "data_source:databento",
     relation: "over_transport:rest",
     status: "available",
     gap_type: null,
@@ -270,13 +270,13 @@ describe("buildGapSummary", () => {
 describe("buildSourcesTable", () => {
   it("returns one row per data_source node", () => {
     const rows = buildSourcesTable(MANIFEST);
-    // barchart + tardis
+    // databento + tardis
     expect(rows).toHaveLength(2);
   });
 
   it("maps batch/live/replay status per source", () => {
     const rows = buildSourcesTable(MANIFEST);
-    const bc = rows.find((r) => r.sourceId === "data_source:barchart");
+    const bc = rows.find((r) => r.sourceId === "data_source:databento");
     expect(bc).toBeDefined();
     expect(bc!.batchStatus).toBe("available");
     expect(bc!.liveStatus).toBe("not_registered");
@@ -293,7 +293,7 @@ describe("buildSourcesTable", () => {
 
   it("extracts transport label from over_transport edge", () => {
     const rows = buildSourcesTable(MANIFEST);
-    const bc = rows.find((r) => r.sourceId === "data_source:barchart");
+    const bc = rows.find((r) => r.sourceId === "data_source:databento");
     expect(bc!.transport).toBe("rest");
   });
 
