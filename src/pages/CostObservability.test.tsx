@@ -23,6 +23,7 @@ const summary: api.CostSummaryResponse = {
   credit: -2573.48,
   run_rate_daily: 514.22,
   delta_pct: 8.1,
+  discount_rate_pct: 14.3, // grand |credit|/gross (P3 #2)
   dates: ["2026-06-09", "2026-06-10"],
   clouds: [
     // gcp carries the promo credit: net 14914.85 = gross 17488.33 − credit 2573.48
@@ -31,6 +32,7 @@ const summary: api.CostSummaryResponse = {
       total: 14914.85,
       gross: 17488.33,
       credit: -2573.48,
+      discount_rate_pct: 14.7, // 2573.48 / 17488.33
       delta_pct: 12.4,
       daily: [400, 500],
       is_placeholder: false,
@@ -167,6 +169,18 @@ const resourceBreakdown: api.CostBreakdownResponse = {
       is_idle: true,
       waste_kind: "orphaned_disk",
     },
+    {
+      // Cloud Run Jobs — bigger than any single VM but neither vm nor bucket kind (P3 #4).
+      label: "cloud-run-job-cost-obs",
+      cloud: "gcp",
+      cost: 2890,
+      gross: 2890,
+      credit: 0,
+      detail: "Cloud Run Jobs",
+      resource_kind: "other",
+      share_pct: 25,
+      is_provisional: false,
+    },
   ],
 };
 
@@ -208,6 +222,10 @@ const skuBreakdown: api.CostBreakdownResponse = {
       resource_kind: "other",
       share_pct: 100,
       is_provisional: false,
+      // Unit economics (P3 #3): 5,740 class-A operations at $0.40/op.
+      usage_amount: 5740,
+      usage_unit: "class-a operations",
+      cost_per_unit: 0.4,
     },
   ],
 };
@@ -614,5 +632,37 @@ describe("CostObservability", () => {
     // value instead, so a mid-edit input can never produce a failed request.
     expect(screen.getByTestId("cost-range-start")).toHaveValue("2026-06-09");
     expect(vi.mocked(api.fetchCostSummary)).not.toHaveBeenCalled();
+  });
+
+  it("shows the effective discount rate chip next to the gross − credits derivation", async () => {
+    // P3 #2 — the summary carries discount_rate_pct; the chip renders only when credits apply.
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-total-breakdown")).toBeInTheDocument());
+    expect(screen.getByTestId("cost-total-breakdown-discount-rate")).toHaveTextContent("≈ 14.3% off");
+    // Per-cloud: gcp carries the credit (14.7%), aws has none → no chip.
+    expect(screen.getByTestId("cost-cloud-breakdown-gcp-discount-rate")).toHaveTextContent("≈ 14.7% off");
+    expect(screen.queryByTestId("cost-cloud-breakdown-aws-discount-rate")).toBeNull();
+  });
+
+  it("renders the Other resources leaf table with non-vm/non-bucket resources", async () => {
+    // P3 #4 — Cloud Run Jobs etc. surface as a third leaf table, not only inside the rollup.
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("leaf-other-table")).toBeInTheDocument());
+    expect(screen.getByText("cloud-run-job-cost-obs")).toBeInTheDocument();
+    expect(screen.getByText("Cloud Run Jobs")).toBeInTheDocument();
+    // vm/bucket leaves keep their own pinned rows (regression: the split stays exclusive).
+    expect(screen.getByTestId("leaf-vm-table")).toBeInTheDocument();
+    expect(screen.getByTestId("leaf-bucket-table")).toBeInTheDocument();
+  });
+
+  it("surfaces usage quantity + $/unit under the sku dimension", async () => {
+    // P3 #3 — sku rows carry usage_amount/usage_unit/cost_per_unit (unit economics).
+    render(<CostObservability />);
+    await waitFor(() => expect(screen.getByTestId("cost-breakdown-table")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "By SKU" }));
+    const usage = await screen.findByTestId("cost-sku-usage");
+    expect(usage).toHaveTextContent("5,740");
+    expect(usage).toHaveTextContent("class-a operations");
+    expect(screen.getByTestId("cost-sku-unit-price")).toHaveTextContent("$0.4000/class-a operations");
   });
 });

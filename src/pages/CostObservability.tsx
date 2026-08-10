@@ -132,6 +132,21 @@ function formatGb(n: number): string {
 function costPerGb(n: number): string {
   return `$${n.toFixed(n < 1 ? 4 : 2)}/GB`;
 }
+// Usage quantity with thousands separators (sku unit-economics rows — P3 #3).
+function formatNumber(n: number): string {
+  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+// Effective price per unit, e.g. "$3.0000/gibibyte month" — the SKU's own billing unit
+// (GB-month, vCPU hour, byte, ...). GBP-tally mode re-denominates GBP-native rows like perGb.
+function unitPrice(mode: Ccy, r: CostBreakdownRow): string {
+  const n = r.cost_per_unit ?? 0;
+  const unit = r.usage_unit ?? "unit";
+  if (mode === "GBP" && r.currency === "GBP") {
+    const v = n * nativeFactor(r);
+    return `£${v.toFixed(v < 1 ? 4 : 2)}/${unit}`;
+  }
+  return `$${n.toFixed(n < 1 ? 4 : 2)}/${unit}`;
+}
 // $/GB (or £/GB in GBP mode for a GBP-native bucket, re-denominated at the row's own billed rate).
 function perGb(mode: Ccy, r: CostBreakdownRow): string {
   const n = r.cost_per_gb ?? 0;
@@ -438,6 +453,7 @@ function GrossCredit({
   mode = "USD",
   compact = false,
   testId,
+  discountRatePct,
 }: {
   gross: number;
   credit: number;
@@ -447,6 +463,7 @@ function GrossCredit({
   mode?: Ccy;
   compact?: boolean;
   testId?: string;
+  discountRatePct?: number; // |credit|/gross — the effective discount rate (P3 #2)
 }) {
   if (!(credit < 0)) return null;
   return (
@@ -461,6 +478,14 @@ function GrossCredit({
         {money(mode, Math.abs(credit), creditNative != null ? Math.abs(creditNative) : undefined, ccy)}
       </span>
       <span>credits)</span>
+      {discountRatePct != null && discountRatePct > 0 && (
+        <span
+          className="ml-1 rounded-full bg-[var(--color-accent-green)]/15 px-1.5 py-px font-medium text-[var(--color-accent-green)]"
+          data-testid={`${testId ?? "gross-credit"}-discount-rate`}
+        >
+          ≈ {discountRatePct.toFixed(1)}% off
+        </span>
+      )}
     </div>
   );
 }
@@ -488,7 +513,12 @@ function KpiBand({
             <div data-testid="cost-total" className="mt-2 font-mono text-[34px] font-bold leading-none tracking-tight">
               {usd(summary.total)}
             </div>
-            <GrossCredit gross={summary.gross} credit={summary.credit} testId="cost-total-breakdown" />
+            <GrossCredit
+              gross={summary.gross}
+              credit={summary.credit}
+              testId="cost-total-breakdown"
+              discountRatePct={summary.discount_rate_pct}
+            />
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-text-tertiary)]">
               <Delta pct={summary.delta_pct} />
               <span>vs prior {summary.days}d</span>
@@ -542,6 +572,7 @@ function KpiBand({
                   mode={currency}
                   compact
                   testId={`cost-cloud-breakdown-${c}`}
+                  discountRatePct={cs.discount_rate_pct}
                 />
                 <div className="mt-2.5 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                   <Delta pct={cs.delta_pct} />
@@ -903,6 +934,10 @@ function sortValue(r: CostBreakdownRow, key: string): number | string {
       return r.storage_class_gb ? storageClassSplit(r.storage_class_gb) : "";
     case "cost_per_gb":
       return r.cost_per_gb ?? -1;
+    case "usage_amount":
+      return r.usage_amount ?? -1;
+    case "cost_per_unit":
+      return r.cost_per_unit ?? -1;
     case "comp_storage":
       return r.cost_by_component?.storage ?? -1;
     case "comp_operations":
@@ -1282,6 +1317,28 @@ function BreakdownPanel({
                     filter={colSelect("purchase_option")}
                   />
                 )}
+                {dimension === "sku" && (
+                  <>
+                    <SortHead
+                      label="Usage"
+                      active={key === "usage_amount"}
+                      dir={dir}
+                      onClick={() => toggle("usage_amount")}
+                      align="right"
+                      sticky
+                      testId="cost-col-usage"
+                    />
+                    <SortHead
+                      label="$/unit"
+                      active={key === "cost_per_unit"}
+                      dir={dir}
+                      onClick={() => toggle("cost_per_unit")}
+                      align="right"
+                      sticky
+                      testId="cost-col-unit-price"
+                    />
+                  </>
+                )}
                 {dimension === "bucket" && (
                   <>
                     <SortHead
@@ -1455,6 +1512,29 @@ function BreakdownPanel({
                             <span className="text-[var(--color-text-muted)]">—</span>
                           )}
                         </td>
+                      )}
+                      {dimension === "sku" && (
+                        <>
+                          <td
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                            data-testid="cost-sku-usage"
+                          >
+                            {r.usage_amount != null && r.usage_unit ? (
+                              <>
+                                {formatNumber(r.usage_amount)}
+                                <span className="ml-1 text-[var(--color-text-tertiary)]">{r.usage_unit}</span>
+                              </>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td
+                            className="whitespace-nowrap border-b border-[var(--color-border-subtle)] px-2.5 py-[7px] text-right font-mono text-[var(--color-text-primary)]"
+                            data-testid="cost-sku-unit-price"
+                          >
+                            {r.cost_per_unit != null ? unitPrice(currency, r) : "—"}
+                          </td>
+                        </>
                       )}
                       {dimension === "bucket" && (
                         <>
@@ -1665,11 +1745,11 @@ function LeafPanel({
   title: string;
   hint: string;
   rows: CostBreakdownRow[];
-  kind: "vm" | "bucket";
+  kind: "vm" | "bucket" | "other";
   currency: Ccy;
 }) {
   const { sorted, key, dir, toggle } = useSort(rows, "cost");
-  const colCount = 3 + (kind === "vm" ? 2 : 3);
+  const colCount = 3 + (kind === "vm" ? 2 : kind === "bucket" ? 3 : 0);
   return (
     <Panel>
       <PanelHeader title={title} hint={hint} />
@@ -2135,6 +2215,7 @@ export function CostObservability() {
   );
   const vmRows = useMemo(() => resources.filter((r) => r.resource_kind === "vm"), [resources]);
   const bucketRows = useMemo(() => resources.filter((r) => r.resource_kind === "bucket"), [resources]);
+  const otherRows = useMemo(() => resources.filter((r) => r.resource_kind === "other"), [resources]);
   const githubRows = useMemo(
     () => (breakdown?.dimension === "service" ? breakdown.rows.filter((r) => r.cloud === "github") : []),
     [breakdown],
@@ -2267,6 +2348,13 @@ export function CostObservability() {
                 hint="GCS + S3"
                 rows={bucketRows}
                 kind="bucket"
+                currency={currency}
+              />
+              <LeafPanel
+                title="Other resources"
+                hint="Cloud Run Jobs, build workers & anything non-VM/non-bucket"
+                rows={otherRows}
+                kind="other"
                 currency={currency}
               />
             </div>
