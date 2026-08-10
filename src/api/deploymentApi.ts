@@ -374,6 +374,7 @@ export interface CloudSummary {
   total: number; // NET — what you actually pay (= gross + credit)
   gross: number; // usage cost before credits
   credit: number; // credits applied (<= 0)
+  discount_rate_pct?: number; // |credit|/gross — effective promo/CUD/SUD discount this window
   delta_pct: number | null;
   daily: number[];
   is_placeholder: boolean;
@@ -395,6 +396,7 @@ export interface CostSummaryResponse {
   total: number; // NET grand total — what you actually pay
   gross: number; // usage cost before credits
   credit: number; // credits applied (<= 0)
+  discount_rate_pct?: number; // grand-level |credit|/gross — cross-cloud effective discount
   run_rate_daily: number;
   delta_pct: number | null;
   dates: string[];
@@ -424,6 +426,11 @@ export interface CostBreakdownRow {
   storage_gb?: number | null;
   storage_class_gb?: Record<string, number> | null;
   cost_per_gb?: number | null;
+  // Unit economics (sku-dimension rows): summed usage quantity + its unit + effective $/unit
+  // (net / usage) — $/GB-month, $/vCPU-hour etc. Absent when the group mixes units or has none.
+  usage_amount?: number | null;
+  usage_unit?: string;
+  cost_per_unit?: number | null;
   // Bucket-only: net cost split by SKU component so an operations-dominated bucket (e.g. an
   // event-log bucket that's ~all Class-A writes on a few GB) reads honestly. Keys present only
   // when non-zero: storage | operations | egress | other; they sum to ~`cost`.
