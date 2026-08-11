@@ -218,7 +218,23 @@ export function isStagingDormant(row: RepoCiOverviewRow): boolean {
   return row.staging_dormant_mode === true || row.promotion_model === "ldr_main";
 }
 
+/** `promotion_model === "single_branch"` — no LDR/staging/main promotion pipeline exists at all
+ * (e.g. unified-trading-ci: main-only, live-defi-rollout is a retired/frozen ref nothing promotes
+ * from — shared_ci_workflow_repo_extraction_2026_08_06). Mirrors
+ * `promotion_lag_monitor.py`'s `_single_branch_repos()` exemption, which already skips these
+ * repos ENTIRELY (that Python monitor never flags them). This UI computes the same LDR→main git
+ * delta independently and had no equivalent exemption, so classifyStall kept reading a
+ * single-branch repo's permanent, expected LDR≠main content skew as a genuine stall — a no-op
+ * warning the operator should never see (2026-08-11). */
+export function isSingleBranch(row: RepoCiOverviewRow): boolean {
+  return row.promotion_model === "single_branch";
+}
+
 export function classifyStall(row: RepoCiOverviewRow): StallReason {
+  // single_branch: LDR is not a live target for this repo at all, so an LDR≠main delta is
+  // permanent by design, never a stall. Checked FIRST — before any delta math — so it can never
+  // be masked by a coincidental mainFiles===0 reading on some snapshots and not others.
+  if (isSingleBranch(row)) return { kind: "none", files: 0, blockers: [] };
   const ldrMain = findDelta(row, "main", "live-defi-rollout");
   const stagingMain = findDelta(row, "main", "staging");
   const ldrStaging = findDelta(row, "staging", "live-defi-rollout");

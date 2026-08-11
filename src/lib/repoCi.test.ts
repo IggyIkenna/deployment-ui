@@ -15,6 +15,7 @@ import {
   githubBranchUrl,
   githubChecksUrl,
   githubCommitUrl,
+  isSingleBranch,
   isStagingDormant,
   orchestratorStateLabel,
   orchestratorStateTone,
@@ -387,6 +388,19 @@ describe("classifyStall (per-repo promotion-stall classifier)", () => {
   it("no real content behind main → none (in sync, or ahead-by-commits-only squash skew)", () => {
     expect(classifyStall(row({ deltas: [d("main", "live-defi-rollout", 0, 3)] })).kind).toBe("none");
   });
+  it("single_branch repo → none even with a large permanent LDR≠main delta (no promotion pipeline exists)", () => {
+    const r = classifyStall(
+      row({
+        promotion_model: "single_branch",
+        deltas: [
+          d("main", "live-defi-rollout", 42, 100),
+          d("main", "staging", 42, 100),
+          d("staging", "live-defi-rollout", 0),
+        ],
+      }),
+    );
+    expect(r.kind).toBe("none");
+  });
   it("staging ahead of main, LDR==staging, no PR, status on-main → staging-to-main + ciStatusStale (the AO class)", () => {
     const r = classifyStall(
       row({
@@ -551,6 +565,21 @@ describe("isStagingDormant — LDR→main-direct predicate", () => {
   });
   it("false when promotion_model routes through staging (not ldr_main)", () => {
     expect(isStagingDormant(row({ promotion_model: "staging" }))).toBe(false);
+  });
+});
+
+// The `promotion_lag_monitor.py` parity predicate (`_single_branch_repos()`): a repo with no
+// LDR/staging/main promotion pipeline at all (e.g. unified-trading-ci) — an LDR≠main delta is
+// permanent by design, never a stall (2026-08-11 no-op-warning fix).
+describe("isSingleBranch — no-promotion-pipeline predicate", () => {
+  it("false for a default repo (no promotion_model)", () => {
+    expect(isSingleBranch(row({}))).toBe(false);
+  });
+  it("true when promotion_model is single_branch", () => {
+    expect(isSingleBranch(row({ promotion_model: "single_branch" }))).toBe(true);
+  });
+  it("false for ldr_main (a different, real promotion pipeline)", () => {
+    expect(isSingleBranch(row({ promotion_model: "ldr_main" }))).toBe(false);
   });
 });
 
