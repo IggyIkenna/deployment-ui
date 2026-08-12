@@ -1,18 +1,17 @@
 import { ReactNode, useEffect, useState } from "react";
-import { getStoredToken, initiateGoogleLogin } from "./GoogleAuth";
 import {
-  getCognitoToken,
-  handleCognitoCallback,
-  initiateCognitoLogin,
-} from "./CognitoAuth";
+  completeGoogleLoginRedirect,
+  getStoredToken,
+  initiateGoogleLogin,
+  startTokenRefreshListener,
+} from "./GoogleAuth";
+import { getCognitoToken, handleCognitoCallback, initiateCognitoLogin } from "./CognitoAuth";
 
 interface RequireAuthProps {
   children: ReactNode;
 }
 
-const SKIP_AUTH =
-  import.meta.env.VITE_SKIP_AUTH === "true" ||
-  import.meta.env.VITE_MOCK_API === "true";
+const SKIP_AUTH = import.meta.env.VITE_SKIP_AUTH === "true" || import.meta.env.VITE_MOCK_API === "true";
 const AUTH_PROVIDER = import.meta.env.VITE_AUTH_PROVIDER || "google";
 
 export function RequireAuth({ children }: RequireAuthProps) {
@@ -38,11 +37,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
         if (new URLSearchParams(window.location.search).has("code")) {
           const ok = await handleCognitoCallback();
           if (ok) {
-            window.history.replaceState(
-              {},
-              document.title,
-              window.location.pathname,
-            );
+            window.history.replaceState({}, document.title, window.location.pathname);
             setIsAuthenticated(true);
             setIsLoading(false);
             return;
@@ -52,24 +47,19 @@ export function RequireAuth({ children }: RequireAuthProps) {
           await initiateCognitoLogin();
         }
       } else {
-        // Google implicit flow
+        // Firebase Google sign-in (redirect flow) — see GoogleAuth.tsx for why
+        // this replaced the previous hand-rolled OAuth implicit flow.
+        startTokenRefreshListener();
         const token = getStoredToken();
         if (token) {
           setIsAuthenticated(true);
           setIsLoading(false);
           return;
         }
-        const urlParams = new URLSearchParams(window.location.hash.slice(1));
-        const idToken = urlParams.get("id_token");
-        if (idToken) {
-          sessionStorage.setItem("google_id_token", idToken);
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname,
-          );
+        const fromRedirect = await completeGoogleLoginRedirect();
+        if (fromRedirect) {
           setIsAuthenticated(true);
-        } else if (!window.location.pathname.includes("/auth/callback")) {
+        } else {
           initiateGoogleLogin();
         }
       }
