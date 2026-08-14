@@ -24,8 +24,18 @@
  *   4. When every hop is captured, the "All hops captured" badge renders
  *      instead (no stuck_at badge).
  *
+ *   5. Type-ahead instrument search (2026-08-14): typing a partial string
+ *      into the Instrument field shows a dropdown of matches spanning
+ *      multiple asset groups (mirrors DataStatusTab.tsx's "Symbol search"
+ *      box, same `/data-status/instruments/search` endpoint/mock fixture);
+ *      clicking a result populates the field with its `canonical_id`, sets
+ *      the Asset group select, and auto-runs the trace; an operator who
+ *      already has the exact canonical ID can still type/paste it and press
+ *      Enter to submit directly, bypassing the dropdown entirely.
+ *
  * Regression guard: 2026-08-04 — GAP G-TRACE first ships
- * (infra_satellite_ao_dispatch_batch1_2026_07_26.md).
+ * (infra_satellite_ao_dispatch_batch1_2026_07_26.md); 2026-08-14 — type-ahead
+ * instrument search added on top of the plain text field.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -108,5 +118,74 @@ test.describe("Pipeline Trace card (GAP G-TRACE) regression", () => {
     ]) {
       await expect(page.getByTestId(`pipeline-trace-hop-${service}`)).toContainText("captured");
     }
+  });
+
+  test("typing a partial instrument string shows type-ahead results across asset groups", async ({ page }) => {
+    await navigateToDataStatus(page);
+
+    const instrumentInput = page.getByTestId("pipeline-trace-instrument-input");
+    await instrumentInput.fill("btc");
+
+    // Fixture set (src/lib/mock-api.ts `/api/data-status/instruments/search`)
+    // has "btc" matching two CEFI rows (BINANCE-FUTURES perp, BINANCE-SPOT
+    // pair) and one PREDICTION row ("WILL-BTC-100K-2026") — asserting both
+    // asset groups appear proves the search is NOT scoped to whatever the
+    // Asset group select currently holds (it defaults to "cefi").
+    const results = page.getByTestId("pipeline-trace-instrument-result");
+    await expect(results).toHaveCount(3, { timeout: 10000 });
+    await expect(results.filter({ hasText: "CEFI" })).toHaveCount(2);
+    await expect(results.filter({ hasText: "PREDICTION" })).toHaveCount(1);
+  });
+
+  test("clicking a type-ahead result populates the field, sets asset group, and auto-runs the trace", async ({
+    page,
+  }) => {
+    await navigateToDataStatus(page);
+
+    // Date filled first — the click handler only auto-fires the trace once a
+    // date is present (mirrors runTrace()'s own canSubmit gate).
+    await page.getByTestId("pipeline-trace-date-input").fill("2026-08-04");
+
+    const instrumentInput = page.getByTestId("pipeline-trace-instrument-input");
+    await instrumentInput.fill("btc");
+
+    const results = page.getByTestId("pipeline-trace-instrument-result");
+    const cefiPerp = results.filter({ hasText: "BINANCE-FUTURES:PERPETUAL:BTC-USDT" });
+    await expect(cefiPerp).toBeVisible({ timeout: 10000 });
+    await cefiPerp.click();
+
+    // The field is populated with the match's canonical_id, and the Asset
+    // group select follows it (lower-cased to match the select's option
+    // values) — the operator never had to know either up front.
+    await expect(instrumentInput).toHaveValue("BINANCE-FUTURES:PERPETUAL:BTC-USDT");
+    await expect(page.getByTestId("pipeline-trace-asset-group-select")).toHaveValue("cefi");
+
+    // The dropdown collapses on selection rather than lingering over the
+    // result area below.
+    await expect(page.getByTestId("pipeline-trace-instrument-results")).toHaveCount(0);
+
+    // Selecting the result triggered the trace itself (no separate click on
+    // the Trace button) — this canonical_id contains "BTC-USDT", so the mock
+    // fixture reports every hop captured.
+    await expect(page.getByTestId("pipeline-trace-result")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("pipeline-trace-stuck-at-none")).toHaveText("All hops captured");
+  });
+
+  test("pasting an exact canonical ID and pressing Enter submits without going through the dropdown", async ({
+    page,
+  }) => {
+    await navigateToDataStatus(page);
+
+    const instrumentInput = page.getByTestId("pipeline-trace-instrument-input");
+    // Not present in the search-fixture dataset — proves this path never
+    // depends on a dropdown match existing at all.
+    await instrumentInput.fill("BINANCE-FUTURES:PERPETUAL:AAVE-USDC@LIN");
+    await page.getByTestId("pipeline-trace-date-input").fill("2026-08-04");
+
+    await instrumentInput.press("Enter");
+
+    await expect(page.getByTestId("pipeline-trace-result")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("pipeline-trace-stuck-at")).toHaveText("Stuck at: instruments-service");
+    await expect(page.getByTestId("pipeline-trace-instrument-results")).toHaveCount(0);
   });
 });

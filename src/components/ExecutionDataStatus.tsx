@@ -19,24 +19,12 @@ import {
   Rocket,
   X,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { cn } from "../lib/utils";
 import { CloudConfigBrowser } from "./CloudConfigBrowser";
 // Infer cloud provider from path prefix (gs:// = GCP, s3:// = AWS)
@@ -46,10 +34,7 @@ function inferCloudProvider(path: string | null): "gcp" | "aws" | null {
   if (path.startsWith("gs://")) return "gcp";
   return null;
 }
-import {
-  getExecutionMissingShards,
-  type ExecutionMissingShardsResponse,
-} from "../api/client";
+import { getExecutionMissingShards, type ExecutionMissingShardsResponse } from "../api/client";
 
 interface ExecutionDataStatusProps {
   serviceName: string;
@@ -142,33 +127,22 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   });
 
   const [cloudConfigPath, setCloudConfigPath] = useState<string | null>(null);
-  const [, setDiscoveredConfigCount] = useState<
-    number | null
-  >(null);
+  const [, setDiscoveredConfigCount] = useState<number | null>(null);
   const [data, setData] = useState<ExecutionDataStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("hierarchy");
 
   // Expansion state for hierarchy view
-  const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(new Set());
   const [expandedModes, setExpandedModes] = useState<Set<string>>(new Set());
-  const [expandedTimeframes, setExpandedTimeframes] = useState<Set<string>>(
-    new Set(),
-  );
-  const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(
-    new Set(),
-  );
-  const [expandedConfigs, setExpandedConfigs] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedTimeframes, setExpandedTimeframes] = useState<Set<string>>(new Set());
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(new Set());
+  const [expandedConfigs, setExpandedConfigs] = useState<Set<string>>(new Set());
 
   // Deploy Missing state
   const [showDeployModal, setShowDeployModal] = useState(false);
-  const [missingShardsData, setMissingShardsData] =
-    useState<ExecutionMissingShardsResponse | null>(null);
+  const [missingShardsData, setMissingShardsData] = useState<ExecutionMissingShardsResponse | null>(null);
   const [loadingMissingShards, setLoadingMissingShards] = useState(false);
   const [deployingMissing, setDeployingMissing] = useState(false);
 
@@ -181,8 +155,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
     fetch("/api/config/region")
       .then((r) => r.json())
       .then((data) => {
-        const region =
-          data.storage_region ?? data.gcs_region ?? "asia-northeast1";
+        const region = data.storage_region ?? data.gcs_region ?? "asia-northeast1";
         setBackendRegion(region);
         setDeployRegion(region);
       })
@@ -193,13 +166,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
     setShowDeployRegionWarning(deployRegion !== backendRegion);
   }, [deployRegion, backendRegion]);
 
-  const handleCloudConfigSelected = useCallback(
-    (path: string, configCount: number) => {
-      setCloudConfigPath(path);
-      setDiscoveredConfigCount(configCount);
-    },
-    [],
-  );
+  const handleCloudConfigSelected = useCallback((path: string, configCount: number) => {
+    setCloudConfigPath(path);
+    setDiscoveredConfigCount(configCount);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!cloudConfigPath) {
@@ -232,9 +202,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
         setData(result);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch data status",
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch data status");
     } finally {
       setLoading(false);
     }
@@ -259,9 +227,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
       setMissingShardsData(result);
       setShowDeployModal(true);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch missing shards",
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch missing shards");
     } finally {
       setLoadingMissingShards(false);
     }
@@ -384,8 +350,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   ) => {
     if (!dates || dates.length === 0) return null;
 
-    const allDates =
-      truncated && tailDates ? [...dates, "...", ...tailDates] : dates;
+    const allDates = truncated && tailDates ? [...dates, "...", ...tailDates] : dates;
 
     return (
       <div className="mt-2">
@@ -428,11 +393,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   };
 
   // Render breakdown view (by mode, timeframe, or algo)
-  const renderBreakdownView = (
-    breakdown: Record<string, BreakdownItem>,
-    label: string,
-    icon: React.ReactNode,
-  ) => (
+  const renderBreakdownView = (breakdown: Record<string, BreakdownItem>, label: string, icon: React.ReactNode) => (
     <div className="space-y-2">
       {Object.entries(breakdown).map(([name, item]) => {
         const key = `${label}-${name}`;
@@ -440,10 +401,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
         const isComplete = item.completion_pct >= 100;
 
         return (
-          <div
-            key={name}
-            className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden"
-          >
+          <div key={name} className="border border-[var(--color-border-subtle)] rounded-lg overflow-hidden">
             <Button
               variant="ghost"
               onClick={() => toggleBreakdown(key)}
@@ -467,10 +425,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     {item.missing_count} missing
                   </Badge>
                 )}
-                <Badge
-                  variant="outline"
-                  className={getCompletionBadgeClass(item.completion_pct)}
-                >
+                <Badge variant="outline" className={getCompletionBadgeClass(item.completion_pct)}>
                   {item.completion_pct.toFixed(0)}%
                 </Badge>
                 <div className="w-20 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
@@ -503,9 +458,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     </div>
                   ))}
                   {item.missing_count > 5 && (
-                    <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                      ... and {item.missing_count - 5} more
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-2">... and {item.missing_count - 5} more</p>
                   )}
                 </div>
               </div>
@@ -514,9 +467,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
             {isExpanded && item.missing_samples.length === 0 && (
               <div className="bg-[var(--color-bg-secondary)] px-4 py-6 text-center">
                 <CheckCircle2 className="h-6 w-6 text-[var(--color-accent-green)] mx-auto mb-2" />
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  All configs have results
-                </p>
+                <p className="text-sm text-[var(--color-text-muted)]">All configs have results</p>
               </div>
             )}
           </div>
@@ -539,15 +490,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               </Badge>
             )}
           </div>
-          <CardDescription>
-            Select the cloud config directory (GCS or S3) to check for results
-          </CardDescription>
+          <CardDescription>Select the cloud config directory (GCS or S3) to check for results</CardDescription>
         </CardHeader>
         <CardContent>
-          <CloudConfigBrowser
-            serviceName={serviceName}
-            onPathSelected={handleCloudConfigSelected}
-          />
+          <CloudConfigBrowser serviceName={serviceName} onPathSelected={handleCloudConfigSelected} />
         </CardContent>
       </Card>
 
@@ -557,21 +503,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-[var(--color-text-muted)]" />
-              <CardTitle className="text-base">
-                Date Range Filter (Optional)
-              </CardTitle>
+              <CardTitle className="text-base">Date Range Filter (Optional)</CardTitle>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchData}
-              disabled={loading || !cloudConfigPath}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
               Check Status
             </Button>
           </div>
@@ -582,28 +517,17 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 Start Date (filter results)
               </Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-9"
-              />
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
                 End Date (filter results)
               </Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-9"
-              />
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9" />
             </div>
           </div>
           <p className="text-xs text-[var(--color-text-muted)] mt-2">
-            Filter which result dates to check. Leave as-is to check all
-            available dates.
+            Filter which result dates to check. Leave as-is to check all available dates.
           </p>
         </CardContent>
       </Card>
@@ -614,20 +538,14 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-cyan)]" />
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Checking execution results against configs...
-              </p>
+              <p className="text-sm text-[var(--color-text-muted)]">Checking execution results against configs...</p>
               <div className="flex items-center gap-2">
                 {cloudConfigPath && inferCloudProvider(cloudConfigPath) && (
                   <Badge variant="outline" className="text-[10px]">
-                    {inferCloudProvider(cloudConfigPath) === "gcp"
-                      ? "GCP"
-                      : "AWS"}
+                    {inferCloudProvider(cloudConfigPath) === "gcp" ? "GCP" : "AWS"}
                   </Badge>
                 )}
-                <p className="text-xs text-[var(--color-text-muted)] font-mono">
-                  {cloudConfigPath}
-                </p>
+                <p className="text-xs text-[var(--color-text-muted)] font-mono">{cloudConfigPath}</p>
               </div>
             </div>
           </CardContent>
@@ -659,8 +577,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     Execution Results Status
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    {data.version} • {data.strategy_count} strategies •{" "}
-                    {data.total_configs} configs
+                    {data.version} • {data.strategy_count} strategies • {data.total_configs} configs
                   </CardDescription>
                 </div>
                 <div className="text-right">
@@ -671,8 +588,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     {data.completion_pct.toFixed(1)}%
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    {data.configs_with_results} / {data.total_configs} configs
-                    have results
+                    {data.configs_with_results} / {data.total_configs} configs have results
                   </div>
                 </div>
               </div>
@@ -693,17 +609,14 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               {data.completion_pct >= 100 ? (
                 <div className="mt-4 flex items-center justify-center p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)]">
                   <CheckCircle2 className="h-4 w-4 text-[var(--color-accent-green)] mr-2" />
-                  <span className="text-sm text-[var(--color-accent-green)]">
-                    All configs have execution results
-                  </span>
+                  <span className="text-sm text-[var(--color-accent-green)]">All configs have execution results</span>
                 </div>
               ) : (
                 <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-[var(--color-status-error-bg)] border border-[var(--color-status-error-border)]">
                   <div className="flex items-center gap-2">
                     <XCircle className="h-4 w-4 text-[var(--color-accent-red)]" />
                     <span className="text-sm">
-                      <strong>{data.missing_count}</strong> configs missing
-                      results
+                      <strong>{data.missing_count}</strong> configs missing results
                     </span>
                   </div>
                   <Button
@@ -775,9 +688,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   <FileCode className="h-4 w-4" />
                   Breakdown by Mode
                 </CardTitle>
-                <CardDescription>
-                  Compare SCE vs HUF or other execution modes
-                </CardDescription>
+                <CardDescription>Compare SCE vs HUF or other execution modes</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderBreakdownView(
@@ -815,10 +726,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   <Cpu className="h-4 w-4" />
                   Breakdown by Algorithm
                 </CardTitle>
-                <CardDescription>
-                  Compare TWAP vs VWAP vs Iceberg etc. - identify algo-specific
-                  issues
-                </CardDescription>
+                <CardDescription>Compare TWAP vs VWAP vs Iceberg etc. - identify algo-specific issues</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderBreakdownView(
@@ -838,16 +746,13 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                   <Layers className="h-4 w-4" />
                   Strategy Hierarchy
                 </CardTitle>
-                <CardDescription>
-                  Drill down: Strategy → Mode → Timeframe → Config files
-                </CardDescription>
+                <CardDescription>Drill down: Strategy → Mode → Timeframe → Config files</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y divide-[var(--color-border-subtle)]">
                   {data.strategies.map((strategy) => {
                     const strategyKey = strategy.strategy;
-                    const isStrategyExpanded =
-                      expandedStrategies.has(strategyKey);
+                    const isStrategyExpanded = expandedStrategies.has(strategyKey);
                     const isComplete = strategy.completion_pct >= 100;
 
                     return (
@@ -865,12 +770,9 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                               <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                             )}
                             <Database className="h-4 w-4 text-[var(--color-accent-purple)]" />
-                            <span className="font-medium font-mono text-sm">
-                              {strategy.strategy}
-                            </span>
+                            <span className="font-medium font-mono text-sm">{strategy.strategy}</span>
                             <span className="text-xs text-[var(--color-text-muted)]">
-                              ({strategy.modes.length} modes, {strategy.total}{" "}
-                              configs)
+                              ({strategy.modes.length} modes, {strategy.total} configs)
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -879,12 +781,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                 {strategy.total - strategy.with_results} missing
                               </Badge>
                             )}
-                            <Badge
-                              variant="outline"
-                              className={getCompletionBadgeClass(
-                                strategy.completion_pct,
-                              )}
-                            >
+                            <Badge variant="outline" className={getCompletionBadgeClass(strategy.completion_pct)}>
                               {strategy.completion_pct.toFixed(0)}%
                             </Badge>
                             <div className="w-20 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
@@ -892,9 +789,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                 className="h-full transition-all"
                                 style={{
                                   width: `${strategy.completion_pct}%`,
-                                  backgroundColor: getCompletionColor(
-                                    strategy.completion_pct,
-                                  ),
+                                  backgroundColor: getCompletionColor(strategy.completion_pct),
                                 }}
                               />
                             </div>
@@ -924,9 +819,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                         <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
                                       )}
                                       <FileCode className="h-3 w-3 text-[var(--color-accent-cyan)]" />
-                                      <span className="font-mono text-sm">
-                                        {mode.mode}
-                                      </span>
+                                      <span className="font-mono text-sm">{mode.mode}</span>
                                       <span className="text-xs text-[var(--color-text-muted)]">
                                         ({mode.timeframes.length} timeframes)
                                       </span>
@@ -938,9 +831,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                       <span
                                         className="text-xs font-mono"
                                         style={{
-                                          color: getCompletionColor(
-                                            mode.completion_pct,
-                                          ),
+                                          color: getCompletionColor(mode.completion_pct),
                                         }}
                                       >
                                         {mode.completion_pct.toFixed(0)}%
@@ -953,18 +844,14 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                     <div className="bg-[var(--color-bg-tertiary)] divide-y divide-[var(--color-border-subtle)]">
                                       {mode.timeframes.map((tf) => {
                                         const tfKey = `${modeKey}/${tf.timeframe}`;
-                                        const isTfExpanded =
-                                          expandedTimeframes.has(tfKey);
-                                        const isTfComplete =
-                                          tf.completion_pct >= 100;
+                                        const isTfExpanded = expandedTimeframes.has(tfKey);
+                                        const isTfComplete = tf.completion_pct >= 100;
 
                                         return (
                                           <div key={tfKey}>
                                             <Button
                                               variant="ghost"
-                                              onClick={() =>
-                                                toggleTimeframe(tfKey)
-                                              }
+                                              onClick={() => toggleTimeframe(tfKey)}
                                               className="w-full px-8 py-2 flex items-center justify-between hover:bg-[var(--color-bg-primary)] transition-colors h-auto"
                                             >
                                               <div className="flex items-center gap-3">
@@ -974,25 +861,17 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                   <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
                                                 )}
                                                 <Clock className="h-3 w-3 text-[var(--color-accent-amber)]" />
-                                                <span className="font-mono text-sm">
-                                                  {tf.timeframe}
-                                                </span>
+                                                <span className="font-mono text-sm">{tf.timeframe}</span>
                                               </div>
                                               <div className="flex items-center gap-2">
-                                                {!isTfComplete &&
-                                                  tf.missing_configs.length >
-                                                    0 && (
-                                                    <Badge
-                                                      variant="outline"
-                                                      className="text-[10px] bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
-                                                    >
-                                                      {
-                                                        tf.missing_configs
-                                                          .length
-                                                      }{" "}
-                                                      missing
-                                                    </Badge>
-                                                  )}
+                                                {!isTfComplete && tf.missing_configs.length > 0 && (
+                                                  <Badge
+                                                    variant="outline"
+                                                    className="text-[10px] bg-[var(--color-status-error-bg)] text-[var(--color-accent-red)] border-[var(--color-status-error-border-strong)]"
+                                                  >
+                                                    {tf.missing_configs.length} missing
+                                                  </Badge>
+                                                )}
                                                 <span className="text-xs text-[var(--color-text-muted)]">
                                                   {tf.with_results}/{tf.total}
                                                 </span>
@@ -1002,15 +881,10 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                   <span
                                                     className="text-xs font-mono"
                                                     style={{
-                                                      color: getCompletionColor(
-                                                        tf.completion_pct,
-                                                      ),
+                                                      color: getCompletionColor(tf.completion_pct),
                                                     }}
                                                   >
-                                                    {tf.completion_pct.toFixed(
-                                                      0,
-                                                    )}
-                                                    %
+                                                    {tf.completion_pct.toFixed(0)}%
                                                   </span>
                                                 )}
                                               </div>
@@ -1019,147 +893,103 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                             {/* Config Files */}
                                             {isTfExpanded && (
                                               <div className="bg-[var(--color-bg-primary)] px-10 py-3 space-y-2">
-                                                {tf.missing_configs.length >
-                                                  0 && (
+                                                {tf.missing_configs.length > 0 && (
                                                   <>
                                                     <p className="text-xs font-medium text-[var(--color-accent-red)] mb-2">
-                                                      Missing configs (
-                                                      {
-                                                        tf.missing_configs
-                                                          .length
-                                                      }
+                                                      Missing configs ({tf.missing_configs.length}
                                                       ):
                                                     </p>
-                                                    {tf.missing_configs.map(
-                                                      (cfg, i) => {
-                                                        // Find full config info to get day breakdown
-                                                        const fullConfig =
-                                                          tf.configs.find(
-                                                            (c) =>
-                                                              c.config_file ===
-                                                              cfg.config_file,
-                                                          );
-                                                        const configKey = `${tfKey}/missing/${cfg.config_file}`;
-                                                        const isConfigExpanded =
-                                                          expandedConfigs.has(
-                                                            configKey,
-                                                          );
-                                                        const hasDayBreakdown =
-                                                          fullConfig &&
-                                                          (fullConfig.dates_found_count !==
-                                                            undefined ||
-                                                            fullConfig.dates_missing_count !==
-                                                              undefined);
+                                                    {tf.missing_configs.map((cfg, i) => {
+                                                      // Find full config info to get day breakdown
+                                                      const fullConfig = tf.configs.find(
+                                                        (c) => c.config_file === cfg.config_file,
+                                                      );
+                                                      const configKey = `${tfKey}/missing/${cfg.config_file}`;
+                                                      const isConfigExpanded = expandedConfigs.has(configKey);
+                                                      const hasDayBreakdown =
+                                                        fullConfig &&
+                                                        (fullConfig.dates_found_count !== undefined ||
+                                                          fullConfig.dates_missing_count !== undefined);
 
-                                                        return (
-                                                          <div
-                                                            key={i}
-                                                            className="border border-[var(--color-status-error-border)] rounded overflow-hidden"
-                                                          >
-                                                            <Button
-                                                              variant="ghost"
-                                                              onClick={() =>
-                                                                hasDayBreakdown &&
-                                                                toggleConfig(
-                                                                  configKey,
-                                                                )
-                                                              }
-                                                              className={cn(
-                                                                "w-full flex items-center gap-2 text-xs font-mono bg-[var(--color-status-error-bg-subtle)] px-2 py-1.5 h-auto",
-                                                                hasDayBreakdown &&
-                                                                  "hover:bg-[var(--color-status-error-bg)]",
-                                                              )}
-                                                            >
-                                                              {hasDayBreakdown &&
-                                                                (isConfigExpanded ? (
-                                                                  <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                                ) : (
-                                                                  <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
-                                                                ))}
-                                                              <XCircle className="h-3 w-3 text-[var(--color-accent-red)] shrink-0" />
-                                                              <span className="text-[var(--color-accent-amber)] font-medium shrink-0">
-                                                                {cfg.algo_name}
-                                                              </span>
-                                                              <span
-                                                                className="truncate text-[var(--color-text-muted)]"
-                                                                title={
-                                                                  cfg.config_file
-                                                                }
-                                                              >
-                                                                {
-                                                                  cfg.config_file
-                                                                }
-                                                              </span>
-                                                              {fullConfig?.dates_missing_count !==
-                                                                undefined && (
-                                                                <span className="text-[10px] text-[var(--color-accent-red)] ml-auto shrink-0 flex items-center gap-1">
-                                                                  <Calendar className="h-3 w-3" />
-                                                                  {
-                                                                    fullConfig.dates_missing_count
-                                                                  }{" "}
-                                                                  days missing
-                                                                </span>
-                                                              )}
-                                                            </Button>
-
-                                                            {/* Day breakdown dropdown */}
-                                                            {isConfigExpanded &&
+                                                      return (
+                                                        <div
+                                                          key={i}
+                                                          className="border border-[var(--color-status-error-border)] rounded overflow-hidden"
+                                                        >
+                                                          <Button
+                                                            variant="ghost"
+                                                            onClick={() => hasDayBreakdown && toggleConfig(configKey)}
+                                                            className={cn(
+                                                              "w-full flex items-center gap-2 text-xs font-mono bg-[var(--color-status-error-bg-subtle)] px-2 py-1.5 h-auto",
                                                               hasDayBreakdown &&
-                                                              fullConfig && (
-                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-error-border)]">
-                                                                  {renderDatesList(
-                                                                    fullConfig.dates_found_list,
-                                                                    fullConfig.dates_found_list_tail,
-                                                                    fullConfig.dates_found_truncated,
-                                                                    fullConfig.dates_found_count,
-                                                                    "text-[var(--color-accent-green)]",
-                                                                    "Available Days",
-                                                                  )}
-                                                                  {renderDatesList(
-                                                                    fullConfig.dates_missing_list,
-                                                                    fullConfig.dates_missing_list_tail,
-                                                                    fullConfig.dates_missing_truncated,
-                                                                    fullConfig.dates_missing_count,
-                                                                    "text-[var(--color-accent-red)]",
-                                                                    "Missing Days",
-                                                                  )}
-                                                                </div>
+                                                                "hover:bg-[var(--color-status-error-bg)]",
+                                                            )}
+                                                          >
+                                                            {hasDayBreakdown &&
+                                                              (isConfigExpanded ? (
+                                                                <ChevronDown className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                              ) : (
+                                                                <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)] shrink-0" />
+                                                              ))}
+                                                            <XCircle className="h-3 w-3 text-[var(--color-accent-red)] shrink-0" />
+                                                            <span className="text-[var(--color-accent-amber)] font-medium shrink-0">
+                                                              {cfg.algo_name}
+                                                            </span>
+                                                            <span
+                                                              className="truncate text-[var(--color-text-muted)]"
+                                                              title={cfg.config_file}
+                                                            >
+                                                              {cfg.config_file}
+                                                            </span>
+                                                            {fullConfig?.dates_missing_count !== undefined && (
+                                                              <span className="text-[10px] text-[var(--color-accent-red)] ml-auto shrink-0 flex items-center gap-1">
+                                                                <Calendar className="h-3 w-3" />
+                                                                {fullConfig.dates_missing_count} days missing
+                                                              </span>
+                                                            )}
+                                                          </Button>
+
+                                                          {/* Day breakdown dropdown */}
+                                                          {isConfigExpanded && hasDayBreakdown && fullConfig && (
+                                                            <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-error-border)]">
+                                                              {renderDatesList(
+                                                                fullConfig.dates_found_list,
+                                                                fullConfig.dates_found_list_tail,
+                                                                fullConfig.dates_found_truncated,
+                                                                fullConfig.dates_found_count,
+                                                                "text-[var(--color-accent-green)]",
+                                                                "Available Days",
                                                               )}
-                                                          </div>
-                                                        );
-                                                      },
-                                                    )}
+                                                              {renderDatesList(
+                                                                fullConfig.dates_missing_list,
+                                                                fullConfig.dates_missing_list_tail,
+                                                                fullConfig.dates_missing_truncated,
+                                                                fullConfig.dates_missing_count,
+                                                                "text-[var(--color-accent-red)]",
+                                                                "Missing Days",
+                                                              )}
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      );
+                                                    })}
                                                   </>
                                                 )}
 
-                                                {tf.configs.filter(
-                                                  (c) => c.has_results,
-                                                ).length > 0 && (
+                                                {tf.configs.filter((c) => c.has_results).length > 0 && (
                                                   <>
                                                     <p className="text-xs font-medium text-[var(--color-accent-green)] mt-3 mb-2">
-                                                      Completed (
-                                                      {
-                                                        tf.configs.filter(
-                                                          (c) => c.has_results,
-                                                        ).length
-                                                      }
+                                                      Completed ({tf.configs.filter((c) => c.has_results).length}
                                                       ):
                                                     </p>
                                                     {tf.configs
-                                                      .filter(
-                                                        (c) => c.has_results,
-                                                      )
+                                                      .filter((c) => c.has_results)
                                                       .map((cfg, i) => {
                                                         const configKey = `${tfKey}/${cfg.config_file}`;
-                                                        const isConfigExpanded =
-                                                          expandedConfigs.has(
-                                                            configKey,
-                                                          );
+                                                        const isConfigExpanded = expandedConfigs.has(configKey);
                                                         const hasDayBreakdown =
-                                                          cfg.dates_found_count !==
-                                                            undefined ||
-                                                          cfg.dates_missing_count !==
-                                                            undefined;
+                                                          cfg.dates_found_count !== undefined ||
+                                                          cfg.dates_missing_count !== undefined;
 
                                                         return (
                                                           <div
@@ -1168,12 +998,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                           >
                                                             <Button
                                                               variant="ghost"
-                                                              onClick={() =>
-                                                                hasDayBreakdown &&
-                                                                toggleConfig(
-                                                                  configKey,
-                                                                )
-                                                              }
+                                                              onClick={() => hasDayBreakdown && toggleConfig(configKey)}
                                                               className={cn(
                                                                 "w-full flex items-center gap-2 text-xs font-mono bg-[var(--color-status-success-bg-subtle)] px-2 py-1.5 h-auto",
                                                                 hasDayBreakdown &&
@@ -1192,43 +1017,26 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                               </span>
                                                               <span
                                                                 className="truncate text-[var(--color-text-muted)]"
-                                                                title={
-                                                                  cfg.config_file
-                                                                }
+                                                                title={cfg.config_file}
                                                               >
-                                                                {
-                                                                  cfg.config_file
-                                                                }
+                                                                {cfg.config_file}
                                                               </span>
                                                               <span className="text-[10px] text-[var(--color-text-muted)] ml-auto shrink-0 flex items-center gap-1">
                                                                 <Calendar className="h-3 w-3" />
-                                                                {cfg.dates_found_count ??
-                                                                  cfg
-                                                                    .result_dates
-                                                                    .length}
-                                                                /
-                                                                {(cfg.dates_found_count ??
-                                                                  0) +
-                                                                  (cfg.dates_missing_count ??
-                                                                    0) ||
-                                                                  cfg
-                                                                    .result_dates
-                                                                    .length}{" "}
+                                                                {cfg.dates_found_count ?? cfg.result_dates.length}/
+                                                                {(cfg.dates_found_count ?? 0) +
+                                                                  (cfg.dates_missing_count ?? 0) ||
+                                                                  cfg.result_dates.length}{" "}
                                                                 days
-                                                                {cfg.completion_pct !==
-                                                                  undefined && (
+                                                                {cfg.completion_pct !== undefined && (
                                                                   <span
                                                                     className={
-                                                                      cfg.completion_pct >=
-                                                                      100
+                                                                      cfg.completion_pct >= 100
                                                                         ? "text-[var(--color-accent-green)]"
                                                                         : "text-[var(--color-accent-amber)]"
                                                                     }
                                                                   >
-                                                                    (
-                                                                    {
-                                                                      cfg.completion_pct
-                                                                    }
+                                                                    ({cfg.completion_pct}
                                                                     %)
                                                                   </span>
                                                                 )}
@@ -1236,27 +1044,26 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                                                             </Button>
 
                                                             {/* Day breakdown dropdown */}
-                                                            {isConfigExpanded &&
-                                                              hasDayBreakdown && (
-                                                                <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-success-border)]">
-                                                                  {renderDatesList(
-                                                                    cfg.dates_found_list,
-                                                                    cfg.dates_found_list_tail,
-                                                                    cfg.dates_found_truncated,
-                                                                    cfg.dates_found_count,
-                                                                    "text-[var(--color-accent-green)]",
-                                                                    "Available Days",
-                                                                  )}
-                                                                  {renderDatesList(
-                                                                    cfg.dates_missing_list,
-                                                                    cfg.dates_missing_list_tail,
-                                                                    cfg.dates_missing_truncated,
-                                                                    cfg.dates_missing_count,
-                                                                    "text-[var(--color-accent-red)]",
-                                                                    "Missing Days",
-                                                                  )}
-                                                                </div>
-                                                              )}
+                                                            {isConfigExpanded && hasDayBreakdown && (
+                                                              <div className="bg-[var(--color-bg-secondary)] px-3 py-2 border-t border-[var(--color-status-success-border)]">
+                                                                {renderDatesList(
+                                                                  cfg.dates_found_list,
+                                                                  cfg.dates_found_list_tail,
+                                                                  cfg.dates_found_truncated,
+                                                                  cfg.dates_found_count,
+                                                                  "text-[var(--color-accent-green)]",
+                                                                  "Available Days",
+                                                                )}
+                                                                {renderDatesList(
+                                                                  cfg.dates_missing_list,
+                                                                  cfg.dates_missing_list_tail,
+                                                                  cfg.dates_missing_truncated,
+                                                                  cfg.dates_missing_count,
+                                                                  "text-[var(--color-accent-red)]",
+                                                                  "Missing Days",
+                                                                )}
+                                                              </div>
+                                                            )}
                                                           </div>
                                                         );
                                                       })}
@@ -1290,9 +1097,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center gap-3 text-[var(--color-text-muted)]">
               <FolderOpen className="h-8 w-8" />
-              <p className="text-sm">
-                Select a config path above to check execution results
-              </p>
+              <p className="text-sm">Select a config path above to check execution results</p>
             </div>
           </CardContent>
         </Card>
@@ -1310,8 +1115,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     Deploy Missing Shards
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    {missingShardsData.total_missing} missing config×date
-                    combinations
+                    {missingShardsData.total_missing} missing config×date combinations
                   </CardDescription>
                 </div>
                 <Button
@@ -1330,25 +1134,15 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-[var(--color-bg-secondary)] p-3 rounded-lg">
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Total Configs
-                  </p>
-                  <p className="text-lg font-mono font-bold">
-                    {missingShardsData.total_configs}
-                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)]">Total Configs</p>
+                  <p className="text-lg font-mono font-bold">{missingShardsData.total_configs}</p>
                 </div>
                 <div className="bg-[var(--color-bg-secondary)] p-3 rounded-lg">
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Total Dates
-                  </p>
-                  <p className="text-lg font-mono font-bold">
-                    {missingShardsData.total_dates}
-                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)]">Total Dates</p>
+                  <p className="text-lg font-mono font-bold">{missingShardsData.total_dates}</p>
                 </div>
                 <div className="bg-[var(--color-status-error-bg)] p-3 rounded-lg border border-[var(--color-status-error-border)]">
-                  <p className="text-xs text-[var(--color-accent-red)]">
-                    Missing Shards
-                  </p>
+                  <p className="text-xs text-[var(--color-accent-red)]">Missing Shards</p>
                   <p className="text-lg font-mono font-bold text-[var(--color-accent-red)]">
                     {missingShardsData.total_missing}
                   </p>
@@ -1360,16 +1154,11 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 <p className="text-sm font-medium">Breakdown</p>
 
                 {/* By Strategy */}
-                {Object.keys(missingShardsData.breakdown.by_strategy).length >
-                  0 && (
+                {Object.keys(missingShardsData.breakdown.by_strategy).length > 0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Strategy:
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Strategy:</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(
-                        missingShardsData.breakdown.by_strategy,
-                      ).map(([name, count]) => (
+                      {Object.entries(missingShardsData.breakdown.by_strategy).map(([name, count]) => (
                         <Badge key={name} variant="outline" className="text-xs">
                           {name}: {count}
                         </Badge>
@@ -1379,39 +1168,25 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 )}
 
                 {/* By Mode */}
-                {Object.keys(missingShardsData.breakdown.by_mode).length >
-                  0 && (
+                {Object.keys(missingShardsData.breakdown.by_mode).length > 0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Mode:
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Mode:</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_mode).map(
-                        ([name, count]) => (
-                          <Badge
-                            key={name}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            {name}: {count}
-                          </Badge>
-                        ),
-                      )}
+                      {Object.entries(missingShardsData.breakdown.by_mode).map(([name, count]) => (
+                        <Badge key={name} variant="outline" className="text-xs">
+                          {name}: {count}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 )}
 
                 {/* By Timeframe */}
-                {Object.keys(missingShardsData.breakdown.by_timeframe).length >
-                  0 && (
+                {Object.keys(missingShardsData.breakdown.by_timeframe).length > 0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Timeframe:
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Timeframe:</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(
-                        missingShardsData.breakdown.by_timeframe,
-                      ).map(([name, count]) => (
+                      {Object.entries(missingShardsData.breakdown.by_timeframe).map(([name, count]) => (
                         <Badge key={name} variant="outline" className="text-xs">
                           {name}: {count}
                         </Badge>
@@ -1421,56 +1196,36 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                 )}
 
                 {/* By Algorithm */}
-                {Object.keys(missingShardsData.breakdown.by_algo).length >
-                  0 && (
+                {Object.keys(missingShardsData.breakdown.by_algo).length > 0 && (
                   <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Algorithm:
-                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">By Algorithm:</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(missingShardsData.breakdown.by_algo).map(
-                        ([name, count]) => (
-                          <Badge
-                            key={name}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            {name}: {count}
-                          </Badge>
-                        ),
-                      )}
+                      {Object.entries(missingShardsData.breakdown.by_algo).map(([name, count]) => (
+                        <Badge key={name} variant="outline" className="text-xs">
+                          {name}: {count}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 )}
 
                 {/* By Date (show first 10) */}
-                {Object.keys(missingShardsData.breakdown.by_date).length >
-                  0 && (
+                {Object.keys(missingShardsData.breakdown.by_date).length > 0 && (
                   <div>
                     <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                      By Date (
-                      {Object.keys(missingShardsData.breakdown.by_date).length}{" "}
-                      dates):
+                      By Date ({Object.keys(missingShardsData.breakdown.by_date).length} dates):
                     </p>
                     <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
                       {Object.entries(missingShardsData.breakdown.by_date)
                         .slice(0, 10)
                         .map(([date, count]) => (
-                          <Badge
-                            key={date}
-                            variant="outline"
-                            className="text-xs font-mono"
-                          >
+                          <Badge key={date} variant="outline" className="text-xs font-mono">
                             {date}: {count}
                           </Badge>
                         ))}
-                      {Object.keys(missingShardsData.breakdown.by_date).length >
-                        10 && (
+                      {Object.keys(missingShardsData.breakdown.by_date).length > 10 && (
                         <Badge variant="outline" className="text-xs">
-                          +
-                          {Object.keys(missingShardsData.breakdown.by_date)
-                            .length - 10}{" "}
-                          more dates
+                          +{Object.keys(missingShardsData.breakdown.by_date).length - 10} more dates
                         </Badge>
                       )}
                     </div>
@@ -1519,18 +1274,14 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-amber-800 dark:text-amber-200">
-                        <p className="font-semibold">
-                          Cross-Region Egress Warning
-                        </p>
+                        <p className="font-semibold">Cross-Region Egress Warning</p>
                         <p className="mt-1">
-                          Selected region ({deployRegion}) differs from
-                          configured storage region ({backendRegion}). This may
-                          incur significant egress costs.
+                          Selected region ({deployRegion}) differs from configured storage region ({backendRegion}).
+                          This may incur significant egress costs.
                         </p>
                         <p className="mt-1 font-medium">
-                          Recommendation: Use {backendRegion} to avoid egress
-                          charges. Zone failover (1a → 1b → 1c) provides high
-                          availability within the region.
+                          Recommendation: Use {backendRegion} to avoid egress charges. Zone failover (1a → 1b → 1c)
+                          provides high availability within the region.
                         </p>
                       </div>
                     </div>
@@ -1552,9 +1303,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
               </Button>
               <Button
                 onClick={handleDeployMissing}
-                disabled={
-                  deployingMissing || missingShardsData.total_missing === 0
-                }
+                disabled={deployingMissing || missingShardsData.total_missing === 0}
                 className="bg-[var(--color-accent-cyan)] hover:bg-[var(--color-accent-cyan)]/90"
               >
                 {deployingMissing ? (

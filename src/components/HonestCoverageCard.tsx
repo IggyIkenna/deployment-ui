@@ -132,6 +132,11 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   // hidden (not faked as 0) when the payload is v1 and doesn't carry it.
   const layer1CompletenessPct = s.layer1_completeness_pct ?? null;
   const layer2Gated = s.instrument_gates_download ?? false;
+  // GCS storage size (TB) — additive v2 field; older coverage.json payloads
+  // (and any asset_group whose measure_honest_coverage.py run predates the
+  // writer shipping this field) omit it entirely, so it's hidden rather than
+  // faked as 0/"undefined TB" (same pattern as couldExistPct/layer1CompletenessPct).
+  const storageBytesTb = s.storage_bytes_tb ?? null;
   return {
     knownEmpty,
     pendingFetch,
@@ -141,7 +146,17 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
     outOfWindow,
     layer1CompletenessPct,
     layer2Gated,
+    storageBytesTb,
   };
+}
+
+/** Format a GCS storage-size figure (already in TB, 1e12 bytes) to 2-3
+ * significant figures for compact tile display — "0.43 TB", "12.7 TB",
+ * "156 TB". Matches the measured examples in
+ * honest_coverage_storage_size_stat_2026_08_14.md. */
+function formatStorageTb(tb: number): string {
+  const digits = tb < 10 ? 2 : tb < 100 ? 1 : 0;
+  return `${tb.toFixed(digits)} TB`;
 }
 
 /** Whole days between the coverage file's own `date` (YYYY-MM-DD, UTC) and today
@@ -266,6 +281,7 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                   outOfWindow,
                   layer1CompletenessPct,
                   layer2Gated,
+                  storageBytesTb,
                 } = deriveCoverage(s);
                 return (
                   <div
@@ -396,6 +412,28 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                         {outOfWindow.toLocaleString()}
                       </span>
                     </div>
+                    {/* GCS storage size (TB) — additive Honest-Coverage v2
+                        field sourced from Cloud Monitoring's storage/total_bytes
+                        metric (soft-deleted objects already excluded). Hidden
+                        (not faked as "0 TB"/"undefined TB") when the payload
+                        doesn't carry the field yet. */}
+                    {storageBytesTb !== null && (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)]"
+                          title="GCS storage size across this asset_group's Group-A buckets (storage.googleapis.com/storage/total_bytes, soft-deleted objects excluded)"
+                        >
+                          storage
+                        </span>
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                          title="storage_bytes_tb"
+                          data-testid="coverage-storage-tb"
+                        >
+                          {formatStorageTb(storageBytesTb)}
+                        </span>
+                      </div>
+                    )}
                     <CoverageBar
                       captured={s.captured}
                       empty_confirmed={s.empty_confirmed}
