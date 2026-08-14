@@ -41,9 +41,6 @@ vi.mock("./components/ServiceStatusTab", () => ({
 vi.mock("./components/ServicesOverviewTab", () => ({
   ServicesOverviewTab: () => <div>ServicesOverviewTab</div>,
 }));
-vi.mock("./components/CloudBuildsTab", () => ({
-  CloudBuildsTab: () => <div>CloudBuildsTab</div>,
-}));
 vi.mock("./pages/EpicsPlans", () => ({
   EpicsPlansContent: () => <div>EpicsPlansContent</div>,
 }));

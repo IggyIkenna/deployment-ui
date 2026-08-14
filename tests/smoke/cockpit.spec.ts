@@ -105,7 +105,7 @@ test.describe("Cockpit — scaffold IA", () => {
     await page.getByTestId("cockpit-tab-deploy").click();
     await expect(page.getByTestId("cockpit-deploy")).toBeVisible();
     await expect(page.getByTestId("cockpit-deploy-paper")).toBeVisible();
-    // Phase 6: the embedded deploy console (service-picker → DeployForm/CloudBuildsTab/DeploymentHistory).
+    // Phase 6: the embedded deploy console (service-picker → DeployForm/DeploymentHistory).
     await expect(page.getByTestId("cockpit-deploy-console")).toBeVisible();
     await expect(page.getByTestId("deploy-service-picker")).toBeVisible();
 
@@ -196,13 +196,12 @@ test.describe("Cockpit — merged Deployments + Fleet embedded inventory", () =>
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("cockpit-deploy-console")).toBeVisible();
     await expect(page.getByTestId("deploy-no-service")).toBeVisible();
-    // Pick a service → the launch / build-history / deployment-history view tabs appear.
+    // Pick a service → the launch / deployment-history view tabs appear.
     const picker = page.getByTestId("deploy-service-picker");
     const firstValue = await picker.locator("option").nth(1).getAttribute("value");
     await picker.selectOption(firstValue ?? "");
     await expect(page.getByTestId("deploy-view-tabs")).toBeVisible();
     await expect(page.getByTestId("deploy-view-launch")).toBeVisible();
-    await expect(page.getByTestId("deploy-view-builds")).toBeVisible();
     await expect(page.getByTestId("deploy-view-history")).toBeVisible();
   });
 

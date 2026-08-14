@@ -37,6 +37,23 @@ test.describe("Artifact Pipeline page", () => {
     expect(await page.getByTestId("pipe-row").count()).toBe(allRows);
   });
 
+  test("Pipeline: the Trigger build popover fires a manual build and refreshes the table (Phase 4 port)", async ({
+    page,
+  }) => {
+    await page.goto("/artifacts");
+    await page.getByTestId("artifact-tab-pipe").click();
+    await expect(page.getByTestId("artifact-pipe-view")).toBeVisible();
+
+    await page.getByTestId("pipe-trigger-build-open").click();
+    await expect(page.getByTestId("pipe-trigger-build-panel")).toBeVisible();
+    await expect(page.getByTestId("pipe-trigger-build-service")).toHaveValue("instruments-service");
+
+    await page.getByTestId("pipe-trigger-build-branch").fill("feature/manual-trigger-port");
+    await page.getByTestId("pipe-trigger-build-submit").click();
+
+    await expect(page.getByTestId("pipe-trigger-build-result")).toContainText("Build triggered (mock)");
+  });
+
   test("defaults to the live What's running tab", async ({ page }) => {
     await page.goto("/artifacts");
     await expect(page.getByTestId("artifact-run-view")).toBeVisible();
