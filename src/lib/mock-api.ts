@@ -5012,7 +5012,7 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   if (path.match(/^\/cloud-builds\/history\//)) {
     return json({ builds: [] });
   }
-  if (path === "/cloud-builds/trigger" && method === "POST") {
+  if ((path === "/cloud-builds/trigger" || path === "/api/cloud-builds/trigger") && method === "POST") {
     return json(
       {
         success: true,
