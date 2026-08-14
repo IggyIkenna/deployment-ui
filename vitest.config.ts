@@ -105,7 +105,6 @@ export default defineConfig({
         "src/components/ReadinessTab.tsx",
         "src/components/ServicesOverviewTab.tsx",
         "src/components/DeploymentResult.tsx",
-        "src/components/CloudBuildsTab.tsx",
         "src/components/CloudConfigBrowser.tsx",
         // Complex multi-handler form components (covered by e2e tests)
         "src/components/DeployForm.tsx",

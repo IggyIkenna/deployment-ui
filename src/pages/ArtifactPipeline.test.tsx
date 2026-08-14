@@ -13,6 +13,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ArtifactPipeline } from "./ArtifactPipeline";
 import * as api from "../api/deploymentApi";
+import * as clientApi from "../api/client";
+
+// The manual-trigger action (ported from the retired CloudBuildsTab, Phase 4) hits the separate
+// build-trigger endpoints in api/client, not api/deploymentApi — mocked independently so a test
+// that never opens the Trigger build popover never touches the network either.
+vi.mock("../api/client", () => ({
+  getCloudBuildTriggers: vi.fn(),
+  triggerCloudBuild: vi.fn(),
+}));
 
 // The page eagerly fetches all FIVE live views on mount, so every client call is mocked in every
 // test even when a given test only asserts on one of them. Fixtures cover success / failure / dup /
@@ -362,6 +371,67 @@ describe("ArtifactPipeline", () => {
 
     fireEvent.click(screen.getByTestId("pipe-filter-all"));
     expect(screen.getAllByTestId("pipe-row")).toHaveLength(4);
+  });
+
+  it("Trigger build control fetches triggers lazily, submits, and refreshes the builds table", async () => {
+    vi.mocked(clientApi.getCloudBuildTriggers).mockResolvedValue({
+      triggers: [
+        {
+          trigger_id: "t-1",
+          trigger_name: "deployment-api-build",
+          service: "deployment-api",
+          type: "service",
+          github_repo: "IggyIkenna/deployment-api",
+          branch_pattern: "^main$",
+          disabled: false,
+          status: "OK",
+          last_build: null,
+        },
+        {
+          trigger_id: "t-2",
+          trigger_name: "mtds-build",
+          service: "market-tick-data-service",
+          type: "service",
+          github_repo: "IggyIkenna/market-tick-data-service",
+          branch_pattern: "^main$",
+          disabled: false,
+          status: "OK",
+          last_build: null,
+        },
+      ],
+      total: 2,
+      project: "central-element-323112",
+      region: "asia-northeast1",
+    });
+    vi.mocked(clientApi.triggerCloudBuild).mockResolvedValue({
+      success: true,
+      build_id: "b-new",
+      log_url: null,
+      message: "Build triggered (mock)",
+      service: "deployment-api",
+      branch: "feature/x",
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("artifact-tab-pipe"));
+    await waitFor(() => expect(screen.getAllByTestId("pipe-row")).toHaveLength(4));
+    // Lazy — the trigger catalogue is a distinct endpoint from build history, never fetched
+    // just from loading the Pipeline tab.
+    expect(clientApi.getCloudBuildTriggers).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("pipe-trigger-build-open"));
+    await waitFor(() => expect(clientApi.getCloudBuildTriggers).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("pipe-trigger-build-service")).toHaveDisplayValue("deployment-api"));
+
+    fireEvent.change(screen.getByTestId("pipe-trigger-build-branch"), { target: { value: "feature/x" } });
+    fireEvent.click(screen.getByTestId("pipe-trigger-build-submit"));
+
+    await waitFor(() => expect(clientApi.triggerCloudBuild).toHaveBeenCalledWith("deployment-api", "feature/x"));
+    await waitFor(() =>
+      expect(screen.getByTestId("pipe-trigger-build-result")).toHaveTextContent("Build triggered (mock)"),
+    );
+    // A successful trigger refreshes the builds table so the new build shows up.
+    await waitFor(() => expect(api.getArtifactBuilds).toHaveBeenCalledWith(expect.objectContaining({ refresh: true })));
   });
 
   it("the Tarball lane filter narrows to real tarball BuildFact rows (Phase 3d)", async () => {

@@ -24,8 +24,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Filter, HelpCircle, Play, RefreshCw } from "lucide-react";
 
+import { getCloudBuildTriggers, triggerCloudBuild, type BuildTrigger } from "../api/client";
 import {
   getArtifactBuilds,
   getArtifactDeploys,
@@ -904,15 +905,152 @@ function DateRangePicker({ range, onCommit }: { range: ArtifactDateRange; onComm
   );
 }
 
+// ── manual-trigger action (ported from the retired per-service CloudBuildsTab, Phase 4) ────────────
+// A compact popover: pick a trigger (service/library/infrastructure), optionally override the
+// branch, fire it via the same `triggerCloudBuild` the old tab used. Triggers load lazily (only once
+// the popover is opened) since the Pipeline tab's own `data` prop is build HISTORY, not the trigger
+// catalogue — a distinct endpoint.
+function TriggerBuildControl({ onTriggered }: { onTriggered: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [triggers, setTriggers] = useState<BuildTrigger[]>([]);
+  const [loadingTriggers, setLoadingTriggers] = useState(false);
+  const [service, setService] = useState("");
+  const [branch, setBranch] = useState("main");
+  const [triggering, setTriggering] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!open || triggers.length > 0) return;
+    let cancelled = false;
+    setLoadingTriggers(true);
+    getCloudBuildTriggers()
+      .then((r) => {
+        if (cancelled) return;
+        const sorted = [...r.triggers].sort((a, b) => a.service.localeCompare(b.service));
+        setTriggers(sorted);
+        setService((prev) => prev || sorted[0]?.service || "");
+      })
+      .catch(() => {
+        if (!cancelled) setTriggers([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTriggers(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, triggers.length]);
+
+  const handleTrigger = async () => {
+    if (!service) return;
+    setTriggering(true);
+    setResult(null);
+    try {
+      const resp = await triggerCloudBuild(service, branch || "main");
+      setResult({ success: resp.success, message: resp.message });
+      if (resp.success) onTriggered();
+    } catch (e) {
+      setResult({ success: false, message: e instanceof Error ? e.message : "Failed to trigger build" });
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        data-testid="pipe-trigger-build-open"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[13px] font-medium"
+        style={{ borderColor: "var(--color-border-default)", color: "var(--color-text-secondary)" }}
+      >
+        <Play className="h-3.5 w-3.5" />
+        Trigger build
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 z-10 mt-1 w-64 rounded-md border p-3 shadow-lg"
+          style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-secondary)" }}
+          data-testid="pipe-trigger-build-panel"
+        >
+          <label
+            className="mb-1 block text-[10px]"
+            htmlFor="pipe-trigger-build-service"
+            style={{ color: "var(--color-text-tertiary)" }}
+          >
+            Service / trigger
+          </label>
+          <select
+            id="pipe-trigger-build-service"
+            data-testid="pipe-trigger-build-service"
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            disabled={loadingTriggers || triggers.length === 0}
+            className="mb-2 w-full rounded border px-2 py-1 text-xs"
+            style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-primary)" }}
+          >
+            {loadingTriggers && <option>Loading…</option>}
+            {!loadingTriggers && triggers.length === 0 && <option value="">No triggers found</option>}
+            {triggers.map((t) => (
+              <option key={t.trigger_id} value={t.service} disabled={t.disabled}>
+                {t.service}
+                {t.disabled ? " (disabled)" : ""}
+              </option>
+            ))}
+          </select>
+          <label
+            className="mb-1 block text-[10px]"
+            htmlFor="pipe-trigger-build-branch"
+            style={{ color: "var(--color-text-tertiary)" }}
+          >
+            Branch
+          </label>
+          <input
+            id="pipe-trigger-build-branch"
+            data-testid="pipe-trigger-build-branch"
+            value={branch}
+            onChange={(e) => setBranch(e.target.value)}
+            placeholder="main"
+            className="mb-2 w-full rounded border px-2 py-1 text-xs"
+            style={{ borderColor: "var(--color-border-default)", background: "var(--color-bg-primary)" }}
+          />
+          <button
+            type="button"
+            data-testid="pipe-trigger-build-submit"
+            onClick={handleTrigger}
+            disabled={triggering || !service}
+            className="w-full rounded-md px-2.5 py-1.5 text-xs font-medium text-white"
+            style={{ background: "var(--color-accent-blue)" }}
+          >
+            {triggering ? "Triggering…" : "Trigger"}
+          </button>
+          {result && (
+            <p
+              className="mt-2 text-[11px]"
+              data-testid="pipe-trigger-build-result"
+              style={{ color: result.success ? "var(--color-accent-green)" : "var(--color-accent-red)" }}
+            >
+              {result.message}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── the live Pipeline (builds) view ───────────────────────────────────────────────────────────────
 function PipelineView({
   data,
   filter,
   onFilter,
+  onBuildTriggered,
 }: {
   data: BuildsResponse;
   filter: PipeFilter;
   onFilter: (f: PipeFilter) => void;
+  onBuildTriggered: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -988,20 +1126,23 @@ function PipelineView({
           </div>
         }
         extra={
-          (activeColFilterCount > 0 || sort) && (
-            <button
-              type="button"
-              data-testid="pipe-colfilters-clear"
-              onClick={() => {
-                setColFilters(EMPTY_PIPE_COLUMN_FILTERS);
-                setSort(null);
-              }}
-              className="text-[11px] underline"
-              style={{ color: "var(--color-accent-blue)" }}
-            >
-              Clear column filters/sort
-            </button>
-          )
+          <>
+            <TriggerBuildControl onTriggered={onBuildTriggered} />
+            {(activeColFilterCount > 0 || sort) && (
+              <button
+                type="button"
+                data-testid="pipe-colfilters-clear"
+                onClick={() => {
+                  setColFilters(EMPTY_PIPE_COLUMN_FILTERS);
+                  setSort(null);
+                }}
+                className="text-[11px] underline"
+                style={{ color: "var(--color-accent-blue)" }}
+              >
+                Clear column filters/sort
+              </button>
+            )}
+          </>
         }
         explanation={
           <>
@@ -3077,7 +3218,14 @@ export function ArtifactPipeline() {
             </div>
           )}
           {buildsLoading && !buildsData && <StatSkeleton />}
-          {buildsData && <PipelineView data={buildsData} filter={pipeFilter} onFilter={setPipeFilter} />}
+          {buildsData && (
+            <PipelineView
+              data={buildsData}
+              filter={pipeFilter}
+              onFilter={setPipeFilter}
+              onBuildTriggered={() => loadBuilds(true)}
+            />
+          )}
         </>
       )}
       {tab === "deploy" && (
