@@ -20,8 +20,26 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/**
+ * Attaches the operator's Google-auth bearer token to a request, mirroring
+ * client.ts's `createApiClient()` header-attaching logic exactly: same
+ * sessionStorage key ("google_id_token"), same "omit when absent" behavior.
+ * Never throws and never redirects on a missing/expired token — the request
+ * just goes out without the header and the backend 401s it normally, same as
+ * every other authenticated call in this app.
+ */
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const storedToken = sessionStorage.getItem("google_id_token");
+  return {
+    ...(extra ?? {}),
+    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+  };
+}
+
 export async function fetchBuilds(service: string, env: BuildEnvironment): Promise<BuildEntry[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/builds/${encodeURIComponent(service)}?env=${env}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/builds/${encodeURIComponent(service)}?env=${env}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<BuildEntry[]>(response);
 }
 
@@ -68,12 +86,16 @@ export interface VmDeploymentsListResponse {
 }
 
 export async function fetchVmDeployments(days = 7): Promise<VmDeploymentsListResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments?days=${days}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments?days=${days}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VmDeploymentsListResponse>(response);
 }
 
 export async function fetchVmDeployment(deploymentId: string): Promise<VmDeploymentEntry> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments/${encodeURIComponent(deploymentId)}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments/${encodeURIComponent(deploymentId)}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VmDeploymentEntry>(response);
 }
 
@@ -87,6 +109,7 @@ export interface VmReconcileResult {
 export async function reconcileVmDeployments(): Promise<VmReconcileResult> {
   const response = await fetch(`${DEPLOYMENT_API}/api/vm-deployments/reconcile`, {
     method: "POST",
+    headers: authHeaders(),
   });
   return handleResponse<VmReconcileResult>(response);
 }
@@ -103,7 +126,9 @@ export interface DeploymentEventsResponse {
 }
 
 export async function fetchVmDeploymentEvents(deploymentId: string): Promise<DeploymentEventsResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(deploymentId)}/events`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(deploymentId)}/events`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentEventsResponse>(response);
 }
 
@@ -119,7 +144,7 @@ export async function deployBuild(
 }> {
   const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(service)}/deploy`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ image_tag: imageTag, environment }),
   });
   return handleResponse<{
@@ -150,7 +175,9 @@ export interface LiveStatusResponse {
 }
 
 export async function getLiveStatus(): Promise<LiveStatusResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/live`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/live`, {
+    headers: authHeaders(),
+  });
   return handleResponse<LiveStatusResponse>(response);
 }
 
@@ -177,7 +204,9 @@ export async function getVmEvents(vmName: string, date?: string): Promise<VmEven
   const params = new URLSearchParams();
   params.append("vm_name", vmName);
   if (date) params.append("date", date);
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm/events?${params.toString()}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/events?${params.toString()}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VmEventsResponse>(response);
 }
 
@@ -213,7 +242,7 @@ export interface MlExperimentParams {
 export async function launchMlExperiment(params: MlExperimentParams): Promise<LaunchResult> {
   const response = await fetch(`${DEPLOYMENT_API}/api/ml/experiment/launch`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(params),
   });
   return handleResponse<LaunchResult>(response);
@@ -231,7 +260,7 @@ export interface StrategyBacktestParams {
 export async function launchStrategyBacktest(params: StrategyBacktestParams): Promise<LaunchResult> {
   const response = await fetch(`${DEPLOYMENT_API}/api/strategy/backtest/launch`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(params),
   });
   return handleResponse<LaunchResult>(response);
@@ -248,7 +277,7 @@ export interface ExecutionBacktestParams {
 export async function launchExecutionBacktest(params: ExecutionBacktestParams): Promise<LaunchResult> {
   const response = await fetch(`${DEPLOYMENT_API}/api/execution/backtest/launch`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(params),
   });
   return handleResponse<LaunchResult>(response);
@@ -276,7 +305,9 @@ export interface DeploymentDiffResponse {
 
 export async function fetchDeploymentDiff(fromSha: string, toSha: string): Promise<DeploymentDiffResponse> {
   const params = new URLSearchParams({ from_sha: fromSha, to_sha: toSha });
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/diff?${params.toString()}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/diff?${params.toString()}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentDiffResponse>(response);
 }
 
@@ -310,7 +341,7 @@ export interface VmCostEstimateResponse {
 export async function fetchVmCostEstimate(req: VmCostEstimateRequest): Promise<VmCostEstimateResponse> {
   const response = await fetch(`${DEPLOYMENT_API}/api/vm/cost-estimate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(req),
   });
   return handleResponse<VmCostEstimateResponse>(response);
@@ -335,7 +366,9 @@ export interface VmLogTailResult {
 }
 
 export async function fetchVmLogs(vmName: string, tail = 100): Promise<VmLogTailResult> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm/logs/${encodeURIComponent(vmName)}?tail=${tail}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/logs/${encodeURIComponent(vmName)}?tail=${tail}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VmLogTailResult>(response);
 }
 
@@ -357,7 +390,10 @@ export interface VmHealthResult {
 }
 
 export async function fetchVmHealth(vmName: string, scanHours = 24): Promise<VmHealthResult> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/health?scan_hours=${scanHours}`);
+  const response = await fetch(
+    `${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/health?scan_hours=${scanHours}`,
+    { headers: authHeaders() },
+  );
   return handleResponse<VmHealthResult>(response);
 }
 
@@ -507,7 +543,9 @@ export async function fetchCostSummary(
   range?: CostDateRange,
 ): Promise<CostSummaryResponse> {
   const qs = `?${costWindowQs(days, range)}&refresh=${refresh}`;
-  const response = await fetch(`${DEPLOYMENT_API}/api/costs/summary${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/summary${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<CostSummaryResponse>(response);
 }
 
@@ -521,7 +559,9 @@ export async function fetchCostBreakdown(
 ): Promise<CostBreakdownResponse> {
   const label = dimension === "label" ? `&label_key=${labelKey}` : "";
   const qs = `?dimension=${dimension}&cloud=${cloud}&${costWindowQs(days, range)}&refresh=${refresh}${label}`;
-  const response = await fetch(`${DEPLOYMENT_API}/api/costs/breakdown${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/breakdown${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<CostBreakdownResponse>(response);
 }
 
@@ -532,7 +572,9 @@ export async function fetchCostTimeseries(
   range?: CostDateRange,
 ): Promise<CostTimeseriesResponse> {
   const qs = `?${costWindowQs(days, range)}&cloud=${cloud}&refresh=${refresh}`;
-  const response = await fetch(`${DEPLOYMENT_API}/api/costs/timeseries${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/costs/timeseries${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<CostTimeseriesResponse>(response);
 }
 
@@ -611,7 +653,7 @@ async function fetchArtifactApi(url: string): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ARTIFACT_FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { headers: authHeaders(), signal: controller.signal });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error(
@@ -846,7 +888,9 @@ export async function fetchVmFilteredEvents(
   if (opts.type) params.set("type", opts.type);
   if (opts.limit != null) params.set("limit", String(opts.limit));
   const qs = params.toString() ? `?${params.toString()}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm/${encodeURIComponent(vmName)}/events${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VMEventListResult>(response);
 }
 
@@ -866,7 +910,9 @@ export interface VenueCredentialStatus {
 }
 
 export async function fetchVenueCredentials(): Promise<VenueCredentialStatus[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/venue-credentials`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-credentials`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VenueCredentialStatus[]>(response);
 }
 
@@ -888,7 +934,9 @@ export interface VenueDateRangeInfo {
 }
 
 export async function fetchVenueDateRanges(): Promise<VenueDateRangeInfo[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/venue-date-ranges`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-date-ranges`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VenueDateRangeInfo[]>(response);
 }
 
@@ -920,7 +968,9 @@ export interface VenueRelaunchEstimateResponse {
 }
 
 export async function fetchVenueRelaunchEstimate(): Promise<VenueRelaunchEstimateResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/venue-relaunch-estimate`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/venue-relaunch-estimate`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VenueRelaunchEstimateResponse>(response);
 }
 
@@ -944,7 +994,9 @@ export interface VenueTardisWindowsResponse {
 }
 
 export async function fetchVenueTardisWindows(): Promise<VenueTardisWindowsResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/venue-tardis-windows`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/data-status/venue-tardis-windows`, {
+    headers: authHeaders(),
+  });
   return handleResponse<VenueTardisWindowsResponse>(response);
 }
 
@@ -1204,24 +1256,32 @@ export async function getDeploymentInventory(
   if (filters.date_from) params.set("date_from", filters.date_from);
   if (filters.date_to) params.set("date_to", filters.date_to);
   const qs = params.toString() ? `?${params.toString()}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/inventory${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/inventory${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentInventoryResponse>(response);
 }
 
 export async function getDeploymentRegions(): Promise<DeploymentRegionsResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/regions`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/regions`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentRegionsResponse>(response);
 }
 
 export async function getUmbrellaSummary(umbrella: DeploymentUmbrella): Promise<UmbrellaSummaryResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/umbrella/${encodeURIComponent(umbrella)}/summary`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/umbrella/${encodeURIComponent(umbrella)}/summary`, {
+    headers: authHeaders(),
+  });
   return handleResponse<UmbrellaSummaryResponse>(response);
 }
 
 // GET /api/deployments/{name}/detail — the per-target drill-down (thin item + the deep D.1
 // metric vector). deployment-api DeploymentDetailResponse (deployments_inventory.py:238).
 export async function getDeploymentDetail(name: string): Promise<DeploymentDetail> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/detail`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/detail`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentDetail>(response);
 }
 
@@ -1278,7 +1338,9 @@ export async function getResourceRollingWindow(
 ): Promise<ResourceRollingWindowResponse> {
   const params = new URLSearchParams({ window });
   if (vmName) params.set("vm_name", vmName);
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/rolling?${params.toString()}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/rolling?${params.toString()}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<ResourceRollingWindowResponse>(response);
 }
 
@@ -1287,7 +1349,9 @@ export async function getProcessCategoryBreakdown(
   window: ResourceWindow,
 ): Promise<ProcessCategoryBreakdownResponse> {
   const params = new URLSearchParams({ vm_name: vmName, window });
-  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/process-category?${params.toString()}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/process-category?${params.toString()}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<ProcessCategoryBreakdownResponse>(response);
 }
 
@@ -1319,7 +1383,9 @@ export interface WatchdogKillEventsResponse {
 
 export async function getWatchdogKillEvents(vmName: string, hours: number): Promise<WatchdogKillEventsResponse> {
   const params = new URLSearchParams({ vm_name: vmName, hours: String(hours) });
-  const response = await fetch(`${DEPLOYMENT_API}/api/watchdog/kill-events?${params.toString()}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/watchdog/kill-events?${params.toString()}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<WatchdogKillEventsResponse>(response);
 }
 
@@ -1362,17 +1428,23 @@ export interface RunLogDownload {
 }
 
 export async function getRunLogMetadata(name: string): Promise<RunLogMetadata> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/metadata`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/metadata`, {
+    headers: authHeaders(),
+  });
   return handleResponse<RunLogMetadata>(response);
 }
 
 export async function getRunLogTail(name: string, lines?: number): Promise<RunLogTail> {
   const qs = lines != null ? `?lines=${lines}` : "";
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/tail${qs}`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/tail${qs}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<RunLogTail>(response);
 }
 
 export async function getRunLogDownload(name: string): Promise<RunLogDownload> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/download`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(name)}/run-log/download`, {
+    headers: authHeaders(),
+  });
   return handleResponse<RunLogDownload>(response);
 }

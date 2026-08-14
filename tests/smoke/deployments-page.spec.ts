@@ -198,3 +198,77 @@ test.describe("Deployments target search box (WS-3, case-insensitive substring, 
     await expect(page.getByTestId("deployment-row-defi-live-capture-1")).toHaveCount(0);
   });
 });
+
+test.describe("deploymentApi.ts requests carry the operator's Google auth header (regression guard)", () => {
+  // Root-cause regression for the 2026-08-14 live-401 fix: deploymentApi.ts's ~34 fetch() call
+  // sites (unlike client.ts's createApiClient(), which always attached it) never sent the
+  // sessionStorage "google_id_token" as an Authorization header, so every deploymentApi.ts-backed
+  // call — including this page's own getDeploymentInventory() — 401'd against a live backend even
+  // when the operator was already signed in. Fixed via a local authHeaders() helper in
+  // deploymentApi.ts mirroring client.ts's exact header-attaching logic.
+  //
+  // This can't be proven with page.route()/waitForRequest(): under VITE_MOCK_API=true, src/lib/
+  // mock-api.ts's installDeploymentMockHandlers() monkey-patches window.fetch directly and answers
+  // every /api/* call in-JS (handleRoute()) without the request ever reaching the network — so
+  // Playwright's CDP-level network interception never fires for it. Instead we install a
+  // getter/setter on window.fetch via addInitScript BEFORE any page script runs: the getter always
+  // returns a recording wrapper, and the setter captures whatever function main.tsx's
+  // installDeploymentMockHandlers() later assigns to window.fetch as the real implementation to
+  // delegate to. That records the actual `init.headers` deploymentApi.ts's fetch() calls send,
+  // regardless of whether the call is answered in-JS or ever reaches the network.
+  test("getDeploymentInventory() (deploymentApi.ts) sends Authorization: Bearer <google_id_token>", async ({
+    page,
+  }) => {
+    const TEST_TOKEN = "test-id-token-e2e";
+    await page.addInitScript((token) => {
+      (
+        window as unknown as { __capturedFetchCalls: Array<{ url: string; headers: Record<string, string> }> }
+      ).__capturedFetchCalls = [];
+      let current = window.fetch.bind(window);
+      Object.defineProperty(window, "fetch", {
+        configurable: true,
+        get() {
+          return (...args: Parameters<typeof fetch>) => {
+            const [input, init] = args;
+            const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+            const headers: Record<string, string> = {};
+            const h = init?.headers;
+            if (h instanceof Headers) {
+              h.forEach((v, k) => (headers[k] = v));
+            } else if (Array.isArray(h)) {
+              for (const [k, v] of h) headers[k] = v;
+            } else if (h) {
+              Object.assign(headers, h);
+            }
+            (
+              window as unknown as { __capturedFetchCalls: Array<{ url: string; headers: Record<string, string> }> }
+            ).__capturedFetchCalls.push({ url, headers });
+            return current(...args);
+          };
+        },
+        set(fn: typeof fetch) {
+          current = fn;
+        },
+      });
+      // Simulates an operator already signed in via the GoogleAuth popup flow (src/auth/
+      // GoogleAuth.tsx stores the Firebase ID token under this exact sessionStorage key).
+      sessionStorage.setItem("google_id_token", token);
+    }, TEST_TOKEN);
+
+    await page.goto("/deployments?status=all");
+    await expect(page.getByTestId("deployments-page")).toBeVisible();
+    await expect(page.getByTestId("deployment-matrix")).toBeVisible();
+
+    const calls = await page.evaluate(
+      () =>
+        (window as unknown as { __capturedFetchCalls: Array<{ url: string; headers: Record<string, string> }> })
+          .__capturedFetchCalls,
+    );
+    const inventoryCall = calls.find((c) => c.url.includes("/api/deployments/inventory"));
+    expect(
+      inventoryCall,
+      `expected a deploymentApi.ts getDeploymentInventory() call to /api/deployments/inventory; captured: ${JSON.stringify(calls.map((c) => c.url))}`,
+    ).toBeTruthy();
+    expect(inventoryCall?.headers.Authorization).toBe(`Bearer ${TEST_TOKEN}`);
+  });
+});
