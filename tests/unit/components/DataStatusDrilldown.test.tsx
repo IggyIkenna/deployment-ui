@@ -395,6 +395,27 @@ describe("InstrumentsModal", () => {
     expect(screen.queryByPlaceholderText(/type >= 2 chars/)).toBeNull();
   });
 
+  // audit §F "Rollup-difference clarity": IS's per-venue/day drilldown structurally lacks a
+  // data_type axis compared to MTDS's 5-axis shards — that must read as intentional, not broken.
+  it("explains the by-design structural difference vs MTDS's 5-axis shards for instruments-service", async () => {
+    render(
+      <InstrumentsModal
+        coord={{
+          service: "instruments-service",
+          category: "cefi",
+          venue: "BINANCE",
+          day: "2025-04-01",
+          instrument_type: "perpetual",
+          data_type: "instruments",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+    const note = await screen.findByText(/structurally different from MTDS's 5-axis market-data shards by design/);
+    expect(note).toBeTruthy();
+    expect(note.getAttribute("title")).toContain("no data_type axis");
+  });
+
   it("submits a direct-paste instrument_id and skips the listing", async () => {
     (api.fetchInstrumentsForShard as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...basePolymarketListing,

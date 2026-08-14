@@ -1164,8 +1164,12 @@ function InstrumentsServiceShardModal({ coord, onClose }: { coord: ShardCoordina
   return (
     <ModalShell title={`${coord.venue} · ${coord.day} · ${coord.instrument_type}/${coord.data_type}`} onClose={onClose}>
       <div className="space-y-3 text-xs">
-        <div className="text-[var(--color-text-muted)]">
-          Instruments reference data is low-cardinality — one file per day per venue.
+        <div
+          className="text-[var(--color-text-muted)] cursor-help"
+          title="By design: instruments-service tracks reference data (per venue/day, no data_type axis), not market data — it doesn't share MTDS's 5-axis (asset_group/venue/instrument_type/data_type/timeframe) shard structure."
+        >
+          Instruments reference data is low-cardinality — one file per day per venue. This drilldown is structurally
+          different from MTDS's 5-axis market-data shards by design, not a bug: IS has no data_type axis.
         </div>
         <div className="flex gap-2">
           <SmartDownloadButton
