@@ -1,35 +1,36 @@
 /**
- * DeployConsole — the cockpit Deploy tab: launch / rollback + build & deployment history,
- * all REUSING the existing components (no rebuild):
+ * DeployConsole — the cockpit Deploy tab: launch / rollback + deployment history, both REUSING
+ * the existing components (no rebuild):
  *
  *   - **Launch / Rollback** — the existing `DeployForm` (it already embeds `BuildSelector`
  *     → `fetchBuilds(service, env)` → `image_tag`, so launching from a specific IMAGE VERSION
  *     = rollback, and `runtime_profile` × cloud covers batch/live/paper). `onDeploy` →
  *     `createDeployment` (POST /api/deployments).
- *   - **Build history** — `CloudBuildsTab` (image-build history for the service).
  *   - **Deployment history** — `DeploymentHistory` (incl. self-deleted / ephemeral / stopped
  *     targets while the 7-day archive retains them).
  *
- * A service-picker drives all three. Heavy children are lazy-loaded + ErrorBoundary-isolated
+ * Build history + the manual-trigger action moved to the /ops/artifacts Pipeline tab
+ * (`artifact_pipeline_observability_2026_07_17.md` Phase 4) — this console no longer embeds
+ * `CloudBuildsTab` (deleted, no shim).
+ *
+ * A service-picker drives both. Heavy children are lazy-loaded + ErrorBoundary-isolated
  * (one console's failure never blanks the tab — same pattern as LaunchTab). Phase 6.
  */
 
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Boxes, History, Rocket } from "lucide-react";
+import { History, Rocket } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { createDeployment, getServices } from "../../api/client";
 import type { DeploymentRequest } from "../../types";
 
 const DeployForm = lazy(() => import("../DeployForm").then((m) => ({ default: m.DeployForm })));
-const CloudBuildsTab = lazy(() => import("../CloudBuildsTab").then((m) => ({ default: m.CloudBuildsTab })));
 const DeploymentHistory = lazy(() => import("../DeploymentHistory").then((m) => ({ default: m.DeploymentHistory })));
 
-type DeployView = "launch" | "builds" | "history";
+type DeployView = "launch" | "history";
 
 const VIEWS: { id: DeployView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "launch", label: "Launch / Rollback", icon: Rocket },
-  { id: "builds", label: "Build history", icon: Boxes },
   { id: "history", label: "Deployment history", icon: History },
 ];
 
@@ -137,8 +138,6 @@ export function DeployConsole(): React.ReactElement {
           <Suspense fallback={<p className="text-xs text-[var(--color-text-tertiary)]">Loading console…</p>}>
             {view === "launch" ? (
               <DeployForm serviceName={service} onDeploy={handleDeploy} isDeploying={deploying} />
-            ) : view === "builds" ? (
-              <CloudBuildsTab serviceName={service} />
             ) : (
               <DeploymentHistory serviceName={service} />
             )}

@@ -5,7 +5,6 @@ import {
   BookOpen,
   Database,
   GitBranch,
-  Hammer,
   History,
   Info,
   Monitor,
@@ -17,7 +16,6 @@ import {
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createDeployment } from "../api/client";
-import { CloudBuildsTab } from "../components/CloudBuildsTab";
 import { DataStatusTab } from "../components/DataStatusTab";
 import { DeploymentHistory } from "../components/DeploymentHistory";
 import { ServiceStatusTab } from "../components/ServiceStatusTab";
@@ -119,7 +117,7 @@ export function HomeShell() {
               setDeploymentError(null);
               setSelectedDeploymentId(null);
               const isInfra = INFRASTRUCTURE_SERVICES.includes(service);
-              const nextTab = isInfra && !["builds", "config"].includes(activeTab) ? "builds" : activeTab;
+              const nextTab = isInfra && activeTab !== "config" ? "config" : activeTab;
               navigate(`/service/${encodeURIComponent(service)}/${nextTab}`);
             }}
           />
@@ -187,7 +185,7 @@ export function HomeShell() {
                   >
                     <TabsList
                       variant="pill"
-                      className={`grid w-full ${isInfra ? "grid-cols-3" : selectedService === "client-reporting-api" ? "grid-cols-11" : selectedService === "deployment-api" ? "grid-cols-12" : selectedService === "market-tick-data-service" ? "grid-cols-11" : "grid-cols-10"} mb-6`}
+                      className={`grid w-full ${isInfra ? "grid-cols-1" : selectedService === "client-reporting-api" ? "grid-cols-10" : selectedService === "deployment-api" ? "grid-cols-11" : selectedService === "market-tick-data-service" ? "grid-cols-10" : "grid-cols-9"} mb-6`}
                     >
                       {!isInfra && (
                         <TabsTrigger value="deploy" className="gap-2">
@@ -207,10 +205,6 @@ export function HomeShell() {
                           History
                         </TabsTrigger>
                       )}
-                      <TabsTrigger value="builds" className="gap-2">
-                        <Hammer className="h-4 w-4" />
-                        Builds
-                      </TabsTrigger>
                       {!isInfra && (
                         <TabsTrigger value="data-status" className="gap-2">
                           <Database className="h-4 w-4" />
@@ -316,9 +310,6 @@ export function HomeShell() {
                           />
                         </TabsContent>
                       )}
-                      <TabsContent value="builds">
-                        <CloudBuildsTab serviceName={selectedService} />
-                      </TabsContent>
                       {!isInfra && (
                         <TabsContent value="data-status">
                           {selectedService === "market-data-processing-service" && (
