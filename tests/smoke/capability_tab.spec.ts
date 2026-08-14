@@ -230,8 +230,10 @@ test.describe("CapabilityTab", () => {
     // Verify the manifest counts (regression: static values from manifest @UAC e63a511 —
     // Wave B (2026-06-13) re-kinded nodes: signing_surface/risk_gate_layer/kill_switch_reason/
     // gap_registry/collateral_policy added; chain deduped 41→35; data_source 28→24; ml_model 1→8;
-    // fund_structure 0→2; custody_provider 28→0. missing_registry 158→150.
-    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("150");
+    // fund_structure 0→2; custody_provider 28→0. missing_registry 158→150. 2026-08-10: retired
+    // Barchart data_source residue pruned (1 node + 4 edges), missing_registry 150→148 —
+    // see fix(capability) 6a323bf.
+    await expect(page.getByTestId("gap-count-missing_registry")).toHaveText("148");
     await expect(page.getByTestId("gap-count-needs_code_scan")).toHaveText("1");
     await expect(page.getByTestId("gap-count-missing_extraction")).toHaveText("1");
     await expect(page.getByTestId("gap-count-logical_dead_end")).toHaveText("446");
@@ -269,11 +271,11 @@ test.describe("CapabilityTab", () => {
 
     await page.getByRole("tab", { name: /Capability/i }).click();
 
-    // Static manifest: 568 nodes / 2386 edges (2026-08-04: gmx_v2-cull residue
-    // pruned -- venue:gmx_v2, venue:GMX-ARBITRUM, venue:GMX-AVALANCHE + collateral:gmx_v2
-    // nodes and their 26 edges removed, see defi_gmx_venue_removal_2026_07_25.md; prior
-    // 2026-07-21 DRIFT-cull prune -- 574->572 nodes / 2433->2412 edges -- already landed)
-    await expect(page.getByText(/568 nodes \/ 2386 edges/)).toBeVisible({ timeout: 10000 });
+    // Static manifest: 567 nodes / 2382 edges (2026-08-10: retired Barchart
+    // data_source residue pruned -- data_source:barchart node + its 4 edges removed,
+    // see fix(capability) 6a323bf; prior 2026-08-04 gmx_v2-cull prune -- 568 nodes /
+    // 2386 edges -- already landed, see defi_gmx_venue_removal_2026_07_25.md)
+    await expect(page.getByText(/567 nodes \/ 2382 edges/)).toBeVisible({ timeout: 10000 });
   });
 
   test("Verdicts sub-tab renders summary counts matching the bundled matrix", async ({ page }) => {
