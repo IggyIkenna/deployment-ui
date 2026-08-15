@@ -208,6 +208,36 @@ const MOCK_HONEST_COVERAGE_STORAGE = {
   by_venue_data_type: {},
 };
 
+const MOCK_HONEST_COVERAGE_REASON_SPLIT = {
+  generated_at: "2026-08-15T00:00:00Z",
+  date: "2026-08-15",
+  by_asset_group: {
+    cefi: {
+      captured: 900,
+      empty_confirmed: 100,
+      attempted_failed: 0,
+      expected_unattempted: 0,
+      total: 1000,
+      coverage_pct: 90.0,
+      out_of_window_pct: 60.0,
+      reference_only_pct: 15.0,
+      unexplained_pct: 25.0,
+    },
+    tradfi: {
+      captured: 900,
+      empty_confirmed: 100,
+      attempted_failed: 0,
+      expected_unattempted: 0,
+      total: 1000,
+      coverage_pct: 90.0,
+      // reason-split fields intentionally omitted — bucket predates the
+      // error_reason read column; proves independent absence (no 0%).
+    },
+  },
+  by_venue: {},
+  by_venue_data_type: {},
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 async function setupRoutes(page: Page) {
@@ -241,6 +271,15 @@ async function setupStorageRoutes(page: Page) {
   await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
   await page.route("**/api/data-status/honest-coverage**", (route) =>
     route.fulfill({ json: MOCK_HONEST_COVERAGE_STORAGE }),
+  );
+  await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
+}
+
+async function setupReasonSplitRoutes(page: Page) {
+  await page.route("**/api/health", (route) => route.fulfill({ json: MOCK_HEALTH }));
+  await page.route("**/api/services", (route) => route.fulfill({ json: ["market-tick-data-service"] }));
+  await page.route("**/api/data-status/honest-coverage**", (route) =>
+    route.fulfill({ json: MOCK_HONEST_COVERAGE_REASON_SPLIT }),
   );
   await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
 }
@@ -488,6 +527,41 @@ test.describe("data-status coverage labels regression", () => {
     const bodyText = await page.locator("body").textContent();
     expect(bodyText).not.toContain("undefined");
     expect(bodyText).not.toContain("undefined TB");
+  });
+
+  test("HonestCoverageCard: renders the empty_confirmed error_reason split, independently absent-capable", async ({
+    page,
+  }) => {
+    await setupReasonSplitRoutes(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+
+    const serviceLink = page.getByText("market-tick-data-service").first();
+    if (await serviceLink.isVisible()) {
+      await serviceLink.click();
+      await page.waitForLoadState("networkidle");
+    }
+
+    const headlineEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    await headlineEls
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => {
+        // Card may not be visible if we're not on the right tab — that's OK.
+      });
+
+    if ((await headlineEls.count()) === 0) return;
+
+    const splitEls = page.locator('[data-testid="coverage-empty-confirmed-reason-split"]');
+    // cefi carries the fields (renders); tradfi omits them (hidden) — exactly 1.
+    expect(await splitEls.count()).toBe(1);
+    const splitText = await splitEls.first().textContent();
+    expect(splitText).toContain("60% ow");
+    expect(splitText).toContain("15% ref");
+    expect(splitText).toContain("25% unexplained");
+
+    const bodyText = await page.locator("body").textContent();
+    expect(bodyText).not.toContain("undefined");
   });
 
   test("data-status default start date is 2018-01-01", async ({ page }) => {

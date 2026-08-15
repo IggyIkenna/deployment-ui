@@ -3959,6 +3959,25 @@ export interface HonestCoverageStatusCounts {
    */
   storage_bytes_tb_is?: number;
   storage_bytes_tb_mtds?: number;
+  /**
+   * Split of this asset_group's `empty_confirmed` population by error_reason
+   * (2026-08-15, empty_confirmed_and_coverage_correctness_audit). The flat
+   * `empty_confirmed` count alone is indistinguishable from a real gap —
+   * this separates it: `out_of_window_pct` (error_reason is a member of UAC's
+   * OUT_OF_COVERAGE_WINDOW_REASONS — lifecycle absence, already excluded from
+   * `coverage_pct`'s denominator, genuinely correct), `reference_only_pct`
+   * (EXPECTED_REFERENCE_ONLY_NO_CAPTURE_PATH — deliberately its own bucket,
+   * not a member of OUT_OF_COVERAGE_WINDOW_REASONS), and `unexplained_pct`
+   * (everything else, including SOURCE_RETURNED_ZERO and a blank/legacy
+   * reason — the population worth an operator's attention). All three are
+   * percentages of empty_confirmed (not of total), and all three are
+   * independently OMITTED (never 0) when the underlying bucket's parquet
+   * predates the error_reason read column — see measure_honest_coverage.py's
+   * _read_parquet_safe column-tier fallback.
+   */
+  out_of_window_pct?: number;
+  reference_only_pct?: number;
+  unexplained_pct?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */

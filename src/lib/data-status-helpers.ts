@@ -54,44 +54,25 @@ export function isPredictionCqgAxis(ag: TurboAssetGroupStatus): boolean {
 }
 
 /**
- * Axes the instruments-service "Data Coverage" (TURBO) grid already expands
- * below the Instrument-Coverage-Summary card: venue, and chain for defi. The
- * grid drills these into a 4-tab ShardDetailModal, so the summary's separate
- * hierarchical shard-atom drilldown is a strict, shallower subset for any
- * asset group whose shard axes fall entirely within this set.
- */
-const GRID_COVERED_SHARD_AXES: ReadonlySet<string> = new Set(["venue", "chain"]);
-
-/**
- * True when the per-asset-group hierarchical shard drilldown in the
- * Instrument-Coverage-Summary card is redundant with the "Data Coverage" grid
- * rendered right below it — so the extra drilldown button is suppressed.
- *
- * Redundant ONLY for **instruments-service** pricing-pipeline asset groups
- * (cefi / tradfi / defi): their shard axes (venue, +chain for defi) are a
- * strict subset of the grid's venue→[chain]→ShardDetailModal drill, AND the
- * two features that would make the tree non-redundant (per-instrument_id
- * load-more; per-leaf pipeline_mode/source provenance) don't fire for the
- * single-source venue-level reference data instruments-service serves.
- *
- * NOT redundant — the drilldown STAYS — for:
- *   - instruments-service **sports** (shard axis `league_id`) + **prediction**
- *     (`canonical_question_group`): axes the grid does NOT expand.
- *   - Every other service (MTDS / features / strategy / …): the drilldown is
- *     their PRIMARY shard drilldown.
- *
- * This is an axis-comparison predicate (NOT a blanket service-name gate) —
- * plan data_status_page_ux_and_canonicalisation_2026_07_16 P5.
+ * UN-SUPPRESSED (operator decision, empty_confirmed_and_coverage_correctness_audit_2026_08_15.md):
+ * this predicate previously hid the Instrument-Coverage-Summary card's
+ * hierarchical shard drilldown for instruments-service cefi/tradfi/defi,
+ * on the premise that their shard axes (venue, +chain for defi) are a
+ * strict subset of what the "Data Coverage" grid below already expands
+ * (plan data_status_page_ux_and_canonicalisation_2026_07_16 P5). The
+ * operator reviewed that call and wants the drilldown visible for those
+ * asset groups too, so this now always returns `false` (never redundant) —
+ * kept as a named predicate (not inlined to `false` at the call site) so
+ * the axis-comparison machinery + its tests stay intact if a future
+ * decision wants to re-derive a narrower suppression instead of a blanket
+ * un-suppress.
  */
 export function isHierarchicalDrilldownRedundant(
-  service: string,
-  assetGroup: string,
-  matrix: ShardAxisMatrixResponse | null,
+  _service: string,
+  _assetGroup: string,
+  _matrix: ShardAxisMatrixResponse | null,
 ): boolean {
-  if (service !== "instruments-service") return false;
-  const shardAxes = matrix?.shard_axes?.[service]?.[assetGroup.toLowerCase()] ?? [];
-  if (shardAxes.length === 0) return false;
-  return shardAxes.every((axis) => GRID_COVERED_SHARD_AXES.has(axis));
+  return false;
 }
 
 /**

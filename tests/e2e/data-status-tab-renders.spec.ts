@@ -106,6 +106,37 @@ async function setupMocks(page: Page) {
   return { statusLog };
 }
 
+test("asset-group toggle shows an explicit highlighted 'All' pill when no category is individually selected", async ({
+  page,
+}) => {
+  // Regression for the empty-confirmed audit's operator-reported UX finding
+  // (2026-08-15): selectedCategories=[] means "no filter, all asset groups
+  // included" downstream, but every per-category pill used to render
+  // unhighlighted in that state — reading as "nothing selected" rather than
+  // "all selected". data-status-helpers.ts / DataStatusTab.tsx no longer
+  // suppress this ambiguity; this spec locks in the explicit "All" pill.
+  await setupMocks(page);
+  await page.goto("/service/market-tick-data-service/data-status");
+  await page.waitForLoadState("networkidle");
+
+  const allPill = page.getByTestId("asset-group-toggle-all");
+  await expect(allPill).toBeVisible();
+  await expect(allPill).toHaveAttribute("data-selected", "true");
+
+  // Selecting a specific category deselects "All".
+  const cefiPill = page.getByTestId("asset-group-toggle-cefi");
+  if (await cefiPill.isVisible().catch(() => false)) {
+    await cefiPill.click();
+    await expect(allPill).toHaveAttribute("data-selected", "false");
+    await expect(cefiPill).toHaveAttribute("data-selected", "true");
+
+    // Clicking "All" again clears the specific selection.
+    await allPill.click();
+    await expect(allPill).toHaveAttribute("data-selected", "true");
+    await expect(cefiPill).toHaveAttribute("data-selected", "false");
+  }
+});
+
 for (const svc of MOCK_SERVICES) {
   test(`data-status tab renders for ${svc.name} — no console errors, no 5xx`, async ({ page }) => {
     const errors: string[] = [];

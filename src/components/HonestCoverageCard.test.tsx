@@ -220,6 +220,43 @@ describe("HonestCoverageCard", () => {
     expect(defiHeadline?.className).not.toContain("text-amber-500");
   });
 
+  it("renders the empty_confirmed error_reason split with a reference-only segment and an amber unexplained share", async () => {
+    const WITH_SPLIT: HonestCoverageResponse = {
+      ...COVERAGE,
+      by_asset_group: {
+        cefi: { ...COVERAGE.by_asset_group.cefi, out_of_window_pct: 60, reference_only_pct: 15, unexplained_pct: 25 },
+      },
+    };
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(WITH_SPLIT);
+
+    render(<HonestCoverageCard />);
+
+    const split = await screen.findByTestId("coverage-empty-confirmed-reason-split");
+    expect(split.textContent).toContain("60% ow");
+    expect(split.textContent).toContain("15% ref");
+    expect(split.textContent).toContain("25% unexplained");
+    const unexplainedSpan = split.querySelector(".text-amber-500");
+    expect(unexplainedSpan?.textContent).toContain("25% unexplained");
+  });
+
+  it("omits the reference-only segment and uses muted styling when unexplained is 0%", async () => {
+    const NO_REF: HonestCoverageResponse = {
+      ...COVERAGE,
+      by_asset_group: {
+        cefi: { ...COVERAGE.by_asset_group.cefi, out_of_window_pct: 100, reference_only_pct: 0, unexplained_pct: 0 },
+      },
+    };
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(NO_REF);
+
+    render(<HonestCoverageCard />);
+
+    const split = await screen.findByTestId("coverage-empty-confirmed-reason-split");
+    expect(split.textContent).toContain("100% ow");
+    expect(split.textContent).not.toContain("ref");
+    expect(split.textContent).toContain("0% unexplained");
+    expect(split.querySelector(".text-amber-500")).toBeNull();
+  });
+
   it("shows no banner when the file is today's and complete", async () => {
     const now = new Date();
     const todayUtc = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(

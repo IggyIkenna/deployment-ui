@@ -140,6 +140,16 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   // 0/"undefined TB" (same pattern as couldExistPct/layer1CompletenessPct).
   const storageBytesTbIs = s.storage_bytes_tb_is ?? null;
   const storageBytesTbMtds = s.storage_bytes_tb_mtds ?? null;
+  // empty_confirmed error_reason split (2026-08-15,
+  // empty_confirmed_and_coverage_correctness_audit) — the flat empty_confirmed
+  // count alone is indistinguishable from a real gap; this separates it into
+  // out-of-window (genuine lifecycle absence), reference-only (a deliberately
+  // separate bucket), and unexplained (SOURCE_RETURNED_ZERO + blank/legacy —
+  // the population worth an operator's attention). Null (not 0) when the
+  // underlying bucket predates the error_reason read column.
+  const outOfWindowPct = s.out_of_window_pct ?? null;
+  const referenceOnlyPct = s.reference_only_pct ?? null;
+  const unexplainedPct = s.unexplained_pct ?? null;
   return {
     knownEmpty,
     pendingFetch,
@@ -151,6 +161,9 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
     layer2Gated,
     storageBytesTbIs,
     storageBytesTbMtds,
+    outOfWindowPct,
+    referenceOnlyPct,
+    unexplainedPct,
   };
 }
 
@@ -287,6 +300,9 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                   layer2Gated,
                   storageBytesTbIs,
                   storageBytesTbMtds,
+                  outOfWindowPct,
+                  referenceOnlyPct,
+                  unexplainedPct,
                 } = deriveCoverage(s);
                 return (
                   <div
@@ -417,6 +433,35 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                         {outOfWindow.toLocaleString()}
                       </span>
                     </div>
+                    {/* empty_confirmed error_reason split — the flat empty_confirmed
+                        count above is indistinguishable from a real gap; this breaks
+                        it into out-of-window (genuine lifecycle absence, already
+                        excluded from every ratio above) / reference-only (its own
+                        deliberate bucket) / unexplained (SOURCE_RETURNED_ZERO + blank —
+                        the population actually worth an operator's attention). Hidden
+                        (not faked as 0%) when the underlying bucket predates the
+                        error_reason read column. */}
+                    {unexplainedPct !== null && (
+                      <div
+                        className="flex items-center justify-between"
+                        title="Split of this asset_group's empty_confirmed population by error_reason: out-of-window (lifecycle absence) / reference-only / unexplained (includes SOURCE_RETURNED_ZERO — worth investigating)"
+                      >
+                        <span className="text-[10px] text-[var(--color-text-muted)]">empty_confirmed reasons</span>
+                        <span className="text-[10px] font-mono" data-testid="coverage-empty-confirmed-reason-split">
+                          <span className="text-[var(--color-text-muted)]">{(outOfWindowPct ?? 0).toFixed(0)}% ow</span>
+                          {referenceOnlyPct !== null && referenceOnlyPct > 0 && (
+                            <span className="text-[var(--color-text-muted)]">
+                              {" "}
+                              · {referenceOnlyPct.toFixed(0)}% ref
+                            </span>
+                          )}
+                          <span className={unexplainedPct > 0 ? "text-amber-500" : "text-[var(--color-text-muted)]"}>
+                            {" "}
+                            · {unexplainedPct.toFixed(0)}% unexplained
+                          </span>
+                        </span>
+                      </div>
+                    )}
                     {/* GCS storage size (TB), split IS/MTDS — additive Honest-Coverage
                         v2 fields sourced from Cloud Monitoring's storage/total_bytes
                         metric (soft-deleted objects already excluded). Originally one
