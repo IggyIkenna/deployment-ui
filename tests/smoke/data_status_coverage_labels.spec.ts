@@ -25,11 +25,14 @@
  *      `layer1_completeness_pct` — while a Layer-1-complete AG in the SAME
  *      payload renders ungated, proving the gate tracks the per-AG denominator
  *      state rather than a global flag.
- *   7. With a payload carrying the additive `storage_bytes_tb` field, the card
- *      renders a "storage" tile formatted to 2-3 significant figures (e.g.
- *      "0.43 TB"). With the field ABSENT (the real cron payload shape, and
- *      every existing fixture above), the tile does not render at all — no
- *      crash, no "undefined TB" text anywhere on the page.
+ *   7. With a payload carrying the additive `storage_bytes_tb_is` /
+ *      `storage_bytes_tb_mtds` fields, the card renders TWO separate tiles
+ *      ("IS storage" / "MTDS storage"), each formatted to 2-3 significant
+ *      figures (e.g. "0.43 TB"), and each renders/hides INDEPENDENTLY of the
+ *      other (one bucket's Cloud Monitoring call can fail while the other
+ *      succeeds). With BOTH fields ABSENT (the real cron payload shape, and
+ *      every existing fixture above), neither tile renders at all — no crash,
+ *      no "undefined TB" text anywhere on the page.
  *
  * Regression guards:
  *   - 2026-06-15: surface a distinct headline vs secondary coverage label.
@@ -49,6 +52,11 @@
  *     per-AG coverage.json cell — surfaced here, both present (renders "X.XX TB")
  *     and absent (no tile, no "undefined") per
  *     `honest_coverage_storage_size_stat_2026_08_14.md` item 5.
+ *   - 2026-08-15: split the single combined `storage_bytes_tb` into two independent
+ *     `storage_bytes_tb_is` / `storage_bytes_tb_mtds` fields (operator wanted the two
+ *     services' footprints visible separately, not summed) — this spec's storage
+ *     fixtures/assertions updated to the two-tile shape, including a case proving
+ *     one field can render while the other is independently absent.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -154,10 +162,13 @@ const MOCK_HONEST_COVERAGE_V2_GATED = {
   by_venue_data_type: {},
 };
 
-// Payload carrying the additive `storage_bytes_tb` field (2026-08-14 —
-// honest_coverage_storage_size_stat_2026_08_14.md) — sports mirrors the
-// measured baseline (IS 0.061 TB + MTDS 0.369 TB ≈ 0.43 TB total) from that
-// plan; tradfi/prediction prove the 2-3 sig-fig formatting at other magnitudes.
+// Payload carrying the additive `storage_bytes_tb_is` / `storage_bytes_tb_mtds`
+// fields (2026-08-14 — honest_coverage_storage_size_stat_2026_08_14.md; split
+// into two independent fields 2026-08-15). sports/tradfi carry BOTH fields at
+// different magnitudes to prove the 2/1/0-decimal sig-fig formatting bucket
+// independently on each field; prediction carries ONLY `storage_bytes_tb_is`
+// (MTDS's own Cloud Monitoring call failed/omitted) to prove the two tiles
+// render/hide independently of each other, not as an all-or-nothing pair.
 const MOCK_HONEST_COVERAGE_STORAGE = {
   generated_at: "2026-08-14T00:00:00Z",
   date: "2026-08-14",
@@ -169,7 +180,8 @@ const MOCK_HONEST_COVERAGE_STORAGE = {
       expected_unattempted: 50,
       total: 1000,
       coverage_pct: 95.0,
-      storage_bytes_tb: 0.4303,
+      storage_bytes_tb_is: 0.4303,
+      storage_bytes_tb_mtds: 12.7,
     },
     tradfi: {
       captured: 950,
@@ -178,7 +190,18 @@ const MOCK_HONEST_COVERAGE_STORAGE = {
       expected_unattempted: 50,
       total: 1000,
       coverage_pct: 95.0,
-      storage_bytes_tb: 156.4,
+      storage_bytes_tb_is: 156.4,
+      storage_bytes_tb_mtds: 0.061,
+    },
+    prediction: {
+      captured: 950,
+      empty_confirmed: 0,
+      attempted_failed: 0,
+      expected_unattempted: 50,
+      total: 1000,
+      coverage_pct: 95.0,
+      storage_bytes_tb_is: 8.2,
+      // storage_bytes_tb_mtds intentionally omitted — proves independent absence.
     },
   },
   by_venue: {},
@@ -382,7 +405,7 @@ test.describe("data-status coverage labels regression", () => {
     expect(ungatedClass).not.toContain("text-amber-500");
   });
 
-  test("HonestCoverageCard: renders a storage-size tile (2-3 sig figs) when storage_bytes_tb is present", async ({
+  test("HonestCoverageCard: renders separate IS/MTDS storage-size tiles (2-3 sig figs), independently absent-capable", async ({
     page,
   }) => {
     await setupStorageRoutes(page);
@@ -405,24 +428,37 @@ test.describe("data-status coverage labels regression", () => {
 
     if ((await headlineEls.count()) === 0) return;
 
-    const storageEls = page.locator('[data-testid="coverage-storage-tb"]');
-    expect(await storageEls.count()).toBeGreaterThan(0);
-    const storageTexts = await storageEls.allTextContents();
-    // sports: 0.4303 TB -> "0.43 TB" (2 sig figs); tradfi: 156.4 TB -> "156 TB" (3 sig figs, no decimal).
-    expect(storageTexts).toContain("0.43 TB");
-    expect(storageTexts).toContain("156 TB");
+    const isEls = page.locator('[data-testid="coverage-storage-tb-is"]');
+    const mtdsEls = page.locator('[data-testid="coverage-storage-tb-mtds"]');
+    expect(await isEls.count()).toBeGreaterThan(0);
+    expect(await mtdsEls.count()).toBeGreaterThan(0);
+    const isTexts = await isEls.allTextContents();
+    const mtdsTexts = await mtdsEls.allTextContents();
+    // sports IS: 0.4303 -> "0.43 TB" (2dp); tradfi IS: 156.4 -> "156 TB" (0dp);
+    // prediction IS: 8.2 -> "8.20 TB" (2dp).
+    expect(isTexts).toContain("0.43 TB");
+    expect(isTexts).toContain("156 TB");
+    expect(isTexts).toContain("8.20 TB");
+    // sports MTDS: 12.7 -> "12.7 TB" (1dp); tradfi MTDS: 0.061 -> "0.06 TB" (2dp).
+    expect(mtdsTexts).toContain("12.7 TB");
+    expect(mtdsTexts).toContain("0.06 TB");
+
+    // prediction has NO storage_bytes_tb_mtds — its MTDS tile must not render,
+    // even though its IS tile (8.20 TB) does. Independent absence, not
+    // all-or-nothing: IS tile count exceeds MTDS tile count by exactly 1.
+    expect(await isEls.count()).toBe((await mtdsEls.count()) + 1);
 
     // No stray "undefined" anywhere on the page (crash/formatting-bug guard).
     const bodyText = await page.locator("body").textContent();
     expect(bodyText).not.toContain("undefined");
   });
 
-  test("HonestCoverageCard: degrades gracefully (no tile, no crash, no 'undefined') when storage_bytes_tb is absent", async ({
+  test("HonestCoverageCard: degrades gracefully (no tiles, no crash, no 'undefined') when both storage fields are absent", async ({
     page,
   }) => {
-    // The real cron payload shape (MOCK_HONEST_COVERAGE) has no storage_bytes_tb
-    // on any asset_group — this is the common case until every AG's writer has
-    // shipped the new field.
+    // The real cron payload shape (MOCK_HONEST_COVERAGE) has neither
+    // storage_bytes_tb_is nor storage_bytes_tb_mtds on any asset_group — this
+    // is the common case until every AG's writer has shipped the fields.
     await setupRoutes(page);
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
@@ -443,9 +479,11 @@ test.describe("data-status coverage labels regression", () => {
 
     if ((await headlineEls.count()) === 0) return;
 
-    // The tile is hidden entirely — never rendered as "undefined TB" or "0 TB".
-    const storageEls = page.locator('[data-testid="coverage-storage-tb"]');
-    expect(await storageEls.count()).toBe(0);
+    // Both tiles are hidden entirely — never rendered as "undefined TB" or "0 TB".
+    const isEls = page.locator('[data-testid="coverage-storage-tb-is"]');
+    const mtdsEls = page.locator('[data-testid="coverage-storage-tb-mtds"]');
+    expect(await isEls.count()).toBe(0);
+    expect(await mtdsEls.count()).toBe(0);
 
     const bodyText = await page.locator("body").textContent();
     expect(bodyText).not.toContain("undefined");
