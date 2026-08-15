@@ -2180,14 +2180,15 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                           fan out 5 concurrent full-index reads (and 5000
                           instruments) by default.
 
-                          P5: suppressed for instruments-service cefi/tradfi/defi
-                          — their shard axes (venue, +chain for defi) are a
-                          strict subset of the "Data Coverage" grid below, so
-                          this drilldown is redundant there. Kept for IS
-                          sports/prediction (league_id / cqg axes the grid does
-                          not expand) + every other service (primary drilldown).
-                          isHierarchicalDrilldownRedundant is an axis-comparison
-                          predicate, NOT a blanket service-name gate. */}
+                          UN-SUPPRESSED 2026-08-15 (operator decision,
+                          empty_confirmed_and_coverage_correctness_audit_2026_08_15.md):
+                          P5 previously hid this for instruments-service
+                          cefi/tradfi/defi on a subset-of-the-grid premise; the
+                          operator wants it visible there too.
+                          isHierarchicalDrilldownRedundant now always returns
+                          false — kept as a named predicate (not inlined) so a
+                          future narrower suppression can reuse the same
+                          axis-comparison machinery if wanted. */}
                             {!isHierarchicalDrilldownRedundant(serviceName, axisKey, shardAxisMatrix) && (
                               <LazyDrilldownDetails
                                 service={serviceName}
@@ -2726,23 +2727,42 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                         Loading asset groups...
                       </div>
                     ) : (
-                      availableCategories.map((cat) => (
+                      <>
+                        {/* An empty selectedCategories means "no filter" (all asset groups
+                            included — see the asset_group: selectedCategories.length > 0 ?
+                            ... : undefined pattern below) but every per-category button used
+                            to render unhighlighted in that state, reading as "nothing
+                            selected" rather than "all selected". Explicit "All" pill makes
+                            the empty-selection state visually distinct from a genuinely
+                            empty result set (operator-reported UX fix, 2026-08-15). */}
                         <Button
-                          key={cat}
                           type="button"
-                          variant={selectedCategories.includes(cat) ? "default" : "outline"}
+                          variant={selectedCategories.length === 0 ? "default" : "outline"}
                           size="sm"
-                          data-testid={`asset-group-toggle-${cat}`}
-                          data-selected={selectedCategories.includes(cat)}
-                          onClick={() => {
-                            setSelectedCategories((prev) =>
-                              prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
-                            );
-                          }}
+                          data-testid="asset-group-toggle-all"
+                          data-selected={selectedCategories.length === 0}
+                          onClick={() => setSelectedCategories([])}
                         >
-                          {cat}
+                          All
                         </Button>
-                      ))
+                        {availableCategories.map((cat) => (
+                          <Button
+                            key={cat}
+                            type="button"
+                            variant={selectedCategories.includes(cat) ? "default" : "outline"}
+                            size="sm"
+                            data-testid={`asset-group-toggle-${cat}`}
+                            data-selected={selectedCategories.includes(cat)}
+                            onClick={() => {
+                              setSelectedCategories((prev) =>
+                                prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+                              );
+                            }}
+                          >
+                            {cat}
+                          </Button>
+                        ))}
+                      </>
                     )}
                   </div>
                 </div>

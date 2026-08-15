@@ -9,12 +9,13 @@ import {
 } from "./data-status-helpers";
 
 /**
- * P5 — the Instrument-Coverage-Summary hierarchical drilldown is redundant with
- * the "Data Coverage" grid ONLY for instruments-service pricing-pipeline asset
- * groups (cefi/tradfi/defi). Sports (league_id) + prediction
- * (canonical_question_group) carry an axis the grid does not expand, and every
- * other service uses the drilldown as its PRIMARY shard drilldown — all kept.
- * Plan data_status_page_ux_and_canonicalisation_2026_07_16 P5.
+ * P5 UN-SUPPRESSED (operator decision, empty_confirmed_and_coverage_correctness_audit_2026_08_15.md):
+ * `isHierarchicalDrilldownRedundant` previously hid the drilldown for
+ * instruments-service cefi/tradfi/defi on a subset-of-the-grid premise
+ * (plan data_status_page_ux_and_canonicalisation_2026_07_16 P5). The operator
+ * wants it visible for those asset groups too, so the predicate now always
+ * returns `false` — every case below asserts that, regardless of service/
+ * asset-group/matrix shape.
  */
 
 // Mirrors the live /api/config/shard-axis-matrix payload (UAC SHARD_AXIS_MATRIX).
@@ -38,10 +39,10 @@ const MATRIX: ShardAxisMatrixResponse = {
 };
 
 describe("isHierarchicalDrilldownRedundant", () => {
-  it("suppresses the drilldown for instruments-service cefi/tradfi/defi", () => {
-    expect(isHierarchicalDrilldownRedundant("instruments-service", "cefi", MATRIX)).toBe(true);
-    expect(isHierarchicalDrilldownRedundant("instruments-service", "tradfi", MATRIX)).toBe(true);
-    expect(isHierarchicalDrilldownRedundant("instruments-service", "defi", MATRIX)).toBe(true);
+  it("no longer suppresses the drilldown for instruments-service cefi/tradfi/defi", () => {
+    expect(isHierarchicalDrilldownRedundant("instruments-service", "cefi", MATRIX)).toBe(false);
+    expect(isHierarchicalDrilldownRedundant("instruments-service", "tradfi", MATRIX)).toBe(false);
+    expect(isHierarchicalDrilldownRedundant("instruments-service", "defi", MATRIX)).toBe(false);
   });
 
   it("keeps the drilldown for instruments-service sports + prediction (axis the grid does not expand)", () => {
@@ -55,11 +56,11 @@ describe("isHierarchicalDrilldownRedundant", () => {
     expect(isHierarchicalDrilldownRedundant("features-onchain-service", "defi", MATRIX)).toBe(false);
   });
 
-  it("handles a case-insensitive asset-group label", () => {
-    expect(isHierarchicalDrilldownRedundant("instruments-service", "CEFI", MATRIX)).toBe(true);
+  it("keeps the drilldown regardless of asset-group casing", () => {
+    expect(isHierarchicalDrilldownRedundant("instruments-service", "CEFI", MATRIX)).toBe(false);
   });
 
-  it("keeps the drilldown when the matrix is unavailable or the pair is absent (fail-open)", () => {
+  it("keeps the drilldown when the matrix is unavailable or the pair is absent", () => {
     expect(isHierarchicalDrilldownRedundant("instruments-service", "cefi", null)).toBe(false);
     expect(isHierarchicalDrilldownRedundant("instruments-service", "unknown", MATRIX)).toBe(false);
   });
