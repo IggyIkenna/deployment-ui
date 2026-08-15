@@ -3946,14 +3946,19 @@ export interface HonestCoverageStatusCounts {
   instrument_gates_download?: boolean;
   layer1_completeness_pct?: number;
   /**
-   * GCS storage size for this asset_group's Group-A bucket(s), in TB (1e12
-   * bytes), sourced from Cloud Monitoring's `storage.googleapis.com/storage/
-   * total_bytes` metric (soft-deleted objects already excluded by the metric
-   * itself — see /codex/02-data/honest-coverage-model.md). Additive v2 field;
-   * absent on any coverage.json written before the writer shipped it, so the
-   * card must render "—" rather than "undefined TB" when omitted.
+   * GCS storage size for this asset_group's instruments-store (IS) bucket and
+   * market-data-tick (MTDS) bucket, each in TB (1e12 bytes), sourced from Cloud
+   * Monitoring's `storage.googleapis.com/storage/total_bytes` metric
+   * (soft-deleted objects already excluded by the metric itself — see
+   * /codex/02-data/honest-coverage-model.md). Additive v2 fields, shipped
+   * 2026-08-14 as a single combined `storage_bytes_tb` and split same-day into
+   * these two independent fields. Each is independently absent/omitted (never
+   * faked as 0) on any coverage.json written before the writer shipped it, or
+   * when that bucket's own Cloud Monitoring call failed — the other field can
+   * still be present.
    */
-  storage_bytes_tb?: number;
+  storage_bytes_tb_is?: number;
+  storage_bytes_tb_mtds?: number;
 }
 
 /** Top-level shape of gs://central-element-323112-honest-coverage/{date}/coverage.json */

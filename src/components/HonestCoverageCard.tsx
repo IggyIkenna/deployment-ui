@@ -132,11 +132,14 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
   // hidden (not faked as 0) when the payload is v1 and doesn't carry it.
   const layer1CompletenessPct = s.layer1_completeness_pct ?? null;
   const layer2Gated = s.instrument_gates_download ?? false;
-  // GCS storage size (TB) — additive v2 field; older coverage.json payloads
-  // (and any asset_group whose measure_honest_coverage.py run predates the
-  // writer shipping this field) omit it entirely, so it's hidden rather than
-  // faked as 0/"undefined TB" (same pattern as couldExistPct/layer1CompletenessPct).
-  const storageBytesTb = s.storage_bytes_tb ?? null;
+  // GCS storage size (TB), split per-service — additive v2 fields (originally
+  // shipped 2026-08-14 as one combined `storage_bytes_tb`, split same-day into
+  // independent IS/MTDS fields). Older coverage.json payloads, and either
+  // bucket's own Cloud Monitoring call failing independently of the other,
+  // omit the field entirely, so each is hidden rather than faked as
+  // 0/"undefined TB" (same pattern as couldExistPct/layer1CompletenessPct).
+  const storageBytesTbIs = s.storage_bytes_tb_is ?? null;
+  const storageBytesTbMtds = s.storage_bytes_tb_mtds ?? null;
   return {
     knownEmpty,
     pendingFetch,
@@ -146,7 +149,8 @@ function deriveCoverage(s: HonestCoverageResponse["by_asset_group"][string]) {
     outOfWindow,
     layer1CompletenessPct,
     layer2Gated,
-    storageBytesTb,
+    storageBytesTbIs,
+    storageBytesTbMtds,
   };
 }
 
@@ -281,7 +285,8 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                   outOfWindow,
                   layer1CompletenessPct,
                   layer2Gated,
-                  storageBytesTb,
+                  storageBytesTbIs,
+                  storageBytesTbMtds,
                 } = deriveCoverage(s);
                 return (
                   <div
@@ -412,25 +417,45 @@ export function HonestCoverageCard({ date }: { date?: string }) {
                         {outOfWindow.toLocaleString()}
                       </span>
                     </div>
-                    {/* GCS storage size (TB) — additive Honest-Coverage v2
-                        field sourced from Cloud Monitoring's storage/total_bytes
-                        metric (soft-deleted objects already excluded). Hidden
-                        (not faked as "0 TB"/"undefined TB") when the payload
-                        doesn't carry the field yet. */}
-                    {storageBytesTb !== null && (
+                    {/* GCS storage size (TB), split IS/MTDS — additive Honest-Coverage
+                        v2 fields sourced from Cloud Monitoring's storage/total_bytes
+                        metric (soft-deleted objects already excluded). Originally one
+                        combined tile, split same-day into two independent rows so each
+                        service's footprint is visible. Each row is hidden (not faked as
+                        "0 TB"/"undefined TB") when its own field is absent — one
+                        service's Cloud Monitoring call can fail while the other
+                        succeeds. */}
+                    {storageBytesTbIs !== null && (
                       <div className="flex items-center justify-between">
                         <span
                           className="text-[10px] text-[var(--color-text-muted)]"
-                          title="GCS storage size across this asset_group's Group-A buckets (storage.googleapis.com/storage/total_bytes, soft-deleted objects excluded)"
+                          title="GCS storage size of this asset_group's instruments-store (IS) bucket (storage.googleapis.com/storage/total_bytes, soft-deleted objects excluded)"
                         >
-                          storage
+                          IS storage
                         </span>
                         <span
                           className="text-[10px] text-[var(--color-text-muted)] font-mono"
-                          title="storage_bytes_tb"
-                          data-testid="coverage-storage-tb"
+                          title="storage_bytes_tb_is"
+                          data-testid="coverage-storage-tb-is"
                         >
-                          {formatStorageTb(storageBytesTb)}
+                          {formatStorageTb(storageBytesTbIs)}
+                        </span>
+                      </div>
+                    )}
+                    {storageBytesTbMtds !== null && (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)]"
+                          title="GCS storage size of this asset_group's market-data-tick (MTDS) bucket (storage.googleapis.com/storage/total_bytes, soft-deleted objects excluded)"
+                        >
+                          MTDS storage
+                        </span>
+                        <span
+                          className="text-[10px] text-[var(--color-text-muted)] font-mono"
+                          title="storage_bytes_tb_mtds"
+                          data-testid="coverage-storage-tb-mtds"
+                        >
+                          {formatStorageTb(storageBytesTbMtds)}
                         </span>
                       </div>
                     )}
