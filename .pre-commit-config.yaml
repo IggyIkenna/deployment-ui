@@ -44,6 +44,18 @@ repos:
         pass_filenames: false
         fail_fast: true # behind-origin -> STOP before any formatter mutates (no reflow residue that breaks slot FF-sync)
 
+  # Gitignore re-add gate — blocks a staged file that matches the repo's own
+  # .gitignore (only reachable via `git add -f`; add -A/. already skip ignored
+  # paths). SSOT: scripts/hooks/check-gitignore-readd.sh.
+  - repo: local
+    hooks:
+      - id: check-gitignore-readd
+        name: Block re-adding a gitignored path
+        entry: bash -c 'HOOK="${WORKSPACE_ROOT:-$(cd "$(git rev-parse --show-toplevel)/.." &&
+          pwd)}/unified-trading-pm/scripts/hooks/check-gitignore-readd.sh"; [ -f "$HOOK" ] || exit 0; bash "$HOOK"'
+        language: system
+        pass_filenames: false
+
   # Prettier - auto-stage wrapper (see docs.pre-commit-config.yaml for rationale).
   - repo: local
     hooks:
