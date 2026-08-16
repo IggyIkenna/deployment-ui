@@ -3,6 +3,7 @@
 # Playwright generates this report dir on every test run — never commit it
 # (matches unified-trading-system-ui). orchestrator_autonomy_residual_findings_2026_06_02 FM3.
 playwright-report/
+blob-report/
 # src/data/ holds static JSON bundled by Vite (capability-manifest.json etc.)
 # The global `data/` pattern would exclude these; unignore explicitly.
 !src/data/
