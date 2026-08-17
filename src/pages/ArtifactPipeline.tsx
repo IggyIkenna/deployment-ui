@@ -2245,6 +2245,13 @@ function RunningView({
               testId="run-stat-hand"
             />
             <StatTile label="Unknown" value={String(s.unknown)} sub="unresolvable commit" testId="run-stat-unknown" />
+            <StatTile
+              label="Behind main"
+              value={String(s.behind_main)}
+              sub="running SHA != repo main HEAD"
+              color="var(--color-accent-amber)"
+              testId="run-stat-behind-main"
+            />
           </>
         }
       />
@@ -2382,7 +2389,21 @@ function RunningRowLine({ row, isOpen, onToggle }: { row: RunningTableRow; isOpe
           {v.digest ? v.digest.slice(0, 19) : "—"}
         </td>
         <td className="whitespace-nowrap px-2.5 py-2 font-mono" style={cellBorder}>
-          {v.built_from || "—"}
+          <span
+            className="inline-flex items-center gap-1"
+            title={v.main_head_sha ? `main HEAD: ${v.main_head_sha}` : "main HEAD unknown"}
+          >
+            {v.built_from || "—"}
+            {v.behind_main === true && (
+              <span
+                data-testid="run-behind-main-badge"
+                className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium"
+                style={{ color: "var(--color-accent-amber)", border: "1px solid var(--color-accent-amber)" }}
+              >
+                behind main
+              </span>
+            )}
+          </span>
         </td>
         <td className="px-2.5 py-2" style={cellBorder}>
           <span className="flex flex-wrap gap-1">

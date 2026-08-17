@@ -790,6 +790,8 @@ export interface RunningVersion {
   drift: DriftFlag[];
   hosts: RunningHost[];
   why: string; // one-paragraph, honest explanation of the drift verdict
+  main_head_sha: string; // this version's repo's current `main` HEAD sha ("" = unknown)
+  behind_main: boolean | null; // built_from != main_head_sha (short-sha compare); null = honest-unknown
 }
 
 export interface RunningGroup {
@@ -808,6 +810,7 @@ export interface RunningStats {
   floating: number; // versions on a floating :latest
   hand: number; // hand-deployed versions
   unknown: number; // versions with an unresolvable commit
+  behind_main: number; // versions whose built_from is behind their repo's `main` HEAD
 }
 
 export interface RunningResponse {
