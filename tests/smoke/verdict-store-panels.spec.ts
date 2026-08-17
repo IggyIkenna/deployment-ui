@@ -38,6 +38,30 @@ test.describe("Version-coherence panel", () => {
   });
 });
 
+test.describe("Rollout-ratchet panel", () => {
+  test("renders template-drift + ruleset-drift verdicts from the mock fixture", async ({ page }) => {
+    await page.goto("/repos");
+    const panel = page.getByTestId("rollout-ratchet-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Rollout ratchet");
+
+    // Mock source badges — "mock" (mirrors the deployment-api mock-mode contract).
+    await expect(page.getByTestId("rollout-ratchet-template-source")).toContainText("mock");
+    await expect(page.getByTestId("rollout-ratchet-ruleset-source")).toContainText("mock");
+
+    // instruments-service is ERROR in the template-drift mock fixture.
+    await expect(page.getByTestId("rollout-ratchet-row-instruments-service")).toBeVisible();
+    await expect(page.getByTestId("rollout-ratchet-template-instruments-service")).toContainText("ERROR");
+
+    // deployment-api is DRIFT in the ruleset-drift mock fixture.
+    await expect(page.getByTestId("rollout-ratchet-row-deployment-api")).toBeVisible();
+    await expect(page.getByTestId("rollout-ratchet-ruleset-deployment-api")).toContainText("DRIFT");
+
+    // unified-trading-library is CLEAN on both — it must NOT get its own flagged row.
+    await expect(page.getByTestId("rollout-ratchet-row-unified-trading-library")).toHaveCount(0);
+  });
+});
+
 test.describe("Change-freeze banner", () => {
   test("renders the active freeze window with its reason when PROD_DEPLOY is BLOCKED", async ({ page }) => {
     await page.goto("/repos");

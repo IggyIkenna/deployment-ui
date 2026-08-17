@@ -4509,6 +4509,33 @@ export async function getVersionCoherenceOverview(): Promise<VersionCoherenceOve
   return fetchJson<VersionCoherenceOverview>("/version-coherence/overview");
 }
 
+// --- Rollout-ratchet panel — GET /api/rollout-ratchet/overview ------------------
+// Reads TWO Firestore verdict-stores: template_drift_verdicts (unified-trading-pm's
+// planning-VM daily systemd timer -> detect_template_drift.py --json) and
+// ruleset_drift_verdicts (.github/workflows/ruleset-drift-alert.yml, Mondays 06:00 UTC
+// -> verify_branch_protection_check_names.py --json). Read-only: never re-derives either
+// verdict. Plan:
+// unified-trading-pm/plans/active/issues/rollout_ratchet_panel_ui_only_mis_scoped_needs_backend_2026_08_17.md
+
+export interface RolloutRatchetRepoVerdict {
+  verdict: string;
+  reasons: string[];
+  checked_at: string | null;
+}
+
+export interface RolloutRatchetOverview {
+  generated_at: string;
+  /** "firestore" (live, possibly empty pre-first-run) | "unavailable" (Firestore unreachable) | "mock". */
+  template_drift_source: string;
+  ruleset_drift_source: string;
+  template_drift: Record<string, RolloutRatchetRepoVerdict>;
+  ruleset_drift: Record<string, RolloutRatchetRepoVerdict>;
+}
+
+export async function getRolloutRatchetOverview(): Promise<RolloutRatchetOverview> {
+  return fetchJson<RolloutRatchetOverview>("/rollout-ratchet/overview");
+}
+
 // --- Change-freeze panel — GET /api/change-freeze/status ------------------------
 // Reads the Firestore verdict-store unified-trading-pm's change-freeze-check.yml (the inline bash
 // recurrence/DST evaluator, plans/ops/change-freeze-calendar.csv) writes on every invocation.

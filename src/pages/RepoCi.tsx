@@ -61,6 +61,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { GhRateBudget } from "../components/GhRateBudget";
 import { ChangeFreezeBanner } from "../components/ChangeFreezeBanner";
 import { VersionCoherencePanel } from "../components/VersionCoherencePanel";
+import { RolloutRatchetPanel } from "../components/RolloutRatchetPanel";
 import { useVisibilityPausedInterval } from "../hooks/useVisibilityPausedInterval";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
@@ -1941,6 +1942,7 @@ export function RepoCiContent() {
             <PromotionHeldPanel held={overview.promotion_held} />
             <SemverHealthPanel health={overview.semver_health} />
             <VersionCoherencePanel />
+            <RolloutRatchetPanel />
           </div>
           {selectedRepo ? (
             <Card>

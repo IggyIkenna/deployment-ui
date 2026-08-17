@@ -258,6 +258,8 @@ const running: api.RunningResponse = {
           drift: ["ok"],
           hosts: [{ name: "uts-shared-deployment-api", kind: "Cloud Run svc", launched_at: "2026-07-23T11:00:00Z" }],
           why: "resolves to deployment-api@a557471 (main), built by deployment-api-build.",
+          main_head_sha: "a557471",
+          behind_main: false,
         },
       ],
     },
@@ -276,11 +278,13 @@ const running: api.RunningResponse = {
           drift: ["floating"],
           hosts: [{ name: "deployment-dashboard", kind: "Cloud Run svc", launched_at: "2026-07-23T10:00:00Z" }],
           why: "the resolved image is tagged only :latest.",
+          main_head_sha: "",
+          behind_main: null,
         },
       ],
     },
   ],
-  stats: { services: 2, versions: 2, fragmented: 0, floating: 1, hand: 0, unknown: 0 },
+  stats: { services: 2, versions: 2, fragmented: 0, floating: 1, hand: 0, unknown: 0, behind_main: 0 },
 };
 
 const health: api.HealthResponse = {
