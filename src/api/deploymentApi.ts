@@ -1351,6 +1351,36 @@ export async function getProcessCategoryBreakdown(
   return handleResponse<ProcessCategoryBreakdownResponse>(response);
 }
 
+// Same-region/cross-region/external byte totals per VM
+// (deployment_network_egress_ingress_observability_2026_08_18.md Track 2), from the hourly
+// network_flow_summary rollup — GET /api/vm-resources/network-flows.
+export interface NetworkFlowSummaryRow {
+  vm_name: string;
+  deployment_id: string | null;
+  service: string | null;
+  asset_group: string | null;
+  same_region_bytes: number | null;
+  cross_region_bytes: number | null;
+  external_bytes: number | null;
+  flow_count: number;
+}
+
+export interface NetworkFlowSummaryResponse {
+  window: ResourceWindow;
+  rows: NetworkFlowSummaryRow[];
+}
+
+export async function getNetworkFlowSummary(
+  vmName: string,
+  window: ResourceWindow,
+): Promise<NetworkFlowSummaryResponse> {
+  const params = new URLSearchParams({ vm_name: vmName, window });
+  const response = await fetch(`${DEPLOYMENT_API}/api/vm-resources/network-flows?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<NetworkFlowSummaryResponse>(response);
+}
+
 // -------------------------------------------------------------------------
 // Watchdog kill/violation events (watchdog_kill_events_deployment_observability_2026_08_05.md)
 // — GET /api/watchdog/kill-events. Durable kill-event rows for the AO host's

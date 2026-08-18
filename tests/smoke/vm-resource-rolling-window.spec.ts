@@ -105,6 +105,32 @@ test.describe("VM resource rolling-window views", () => {
     await expect(page.getByTestId("process-breakdown-panel")).not.toBeVisible();
   });
 
+  test("cross-VM comparison page expands a VM row to show its network flow summary", async ({ page }) => {
+    // Regression guard for deployment_network_egress_ingress_observability_2026_08_18.md
+    // Track 2 — same-region/cross-region/external byte totals per VM, from the
+    // network_flow_summary hourly rollup (VPC Flow Logs, aggregated offline).
+    await page.goto("/vm-resources");
+    const rows = page.getByTestId("vm-resource-comparison-row");
+    await expect(rows.first()).toBeVisible();
+
+    await expect(page.getByTestId("network-flow-panel")).not.toBeVisible();
+
+    await rows.first().click();
+    await expect(page.getByTestId("network-flow-panel")).toBeVisible();
+    const table = page.getByTestId("network-flow-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("Same-region");
+    await expect(table).toContainText("Cross-region");
+    await expect(table).toContainText("External");
+    const flowCells = page.getByTestId("network-flow-row").locator("td");
+    await expect(flowCells.nth(0)).toHaveText(/^\d+(\.\d)? (B|KB|MB|GB)$/);
+    await expect(flowCells.nth(1)).toHaveText(/^\d+(\.\d)? (B|KB|MB|GB)$/);
+    await expect(flowCells.nth(2)).toHaveText(/^\d+(\.\d)? (B|KB|MB|GB)$/);
+
+    await rows.first().click();
+    await expect(page.getByTestId("network-flow-panel")).not.toBeVisible();
+  });
+
   test("cross-VM comparison page expands a VM row to show watchdog kill events", async ({ page }) => {
     await page.goto("/vm-resources");
     const rows = page.getByTestId("vm-resource-comparison-row");

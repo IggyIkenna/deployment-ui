@@ -13,9 +13,11 @@ import { Fragment, useEffect, useState } from "react";
 import { Activity, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
+  getNetworkFlowSummary,
   getProcessCategoryBreakdown,
   getResourceRollingWindow,
   getWatchdogKillEvents,
+  type NetworkFlowSummaryRow,
   type ProcessCategoryRow,
   type ResourceRollingWindowRow,
   type ResourceWindow,
@@ -64,17 +66,30 @@ function fmtPct(v: number | null): string {
   return v == null ? "—" : `${Math.round(v)}%`;
 }
 
-/** Bytes/sec -> a human-scaled rate string (B/s, KB/s, MB/s, GB/s). */
-function fmtBytesRate(v: number | null): string {
-  if (v == null) return "—";
-  const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+/** Scales `v` bytes into the largest whole unit (B/KB/MB/GB), returning [value, unit]. */
+function scaleBytes(v: number): [number, string] {
+  const units = ["B", "KB", "MB", "GB"];
   let value = v;
   let unitIdx = 0;
   while (value >= 1024 && unitIdx < units.length - 1) {
     value /= 1024;
     unitIdx += 1;
   }
-  return `${value.toFixed(value >= 10 || unitIdx === 0 ? 0 : 1)} ${units[unitIdx]}`;
+  return [value, units[unitIdx]];
+}
+
+/** Bytes/sec -> a human-scaled rate string (B/s, KB/s, MB/s, GB/s). */
+function fmtBytesRate(v: number | null): string {
+  if (v == null) return "—";
+  const [value, unit] = scaleBytes(v);
+  return `${value.toFixed(value >= 10 || unit === "B" ? 0 : 1)} ${unit}/s`;
+}
+
+/** A byte TOTAL (not a rate) -> a human-scaled string (B, KB, MB, GB) — no "/s" suffix. */
+function fmtBytes(v: number | null): string {
+  if (v == null) return "—";
+  const [value, unit] = scaleBytes(v);
+  return `${value.toFixed(value >= 10 || unit === "B" ? 0 : 1)} ${unit}`;
 }
 
 /** ProcessCategoryRow[] -> one recharts datum per category, stacked-bar shaped (mirrors
@@ -133,6 +148,9 @@ export function VmResourceComparison() {
   const [killRows, setKillRows] = useState<Record<string, WatchdogKillEventRow[]>>({});
   const [killLoading, setKillLoading] = useState(false);
   const [killError, setKillError] = useState<string | null>(null);
+  const [networkFlowRows, setNetworkFlowRows] = useState<Record<string, NetworkFlowSummaryRow | null>>({});
+  const [networkFlowLoading, setNetworkFlowLoading] = useState(false);
+  const [networkFlowError, setNetworkFlowError] = useState<string | null>(null);
   // AO-host kill/violation events — always queried (the AO host has no resource_samples
   // row to gate on), tracking the same window selector as the resource view.
   const [aoHostKills, setAoHostKills] = useState<WatchdogKillEventRow[]>([]);
@@ -175,6 +193,20 @@ export function VmResourceComparison() {
       .then((r) => active && setKillRows((prev) => ({ ...prev, [expandedVm]: r.rows })))
       .catch(() => active && setKillError("Failed to load watchdog kill events"))
       .finally(() => active && setKillLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [expandedVm, windowSel]);
+
+  useEffect(() => {
+    if (!expandedVm) return;
+    let active = true;
+    setNetworkFlowLoading(true);
+    setNetworkFlowError(null);
+    getNetworkFlowSummary(expandedVm, windowSel)
+      .then((r) => active && setNetworkFlowRows((prev) => ({ ...prev, [expandedVm]: r.rows[0] ?? null })))
+      .catch(() => active && setNetworkFlowError("Failed to load network flow summary"))
+      .finally(() => active && setNetworkFlowLoading(false));
     return () => {
       active = false;
     };
@@ -297,6 +329,7 @@ export function VmResourceComparison() {
                     const isExpanded = expandedVm === r.vm_name;
                     const breakdown = categoryRows[r.vm_name];
                     const kills = killRows[r.vm_name];
+                    const netFlow = networkFlowRows[r.vm_name];
                     return (
                       <Fragment key={`${r.vm_name}:${r.service}`}>
                         <tr
@@ -433,6 +466,49 @@ export function VmResourceComparison() {
                                   </p>
                                 ) : (
                                   <KillEventsTable rows={kills} />
+                                )}
+                              </div>
+                              <div
+                                className="pt-3 mt-3 border-t border-[var(--color-border)]/50"
+                                data-testid="network-flow-panel"
+                              >
+                                <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                                  Network flows (same-region / cross-region / external) — {r.vm_name}, last {windowSel}
+                                </p>
+                                {networkFlowLoading && !netFlow ? (
+                                  <p className="text-xs text-[var(--color-text-muted)]">
+                                    Loading network flow summary…
+                                  </p>
+                                ) : networkFlowError ? (
+                                  <p className="text-xs text-red-400" data-testid="network-flow-error">
+                                    {networkFlowError}
+                                  </p>
+                                ) : !netFlow ? (
+                                  <p
+                                    className="text-xs text-[var(--color-text-muted)]"
+                                    data-testid="network-flow-empty"
+                                  >
+                                    No network_flow_summary rows for this VM/window yet.
+                                  </p>
+                                ) : (
+                                  <table className="w-full text-xs" data-testid="network-flow-table">
+                                    <thead>
+                                      <tr className="text-left text-[var(--color-text-muted)]">
+                                        <th className="py-1 pr-3">Same-region</th>
+                                        <th className="py-1 pr-3">Cross-region</th>
+                                        <th className="py-1 pr-3">External</th>
+                                        <th className="py-1 pr-3">Flows</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr data-testid="network-flow-row">
+                                        <td className="py-1 pr-3">{fmtBytes(netFlow.same_region_bytes)}</td>
+                                        <td className="py-1 pr-3">{fmtBytes(netFlow.cross_region_bytes)}</td>
+                                        <td className="py-1 pr-3">{fmtBytes(netFlow.external_bytes)}</td>
+                                        <td className="py-1 pr-3">{netFlow.flow_count}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
                                 )}
                               </div>
                             </td>
