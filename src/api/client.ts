@@ -2,6 +2,8 @@
 // Local API client (replaces @unified-admin/core dependency)
 // ---------------------------------------------------------------------------
 
+import { authHeaders } from "../auth/GoogleAuth";
+
 interface ApiClientOptions {
   timeoutMs?: number;
 }
@@ -33,19 +35,15 @@ function createApiClient(config: { baseUrl: string; timeoutMs: number }): ApiCli
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
-      const headers: Record<string, string> = {
+      // authHeaders() attaches the operator's Firebase ID token (RequireAuth gate) so
+      // every /api/* call carries a credential deployment-api can verify. Omitted when
+      // the login flow never ran (VITE_SKIP_AUTH=true) — matching deployment-api's own
+      // "omit if empty" convention. Canonical helper — see its doc comment in
+      // GoogleAuth.tsx for why this must not be duplicated ad hoc.
+      const headers: Record<string, string> = authHeaders({
         "Content-Type": "application/json",
         Accept: "application/json",
-      };
-      // Attach the operator's auth token (Google OAuth id_token stored by the
-      // RequireAuth gate) so every /api/* call carries a credential deployment-api
-      // can verify once enforcement is flipped on. Empty when the login flow never
-      // ran (VITE_SKIP_AUTH=true) — header omitted, matching deployment-api's own
-      // "omit if empty" convention.
-      const storedToken = sessionStorage.getItem("google_id_token");
-      if (storedToken) {
-        headers.Authorization = `Bearer ${storedToken}`;
-      }
+      });
       const response = await fetch(`${config.baseUrl}${url}`, {
         method,
         headers,
@@ -180,11 +178,11 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 async function fetchJsonDirect<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json",
       Accept: "application/json",
-      ...options?.headers,
-    },
+      ...(options?.headers as Record<string, string> | undefined),
+    }),
   });
 
   if (!response.ok) {

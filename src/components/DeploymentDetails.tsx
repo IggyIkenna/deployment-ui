@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { DeploymentReport, RerunCommands } from "../api/client";
+import { authHeaders } from "../auth/GoogleAuth";
 import {
   cancelDeployment,
   cancelShard,
@@ -553,7 +554,9 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
       setLoading(true);
       // Fetch summary only for speed (avoid downloading tens of thousands of shards)
       // Logs are fetched separately via the Logs tab
-      const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`);
+      const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`, {
+        headers: authHeaders(),
+      });
       if (!response.ok) {
         let message = "Failed to fetch status";
         try {
@@ -594,7 +597,9 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
         if (nextStatus !== "all") params.append("status", nextStatus);
         if (nextAg.trim()) params.set("asset_group", nextAg.trim());
 
-        const response = await fetch(`/api/deployments/${deploymentId}/shards?${params.toString()}`);
+        const response = await fetch(`/api/deployments/${deploymentId}/shards?${params.toString()}`, {
+          headers: authHeaders(),
+        });
         if (!response.ok) {
           const err = await response.json();
           throw new Error(err.detail || "Failed to fetch shards");
@@ -621,10 +626,14 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
     if (shardsLoading) return;
     setShardsLoading(true);
     try {
-      const response = await fetch(`/api/deployments/${deploymentId}/shards?limit=${SHARDS_PAGE_LIMIT}&offset=0`);
+      const response = await fetch(`/api/deployments/${deploymentId}/shards?limit=${SHARDS_PAGE_LIMIT}&offset=0`, {
+        headers: authHeaders(),
+      });
       if (!response.ok) {
         // Fallback: full status includes shards (for deployments with many shards we only get first page from /shards)
-        const fullResponse = await fetch(`/api/deployments/${deploymentId}?skip_logs=true`);
+        const fullResponse = await fetch(`/api/deployments/${deploymentId}?skip_logs=true`, {
+          headers: authHeaders(),
+        });
         if (fullResponse.ok) {
           const data = await fullResponse.json();
           if (data.shards) {
@@ -736,7 +745,7 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
         // VM: request aggregated logs from up to 10 shards (no shard_id)
         const isVm = status?.compute_type === "vm";
         const logsUrl = `/api/deployments/${deploymentId}/logs?severity=${severity}&after_line=${afterLine}${typeof (hoursBack ?? logsHoursBack) === "number" ? `&hours_back=${hoursBack ?? logsHoursBack}` : ""}${isVm ? "&max_shards=10" : ""}`;
-        const response = await fetch(logsUrl);
+        const response = await fetch(logsUrl, { headers: authHeaders() });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           // 429 = Cloud Logging rate limit (60 reads/min); show message instead of generic error
@@ -800,7 +809,7 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
 
       const url = `/api/deployments/${deploymentId}/logs?shard_id=${shardId}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: authHeaders() });
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -867,7 +876,9 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
 
       try {
         // Always skip log analysis for fast response - logs tab fetches separately
-        const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`);
+        const response = await fetch(`/api/deployments/${deploymentId}?skip_logs=true&summary=true`, {
+          headers: authHeaders(),
+        });
         if (!mounted) return;
 
         if (response.ok) {
@@ -893,6 +904,7 @@ export function DeploymentDetails({ deploymentId, onClose }: DeploymentDetailsPr
             try {
               await fetch(`/api/deployments/${deploymentId}/refresh`, {
                 method: "POST",
+                headers: authHeaders(),
               });
             } catch {
               // Refresh failed - continue polling

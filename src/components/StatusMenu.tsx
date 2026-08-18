@@ -22,11 +22,13 @@ import {
   Database,
   FlaskConical,
   Loader2,
+  LogOut,
   Trash2,
 } from "lucide-react";
 import { MOCK_MODE as FRONTEND_MOCK } from "../lib/mock-api";
 import { useHealth } from "../hooks/useHealth";
 import { useCloudProvider, type CloudTarget } from "../contexts/CloudProviderContext";
+import { signOutOfGoogle, subscribeAuthState } from "../auth/GoogleAuth";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import * as api from "../api/client";
@@ -40,16 +42,53 @@ function resolveEnvTier(): EnvTier {
   return "prod";
 }
 
-export function StatusMenu() {
+// Sign-out is only meaningful for the Firebase Google flow — SKIP_AUTH builds have no
+// session to end, and Cognito manages its own redirect-based login/logout elsewhere.
+function defaultShowAccountSection(): boolean {
+  const skipAuth = import.meta.env.VITE_SKIP_AUTH === "true" || import.meta.env.VITE_MOCK_API === "true";
+  const authProvider = import.meta.env.VITE_AUTH_PROVIDER || "google";
+  return !skipAuth && authProvider !== "cognito";
+}
+
+interface StatusMenuProps {
+  /** Test-only override — production always uses the env-derived default. Injected
+   * rather than read from `import.meta.env` inline so this is directly testable: Vite
+   * inlines source-file (non-`*.test.*`) `import.meta.env.VITE_*` reads at transform
+   * time, so `vi.stubEnv` cannot flip this branch from a test. */
+  showAccountSection?: boolean;
+}
+
+export function StatusMenu({ showAccountSection = defaultShowAccountSection() }: StatusMenuProps = {}) {
   const { health, isHealthy, error } = useHealth();
   const { target, switchTarget, switching } = useCloudProvider();
   const [open, setOpen] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const envTier = resolveEnvTier();
   const backendMock = Boolean(health?.mock_mode);
   const anyMock = FRONTEND_MOCK || backendMock;
+
+  // Was previously no way to tell who's signed in or to switch accounts without
+  // clearing storage by hand — this surfaces both (2026-08-18).
+  useEffect(() => {
+    if (!showAccountSection) return;
+    return subscribeAuthState((user) => setUserEmail(user?.email ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- showAccountSection is
+    // env-derived and constant for the lifetime of a running build; re-subscribing on
+    // every render would churn the Firebase listener for no behavioral benefit.
+  }, []);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOutOfGoogle();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +158,34 @@ export function StatusMenu() {
           data-testid="status-menu"
           className="absolute right-0 top-full z-50 mt-1 w-72 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-3 shadow-2xl"
         >
+          {showAccountSection && (
+            <div className="mb-3">
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                Account
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="truncate font-mono text-xs text-[var(--color-text-secondary)]"
+                  title={userEmail ?? undefined}
+                >
+                  {userEmail ?? "Signed in"}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-testid="sign-out-button"
+                  onClick={() => void handleSignOut()}
+                  disabled={signingOut}
+                  className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-accent-red)]"
+                  title="Sign out — use this to switch Google accounts if you're signed in with the wrong one"
+                >
+                  <LogOut className="mr-1 h-3.5 w-3.5" />
+                  {signingOut ? "Signing out..." : "Sign out"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Data mode — the full badge the top bar used to carry. */}
           <div className="mb-3">
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">

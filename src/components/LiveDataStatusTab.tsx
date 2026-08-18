@@ -34,18 +34,13 @@
 
 import type { ComponentProps, ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 
 import { DeployLiveClusterButton } from "./DeployLiveClusterButton";
 import { FailurePillarStack } from "./FailurePillarStack";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 // ---------------------------------------------------------------------------
 // Phase 11.1 endpoint contract types — mirror the
@@ -56,11 +51,7 @@ import {
 // blocking UI smoke-build on an unmerged UAC contract change.
 // ---------------------------------------------------------------------------
 
-export type LiveCaptureStatus =
-  | "captured"
-  | "empty_confirmed"
-  | "attempted_failed"
-  | "expected_unattempted";
+export type LiveCaptureStatus = "captured" | "empty_confirmed" | "attempted_failed" | "expected_unattempted";
 
 export interface LiveStatusRow {
   asset_group: string;
@@ -92,9 +83,7 @@ export interface LiveStatusResponse {
 // writegate Phase 4 widgets.
 // ---------------------------------------------------------------------------
 
-function captureStatusBadgeVariant(
-  status: LiveCaptureStatus,
-): ComponentProps<typeof Badge>["variant"] {
+function captureStatusBadgeVariant(status: LiveCaptureStatus): ComponentProps<typeof Badge>["variant"] {
   switch (status) {
     case "captured":
       return "success";
@@ -110,9 +99,7 @@ function captureStatusBadgeVariant(
 const STALENESS_WARN_SECONDS = 30; // alerting tier-1 threshold per codex.
 const STALENESS_CRIT_SECONDS = 60; // alerting tier-2 threshold per codex.
 
-function stalenessBadgeVariant(
-  seconds: number,
-): ComponentProps<typeof Badge>["variant"] {
+function stalenessBadgeVariant(seconds: number): ComponentProps<typeof Badge>["variant"] {
   if (!Number.isFinite(seconds)) return "error";
   if (seconds >= STALENESS_CRIT_SECONDS) return "error";
   if (seconds >= STALENESS_WARN_SECONDS) return "warning";
@@ -133,9 +120,7 @@ function formatStaleness(seconds: number): string {
 // ships and the response has real rows to paginate / drill into.
 // ---------------------------------------------------------------------------
 
-export async function fetchLiveDataStatus(
-  assetGroups?: readonly string[],
-): Promise<LiveStatusResponse> {
+export async function fetchLiveDataStatus(assetGroups?: readonly string[]): Promise<LiveStatusResponse> {
   const params = new URLSearchParams();
   for (const assetGroup of assetGroups ?? []) {
     params.append("asset_group", assetGroup);
@@ -143,12 +128,10 @@ export async function fetchLiveDataStatus(
   const query = params.toString();
   const url = `/api/data-status/live${query ? `?${query}` : ""}`;
   const response = await fetch(url, {
-    headers: { Accept: "application/json" },
+    headers: authHeaders({ Accept: "application/json" }),
   });
   if (!response.ok) {
-    throw new Error(
-      `Failed to load live data status: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to load live data status: ${response.status} ${response.statusText}`);
   }
   return (await response.json()) as LiveStatusResponse;
 }
@@ -168,9 +151,7 @@ type LoadState =
   | { kind: "loaded"; response: LiveStatusResponse }
   | { kind: "error"; message: string };
 
-export function LiveDataStatusTab({
-  assetGroups,
-}: LiveDataStatusTabProps): ReactElement {
+export function LiveDataStatusTab({ assetGroups }: LiveDataStatusTabProps): ReactElement {
   const [state, setState] = useState<LoadState>({ kind: "idle" });
 
   const load = useCallback(async () => {
@@ -197,10 +178,9 @@ export function LiveDataStatusTab({
           <div>
             <CardTitle>Live data status</CardTitle>
             <CardDescription>
-              Per-shard live-pipeline status pivoted by{" "}
-              <code>pipeline_mode=live_websocket</code>. Sourced from{" "}
-              <code>/api/data-status/live</code> (Phase 11.1) joined with the
-              per-service Health-API endpoints (Phase 8).
+              Per-shard live-pipeline status pivoted by <code>pipeline_mode=live_websocket</code>. Sourced from{" "}
+              <code>/api/data-status/live</code> (Phase 11.1) joined with the per-service Health-API endpoints (Phase
+              8).
             </CardDescription>
           </div>
           <DeployLiveClusterButton />
@@ -208,10 +188,7 @@ export function LiveDataStatusTab({
       </CardHeader>
       <CardContent>
         {state.kind === "idle" || state.kind === "loading" ? (
-          <p
-            data-testid="live-status-loading"
-            className="text-sm text-muted-foreground"
-          >
+          <p data-testid="live-status-loading" className="text-sm text-muted-foreground">
             Loading live-pipeline status…
           </p>
         ) : null}
@@ -223,36 +200,23 @@ export function LiveDataStatusTab({
           >
             <p className="font-medium">Failed to load live data status</p>
             <p className="mt-1 text-muted-foreground">{state.message}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => void load()}
-            >
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>
               Retry
             </Button>
           </div>
         ) : null}
 
         {state.kind === "loaded" && state.response.rows.length === 0 ? (
-          <div
-            data-testid="live-status-empty"
-            className="rounded-md border border-dashed p-6 text-center"
-          >
+          <div data-testid="live-status-empty" className="rounded-md border border-dashed p-6 text-center">
             <p className="text-sm font-medium">No live shards reporting yet.</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              The live pipeline (MTDS → MDPS → features-service) is design-only
-              until Phase 4/5/6 implementation lands per
-              <code className="mx-1">
-                live_pipeline_mtds_mdps_features_2026_05_08
-              </code>
+              The live pipeline (MTDS → MDPS → features-service) is design-only until Phase 4/5/6 implementation lands
+              per
+              <code className="mx-1">live_pipeline_mtds_mdps_features_2026_05_08</code>
               (gated on features-consolidation Phase 7).
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Last refreshed:{" "}
-              <time dateTime={state.response.refreshed_at}>
-                {state.response.refreshed_at}
-              </time>
+              Last refreshed: <time dateTime={state.response.refreshed_at}>{state.response.refreshed_at}</time>
             </p>
           </div>
         ) : null}
@@ -275,9 +239,7 @@ interface LiveStatusPopulatedProps {
   response: LiveStatusResponse;
 }
 
-function LiveStatusPopulated({
-  response,
-}: LiveStatusPopulatedProps): ReactElement {
+function LiveStatusPopulated({ response }: LiveStatusPopulatedProps): ReactElement {
   const rows = response.rows;
 
   // Aggregate counts per capture_status — drives the summary FailurePillarStack
@@ -310,16 +272,8 @@ function LiveStatusPopulated({
   }, [captureBreakdown]);
 
   const totalRows = rows.length;
-  const degradedRows = useMemo(
-    () => rows.filter((row) => row.degraded_ratio_60s >= 0.05).length,
-    [rows],
-  );
-  const staleRows = useMemo(
-    () =>
-      rows.filter((row) => row.staleness_seconds >= STALENESS_WARN_SECONDS)
-        .length,
-    [rows],
-  );
+  const degradedRows = useMemo(() => rows.filter((row) => row.degraded_ratio_60s >= 0.05).length, [rows]);
+  const staleRows = useMemo(() => rows.filter((row) => row.staleness_seconds >= STALENESS_WARN_SECONDS).length, [rows]);
 
   return (
     <div data-testid="live-status-populated" className="space-y-4">
@@ -333,39 +287,25 @@ function LiveStatusPopulated({
         </div>
         <div>
           <div className="text-muted-foreground">Captured</div>
-          <div className="text-lg font-semibold text-emerald-600">
-            {captureBreakdown.captured}
-          </div>
+          <div className="text-lg font-semibold text-emerald-600">{captureBreakdown.captured}</div>
         </div>
         <div>
           <div className="text-muted-foreground">Stale (≥30s)</div>
-          <div className="text-lg font-semibold text-amber-600">
-            {staleRows}
-          </div>
+          <div className="text-lg font-semibold text-amber-600">{staleRows}</div>
         </div>
         <div>
           <div className="text-muted-foreground">Degraded (≥5% last 60s)</div>
-          <div className="text-lg font-semibold text-orange-600">
-            {degradedRows}
-          </div>
+          <div className="text-lg font-semibold text-orange-600">{degradedRows}</div>
         </div>
         {captureBreakdown.attempted_failed > 0 ? (
           <div className="col-span-2 sm:col-span-4 flex items-center gap-2">
             <span className="text-muted-foreground">Failure breakdown:</span>
-            <FailurePillarStack
-              failurePillars={failurePillars}
-              testIdPrefix="live-status"
-              widthPx={160}
-              heightPx={6}
-            />
+            <FailurePillarStack failurePillars={failurePillars} testIdPrefix="live-status" widthPx={160} heightPx={6} />
           </div>
         ) : null}
       </div>
 
-      <div
-        data-testid="live-status-asset-groups"
-        className="flex flex-wrap gap-2"
-      >
+      <div data-testid="live-status-asset-groups" className="flex flex-wrap gap-2">
         {response.asset_groups.map((group) => (
           <Badge key={group} variant="info">
             {group}
@@ -373,10 +313,7 @@ function LiveStatusPopulated({
         ))}
       </div>
 
-      <ul
-        data-testid="live-status-table"
-        className="divide-y rounded-md border"
-      >
+      <ul data-testid="live-status-table" className="divide-y rounded-md border">
         {rows.map((row, idx) => (
           <li
             key={`${row.asset_group}-${row.venue}-${row.data_type}-${row.instrument_id ?? row.league_id ?? "shard"}-${row.timeframe}-${idx}`}
@@ -384,8 +321,8 @@ function LiveStatusPopulated({
           >
             <span className="font-mono text-xs text-muted-foreground">
               {row.asset_group} / {row.venue}
-              {row.chain ? ` / ${row.chain}` : ""} / {row.data_type} /{" "}
-              {row.instrument_id ?? row.league_id ?? "—"} / {row.timeframe}
+              {row.chain ? ` / ${row.chain}` : ""} / {row.data_type} / {row.instrument_id ?? row.league_id ?? "—"} /{" "}
+              {row.timeframe}
             </span>
             <div className="flex items-center gap-2">
               <Badge

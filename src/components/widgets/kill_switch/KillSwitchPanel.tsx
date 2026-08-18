@@ -10,9 +10,11 @@
  *   - "Arm" button → confirmation dialog with metadata textarea + requested_by
  *   - "Disarm" button → confirmation dialog (only when currently armed)
  *
- * Operator-auth-gated implicitly via the top-level `RequireAuth` wrapper in
- * `App.tsx` — see `src/auth/RequireAuth.tsx`. The arm/disarm POSTs ride the
- * already-authenticated session; confirmation dialog adds the second-factor
+ * Operator-auth-gated via the top-level `RequireAuth` wrapper in `App.tsx` (see
+ * `src/auth/RequireAuth.tsx`) for UI access, and the arm/disarm POSTs below
+ * explicitly attach the Firebase bearer token via `authHeaders()` (GoogleAuth.tsx)
+ * so deployment-api can verify them — a raw `fetch()` carries no credential on its
+ * own. Confirmation dialog adds the second-factor
  * "are you sure" gate so a misclick on a critical (red) switch can't fire.
  *
  * Color-coded per scope (operator decision 2026-05-10 — kill-switches need
@@ -25,15 +27,11 @@
 
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { authHeaders } from "../../../auth/GoogleAuth";
 
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogContent,
-} from "../../ui/dialog";
+import { Dialog, DialogHeader, DialogTitle, DialogContent } from "../../ui/dialog";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 
@@ -46,11 +44,7 @@ import { Label } from "../../ui/label";
 
 export type KillSwitchScope = "GLOBAL" | "ASSET_GROUP" | "VENUE" | "ARCHETYPE";
 
-export type KillSwitchProvenance =
-  | "operator"
-  | "breaker"
-  | "scenario"
-  | "scheduled";
+export type KillSwitchProvenance = "operator" | "breaker" | "scenario" | "scheduled";
 
 export interface KillSwitchState {
   switch_id: string;
@@ -83,38 +77,34 @@ export interface KillSwitchDisarmRequest {
 async function armSwitch(req: KillSwitchArmRequest): Promise<void> {
   const response = await fetch(`/api/kill-switch/${req.switch_id}/arm`, {
     method: "POST",
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json",
       Accept: "application/json",
-    },
+    }),
     body: JSON.stringify({
       requested_by: req.requested_by,
       metadata: req.metadata,
     }),
   });
   if (!response.ok) {
-    throw new Error(
-      `Failed to arm ${req.switch_id}: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to arm ${req.switch_id}: ${response.status} ${response.statusText}`);
   }
 }
 
 async function disarmSwitch(req: KillSwitchDisarmRequest): Promise<void> {
   const response = await fetch(`/api/kill-switch/${req.switch_id}/disarm`, {
     method: "POST",
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json",
       Accept: "application/json",
-    },
+    }),
     body: JSON.stringify({
       disarmed_by: req.disarmed_by,
       metadata: req.metadata,
     }),
   });
   if (!response.ok) {
-    throw new Error(
-      `Failed to disarm ${req.switch_id}: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to disarm ${req.switch_id}: ${response.status} ${response.statusText}`);
   }
 }
 
@@ -183,8 +173,7 @@ function ConfirmDialog({
     <Dialog open={open} onClose={onClose}>
       <DialogHeader>
         <DialogTitle>
-          {action === "arm" ? "Arm" : "Disarm"} kill switch:{" "}
-          <code className="font-mono">{switchId}</code>
+          {action === "arm" ? "Arm" : "Disarm"} kill switch: <code className="font-mono">{switchId}</code>
         </DialogTitle>
       </DialogHeader>
       <DialogContent>
@@ -195,9 +184,7 @@ function ConfirmDialog({
               : "Disarming this kill switch will restore trading activity for the matching scope. This action is logged with provenance and is auditable."}
           </p>
           <div className="space-y-2">
-            <Label htmlFor="requested-by">
-              {action === "arm" ? "Requested by" : "Disarmed by"} (operator id)
-            </Label>
+            <Label htmlFor="requested-by">{action === "arm" ? "Requested by" : "Disarmed by"} (operator id)</Label>
             <Input
               id="requested-by"
               data-testid="kill-switch-requested-by"
@@ -210,9 +197,7 @@ function ConfirmDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="metadata">
-              Metadata / justification (optional)
-            </Label>
+            <Label htmlFor="metadata">Metadata / justification (optional)</Label>
             <textarea
               id="metadata"
               data-testid="kill-switch-metadata"
@@ -259,20 +244,12 @@ interface KillSwitchPanelProps {
   onAction: () => void; // parent re-fetches state after arm/disarm
 }
 
-export function KillSwitchPanel({
-  state,
-  onAction,
-}: KillSwitchPanelProps): ReactElement {
-  const [dialogAction, setDialogAction] = useState<"arm" | "disarm" | null>(
-    null,
-  );
+export function KillSwitchPanel({ state, onAction }: KillSwitchPanelProps): ReactElement {
+  const [dialogAction, setDialogAction] = useState<"arm" | "disarm" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (
-    requestedBy: string,
-    metadata: Record<string, string>,
-  ) => {
+  const handleSubmit = async (requestedBy: string, metadata: Record<string, string>) => {
     if (dialogAction === null) return;
     setSubmitting(true);
     setError(null);
@@ -310,31 +287,20 @@ export function KillSwitchPanel({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <code className="font-mono text-sm font-semibold text-[var(--color-text-primary)]">
-              {state.switch_id}
-            </code>
-            <Badge
-              variant={scopeVariant}
-              data-testid={`kill-switch-scope-${state.switch_id}`}
-            >
+            <code className="font-mono text-sm font-semibold text-[var(--color-text-primary)]">{state.switch_id}</code>
+            <Badge variant={scopeVariant} data-testid={`kill-switch-scope-${state.switch_id}`}>
               {scopeBadgeLabel(state.scope)}
               {state.scope_value ? `: ${state.scope_value}` : ""}
             </Badge>
-            <Badge
-              variant={armedBadgeVariant}
-              data-testid={`kill-switch-state-${state.switch_id}`}
-            >
+            <Badge variant={armedBadgeVariant} data-testid={`kill-switch-state-${state.switch_id}`}>
               {state.armed ? "ARMED" : "DISARMED"}
             </Badge>
           </div>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {state.description}
-          </p>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{state.description}</p>
           {state.armed && state.armed_at ? (
             <div className="mt-2 text-xs text-[var(--color-text-muted)] space-y-0.5">
               <p>
-                Armed at:{" "}
-                <time dateTime={state.armed_at}>{state.armed_at}</time>
+                Armed at: <time dateTime={state.armed_at}>{state.armed_at}</time>
               </p>
               {state.armed_by ? <p>Armed by: {state.armed_by}</p> : null}
               {state.provenance ? <p>Provenance: {state.provenance}</p> : null}

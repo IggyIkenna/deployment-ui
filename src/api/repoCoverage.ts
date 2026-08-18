@@ -1,3 +1,5 @@
+import { authHeaders } from "../auth/GoogleAuth";
+
 const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 export interface RepoCoverage {
@@ -18,6 +20,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchRepoCoverage(): Promise<RepoCoverage[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/repos/coverage`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/repos/coverage`, { headers: authHeaders() });
   return handleResponse<RepoCoverage[]>(response);
 }

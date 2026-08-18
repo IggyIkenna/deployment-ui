@@ -1,3 +1,5 @@
+import { authHeaders } from "../auth/GoogleAuth";
+
 const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 /** One GitHub rate-limit resource pool (core / graphql / search). Mirrors the
@@ -35,6 +37,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchGhRateLimit(signal?: AbortSignal): Promise<GhRateLimit> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/repos/gh-rate-limit`, signal ? { signal } : undefined);
+  const response = await fetch(`${DEPLOYMENT_API}/api/repos/gh-rate-limit`, {
+    headers: authHeaders(),
+    ...(signal ? { signal } : {}),
+  });
   return handleResponse<GhRateLimit>(response);
 }

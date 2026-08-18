@@ -18,6 +18,7 @@
 
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
+import { authHeaders } from "../../../auth/GoogleAuth";
 
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -61,9 +62,7 @@ interface AuditFilters {
   pageSize: number;
 }
 
-export async function fetchAuditLog(
-  filters: AuditFilters,
-): Promise<KillSwitchAuditResponse> {
+export async function fetchAuditLog(filters: AuditFilters): Promise<KillSwitchAuditResponse> {
   const params = new URLSearchParams();
   if (filters.switchId.trim().length > 0) {
     params.append("switch_id", filters.switchId.trim());
@@ -76,18 +75,15 @@ export async function fetchAuditLog(
   }
   params.append("page", String(filters.page));
   params.append("page_size", String(filters.pageSize));
-  const response = await fetch(
-    `/api/kill-switch/audit-log?${params.toString()}`,
-    { headers: { Accept: "application/json" } },
-  );
+  const response = await fetch(`/api/kill-switch/audit-log?${params.toString()}`, {
+    headers: authHeaders({ Accept: "application/json" }),
+  });
   if (response.status === 404) {
     // Endpoint not yet wired — graceful "not available" sentinel.
     throw new Error("AUDIT_LOG_ENDPOINT_NOT_AVAILABLE");
   }
   if (!response.ok) {
-    throw new Error(
-      `Failed to load audit log: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to load audit log: ${response.status} ${response.statusText}`);
   }
   return (await response.json()) as KillSwitchAuditResponse;
 }
@@ -138,9 +134,7 @@ export function AuditLogViewer(): ReactElement {
   return (
     <div data-testid="kill-switch-audit-log" className="space-y-4">
       <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] p-4">
-        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-          Filter audit entries
-        </h3>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Filter audit entries</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-1">
             <Label htmlFor="filter-switch-id">Switch id</Label>
@@ -183,11 +177,7 @@ export function AuditLogViewer(): ReactElement {
             />
           </div>
           <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={() => void load()}
-              data-testid="audit-refresh"
-            >
+            <Button variant="outline" onClick={() => void load()} data-testid="audit-refresh">
               Refresh
             </Button>
           </div>
@@ -195,10 +185,7 @@ export function AuditLogViewer(): ReactElement {
       </div>
 
       {state.kind === "idle" || state.kind === "loading" ? (
-        <p
-          data-testid="audit-log-loading"
-          className="text-sm text-[var(--color-text-muted)]"
-        >
+        <p data-testid="audit-log-loading" className="text-sm text-[var(--color-text-muted)]">
           Loading audit log…
         </p>
       ) : null}
@@ -208,13 +195,10 @@ export function AuditLogViewer(): ReactElement {
           data-testid="audit-log-unavailable"
           className="rounded-md border border-dashed border-[var(--color-border-default)] p-6 text-center"
         >
-          <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-            Audit log not yet available
-          </p>
+          <p className="text-sm font-medium text-[var(--color-text-secondary)]">Audit log not yet available</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            The <code>/api/kill-switch/audit-log</code> endpoint is not wired on
-            this deployment-api. Phase 7.A (Sub-L) ships this endpoint; once it
-            lands, this viewer renders the live entries.
+            The <code>/api/kill-switch/audit-log</code> endpoint is not wired on this deployment-api. Phase 7.A (Sub-L)
+            ships this endpoint; once it lands, this viewer renders the live entries.
           </p>
         </div>
       ) : null}
@@ -225,15 +209,8 @@ export function AuditLogViewer(): ReactElement {
           className="rounded-md border border-[var(--color-status-error-border-strong)] bg-[var(--color-status-error-bg)] p-4 text-sm text-[var(--color-accent-red)]"
         >
           <p className="font-medium">Failed to load audit log</p>
-          <p className="mt-1 text-[var(--color-text-secondary)]">
-            {state.message}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => void load()}
-          >
+          <p className="mt-1 text-[var(--color-text-secondary)]">{state.message}</p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => void load()}>
             Retry
           </Button>
         </div>
@@ -267,11 +244,7 @@ interface AuditLogTableProps {
   onPage: (page: number) => void;
 }
 
-function AuditLogTable({
-  response,
-  page,
-  onPage,
-}: AuditLogTableProps): ReactElement {
+function AuditLogTable({ response, page, onPage }: AuditLogTableProps): ReactElement {
   const lastPage = Math.max(1, Math.ceil(response.total / response.page_size));
 
   return (
@@ -299,15 +272,11 @@ function AuditLogTable({
               </td>
               <td className="px-3 py-2 font-mono">{entry.switch_id}</td>
               <td className="px-3 py-2">
-                <Badge variant={entry.action === "arm" ? "error" : "success"}>
-                  {entry.action.toUpperCase()}
-                </Badge>
+                <Badge variant={entry.action === "arm" ? "error" : "success"}>{entry.action.toUpperCase()}</Badge>
               </td>
               <td className="px-3 py-2">{entry.provenance}</td>
               <td className="px-3 py-2 font-mono text-xs">
-                {entry.action === "arm"
-                  ? (entry.requested_by ?? "—")
-                  : (entry.disarmed_by ?? "—")}
+                {entry.action === "arm" ? (entry.requested_by ?? "—") : (entry.disarmed_by ?? "—")}
               </td>
               <td className="px-3 py-2 text-xs">
                 {Object.entries(entry.metadata).map(([k, v]) => (

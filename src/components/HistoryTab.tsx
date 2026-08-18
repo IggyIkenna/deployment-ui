@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 
 interface RawDeployment {
   id: string;
@@ -34,7 +35,7 @@ export function HistoryTab({ serviceName }: Props) {
     if (!serviceName) return;
     setLoading(true);
     setError(null);
-    fetch(`/api/deployments?service_id=${encodeURIComponent(serviceName)}`)
+    fetch(`/api/deployments?service_id=${encodeURIComponent(serviceName)}`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((data: unknown) => {
         if (Array.isArray(data)) {

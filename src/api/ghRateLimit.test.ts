@@ -40,7 +40,7 @@ describe("fetchGhRateLimit", () => {
 
     await fetchGhRateLimit(controller.signal);
 
-    expect(fetchMock.mock.calls[0][1]).toEqual({ signal: controller.signal });
+    expect(fetchMock.mock.calls[0][1]).toEqual({ headers: {}, signal: controller.signal });
   });
 
   it("throws `HTTP <status>: <body>` on a non-ok response (the 403/5xx path)", async () => {

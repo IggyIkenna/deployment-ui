@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { getStoredToken, signInWithGooglePopup, startTokenRefreshListener } from "./GoogleAuth";
+import { signInWithGooglePopup, startTokenRefreshListener, subscribeAuthState } from "./GoogleAuth";
 import { getCognitoToken, handleCognitoCallback, initiateCognitoLogin } from "./CognitoAuth";
 import { Button } from "../components/ui/button";
 
@@ -23,8 +23,8 @@ export function RequireAuth({ children }: RequireAuthProps) {
       return;
     }
 
-    void (async () => {
-      if (AUTH_PROVIDER === "cognito") {
+    if (AUTH_PROVIDER === "cognito") {
+      void (async () => {
         const existing = getCognitoToken();
         if (existing) {
           setIsAuthenticated(true);
@@ -44,17 +44,24 @@ export function RequireAuth({ children }: RequireAuthProps) {
         if (!window.location.pathname.includes("/auth/callback")) {
           await initiateCognitoLogin();
         }
-      } else {
-        // Firebase Google sign-in (popup) — see GoogleAuth.tsx for why this replaced
-        // the earlier redirect-based flow (redirect loop from browser storage
-        // partitioning, and it lost deep-linked routes on the round trip).
-        startTokenRefreshListener();
-        if (getStoredToken()) {
-          setIsAuthenticated(true);
-        }
-      }
+        setIsLoading(false);
+      })();
+      return;
+    }
+
+    // Firebase Google sign-in (popup) — see GoogleAuth.tsx for why this replaced
+    // the earlier redirect-based flow (redirect loop from browser storage
+    // partitioning, and it lost deep-linked routes on the round trip).
+    startTokenRefreshListener();
+    // Reactive subscription rather than a one-time mount-time token check (2026-08-18):
+    // a real sign-out or session loss now drops the app back to the sign-in gate
+    // immediately instead of continuing to render against a dead session — this is also
+    // what makes the "Sign Out" control (StatusMenu) actually take effect.
+    const unsubscribe = subscribeAuthState((user) => {
+      setIsAuthenticated(user !== null);
       setIsLoading(false);
-    })();
+    });
+    return unsubscribe;
   }, []);
 
   async function handleGoogleSignIn(): Promise<void> {

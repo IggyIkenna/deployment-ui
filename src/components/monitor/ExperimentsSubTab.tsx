@@ -1,11 +1,6 @@
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { authHeaders } from "../../auth/GoogleAuth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
@@ -40,9 +35,7 @@ interface ExperimentMonitorResponse {
   env: string;
 }
 
-function statusVariant(
-  status: string,
-): "running" | "success" | "error" | "pending" | "outline" {
+function statusVariant(status: string): "running" | "success" | "error" | "pending" | "outline" {
   if (status === "running") return "running";
   if (status === "completed") return "success";
   if (status === "failed") return "error";
@@ -76,7 +69,7 @@ export function ExperimentsSubTab() {
     try {
       const resp = await fetch(
         `${DEPLOYMENT_API}/api/monitor/experiments/${encodeURIComponent(vmName)}/${action}?dry_run=false`,
-        { method: "POST" },
+        { method: "POST", headers: authHeaders() },
       );
       if (!resp.ok) {
         const body = await resp.text();
@@ -143,9 +136,7 @@ export function ExperimentsSubTab() {
       </CardHeader>
       <CardContent>
         {actionError && (
-          <div className="mb-3 rounded bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {actionError}
-          </div>
+          <div className="mb-3 rounded bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</div>
         )}
         {jobs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -161,9 +152,7 @@ export function ExperimentsSubTab() {
                   className="flex items-center justify-between rounded border px-3 py-2 text-sm"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 truncate font-mono text-xs">
-                      {job.vm_name}
-                    </div>
+                    <div className="flex items-center gap-2 truncate font-mono text-xs">{job.vm_name}</div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{kindLabel(job.experiment_kind)}</span>
                       <span>·</span>

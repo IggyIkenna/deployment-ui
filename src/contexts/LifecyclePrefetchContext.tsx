@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from "react";
 import { useCloudProvider } from "./CloudProviderContext";
+import { authHeaders } from "../auth/GoogleAuth";
 import {
   fetchVmDeployments,
   getLiveStatus,
@@ -55,10 +56,7 @@ const initialState: LifecyclePrefetchState = {
   scheduled: EMPTY_SLOT,
 };
 
-function reducer(
-  state: LifecyclePrefetchState,
-  action: PrefetchAction,
-): LifecyclePrefetchState {
+function reducer(state: LifecyclePrefetchState, action: PrefetchAction): LifecyclePrefetchState {
   switch (action.type) {
     case "FETCH_START":
       return {
@@ -156,16 +154,14 @@ interface LifecyclePrefetchContextValue {
   state: LifecyclePrefetchState;
 }
 
-const LifecyclePrefetchContext = createContext<
-  LifecyclePrefetchContextValue | undefined
->(undefined);
+const LifecyclePrefetchContext = createContext<LifecyclePrefetchContextValue | undefined>(undefined);
 
 const CACHE_TTL_MS = 60000;
 
 const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 async function fetchMonitorEndpoint(path: string): Promise<unknown> {
-  const resp = await fetch(`${DEPLOYMENT_API}${path}`);
+  const resp = await fetch(`${DEPLOYMENT_API}${path}`, { headers: authHeaders() });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
@@ -174,9 +170,7 @@ interface LifecyclePrefetchProviderProps {
   children: React.ReactNode;
 }
 
-export function LifecyclePrefetchProvider({
-  children,
-}: LifecyclePrefetchProviderProps) {
+export function LifecyclePrefetchProvider({ children }: LifecyclePrefetchProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { target } = useCloudProvider();
 
@@ -201,13 +195,12 @@ export function LifecyclePrefetchProvider({
     const cloud = target === "aws" ? "aws" : "gcp";
 
     const fetchData = async () => {
-      const [backfillResult, liveResult, experimentsResult, scheduledResult] =
-        await Promise.allSettled([
-          fetchVmDeployments(7),
-          getLiveStatus(),
-          fetchMonitorEndpoint(`/api/monitor/experiments?cloud=${cloud}`),
-          fetchMonitorEndpoint(`/api/monitor/scheduled?cloud=${cloud}`),
-        ]);
+      const [backfillResult, liveResult, experimentsResult, scheduledResult] = await Promise.allSettled([
+        fetchVmDeployments(7),
+        getLiveStatus(),
+        fetchMonitorEndpoint(`/api/monitor/experiments?cloud=${cloud}`),
+        fetchMonitorEndpoint(`/api/monitor/scheduled?cloud=${cloud}`),
+      ]);
 
       if (!isMounted) return;
 
@@ -215,19 +208,14 @@ export function LifecyclePrefetchProvider({
         dispatch({ type: "BACKFILL_SUCCESS", payload: backfillResult.value });
       } else {
         const error =
-          backfillResult.reason instanceof Error
-            ? backfillResult.reason
-            : new Error(String(backfillResult.reason));
+          backfillResult.reason instanceof Error ? backfillResult.reason : new Error(String(backfillResult.reason));
         dispatch({ type: "BACKFILL_ERROR", payload: error });
       }
 
       if (liveResult.status === "fulfilled") {
         dispatch({ type: "LIVE_SUCCESS", payload: liveResult.value });
       } else {
-        const error =
-          liveResult.reason instanceof Error
-            ? liveResult.reason
-            : new Error(String(liveResult.reason));
+        const error = liveResult.reason instanceof Error ? liveResult.reason : new Error(String(liveResult.reason));
         dispatch({ type: "LIVE_ERROR", payload: error });
       }
 
@@ -248,9 +236,7 @@ export function LifecyclePrefetchProvider({
         dispatch({ type: "SCHEDULED_SUCCESS", payload: scheduledResult.value });
       } else {
         const error =
-          scheduledResult.reason instanceof Error
-            ? scheduledResult.reason
-            : new Error(String(scheduledResult.reason));
+          scheduledResult.reason instanceof Error ? scheduledResult.reason : new Error(String(scheduledResult.reason));
         dispatch({ type: "SCHEDULED_ERROR", payload: error });
       }
     };
@@ -260,27 +246,15 @@ export function LifecyclePrefetchProvider({
     return () => {
       isMounted = false;
     };
-  }, [
-    target,
-    state.backfill.fetchedAt,
-    state.live.fetchedAt,
-    state.experiments.fetchedAt,
-    state.scheduled.fetchedAt,
-  ]);
+  }, [target, state.backfill.fetchedAt, state.live.fetchedAt, state.experiments.fetchedAt, state.scheduled.fetchedAt]);
 
-  return (
-    <LifecyclePrefetchContext.Provider value={{ state }}>
-      {children}
-    </LifecyclePrefetchContext.Provider>
-  );
+  return <LifecyclePrefetchContext.Provider value={{ state }}>{children}</LifecyclePrefetchContext.Provider>;
 }
 
 export function useLifecyclePrefetch() {
   const context = useContext(LifecyclePrefetchContext);
   if (!context) {
-    throw new Error(
-      "useLifecyclePrefetch must be used within LifecyclePrefetchProvider",
-    );
+    throw new Error("useLifecyclePrefetch must be used within LifecyclePrefetchProvider");
   }
   return context.state;
 }

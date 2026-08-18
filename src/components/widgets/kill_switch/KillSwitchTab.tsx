@@ -18,19 +18,14 @@
 
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
+import { authHeaders } from "../../../auth/GoogleAuth";
 
 import { AuditLogViewer } from "./AuditLogViewer";
 import type { KillSwitchState } from "./KillSwitchPanel";
 import { KillSwitchPanel } from "./KillSwitchPanel";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 
 // ---------------------------------------------------------------------------
 // Polling interval — 5s per task description. Matches the alerting tier-1
@@ -51,12 +46,10 @@ export interface KillSwitchStateResponse {
 
 export async function fetchKillSwitchState(): Promise<KillSwitchStateResponse> {
   const response = await fetch("/api/kill-switch/state", {
-    headers: { Accept: "application/json" },
+    headers: authHeaders({ Accept: "application/json" }),
   });
   if (!response.ok) {
-    throw new Error(
-      `Failed to load kill-switch state: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to load kill-switch state: ${response.status} ${response.statusText}`);
   }
   return (await response.json()) as KillSwitchStateResponse;
 }
@@ -106,10 +99,7 @@ export function KillSwitchTab(): ReactElement {
     };
   }, [load, subView]);
 
-  const armedCount =
-    state.kind === "loaded"
-      ? state.response.switches.filter((s) => s.armed).length
-      : 0;
+  const armedCount = state.kind === "loaded" ? state.response.switches.filter((s) => s.armed).length : 0;
 
   return (
     <Card data-testid="kill-switch-tab">
@@ -130,8 +120,7 @@ export function KillSwitchTab(): ReactElement {
               ) : null}
             </CardTitle>
             <CardDescription>
-              Per-switch arm / disarm + audit-log view. Polls{" "}
-              <code>/api/kill-switch/state</code> every{" "}
+              Per-switch arm / disarm + audit-log view. Polls <code>/api/kill-switch/state</code> every{" "}
               {POLL_INTERVAL_MS / 1000}s for real-time arming state.
             </CardDescription>
           </div>
@@ -156,11 +145,7 @@ export function KillSwitchTab(): ReactElement {
         </div>
       </CardHeader>
       <CardContent>
-        {subView === "active" ? (
-          <ActiveSwitchesView state={state} onAction={() => void load()} />
-        ) : (
-          <AuditLogViewer />
-        )}
+        {subView === "active" ? <ActiveSwitchesView state={state} onAction={() => void load()} /> : <AuditLogViewer />}
       </CardContent>
     </Card>
   );
@@ -175,16 +160,10 @@ interface ActiveSwitchesViewProps {
   onAction: () => void;
 }
 
-function ActiveSwitchesView({
-  state,
-  onAction,
-}: ActiveSwitchesViewProps): ReactElement {
+function ActiveSwitchesView({ state, onAction }: ActiveSwitchesViewProps): ReactElement {
   if (state.kind === "idle" || state.kind === "loading") {
     return (
-      <p
-        data-testid="kill-switch-loading"
-        className="text-sm text-[var(--color-text-muted)]"
-      >
+      <p data-testid="kill-switch-loading" className="text-sm text-[var(--color-text-muted)]">
         Loading kill-switch state…
       </p>
     );
@@ -196,9 +175,7 @@ function ActiveSwitchesView({
         className="rounded-md border border-[var(--color-status-error-border-strong)] bg-[var(--color-status-error-bg)] p-4 text-sm text-[var(--color-accent-red)]"
       >
         <p className="font-medium">Failed to load kill-switch state</p>
-        <p className="mt-1 text-[var(--color-text-secondary)]">
-          {state.message}
-        </p>
+        <p className="mt-1 text-[var(--color-text-secondary)]">{state.message}</p>
       </div>
     );
   }
@@ -208,14 +185,10 @@ function ActiveSwitchesView({
         data-testid="kill-switch-empty"
         className="rounded-md border border-dashed border-[var(--color-border-default)] p-6 text-center"
       >
-        <p className="text-sm font-medium text-[var(--color-text-secondary)]">
-          No kill switches registered yet.
-        </p>
+        <p className="text-sm font-medium text-[var(--color-text-secondary)]">No kill switches registered yet.</p>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Kill-switch registry seeds on deployment-api boot. If you expect
-          switches to be present, verify the
-          <code className="mx-1">/api/kill-switch/state</code> endpoint is wired
-          per Phase 7.A.
+          Kill-switch registry seeds on deployment-api boot. If you expect switches to be present, verify the
+          <code className="mx-1">/api/kill-switch/state</code> endpoint is wired per Phase 7.A.
         </p>
       </div>
     );
@@ -224,10 +197,7 @@ function ActiveSwitchesView({
   return (
     <div className="space-y-3" data-testid="kill-switch-list">
       <p className="text-xs text-[var(--color-text-muted)]">
-        Last refreshed:{" "}
-        <time dateTime={state.response.refreshed_at}>
-          {state.response.refreshed_at}
-        </time>
+        Last refreshed: <time dateTime={state.response.refreshed_at}>{state.response.refreshed_at}</time>
       </p>
       {state.response.switches.map((sw) => (
         <KillSwitchPanel key={sw.switch_id} state={sw} onAction={onAction} />

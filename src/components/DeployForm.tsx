@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDeploymentQuotaInfo, type QuotaInfoResponse } from "../api/client";
+import { authHeaders } from "../auth/GoogleAuth";
 import { useCloudProvider } from "../contexts/CloudProviderContext";
 import { useStartDates, useVenueCountByAssetGroups, useVenuesByAssetGroup } from "../hooks/useConfig";
 import { useChecklistValidation, useServiceDimensions } from "../hooks/useServices";
@@ -120,7 +121,7 @@ export function DeployForm({ serviceName, selectedOperation, onDeploy, isDeployi
   const [showRegionWarning, setShowRegionWarning] = useState<boolean>(false);
 
   useEffect(() => {
-    fetch("/api/config/region")
+    fetch("/api/config/region", { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => setBackendRegion(data.storage_region ?? data.gcs_region ?? "asia-northeast1"))
       .catch(() => {});

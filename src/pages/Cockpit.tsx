@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { authHeaders } from "../auth/GoogleAuth";
 import {
   AlertTriangle,
   BarChart2,
@@ -246,7 +247,7 @@ interface CiOverviewLite {
 
 async function getCiOverviewLite(): Promise<CiOverviewLite> {
   const base = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
-  const res = await fetch(`${base}/api/repo-ci/overview`);
+  const res = await fetch(`${base}/api/repo-ci/overview`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<CiOverviewLite>;
 }

@@ -10,6 +10,8 @@
  * serves a deterministic shape in MOCK mode (playwright/vitest).
  */
 
+import { authHeaders } from "../auth/GoogleAuth";
+
 const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -39,7 +41,7 @@ export interface HealthOverviewResponse {
 }
 
 export async function getHealthOverview(): Promise<HealthOverviewResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/health/overview`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/health/overview`, { headers: authHeaders() });
   return handleResponse<HealthOverviewResponse>(response);
 }
 
@@ -142,7 +144,7 @@ export interface HealthConsolidatorResponse {
 }
 
 export async function getHealthConsolidator(): Promise<HealthConsolidatorResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/health/consolidator`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/health/consolidator`, { headers: authHeaders() });
   return handleResponse<HealthConsolidatorResponse>(response);
 }
 
@@ -170,6 +172,8 @@ export interface DeploymentFreshnessResponse {
 }
 
 export async function getDeploymentFreshness(id: string): Promise<DeploymentFreshnessResponse> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(id)}/freshness`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/deployments/${encodeURIComponent(id)}/freshness`, {
+    headers: authHeaders(),
+  });
   return handleResponse<DeploymentFreshnessResponse>(response);
 }

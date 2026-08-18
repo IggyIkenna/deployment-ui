@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, AlertCircle, RefreshCw, X } from "lucide-react";
+import { authHeaders } from "../../../auth/GoogleAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -44,7 +45,7 @@ async function defaultFetcher(params: { scope: RiskRuleScope; applies_to: string
   if (params.applies_to.trim()) qs.set("applies_to", params.applies_to.trim());
   const url = `/api/risk/rules${qs.toString() ? `?${qs.toString()}` : ""}`;
   const response = await fetch(url, {
-    headers: { Accept: "application/json" },
+    headers: authHeaders({ Accept: "application/json" }),
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
