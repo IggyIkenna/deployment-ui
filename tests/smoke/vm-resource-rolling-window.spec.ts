@@ -40,6 +40,24 @@ test.describe("VM resource rolling-window views", () => {
     );
   });
 
+  test("cross-VM comparison page renders network in/out rate columns", async ({ page }) => {
+    // Regression guard for deployment_network_egress_ingress_observability_2026_08_18.md
+    // Track 1 — extends the existing avg/p95 CPU/mem/disk columns with network in/out,
+    // sourced from resource_samples.net_recv_rate_bytes_sec / net_sent_rate_bytes_sec.
+    await page.goto("/vm-resources");
+    const table = page.getByTestId("vm-resource-comparison-table");
+    await expect(table).toBeVisible();
+    await expect(table).toContainText("Net In (avg/p95)");
+    await expect(table).toContainText("Net Out (avg/p95)");
+
+    const rows = page.getByTestId("vm-resource-comparison-row");
+    await expect(rows.first()).toBeVisible();
+    // Mock fixture derives a non-zero rate from cpu_pct for every VM row — a rendered
+    // "B/s"/"KB/s"/"MB/s" unit (via fmtBytesRate) proves the fields reached the UI, not
+    // just the empty-state "—".
+    await expect(rows.first()).toContainText(/B\/s/);
+  });
+
   test("cross-VM comparison page filters by service name", async ({ page }) => {
     await page.goto("/vm-resources");
     await expect(page.getByTestId("vm-resource-comparison-table")).toBeVisible();
