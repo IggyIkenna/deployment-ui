@@ -1295,6 +1295,14 @@ export interface ResourceRollingWindowRow {
   min_disk_pct: number | null;
   max_disk_pct: number | null;
   p95_disk_pct: number | null;
+  avg_net_recv_rate_bytes_sec: number | null;
+  min_net_recv_rate_bytes_sec: number | null;
+  max_net_recv_rate_bytes_sec: number | null;
+  p95_net_recv_rate_bytes_sec: number | null;
+  avg_net_sent_rate_bytes_sec: number | null;
+  min_net_sent_rate_bytes_sec: number | null;
+  max_net_sent_rate_bytes_sec: number | null;
+  p95_net_sent_rate_bytes_sec: number | null;
   sample_count: number;
 }
 

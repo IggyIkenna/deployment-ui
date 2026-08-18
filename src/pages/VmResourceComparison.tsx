@@ -43,7 +43,13 @@ const WINDOW_HOURS: Record<ResourceWindow, number> = {
 // unified-trading-pm/scripts/infra/resource-watchdog/resource-watchdog.service.
 const AO_HOST_VM_NAME = "ip-172-31-5-118";
 
-type SortKey = "vm_name" | "avg_cpu_pct" | "avg_mem_pct" | "avg_disk_pct";
+type SortKey =
+  | "vm_name"
+  | "avg_cpu_pct"
+  | "avg_mem_pct"
+  | "avg_disk_pct"
+  | "avg_net_recv_rate_bytes_sec"
+  | "avg_net_sent_rate_bytes_sec";
 
 // process_category_sampler.py's categorize() -- keep in sync with that SSOT.
 const CATEGORY_COLORS: Record<string, string> = {
@@ -56,6 +62,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function fmtPct(v: number | null): string {
   return v == null ? "—" : `${Math.round(v)}%`;
+}
+
+/** Bytes/sec -> a human-scaled rate string (B/s, KB/s, MB/s, GB/s). */
+function fmtBytesRate(v: number | null): string {
+  if (v == null) return "—";
+  const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+  let value = v;
+  let unitIdx = 0;
+  while (value >= 1024 && unitIdx < units.length - 1) {
+    value /= 1024;
+    unitIdx += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIdx === 0 ? 0 : 1)} ${units[unitIdx]}`;
 }
 
 /** ProcessCategoryRow[] -> one recharts datum per category, stacked-bar shaped (mirrors
@@ -196,7 +215,7 @@ export function VmResourceComparison() {
             VM Resource Comparison
           </h1>
           <p className="text-xs text-[var(--color-text-muted)]">
-            Rolling avg/p95 CPU · mem · disk per VM, from the durable resource_samples BigQuery table.
+            Rolling avg/p95 CPU · mem · disk · network in/out per VM, from the durable resource_samples BigQuery table.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -264,6 +283,12 @@ export function VmResourceComparison() {
                     <th className="py-1 pr-3 cursor-pointer" onClick={() => setSortKey("avg_disk_pct")}>
                       Disk (avg/p95)
                     </th>
+                    <th className="py-1 pr-3 cursor-pointer" onClick={() => setSortKey("avg_net_recv_rate_bytes_sec")}>
+                      Net In (avg/p95)
+                    </th>
+                    <th className="py-1 pr-3 cursor-pointer" onClick={() => setSortKey("avg_net_sent_rate_bytes_sec")}>
+                      Net Out (avg/p95)
+                    </th>
                     <th className="py-1 pr-3">Samples</th>
                   </tr>
                 </thead>
@@ -297,11 +322,19 @@ export function VmResourceComparison() {
                           <td className="py-1 pr-3">
                             {fmtPct(r.avg_disk_pct)} / {fmtPct(r.p95_disk_pct)}
                           </td>
+                          <td className="py-1 pr-3">
+                            {fmtBytesRate(r.avg_net_recv_rate_bytes_sec)} /{" "}
+                            {fmtBytesRate(r.p95_net_recv_rate_bytes_sec)}
+                          </td>
+                          <td className="py-1 pr-3">
+                            {fmtBytesRate(r.avg_net_sent_rate_bytes_sec)} /{" "}
+                            {fmtBytesRate(r.p95_net_sent_rate_bytes_sec)}
+                          </td>
                           <td className="py-1 pr-3">{r.sample_count}</td>
                         </tr>
                         {isExpanded && (
                           <tr key={`${r.vm_name}:${r.service}:breakdown`}>
-                            <td colSpan={6} className="pb-3 pt-1 pl-6" data-testid="process-breakdown-panel">
+                            <td colSpan={8} className="pb-3 pt-1 pl-6" data-testid="process-breakdown-panel">
                               {categoryLoading && !breakdown ? (
                                 <p className="text-xs text-[var(--color-text-muted)]">Loading process breakdown…</p>
                               ) : categoryError ? (

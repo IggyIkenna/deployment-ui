@@ -4381,6 +4381,17 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         min_disk_pct: Math.max(0, disk - 3),
         max_disk_pct: Math.min(100, disk + 3),
         p95_disk_pct: Math.min(100, disk + 2),
+        // No real network signal on the mock inventory row -- derive a plausible bytes/sec
+        // rate from cpu_pct (same spirit as the cpu/mem/disk spreads above: varied but
+        // deterministic per VM, not a flat placeholder).
+        avg_net_recv_rate_bytes_sec: cpu * 12_000,
+        min_net_recv_rate_bytes_sec: Math.max(0, cpu * 12_000 - 50_000),
+        max_net_recv_rate_bytes_sec: cpu * 12_000 + 80_000,
+        p95_net_recv_rate_bytes_sec: cpu * 12_000 + 60_000,
+        avg_net_sent_rate_bytes_sec: cpu * 3_000,
+        min_net_sent_rate_bytes_sec: Math.max(0, cpu * 3_000 - 10_000),
+        max_net_sent_rate_bytes_sec: cpu * 3_000 + 20_000,
+        p95_net_sent_rate_bytes_sec: cpu * 3_000 + 15_000,
         sample_count: window === "1h" ? 60 : window === "4h" ? 240 : window === "24h" ? 1440 : 10080,
       };
     });
