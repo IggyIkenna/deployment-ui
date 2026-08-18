@@ -4457,6 +4457,34 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
       ],
     });
   }
+  // GET /api/vm-resources/network-flows — same-region/cross-region/external byte totals
+  // (deployment_network_egress_ingress_observability_2026_08_18.md Track 2), from the hourly
+  // network_flow_summary rollup. Requires vm_name (single-VM panel, not a cross-VM list).
+  if (path === "/api/vm-resources/network-flows") {
+    const reqUrl = new URL(url, "http://x");
+    const window = (reqUrl.searchParams.get("window") ?? "1h") as "1h" | "4h" | "24h" | "1wk";
+    const vmName = reqUrl.searchParams.get("vm_name") ?? "";
+    const vmRow = MOCK_DEPLOYMENT_INVENTORY.find((i) => i.name === vmName);
+    if (!vmRow) return json({ window, rows: [] });
+    const same = 800_000;
+    const cross = 150_000;
+    const external = 40_000;
+    return json({
+      window,
+      rows: [
+        {
+          vm_name: vmName,
+          deployment_id: `${vmName}-dep`,
+          service: vmRow.service ?? null,
+          asset_group: null,
+          same_region_bytes: same,
+          cross_region_bytes: cross,
+          external_bytes: external,
+          flow_count: 128,
+        },
+      ],
+    });
+  }
   // GET /api/watchdog/kill-events — watchdog kill/violation events
   // (watchdog_kill_events_deployment_observability_2026_08_05.md). Mirrors
   // deployment-api routes/watchdog_events.py's WatchdogKillEventsResponse: optional vm_name
