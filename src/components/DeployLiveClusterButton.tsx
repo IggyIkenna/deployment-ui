@@ -22,32 +22,18 @@
 
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
-const LIVE_CLUSTER_ROLES = [
-  "mtds-live",
-  "mdps-features-live",
-  "features-cross-cutting",
-  "replay-cascade",
-] as const;
+const LIVE_CLUSTER_ROLES = ["mtds-live", "mdps-features-live", "features-cross-cutting", "replay-cascade"] as const;
 
-const PER_ASSET_GROUP_ROLES = new Set<string>([
-  "mtds-live",
-  "mdps-features-live",
-  "replay-cascade",
-]);
+const PER_ASSET_GROUP_ROLES = new Set<string>(["mtds-live", "mdps-features-live", "replay-cascade"]);
 
 const WINDOW_PARAMETERISED_ROLES = new Set<string>(["replay-cascade"]);
 
-const ASSET_GROUPS = [
-  "cefi",
-  "defi",
-  "tradfi",
-  "sports",
-  "prediction",
-] as const;
+const ASSET_GROUPS = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
 const DEPLOYMENT_ENVS = ["prod", "staging", "dev"] as const;
 
 type LiveClusterRole = (typeof LIVE_CLUSTER_ROLES)[number];
@@ -75,17 +61,15 @@ export async function fetchLiveClusterPreview(
 ): Promise<LiveClusterPreviewResponse> {
   const response = await fetch("/api/data-status/deploy-live-cluster-preview", {
     method: "POST",
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json",
       Accept: "application/json",
-    },
+    }),
     body: JSON.stringify(body),
   });
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(
-      `Failed to build live-cluster preview: ${response.status} ${response.statusText} — ${detail}`,
-    );
+    throw new Error(`Failed to build live-cluster preview: ${response.status} ${response.statusText} — ${detail}`);
   }
   return (await response.json()) as LiveClusterPreviewResponse;
 }
@@ -141,12 +125,7 @@ export function DeployLiveClusterButton(): ReactElement {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen(true)}
-        data-testid="deploy-live-cluster-button"
-      >
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)} data-testid="deploy-live-cluster-button">
         Deploy live cluster
       </Button>
 
@@ -154,9 +133,8 @@ export function DeployLiveClusterButton(): ReactElement {
         <DialogHeader onClose={() => setOpen(false)}>
           <DialogTitle>Deploy live-cluster VM</DialogTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            Builds the launcher command for ONE live-pipeline VM type. Operator
-            pastes the command into a terminal with gcloud access. Operational
-            launch boundary: Phase 15 of the live-pipeline plan.
+            Builds the launcher command for ONE live-pipeline VM type. Operator pastes the command into a terminal with
+            gcloud access. Operational launch boundary: Phase 15 of the live-pipeline plan.
           </p>
         </DialogHeader>
         <DialogContent>
@@ -223,9 +201,7 @@ export function DeployLiveClusterButton(): ReactElement {
             {isWindowParameterised ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium">
-                    Replay start (ISO-8601 UTC)
-                  </label>
+                  <label className="block text-sm font-medium">Replay start (ISO-8601 UTC)</label>
                   <input
                     data-testid="deploy-live-cluster-replay-start"
                     type="text"
@@ -239,9 +215,7 @@ export function DeployLiveClusterButton(): ReactElement {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium">
-                    Replay end (ISO-8601 UTC)
-                  </label>
+                  <label className="block text-sm font-medium">Replay end (ISO-8601 UTC)</label>
                   <input
                     data-testid="deploy-live-cluster-replay-end"
                     type="text"
@@ -276,16 +250,11 @@ export function DeployLiveClusterButton(): ReactElement {
               onClick={() => void handleSubmit()}
               disabled={state.kind === "loading"}
             >
-              {state.kind === "loading"
-                ? "Building…"
-                : "Build launcher command"}
+              {state.kind === "loading" ? "Building…" : "Build launcher command"}
             </Button>
 
             {state.kind === "ready" ? (
-              <div
-                data-testid="deploy-live-cluster-preview"
-                className="space-y-2 rounded border p-3"
-              >
+              <div data-testid="deploy-live-cluster-preview" className="space-y-2 rounded border p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Launcher command</p>
                   <Button

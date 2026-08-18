@@ -431,7 +431,7 @@ describe("ShardDetailModal", () => {
     const csv = screen.getByTestId("shard-detail-download-csv") as HTMLButtonElement;
     fireEvent.click(csv);
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/data-status/shard-detail/csv?id=xyz");
+      expect(fetchMock).toHaveBeenCalledWith("/api/data-status/shard-detail/csv?id=xyz", { headers: {} });
     });
   });
 

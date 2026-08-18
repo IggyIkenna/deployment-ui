@@ -1,4 +1,5 @@
 import type { OrphanVerdict } from "./client";
+import { authHeaders } from "../auth/GoogleAuth";
 
 export interface BuildEntry {
   tag: string;
@@ -18,22 +19,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(`HTTP ${response.status}: ${text}`);
   }
   return response.json() as Promise<T>;
-}
-
-/**
- * Attaches the operator's Google-auth bearer token to a request, mirroring
- * client.ts's `createApiClient()` header-attaching logic exactly: same
- * sessionStorage key ("google_id_token"), same "omit when absent" behavior.
- * Never throws and never redirects on a missing/expired token — the request
- * just goes out without the header and the backend 401s it normally, same as
- * every other authenticated call in this app.
- */
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const storedToken = sessionStorage.getItem("google_id_token");
-  return {
-    ...(extra ?? {}),
-    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
-  };
 }
 
 export async function fetchBuilds(service: string, env: BuildEnvironment): Promise<BuildEntry[]> {

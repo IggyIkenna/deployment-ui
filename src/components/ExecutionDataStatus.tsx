@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 import {
   Database,
   RefreshCw,
@@ -152,7 +153,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
   const [showDeployRegionWarning, setShowDeployRegionWarning] = useState(false);
 
   useEffect(() => {
-    fetch("/api/config/region")
+    fetch("/api/config/region", { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         const region = data.storage_region ?? data.gcs_region ?? "asia-northeast1";
@@ -188,6 +189,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
           `&start_date=${startDate}` +
           `&end_date=${endDate}` +
           `&include_dates_list=true`,
+        { headers: authHeaders() },
       );
 
       if (!response.ok) {
@@ -242,7 +244,7 @@ export function ExecutionDataStatus({ serviceName }: ExecutionDataStatusProps) {
       // This calls the existing deployment API with the missing shards
       const response = await fetch("/api/deployments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           service: "execution-services",
           compute: "cloud_run",

@@ -1,3 +1,5 @@
+import { authHeaders } from "../auth/GoogleAuth";
+
 const DEPLOYMENT_API = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "";
 
 export interface RepoReadiness {
@@ -16,6 +18,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchRepoReadiness(): Promise<RepoReadiness[]> {
-  const response = await fetch(`${DEPLOYMENT_API}/api/repos/deploy-ready`);
+  const response = await fetch(`${DEPLOYMENT_API}/api/repos/deploy-ready`, { headers: authHeaders() });
   return handleResponse<RepoReadiness[]>(response);
 }

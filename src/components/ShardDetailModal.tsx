@@ -9,6 +9,7 @@
 
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 import { fetchShardDetail, type CaptureStatusLiteral, type ShardDetailResponse } from "../api/client";
 import { InstrumentsModal, ModalShell } from "./DataStatusDrilldown";
 import { ServiceEmissionStateBadge } from "./ServiceEmissionStateBadge";
@@ -216,7 +217,7 @@ export function ShardDetailModal({ coord, onClose }: { coord: ShardDetailCoordIn
     setCsvDownloading(true);
     setCsvError(null);
     try {
-      const res = await fetch(csvUrl);
+      const res = await fetch(csvUrl, { headers: authHeaders() });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }

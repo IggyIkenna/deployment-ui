@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertCircle, Play } from "lucide-react";
+import { authHeaders } from "../../../auth/GoogleAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -49,10 +50,10 @@ export interface PreflightPlaygroundProps {
 async function defaultSubmitter(ctx: RuleEvalContext): Promise<PreflightResult> {
   const response = await fetch("/api/risk/preflight-test", {
     method: "POST",
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json",
       Accept: "application/json",
-    },
+    }),
     body: JSON.stringify(ctx),
   });
   if (!response.ok) {

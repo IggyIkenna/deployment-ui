@@ -10,13 +10,17 @@
  * Plan: wallet_treasury_client_flow_2026_05_10.md Phase 6.
  */
 
-const DEPLOYMENT_API_BASE =
-  import.meta.env.VITE_DEPLOYMENT_API_URL ?? "http://localhost:8004";
+import { authHeaders } from "../auth/GoogleAuth";
+
+const DEPLOYMENT_API_BASE = import.meta.env.VITE_DEPLOYMENT_API_URL ?? "http://localhost:8004";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${DEPLOYMENT_API_BASE}${path}`, {
-    headers: { Accept: "application/json" },
     ...options,
+    headers: authHeaders({
+      Accept: "application/json",
+      ...(options?.headers as Record<string, string> | undefined),
+    }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -103,25 +107,16 @@ export interface ClientSubscriptions {
  * Pass rollupNavUsd to override the canonical rollup NAV — used by Playwright
  * smoke to verify the NAV reconciliation invariant.
  */
-export async function fetchClientTreasury(
-  clientId: string,
-  rollupNavUsd?: string,
-): Promise<ClientTreasury> {
-  const qs = rollupNavUsd
-    ? `?rollup_nav_usd=${encodeURIComponent(rollupNavUsd)}`
-    : "";
+export async function fetchClientTreasury(clientId: string, rollupNavUsd?: string): Promise<ClientTreasury> {
+  const qs = rollupNavUsd ? `?rollup_nav_usd=${encodeURIComponent(rollupNavUsd)}` : "";
   return apiFetch<ClientTreasury>(`/api/clients/${clientId}/treasury${qs}`);
 }
 
 /**
  * Fetch per-client share-class subscription list (Phase 6.B).
  */
-export async function fetchClientSubscriptions(
-  clientId: string,
-): Promise<ClientSubscriptions> {
-  return apiFetch<ClientSubscriptions>(
-    `/api/clients/${clientId}/subscriptions`,
-  );
+export async function fetchClientSubscriptions(clientId: string): Promise<ClientSubscriptions> {
+  return apiFetch<ClientSubscriptions>(`/api/clients/${clientId}/subscriptions`);
 }
 
 /**
@@ -137,12 +132,9 @@ export async function postWithdrawalRequest(
     operator_note?: string;
   },
 ): Promise<{ request_id: string; status: string }> {
-  return apiFetch<{ request_id: string; status: string }>(
-    `/api/clients/${clientId}/withdrawal-request`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
+  return apiFetch<{ request_id: string; status: string }>(`/api/clients/${clientId}/withdrawal-request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }

@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { authHeaders } from "../auth/GoogleAuth";
 import type {
   CoverageScope,
   DataTypeCheckResponse,
@@ -605,7 +606,7 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
   const [showDeployMissingRegionWarning, setShowDeployMissingRegionWarning] = useState<boolean>(false);
 
   useEffect(() => {
-    fetch("/api/config/region")
+    fetch("/api/config/region", { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         const region = data.storage_region ?? data.gcs_region ?? "asia-northeast1";
