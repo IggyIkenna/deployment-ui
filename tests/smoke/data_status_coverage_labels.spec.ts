@@ -33,6 +33,10 @@
  *      succeeds). With BOTH fields ABSENT (the real cron payload shape, and
  *      every existing fixture above), neither tile renders at all — no crash,
  *      no "undefined TB" text anywhere on the page.
+ *   8. The card shows a denominator-freshness trust annotation
+ *      ("denominator computed Nh ago") derived from the payload's `generated_at`
+ *      — the staleness caveat on the coverage-% headline
+ *      (`ui_satellite_ao_dispatch_batch4_2026_08_17.md` item 1).
  *
  * Regression guards:
  *   - 2026-06-15: surface a distinct headline vs secondary coverage label.
@@ -562,6 +566,33 @@ test.describe("data-status coverage labels regression", () => {
 
     const bodyText = await page.locator("body").textContent();
     expect(bodyText).not.toContain("undefined");
+  });
+
+  test("HonestCoverageCard: shows the denominator-freshness (last computed) trust annotation", async ({ page }) => {
+    await setupRoutes(page);
+    await page.goto("/home");
+    await page.waitForLoadState("networkidle");
+
+    const serviceLink = page.getByText("market-tick-data-service").first();
+    if (await serviceLink.isVisible()) {
+      await serviceLink.click();
+      await page.waitForLoadState("networkidle");
+    }
+
+    const headlineEls = page.locator('[data-testid="coverage-manifest-capture"]');
+    await headlineEls
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => {
+        // Card may not be visible if we're not on the right tab — that's OK.
+      });
+
+    if ((await headlineEls.count()) === 0) return;
+
+    const freshness = page.locator('[data-testid="coverage-denominator-freshness"]');
+    expect(await freshness.count()).toBeGreaterThan(0);
+    const text = await freshness.first().textContent();
+    expect(text).toMatch(/denominator computed (just now|\d+[mhd] ago)/);
   });
 
   test("data-status default start date is 2018-01-01", async ({ page }) => {

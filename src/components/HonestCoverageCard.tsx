@@ -187,6 +187,29 @@ function daysStale(coverageDate: string): number {
   return Math.max(0, Math.round((todayUtc - Date.UTC(y, m - 1, d)) / 86_400_000));
 }
 
+/** Human-readable "last computed" age for the denominator (coverage-%) headline —
+ * sub-day precision so the operator can tell "computed 3h ago" from "computed 23h
+ * ago" at a glance, which the whole-day `date` field alone cannot. Mirrors the
+ * consolidator tab's staleness annotation (index-age / "last run {age}"). */
+function computedAgeLabel(generatedAt: string): string {
+  const ms = Date.now() - new Date(generatedAt).getTime();
+  if (Number.isNaN(ms)) return "unknown age";
+  if (ms < 60_000) return "just now";
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Whole hours since the denominator (coverage-%) was last computed; ≥ 24 = stale
+ * (the daily measure-honest-coverage cron should refresh it at least once a day). */
+function computedAgeHours(generatedAt: string): number {
+  const ms = Date.now() - new Date(generatedAt).getTime();
+  if (Number.isNaN(ms) || ms < 0) return 0;
+  return Math.floor(ms / 3_600_000);
+}
+
 export function HonestCoverageCard({ date }: { date?: string }) {
   const [data, setData] = useState<HonestCoverageResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -232,9 +255,20 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           >
             of attempted
           </span>
+          {data?.generated_at && (
+            <span
+              className={`text-[10px] ml-auto ${
+                computedAgeHours(data.generated_at) >= 24 ? "text-amber-600" : "text-[var(--color-text-muted)]"
+              }`}
+              title={`Denominator (coverage-%) last computed ${new Date(data.generated_at).toISOString()}`}
+              data-testid="coverage-denominator-freshness"
+            >
+              denominator computed {computedAgeLabel(data.generated_at)}
+            </span>
+          )}
           {data?.date && (
             <span
-              className={`text-[10px] ml-auto ${stale >= 1 ? "text-amber-600" : "text-[var(--color-text-muted)]"}`}
+              className={`text-[10px] ${stale >= 1 ? "text-amber-600" : "text-[var(--color-text-muted)]"}`}
               title={stale >= 1 ? `Stale — measurement is ${stale} day${stale === 1 ? "" : "s"} old` : undefined}
             >
               {data.date}

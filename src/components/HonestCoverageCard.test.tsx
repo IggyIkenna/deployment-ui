@@ -272,4 +272,20 @@ describe("HonestCoverageCard", () => {
     expect(screen.queryByTestId("honest-coverage-partial-banner")).toBeNull();
     expect(screen.queryByTestId("honest-coverage-stale-banner")).toBeNull();
   });
+
+  it("shows a denominator-freshness (last computed) trust annotation on the coverage headline", async () => {
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(COVERAGE);
+
+    render(<HonestCoverageCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("cefi")).toBeTruthy();
+    });
+
+    const freshness = screen.getByTestId("coverage-denominator-freshness");
+    expect(freshness.textContent).toMatch(/denominator computed (just now|\d+[mhd] ago)/);
+    // COVERAGE.generated_at (2026-05-15) is always > 24h old at test time, so the
+    // stale-warning tone (amber) must apply.
+    expect(freshness.className).toContain("text-amber-600");
+  });
 });
