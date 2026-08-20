@@ -2436,6 +2436,28 @@ function mockEscalations() {
 // Version-coherence panel (mirrors deployment-api routes/version_coherence.py's own mock fixture —
 // one repo per verdict class so every chip tone is exercised, pinned by the playwright regression
 // spec tests/smoke/verdict-store-panels.spec.ts).
+// ── Rollout-ratchet panel — /ci (mirrors deployment-api GET /api/rollout-ratchet/overview:
+//    the panel's own mock fixture; contract per
+//    issues/rollout_ratchet_panel_ui_only_mis_scoped_needs_backend_2026_08_17.md). Missing
+//    mock route left pw:L2 red (RolloutRatchetPanel got no overview -> source chips never
+//    rendered) — added 2026-08-20 while shipping deployment_service_api_integration_cleanup_2026_08_18.md item 9.
+function mockRolloutRatchetOverview() {
+  const ts = "2026-08-20T00:00:00Z";
+  return {
+    generated_at: ts,
+    template_drift_source: "mock",
+    ruleset_drift_source: "mock",
+    template_drift: {
+      "instruments-service": { verdict: "ERROR", reasons: ["mock template drift"], checked_at: ts },
+      "unified-trading-library": { verdict: "CLEAN", reasons: [], checked_at: ts },
+    },
+    ruleset_drift: {
+      "deployment-api": { verdict: "DRIFT", reasons: ["mock ruleset drift"], checked_at: ts },
+      "unified-trading-library": { verdict: "CLEAN", reasons: [], checked_at: ts },
+    },
+  };
+}
+
 function mockVersionCoherenceOverview() {
   return {
     generated_at: "2026-07-27T12:00:00+00:00",
@@ -3624,6 +3646,9 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   }
   // Firestore verdict-store panels (monitoring_control_plane_master_2026_06_10.md) — read-only
   // proxies of unified-trading-pm's version-coherence-check.yml / change-freeze-check.yml verdicts.
+  if (path === "/api/rollout-ratchet/overview") {
+    return json(mockRolloutRatchetOverview());
+  }
   if (path === "/api/version-coherence/overview") {
     return json(mockVersionCoherenceOverview());
   }
