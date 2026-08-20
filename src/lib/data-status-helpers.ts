@@ -1,5 +1,33 @@
 import type { ShardAxisMatrixResponse, TurboAssetGroupStatus, TurboSubDimension } from "../api/client";
 
+const DENOMINATOR_STALE_AFTER_MS = 30 * 60 * 1000;
+
+export interface DenominatorFreshness {
+  label: string;
+  stale: boolean;
+}
+
+/** Format the age of the backend-computed coverage denominator for the headline. */
+export function formatDenominatorFreshness(
+  timestamp: string | undefined,
+  nowMs: number = Date.now(),
+): DenominatorFreshness | null {
+  if (!timestamp) return null;
+  const computedMs = Date.parse(timestamp);
+  if (!Number.isFinite(computedMs)) return null;
+  const ageMs = Math.max(0, nowMs - computedMs);
+  const ageMinutes = Math.floor(ageMs / 60_000);
+  const label =
+    ageMinutes < 1
+      ? "denominator last computed <1m ago"
+      : ageMinutes < 60
+        ? `denominator last computed ${ageMinutes}m ago`
+        : ageMinutes < 1_440
+          ? `denominator last computed ${Math.floor(ageMinutes / 60)}h ago`
+          : `denominator last computed ${Math.floor(ageMinutes / 1_440)}d ago`;
+  return { label, stale: ageMs >= DENOMINATOR_STALE_AFTER_MS };
+}
+
 /**
  * Return the populated sub-dimension drilldown for an asset-group entry from
  * `/api/data-status/manifest`.

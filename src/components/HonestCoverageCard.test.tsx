@@ -10,6 +10,7 @@
  *   6. Honest-absence: partial banner lists failed asset groups (P1 fix).
  *   7. Staleness: stale banner when a non-partial file predates today (14-day fallback).
  *   8. No banner when the file is today's and complete.
+ *   9. Denominator freshness annotation uses generated_at and warns after 24h.
  *
  * Plan: deployment_and_qg_strategy_implementation_2026_05_13.md Phase 4.C;
  *       data-status P1 honest-coverage partial/stale surfacing (2026-07-16).
@@ -91,6 +92,27 @@ describe("HonestCoverageCard", () => {
     //   cefi: 495/505 = 98.0% captured ; defi: 195/300 = 65.0% captured
     const captured = screen.getAllByTestId("coverage-captured").map((el) => el.textContent);
     expect(captured.some((t) => t?.includes("65.0% captured"))).toBe(true);
+  });
+
+  it("shows denominator computation age and stale warning from generated_at", async () => {
+    const fresh: HonestCoverageResponse = {
+      ...COVERAGE,
+      generated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      date: "2026-05-15",
+    };
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(fresh);
+
+    const { unmount } = render(<HonestCoverageCard />);
+    const indicator = await screen.findByTestId("coverage-denominator-freshness");
+    expect(indicator).toHaveTextContent("denominator last computed 2h ago");
+    expect(indicator).not.toHaveTextContent("may be stale");
+
+    unmount();
+    vi.spyOn(client, "getHonestCoverage").mockResolvedValue(COVERAGE);
+    render(<HonestCoverageCard />);
+    const staleIndicator = await screen.findByTestId("coverage-denominator-freshness");
+    expect(staleIndicator).toHaveTextContent(/denominator last computed \d+d ago/);
+    expect(staleIndicator).toHaveTextContent("coverage percentages may be stale");
   });
 
   it("shows not-yet-computed message when API returns null", async () => {

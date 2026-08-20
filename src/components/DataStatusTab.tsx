@@ -46,6 +46,7 @@ import {
   isPredictionCqgAxis,
   showsFixturesOnlyDrillNote,
   showsGlobalReferenceAffordance,
+  formatDenominatorFreshness,
 } from "../lib/data-status-helpers";
 import { cn, formatEventDrivenCoverageLabel, formatRatePerDay, isRateMetricRow } from "../lib/utils";
 import type {
@@ -4051,6 +4052,23 @@ function DataStatusTabInternal({ serviceName, deploymentResult, isDeploying, onD
                           <span className="ml-1 text-xs font-normal">attempted</span>
                         </div>
                       )}
+                      {(() => {
+                        const freshness = formatDenominatorFreshness(turboData.denominator_last_computed_at);
+                        return freshness ? (
+                          <div
+                            className={
+                              freshness.stale
+                                ? "text-xs text-[var(--color-accent-yellow)]"
+                                : "text-xs text-[var(--color-text-muted)]"
+                            }
+                            data-testid="coverage-denominator-freshness"
+                            title="The coverage percentage denominator comes from the last completed data-status rollup."
+                          >
+                            {freshness.label}
+                            {freshness.stale ? " · stale" : ""}
+                          </div>
+                        ) : null;
+                      })()}
                       <div className="text-xs text-[var(--color-text-muted)]">
                         {turboData.overall_shards_found ?? turboData.overall_dates_found} /{" "}
                         {turboData.overall_shards_expected ?? turboData.overall_dates_expected} shards

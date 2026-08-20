@@ -334,6 +334,10 @@ test.describe("data-status coverage labels regression", () => {
       const oowEls = page.locator('[data-testid="coverage-out-of-window"]');
       expect(await oowEls.count()).toBeGreaterThan(0);
       expect(await oowEls.first().textContent()).toBe("0");
+
+      const freshness = page.locator('[data-testid="coverage-denominator-freshness"]');
+      expect(await freshness.count()).toBeGreaterThan(0);
+      await expect(freshness.first()).toContainText("denominator last computed");
     }
   });
 

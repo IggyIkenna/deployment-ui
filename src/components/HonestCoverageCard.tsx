@@ -6,6 +6,7 @@ import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 const AG_ORDER = ["cefi", "defi", "tradfi", "sports", "prediction"] as const;
+const DENOMINATOR_STALE_AFTER_SECONDS = 24 * 60 * 60;
 
 /**
  * Accessible, clearly-distinguishable palette for the 6 coverage segments.
@@ -187,6 +188,17 @@ function daysStale(coverageDate: string): number {
   return Math.max(0, Math.round((todayUtc - Date.UTC(y, m - 1, d)) / 86_400_000));
 }
 
+/** Format the age of the server-side denominator computation for operators. */
+function formatComputationAge(generatedAt: string): { label: string; seconds: number } | null {
+  const generatedTime = Date.parse(generatedAt);
+  if (!Number.isFinite(generatedTime)) return null;
+  const seconds = Math.max(0, Math.floor((Date.now() - generatedTime) / 1000));
+  if (seconds < 60) return { label: "<1m ago", seconds };
+  if (seconds < 3600) return { label: `${Math.floor(seconds / 60)}m ago`, seconds };
+  if (seconds < 86_400) return { label: `${Math.floor(seconds / 3600)}h ago`, seconds };
+  return { label: `${Math.floor(seconds / 86_400)}d ago`, seconds };
+}
+
 export function HonestCoverageCard({ date }: { date?: string }) {
   const [data, setData] = useState<HonestCoverageResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,6 +228,8 @@ export function HonestCoverageCard({ date }: { date?: string }) {
 
   const notYetComputed = !loading && data === null && error === null;
   const stale = data?.date ? daysStale(data.date) : 0;
+  const denominatorAge = data?.generated_at ? formatComputationAge(data.generated_at) : null;
+  const denominatorStale = denominatorAge !== null && denominatorAge.seconds >= DENOMINATOR_STALE_AFTER_SECONDS;
 
   return (
     <Card>
@@ -260,6 +274,23 @@ export function HonestCoverageCard({ date }: { date?: string }) {
           <div className="text-xs text-red-500">{error}</div>
         ) : data?.by_asset_group ? (
           <div className="space-y-2">
+            {denominatorAge && (
+              <div
+                className={
+                  denominatorStale
+                    ? "flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-600"
+                    : "flex items-center gap-1.5 rounded border border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-muted)]"
+                }
+                data-testid="coverage-denominator-freshness"
+                title={data.generated_at}
+              >
+                {denominatorStale && <AlertTriangle className="h-3 w-3 shrink-0" />}
+                <span>
+                  denominator last computed {denominatorAge.label}
+                  {denominatorStale ? " — coverage percentages may be stale" : ""}
+                </span>
+              </div>
+            )}
             {data.partial ? (
               <div
                 className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-600"
