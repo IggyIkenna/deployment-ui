@@ -9,7 +9,7 @@ test("Data Status coverage headline shows denominator computation age", async ({
   await page.waitForLoadState("networkidle");
 
   const freshness = page.getByTestId("coverage-denominator-freshness").filter({
-    hasText: /denominator last computed \\d+m ago/,
+    hasText: /denominator last computed \d+m ago/,
   });
   await expect(freshness).toBeVisible({ timeout: 10000 });
   await expect(freshness).toContainText(/denominator last computed \d+m ago/);
