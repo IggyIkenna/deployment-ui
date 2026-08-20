@@ -1034,6 +1034,7 @@ const MOCK_DATA_STATUS = {
     Math.round((_MOCK_TOTAL_CAPTURED / Math.max(1, _MOCK_TOTAL_EXPECTED)) * 10000) / 100,
     100,
   ),
+  denominator_last_computed_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
   overall_dates_found: _MOCK_TOTAL_CAPTURED,
   overall_dates_expected: _MOCK_TOTAL_EXPECTED,
   overall_shards_found: _MOCK_TOTAL_CAPTURED,
