@@ -14,6 +14,7 @@ import {
   Server,
   ShieldCheck,
   Trophy,
+  Workflow,
 } from "lucide-react";
 
 type NavItem = {
@@ -116,6 +117,18 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: KeyRound,
         desc: "Credentials · date range · relaunch estimate · Tardis windows",
         short: "Venue",
+      },
+      {
+        // Cloud Run Job registry — read-only scheduled-job inventory (data-pipeline watchers,
+        // digest, deadman, consolidator liveness, wave launcher, honest coverage, …) served by
+        // deployment-api GET /api/cloud-run-jobs. Added 2026-08-20,
+        // deployment_service_api_integration_cleanup_2026_08_18.md item 9.
+        id: "cloud-run-jobs",
+        to: "/cloud-run-jobs",
+        label: "Cloud Run Jobs",
+        icon: Workflow,
+        desc: "Scheduled Cloud Run Job registry (read-only)",
+        short: "Cloud Jobs",
       },
     ],
   },

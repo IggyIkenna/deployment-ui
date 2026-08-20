@@ -3485,6 +3485,56 @@ function _mockCostIncurredUsd(monthlyUsd: number, stoppedAgeHours: number): numb
   return Math.round((monthlyUsd * stoppedAgeHours * 100) / _MOCK_AVG_HOURS_PER_MONTH) / 100;
 }
 
+// ── Cloud Run Job registry — /cloud-run-jobs page (mirrors deployment-api's
+//    GET /api/cloud-run-jobs: the pre-agreed CLOUD_RUN_JOB_REGISTRY contract from
+//    deployment_service_api_integration_cleanup_2026_08_18.md items 5-7 — a dict keyed by
+//    job name → { terraform_file, scheduler_cadence, purpose }). Real entrypoints from the
+//    plan's terraform inventory (data_pipeline_fleet_monitor_scheduler.tf, etc.). ─────────
+function mockCloudRunJobs(): Record<string, { terraform_file: string; scheduler_cadence: string; purpose: string }> {
+  return {
+    cf_manifest_audit: {
+      terraform_file: "cf_manifest_audit_scheduler.tf",
+      scheduler_cadence: "weekly",
+      purpose: "Audit change-freeze manifest for drift",
+    },
+    consolidator_liveness: {
+      terraform_file: "consolidator_liveness_scheduler.tf",
+      scheduler_cadence: "every 15m",
+      purpose: "Manifest-consolidator liveness heartbeat",
+    },
+    data_pipeline_fleet_monitor: {
+      terraform_file: "data_pipeline_fleet_monitor_scheduler.tf",
+      scheduler_cadence: "every 30m",
+      purpose: "Watch data-pipeline capture success/failure per shard (exit-code / heartbeat / meta watchers)",
+    },
+    deployment_digest: {
+      terraform_file: "deployment_digest_scheduler.tf",
+      scheduler_cadence: "00:10 UTC daily",
+      purpose: "Aggregate + post the daily deployment digest",
+    },
+    honest_coverage: {
+      terraform_file: "honest_coverage_scheduler.tf",
+      scheduler_cadence: "00:30 UTC daily",
+      purpose: "Measure honest per-shard coverage and publish coverage.json",
+    },
+    monitoring_deadman: {
+      terraform_file: "monitoring_deadman_scheduler.tf",
+      scheduler_cadence: "every 5m",
+      purpose: "Deadman switch — pages if scheduled monitors stop reporting",
+    },
+    sports_scheduler: {
+      terraform_file: "sports_scheduler.tf",
+      scheduler_cadence: "every 5m",
+      purpose: "Sports fixture scheduling / odds-sweep trigger daemon",
+    },
+    wave_launcher: {
+      terraform_file: "wave_launcher_scheduler.tf",
+      scheduler_cadence: "as scheduled",
+      purpose: "Launch VM waves for scheduled backfills",
+    },
+  };
+}
+
 async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
   await delay(getStandardMockDelayMs());
   const method = init?.method?.toUpperCase() ?? "GET";
@@ -3509,6 +3559,11 @@ async function handleRoute(url: string, init?: RequestInit): Promise<Response> {
         return json({ error: "Mock forced error", path }, entry.status);
       }
     }
+  }
+
+  // Cloud Run Job registry (mirrors deployment-api GET /api/cloud-run-jobs) — /cloud-run-jobs page
+  if (path === "/api/cloud-run-jobs") {
+    return json(mockCloudRunJobs());
   }
 
   // Cost observability (mirrors deployment-api routes/costs.py) — /ops/costs page
