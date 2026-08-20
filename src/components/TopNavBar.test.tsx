@@ -38,21 +38,31 @@ describe("TopNavBar", () => {
     }
   });
 
-  it("renders the 7 screens with no cockpit twin as route links", () => {
+  it("renders the 8 screens with no cockpit twin as route links", () => {
     renderAt("/cockpit");
     // vm-deployments (the standalone list page) is fully retired (2026-07-21) — see
     // NavMenu.test.tsx "legacy quarantine" for the nav-side coverage. venue-config is its
     // relocated venue-panel replacement (2026-07-21). vm-resource-comparison added 2026-07-27.
-    for (const id of ["home", "epics", "venue-config", "data-status", "costs", "vm-resource-comparison", "artifacts"]) {
+    // cloud-run-jobs added 2026-08-20 (deployment_service_api_integration_cleanup_2026_08_18.md item 9).
+    for (const id of [
+      "home",
+      "epics",
+      "venue-config",
+      "cloud-run-jobs",
+      "data-status",
+      "costs",
+      "vm-resource-comparison",
+      "artifacts",
+    ]) {
       expect(screen.getByTestId(`cockpit-navlink-${id}`)).toBeTruthy();
     }
   });
 
-  it("shows all 16 canonical entries — the bar is the sole nav surface", () => {
+  it("shows all 17 canonical entries — the bar is the sole nav surface", () => {
     renderAt("/cockpit");
     const bar = screen.getByTestId("top-nav-bar");
     expect(bar.querySelectorAll("a")).toHaveLength(NAV_ITEMS_CANONICAL.length);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(17);
   });
 
   it("is present off-cockpit too — that is the point of lifting it into the top bar", () => {

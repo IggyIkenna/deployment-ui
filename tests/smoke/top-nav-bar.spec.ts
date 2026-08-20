@@ -77,18 +77,28 @@ test("the bar lists each destination exactly once (no duplicate hrefs)", async (
   expect(new Set(hrefs).size).toBe(hrefs.length);
 });
 
-test("the always-visible top bar carries all 16 canonical entries", async ({ page }) => {
+test("the always-visible top bar carries all 17 canonical entries", async ({ page }) => {
   await page.goto("/cockpit");
   await expect(page.getByTestId("top-nav-bar")).toBeVisible();
 
-  // 9 cockpit tabs + the 7 screens with no cockpit twin = 16 canonical entries.
+  // 9 cockpit tabs + the 8 screens with no cockpit twin = 17 canonical entries.
   // ("artifacts" + "venue-config" are canonical; "vm-resource-comparison" added 2026-07-27,
   // deployment_durable_operational_data_bigquery_2026_07_21.md. Fleet tab removed
-  // 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md.)
+  // 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md. cloud-run-jobs added 2026-08-20,
+  // deployment_service_api_integration_cleanup_2026_08_18.md item 9.)
   await expect(page.locator('[data-testid^="cockpit-tab-"]')).toHaveCount(9);
-  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(7);
+  await expect(page.locator('[data-testid^="cockpit-navlink-"]')).toHaveCount(8);
 
-  for (const id of ["home", "epics", "data-status", "costs", "artifacts", "venue-config", "vm-resource-comparison"]) {
+  for (const id of [
+    "home",
+    "epics",
+    "data-status",
+    "costs",
+    "artifacts",
+    "venue-config",
+    "vm-resource-comparison",
+    "cloud-run-jobs",
+  ]) {
     await expect(page.getByTestId(`cockpit-navlink-${id}`)).toBeVisible();
   }
 });

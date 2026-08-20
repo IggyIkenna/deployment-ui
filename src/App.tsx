@@ -30,6 +30,7 @@ import { MlExperiments } from "./pages/MlExperiments";
 import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VenueConfig } from "./pages/VenueConfig";
+import { CloudRunJobs } from "./pages/CloudRunJobs";
 
 // ---------------------------------------------------------------------------
 
@@ -67,6 +68,7 @@ function App() {
                   <Route path="/deploy" element={<CockpitDeploy />} />
                   <Route path="/deployments" element={<DeploymentsPage />} />
                   <Route path="/deployments/:name" element={<DeploymentDetail />} />
+                  <Route path="/cloud-run-jobs" element={<CloudRunJobs />} />
                   {/* Canonical home for the 4 venue-config panels, relocated out of the
                       legacy-quarantined /vm-deployments page (2026-07-21, see
                       unified-trading-pm/plans/active/issues/vm_deployments_venue_panels_orphaned_route_2026_07_21.md).

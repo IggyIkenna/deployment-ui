@@ -113,21 +113,23 @@ describe("cockpit bar shared source (the dropdown that used to share it was dele
   it("splits the canonical entries into former-pane tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 9 former cockpit panes + the 7 screens with no pane heritage = 16 canonical entries
+    // 9 former cockpit panes + the 8 screens with no pane heritage = 17 canonical entries
     // (vm-deployments moved to the legacy quarantine — see "legacy quarantine" describe above;
     // venue-config is its relocated venue-panel replacement, added 2026-07-21; fleet's own pane
     // was removed 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md; vm-resource-comparison
-    // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md).
+    // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md; cloud-run-jobs
+    // added 2026-08-20, deployment_service_api_integration_cleanup_2026_08_18.md item 9).
     expect(tabs).toHaveLength(9);
     expect(links).toEqual([
       "home",
       "epics",
       "venue-config",
+      "cloud-run-jobs",
       "data-status",
       "costs",
       "vm-resource-comparison",
       "artifacts",
     ]);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(16);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(17);
   });
 });
