@@ -31,6 +31,8 @@ import { StrategyBacktests } from "./pages/StrategyBacktests";
 import { VmDeploymentDetails } from "./pages/VmDeploymentDetails";
 import { VenueConfig } from "./pages/VenueConfig";
 import { CloudRunJobs } from "./pages/CloudRunJobs";
+import { KillSwitchTab } from "./components/widgets/kill_switch/register";
+import { RiskTab } from "./components/widgets/risk/register";
 
 // ---------------------------------------------------------------------------
 
@@ -81,6 +83,32 @@ function App() {
                   <Route path="/launch" element={<CockpitLaunch />} />
                   <Route path="/chaos" element={<CockpitChaos />} />
                   <Route path="/safety-ops" element={<CockpitSafety />} />
+                  {/* Kill Switch + Risk — DR plan Phase 7.B / Risk plan Phase 6.C shipped
+                      deployment-ui@33e6ea0 (component + register.ts registry) but were never
+                      mounted (no route, no nav entry — see
+                      unified-trading-pm/plans/archive/disaster_recovery_circuit_breakers_2026_05_10.md
+                      Phase 7.B + plans/archive/risk_simulations_limits_alerting_2026_05_10.md
+                      Phase 6.C, both `status: complete`). Backend endpoints
+                      (`/api/kill-switch/*`, `/api/risk/*`) are registered in deployment-api's
+                      main.py. Own top-level routes (not folded into /safety-ops, which is a
+                      distinct incident-governance placeholder against alerting-service, not the
+                      UTL KillSwitchBus this tab reads). */}
+                  <Route
+                    path="/kill-switch"
+                    element={
+                      <main className="w-full app-shell-gutter py-4">
+                        <KillSwitchTab />
+                      </main>
+                    }
+                  />
+                  <Route
+                    path="/risk"
+                    element={
+                      <main className="w-full app-shell-gutter py-4">
+                        <RiskTab />
+                      </main>
+                    }
+                  />
                   {/* /vm-deployments (the standalone list page) is RETIRED (2026-07-21) — its 2
                       remaining unique features now have real homes: "Reconcile Registry" moved to
                       /deployments' header, and the raw active+archive VM table was deleted as

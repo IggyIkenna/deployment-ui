@@ -11,7 +11,9 @@ import {
   Layers,
   Package,
   Rocket,
+  Scale,
   Server,
+  ShieldAlert,
   ShieldCheck,
   Trophy,
   Workflow,
@@ -218,6 +220,28 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShieldCheck,
         desc: "Kill-switch + guardrails",
         short: "Safety",
+      },
+      {
+        // DR plan Phase 7.B (disaster_recovery_circuit_breakers_2026_05_10.md, status: complete)
+        // — per-switch arm/disarm + audit log against the UTL KillSwitchBus, distinct from the
+        // /safety-ops incident-governance placeholder above. Added 2026-08-21.
+        id: "kill-switch",
+        to: "/kill-switch",
+        label: "Kill Switch",
+        icon: ShieldAlert,
+        desc: "Per-switch arm/disarm + audit log",
+        short: "Kill Switch",
+      },
+      {
+        // Risk plan Phase 6.C (risk_simulations_limits_alerting_2026_05_10.md, status: complete)
+        // — rule browser + preflight playground against deployment-api's /api/risk/*. Added
+        // 2026-08-21.
+        id: "risk",
+        to: "/risk",
+        label: "Risk",
+        icon: Scale,
+        desc: "Rule browser + preflight playground",
+        short: "Risk",
       },
       {
         id: "chaos",

@@ -113,12 +113,13 @@ describe("cockpit bar shared source (the dropdown that used to share it was dele
   it("splits the canonical entries into former-pane tabs vs route links as the bar renders them", () => {
     const tabs = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) !== null).map((i) => i.id);
     const links = NAV_ITEMS_CANONICAL.filter((i) => cockpitTabIdFor(i.to) === null).map((i) => i.id);
-    // 9 former cockpit panes + the 8 screens with no pane heritage = 17 canonical entries
+    // 9 former cockpit panes + the 10 screens with no pane heritage = 19 canonical entries
     // (vm-deployments moved to the legacy quarantine — see "legacy quarantine" describe above;
     // venue-config is its relocated venue-panel replacement, added 2026-07-21; fleet's own pane
     // was removed 2026-07-27, deployment_ui_fleet_tab_removal_2026_07_27.md; vm-resource-comparison
     // added 2026-07-27, deployment_durable_operational_data_bigquery_2026_07_21.md; cloud-run-jobs
-    // added 2026-08-20, deployment_service_api_integration_cleanup_2026_08_18.md item 9).
+    // added 2026-08-20, deployment_service_api_integration_cleanup_2026_08_18.md item 9; kill-switch
+    // + risk added 2026-08-21, DR plan Phase 7.B + Risk plan Phase 6.C mounted).
     expect(tabs).toHaveLength(9);
     expect(links).toEqual([
       "home",
@@ -129,7 +130,9 @@ describe("cockpit bar shared source (the dropdown that used to share it was dele
       "costs",
       "vm-resource-comparison",
       "artifacts",
+      "kill-switch",
+      "risk",
     ]);
-    expect(NAV_ITEMS_CANONICAL).toHaveLength(17);
+    expect(NAV_ITEMS_CANONICAL).toHaveLength(19);
   });
 });
